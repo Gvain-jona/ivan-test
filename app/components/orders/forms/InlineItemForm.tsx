@@ -71,7 +71,8 @@ export function InlineItemForm({
     refreshOptions: refreshCategories
   } = useSmartDropdown({
     entityType: 'categories',
-    initialOptions: categories.map(c => ({ value: c.value, label: c.label })),
+    // Don't use hardcoded initialOptions
+    initialOptions: [],
   });
 
   const {
@@ -83,8 +84,8 @@ export function InlineItemForm({
   } = useSmartDropdown({
     entityType: 'items',
     parentId: selectedCategoryId,
-    initialOptions: items.filter(item => !selectedCategoryId || item.categoryId === selectedCategoryId)
-      .map(i => ({ value: i.value, label: i.label, categoryId: i.categoryId })),
+    // Don't use hardcoded initialOptions
+    initialOptions: [],
   });
 
   // Use our smart sizes hook
@@ -128,9 +129,7 @@ export function InlineItemForm({
 
   // Handle creating a new item
   const handleCreateItem = async (value: string) => {
-    if (!selectedCategoryId) {
-      return null;
-    }
+    // We no longer require a category to be selected first
     const newItem = await createItem(value);
     if (newItem) {
       form.setValue('item_id', newItem.value);
@@ -235,7 +234,7 @@ export function InlineItemForm({
                       onChange={field.onChange}
                       onSearch={setCategorySearch}
                       isLoading={categoriesLoading}
-                      placeholder="Select or search category"
+                      placeholder="Select category"
                       allowCreate={true}
                       onCreateOption={handleCreateCategory}
                       entityName="Category"
@@ -260,12 +259,12 @@ export function InlineItemForm({
                       onChange={handleItemChange}
                       onSearch={setItemSearch}
                       isLoading={itemsLoading}
-                      placeholder={selectedCategoryId ? "Select or search item" : "Select a category first"}
-                      disabled={!selectedCategoryId}
-                      allowCreate={selectedCategoryId ? true : false}
+                      placeholder="Select item"
+                      disabled={false} // Always allow selection
+                      allowCreate={true} // Always allow creation
                       onCreateOption={handleCreateItem}
                       entityName="Item"
-                      emptyMessage={selectedCategoryId ? "No items found. Create one?" : "Select a category first"}
+                      emptyMessage="No items found. Create one?"
                     />
                   </FormControl>
                   <FormMessage />

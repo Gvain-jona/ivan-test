@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react"
+import { AlertCircle, Check, ChevronsUpDown, Loader2, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -68,29 +68,57 @@ export function SmartCombobox({
   const [isCreating, setIsCreating] = React.useState(false)
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
-  // Filter options locally for immediate feedback
+  // Basic filtering for client-side search
   const filteredOptions = React.useMemo(() => {
+    // If no search value, return all options
     if (!searchValue || searchValue.trim() === '') {
       return options
     }
 
-    const lowerSearch = searchValue.toLowerCase()
+    const trimmedSearch = searchValue.trim().toLowerCase()
+
+    // Simple filtering - just check if the label includes the search term
     return options.filter(option =>
-      option.label.toLowerCase().includes(lowerSearch)
+      option.label.toLowerCase().includes(trimmedSearch)
     )
   }, [options, searchValue])
 
   const selectedOption = React.useMemo(() => {
-    console.log('Finding selected option for value:', safeValue)
-    console.log('Available options:', options)
-    const found = options?.find(option => option.value === safeValue) || null
-    console.log('Found option:', found)
+    // Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Finding selected option for value:', safeValue)
+      console.log('Available options count:', options?.length || 0)
+    }
+
+    // Handle case sensitivity and type issues
+    const found = options?.find(option =>
+      // Try exact match first
+      option.value === safeValue ||
+      // Then try case-insensitive string comparison
+      (typeof option.value === 'string' &&
+       typeof safeValue === 'string' &&
+       option.value.toLowerCase() === safeValue.toLowerCase())
+    ) || null
+
+    if (process.env.NODE_ENV === 'development' && found) {
+      console.log('Found option:', found)
+    }
+
     return found
   }, [options, safeValue])
 
   const handleSearch = React.useCallback((value: string) => {
-    console.log('Search input changed:', value)
+    // Add a unique identifier to each search to help with debugging
+    const searchId = Math.random().toString(36).substring(2, 9)
+    console.log('Search input changed:', value, { searchId, selectedValue: safeValue })
+
+    // Update local state immediately for responsive UI
     setSearchValue(value)
+
+    // Open the dropdown when user starts typing
+    if (value.trim() !== '' && !open) {
+      setOpen(true)
+    }
 
     if (onSearch) {
       // Clear any existing timeout
@@ -98,13 +126,16 @@ export function SmartCombobox({
         clearTimeout(searchTimeoutRef.current)
       }
 
-      // Set a new timeout
+      // Use a fixed debounce time for all searches
+      const debounceTime = 300
+
+      // Set a new timeout for server-side search
       searchTimeoutRef.current = setTimeout(() => {
-        console.log('Debounced search triggered:', value)
+        console.log('Debounced search triggered:', value, { searchId, selectedValue: safeValue })
         onSearch(value)
-      }, searchDebounce)
+      }, debounceTime)
     }
-  }, [onSearch, searchDebounce])
+  }, [onSearch, open, safeValue])
 
   // Clean up timeout on unmount
   React.useEffect(() => {
@@ -118,13 +149,47 @@ export function SmartCombobox({
   const handleCreateOption = React.useCallback(async () => {
     if (!onCreateOption || !searchValue || !allowCreate) return
 
+    // Trim the search value to remove whitespace
+    const trimmedValue = searchValue.trim()
+
+    // Validate the input
+    if (!trimmedValue) {
+      toast({
+        title: "Error",
+        description: `${entityName} name cannot be empty.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    // We no longer need to check for special options since we've removed the constraint
+
+    // Check if the option already exists in the filtered options
+    const existingOption = filteredOptions.find(
+      option => option.label.toLowerCase() === trimmedValue.toLowerCase()
+    )
+
+    if (existingOption) {
+      // If it exists, just select it instead of creating a new one
+      console.log(`Option "${trimmedValue}" already exists, selecting it:`, existingOption)
+      onChange(existingOption.value)
+      setSearchValue("")
+      setOpen(false)
+      return
+    }
+
     try {
       setIsCreating(true)
-      console.log('Creating new option:', searchValue)
-      const newOption = await onCreateOption(searchValue)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Creating new option:', trimmedValue)
+      }
+
+      const newOption = await onCreateOption(trimmedValue)
 
       if (newOption) {
-        console.log('New option created successfully:', newOption)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('New option created successfully:', newOption)
+        }
         onChange(newOption.value)
         setSearchValue("")
         toast({
@@ -143,10 +208,22 @@ export function SmartCombobox({
       setIsCreating(false)
       setOpen(false)
     }
-  }, [onCreateOption, searchValue, allowCreate, onChange, entityName])
+  }, [onCreateOption, searchValue, allowCreate, onChange, entityName, filteredOptions, options])
+
+  // Handle opening and closing the dropdown, respecting the disabled state
+  const handleOpenChange = React.useCallback((isOpen: boolean) => {
+    if (!disabled) {
+      setOpen(isOpen)
+
+      // When closing the dropdown, clear the search value but keep the selected value
+      if (!isOpen) {
+        setSearchValue('')
+      }
+    }
+  }, [disabled])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -154,11 +231,33 @@ export function SmartCombobox({
           aria-expanded={open}
           className={cn(
             "w-full justify-between bg-background border-input",
+            disabled ? "opacity-70 cursor-not-allowed" : "",
             className
           )}
+          onClick={(e) => {
+            // Prevent opening the dropdown if disabled
+            if (disabled) {
+              e.preventDefault()
+              e.stopPropagation()
+
+              // Show a toast to inform the user why it's disabled
+              if (placeholder.includes("category")) {
+                toast({
+                  title: "Select a category first",
+                  description: "You need to select a category before selecting an item.",
+                  variant: "default",
+                })
+              }
+            }
+          }}
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          {/* Always show the selected option if it exists, regardless of search state */}
+          {selectedOption ? (
+            <span className="truncate">{selectedOption.label}</span>
+          ) : (
+            <span className="text-muted-foreground">{placeholder}</span>
+          )}
           {isLoading ? (
             <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin" />
           ) : (
@@ -168,22 +267,46 @@ export function SmartCombobox({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput
-            placeholder="Search..."
-            value={searchValue}
-            onValueChange={handleSearch}
-          />
+          <div className="px-3 py-2">
+            <input
+              type="text"
+              placeholder="Type to search..."
+              value={searchValue}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full bg-transparent outline-none text-sm"
+              autoFocus={true}
+              onKeyDown={(e) => {
+                // Prevent form submission when pressing Enter
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+
+                  // If there's exactly one filtered option, select it
+                  if (filteredOptions.length === 1) {
+                    onChange(filteredOptions[0].value);
+                    setSearchValue('');
+                    setOpen(false);
+                  }
+                } else if (e.key === 'Escape') {
+                  // If user presses Escape, clear search but keep the selected value
+                  setSearchValue('');
+                  setOpen(false);
+                }
+              }}
+            />
+          </div>
           <CommandList>
             {recentOptions.length > 0 && (
               <>
                 <CommandGroup heading="Recently Used">
                   {recentOptions.map((option) => (
-                    <CommandItem
+                    <div
                       key={`recent-${option.value}`}
-                      value={option.value}
-                      onSelect={(currentValue) => {
+                      className={cn(
+                        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                        safeValue === option.value ? "bg-accent text-accent-foreground" : ""
+                      )}
+                      onClick={() => {
                         console.log('Recent option selected:', option.label, 'value:', option.value)
-                        console.log('Current value from onSelect (recent):', currentValue)
                         // Use the option.value directly to ensure we're using the correct value
                         onChange(option.value)
                         setSearchValue('')
@@ -197,7 +320,7 @@ export function SmartCombobox({
                         )}
                       />
                       {option.label}
-                    </CommandItem>
+                    </div>
                   ))}
                 </CommandGroup>
                 <CommandSeparator />
@@ -210,28 +333,50 @@ export function SmartCombobox({
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : filteredOptions && filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={(currentValue) => {
-                      console.log('Option selected:', option.label, 'value:', option.value)
-                      console.log('Current value from onSelect:', currentValue)
-                      // Use the option.value directly to ensure we're using the correct value
-                      onChange(option.value)
-                      setSearchValue('')
-                      setOpen(false)
-                    }}
-                  >
-                    <Check
+                filteredOptions.map((option) => {
+                  // Check if this is a special option (like 'select-category-first')
+                  const isSpecialOption = option.value === 'select-category-first';
+
+                  return (
+                    <div
+                      key={option.value}
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        safeValue === option.value ? "opacity-100" : "opacity-0"
+                        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                        safeValue === option.value ? "bg-accent text-accent-foreground" : "",
+                        isSpecialOption ? "opacity-70 italic" : ""
                       )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))
+                      onClick={() => {
+                        if (isSpecialOption) {
+                          // For special options, just show a toast instead of selecting
+                          toast({
+                            title: 'Select a category first',
+                            description: 'You need to select a category before selecting an item.',
+                            variant: 'default',
+                          })
+                          return;
+                        }
+
+                        console.log('Option selected:', option.label, 'value:', option.value)
+                        // Use the option.value directly to ensure we're using the correct value
+                        onChange(option.value)
+                        setSearchValue('')
+                        setOpen(false)
+                      }}
+                    >
+                      {isSpecialOption ? (
+                        <AlertCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            safeValue === option.value ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      )}
+                      {option.label}
+                    </div>
+                  );
+                })
               ) : (
                 <CommandEmpty>
                   {emptyMessage}
@@ -240,23 +385,35 @@ export function SmartCombobox({
             </CommandGroup>
           </CommandList>
 
-          {allowCreate && searchValue && options && !filteredOptions.some(option =>
-            option.label.toLowerCase() === searchValue.toLowerCase()
-          ) && (
+          {allowCreate && searchValue && searchValue.trim() !== '' && (
             <div className="p-2 border-t">
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full flex items-center justify-center"
                 onClick={handleCreateOption}
-                disabled={isCreating}
+                disabled={isCreating ||
+                  filteredOptions.some(option =>
+                    option.label.toLowerCase() === searchValue.trim().toLowerCase()
+                  )
+                }
               >
                 {isCreating ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : filteredOptions.some(option =>
+                  option.label.toLowerCase() === searchValue.trim().toLowerCase()
+                ) ? (
+                  <Check className="mr-2 h-4 w-4" />
                 ) : (
                   <Plus className="mr-2 h-4 w-4" />
                 )}
-                {createMessage} "{searchValue}"
+                {filteredOptions.some(option =>
+                  option.label.toLowerCase() === searchValue.trim().toLowerCase()
+                ) ? (
+                  `Select "${searchValue.trim()}"`
+                ) : (
+                  `${createMessage} "${searchValue.trim()}"`
+                )}
               </Button>
             </div>
           )}

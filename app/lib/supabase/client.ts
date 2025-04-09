@@ -1,25 +1,20 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { type SupabaseClient } from '@supabase/supabase-js'
 
-// Singleton instance
-let supabaseInstance: SupabaseClient | null = null
-
 /**
  * Creates a Supabase client for database operations
- * Uses a singleton pattern to prevent multiple instances
+ * Creates a new instance each time to prevent cross-instance contamination
  */
 export function createClient() {
-  if (supabaseInstance) {
-    return supabaseInstance
+  // Log the Supabase URL and key to verify they're being loaded correctly (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Not loaded')
   }
 
-  // Log the Supabase URL and key to verify they're being loaded correctly
-  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Not loaded')
-
-  // Create a browser client that properly handles cookies
-  // We don't need to specify cookies options as it will use document.cookie API automatically
-  supabaseInstance = createBrowserClient(
+  // Create a new browser client each time
+  // This prevents cross-instance contamination
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -31,6 +26,4 @@ export function createClient() {
       }
     }
   )
-
-  return supabaseInstance
 }
