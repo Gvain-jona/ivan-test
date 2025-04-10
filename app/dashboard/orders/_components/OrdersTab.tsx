@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '../../../components/ui/button';
 import OrdersTable from '../../../components/orders/OrdersTable';
-import OrderFilters from '../../../components/orders/OrderFilters';
+import FilterDrawer, { OrderFilters as FilterTypes } from '../../../components/orders/FilterDrawer';
 import { useOrdersPage } from '../_context/OrdersPageContext';
 
 /**
@@ -45,29 +45,17 @@ const OrdersTab: React.FC = () => {
   } = useOrdersPage();
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      {showFilters && (
-        <div className="bg-[#1E1E2D] border border-[#2B2B40] rounded-xl p-4 shadow-lg">
-          <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-sm font-medium text-white">Filter Orders</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetFilters}
-              className="h-8 text-[#6D6D80] hover:text-white hover:bg-[#1E1E2D]/80"
-            >
-              Reset Filters
-            </Button>
-          </div>
-          <OrderFilters
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onSearch={handleSearch}
-            onReset={resetFilters}
-          />
-        </div>
-      )}
+    <div className="space-y-5">
+      {/* Filter Drawer */}
+      <FilterDrawer
+        open={showFilters}
+        onOpenChange={toggleFilters}
+        onApplyFilters={(newFilters: FilterTypes) => {
+          handleFilterChange(newFilters);
+        }}
+        onResetFilters={resetFilters}
+        initialFilters={filters}
+      />
 
       {/* Orders Table */}
       <OrdersTable
@@ -90,6 +78,7 @@ const OrdersTab: React.FC = () => {
         onExport={() => console.log('Export')}
         onCreateOrder={handleCreateOrder}
         searchTerm={searchTerm}
+        showFilters={showFilters}
       />
     </div>
   );
