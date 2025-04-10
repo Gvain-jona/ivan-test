@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { DashboardLayout } from '@/components/layouts/DashboardLayout'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SmartCombobox } from '@/components/ui/smart-combobox'
 import { useSmartSizes } from '@/hooks/useSmartSizes'
