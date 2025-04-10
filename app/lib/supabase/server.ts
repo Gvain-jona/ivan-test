@@ -23,8 +23,7 @@ export async function createClient() {
   console.log('Server Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
   console.log('Server Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Not loaded')
 
-  // Get the cookies store asynchronously
-  const cookieStore = await cookies()
+  const cookieStore = cookies()
 
   // Create a server client that properly handles cookies
   cachedClient = createServerClient(
@@ -32,23 +31,18 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value
+        getAll() {
+          return cookieStore.getAll()
         },
-        set(name, value, options) {
+        setAll(cookiesToSet) {
           try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // This will throw in middleware, but we can safely ignore it
-            console.error('Error setting cookie:', error)
-          }
-        },
-        remove(name, options) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // This will throw in middleware, but we can safely ignore it
-            console.error('Error removing cookie:', error)
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
           }
         },
       },
