@@ -1,37 +1,51 @@
 /**
  * CSRF Protection Utilities
  * 
- * This file provides utilities for CSRF protection in forms.
+ * This module provides utilities for CSRF token generation and validation
+ * to protect against Cross-Site Request Forgery attacks.
  */
 
-import crypto from 'crypto';
+import { randomBytes } from 'crypto';
 
 /**
- * Generate a CSRF token
- * 
- * @returns CSRF token
+ * Generate a random CSRF token
+ * @returns A random string to use as a CSRF token
  */
-export function generateCsrfToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+export function generateCSRFToken(): string {
+  return randomBytes(32).toString('hex');
 }
 
 /**
  * Validate a CSRF token
- * 
- * @param token - The token to validate
- * @param storedToken - The stored token to compare against
- * @returns Whether the token is valid
+ * @param token The token to validate
+ * @param storedToken The stored token to compare against
+ * @returns boolean indicating if the token is valid
  */
-export function validateCsrfToken(token: string, storedToken: string): boolean {
+export function validateCSRFToken(token: string, storedToken: string): boolean {
   if (!token || !storedToken) {
     return false;
   }
   
-  // Use constant-time comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(token),
-    Buffer.from(storedToken)
-  );
+  // Use timing-safe comparison
+  return timingSafeEqual(token, storedToken);
+}
+
+/**
+ * Timing-safe string comparison to prevent timing attacks
+ * @param a First string to compare
+ * @param b Second string to compare
+ * @returns boolean indicating if the strings are equal
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 /**
@@ -79,7 +93,7 @@ export function retrieveCsrfToken(key = 'csrf_token'): string | null {
  * @returns The generated CSRF token
  */
 export function generateAndStoreToken(key = 'csrf_token'): string {
-  const token = generateCsrfToken();
+  const token = generateCSRFToken();
   storeCsrfToken(token, key);
   return token;
 }

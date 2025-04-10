@@ -1,3 +1,9 @@
+'use client';
+
+/**
+ * Utility functions for handling push notifications
+ */
+
 /**
  * Check if push notifications are supported in the current browser
  */
@@ -50,6 +56,23 @@ export function sendNotification(
 }
 
 /**
+ * Show a notification with a title and message
+ * @param title - The notification title
+ * @param message - The notification message
+ * @param options - Additional notification options
+ */
+export function showNotification(
+  title: string,
+  message: string,
+  options: Partial<NotificationOptions> = {}
+): void {
+  sendNotification(title, {
+    body: message,
+    ...options,
+  });
+}
+
+/**
  * Register the service worker for push notifications
  */
 export async function registerServiceWorker(): Promise<void> {
@@ -63,4 +86,4 @@ export async function registerServiceWorker(): Promise<void> {
   } catch (error) {
     console.error('Service Worker registration failed:', error);
   }
-} 
+}
