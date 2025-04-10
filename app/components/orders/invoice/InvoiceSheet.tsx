@@ -37,13 +37,35 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
       notes: `Thank you for your business!`,
       paymentTerms: 'Payment due within 30 days.',
       customHeader: '',
-      customFooter: '',
+      customFooter: 'Making You Visible.',
+      tinNumber: '1028570150',
+      proformaNumber: order?.id.substring(0, 8) || '',
+      companyName: 'IVAN PRINTS',
+      companyEmail: 'sherilex256@gmail.com',
+      companyPhone: '0755 541 373',
+      companyAddress: 'Printing, Designing, Branding.',
+      companyLogo: '/images/logo.png',
+      // Bank details from the image
+      bankName: 'ABSA BANK',
+      accountName: 'IVAN PRINTS',
+      accountNumber: '6008084570',
+      // Mobile money details from the image
+      mobileProvider: 'Airtel',
+      mobilePhone: '0755 541 373',
+      mobileContact: '(Vuule Abdul)',
     },
   });
 
   // Custom hooks
-  const { invoiceUrl, isGenerating, generateInvoiceWithSettings } = useInvoiceGeneration({
-    orderId: order.id
+  const {
+    invoiceUrl,
+    isGenerating,
+    error,
+    generateInvoiceWithSettings,
+    resetInvoice
+  } = useInvoiceGeneration({
+    orderId: order?.id || '',
+    order: order
   });
 
   const { handleDownload, handlePrint } = useInvoiceActions({
@@ -54,8 +76,14 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   const handleGenerate = async () => {
     const settings = form.getValues();
     await generateInvoiceWithSettings(settings);
-    setActiveTab('preview');
+    // Only switch to preview if no error occurred
+    if (!error) {
+      setActiveTab('preview');
+    }
   };
+
+  // If no order is provided, don't render anything
+  if (!order) return null;
 
   return (
     <OrderSheet
@@ -92,6 +120,7 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
                 order={order}
                 invoiceUrl={invoiceUrl}
                 isGenerating={isGenerating}
+                error={error}
                 settings={form.getValues()}
                 onGenerate={handleGenerate}
               />
@@ -104,43 +133,64 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
         </Tabs>
       </div>
 
-      <div className="border-t border-[#2B2B40] p-6 flex flex-wrap gap-3">
-        {invoiceUrl && (
-          <>
+      <div className="border-t border-[#2B2B40] p-6 flex flex-wrap gap-3 justify-between">
+        <div className="flex gap-3">
+          {invoiceUrl && (
+            <>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  onClick={handleDownload}
+                  className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF
+                </Button>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  onClick={handlePrint}
+                  variant="outline"
+                  className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white flex items-center"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print
+                </Button>
+              </motion.div>
+            </>
+          )}
+
+          {!invoiceUrl && activeTab === 'settings' && (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
-                onClick={handleDownload}
-                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={handleGenerate}
+                className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
+                disabled={isGenerating}
               >
-                <Download className="mr-2 h-4 w-4" />
-                Download PDF
+                {isGenerating ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generate Invoice
+                  </>
+                )}
               </Button>
             </motion.div>
-
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                onClick={handlePrint}
-                variant="outline"
-                className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white"
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
-            </motion.div>
-          </>
-        )}
-
-        {!invoiceUrl && activeTab === 'settings' && (
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              onClick={handleGenerate}
-              className="bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={isGenerating}
-            >
-              {isGenerating ? 'Generating...' : 'Generate Invoice'}
-            </Button>
-          </motion.div>
-        )}
+          )}
+        </div>
+        
+        <div>
+          {error && (
+            <div className="flex-1 p-3 bg-red-500/10 text-red-400 rounded border border-red-500/20 max-w-md">
+              <p className="font-semibold mb-1">Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+        </div>
       </div>
     </OrderSheet>
   );

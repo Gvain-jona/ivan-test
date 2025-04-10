@@ -6,7 +6,7 @@
  */
 
 import { createClient } from '../supabase/client';
-import { createServerClient } from '../supabase/server';
+import { createClient as createServerClient } from '../supabase/server';
 import { cookies } from 'next/headers';
 
 // Error handling
@@ -28,10 +28,9 @@ export class DatabaseError extends Error {
  * @param serverSide - Whether to create a server-side client
  * @returns A Supabase client instance
  */
-export function getDbClient(serverSide = false) {
+export async function getDbClient(serverSide = false) {
   if (serverSide) {
-    const cookieStore = cookies();
-    return createServerClient(cookieStore);
+    return await createServerClient();
   }
 
   return createClient();
@@ -107,7 +106,7 @@ export const db = {
     serverSide = false
   ): Promise<PaginatedResponse<T>> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       // Start the query
       let query = supabase
@@ -195,7 +194,7 @@ export const db = {
     serverSide = false
   ): Promise<T> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { data, error } = await supabase
         .from(table)
@@ -238,7 +237,7 @@ export const db = {
     serverSide = false
   ): Promise<T> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { data: record, error } = await supabase
         .from(table)
@@ -279,7 +278,7 @@ export const db = {
     serverSide = false
   ): Promise<T> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { data: record, error } = await supabase
         .from(table)
@@ -318,7 +317,7 @@ export const db = {
     serverSide = false
   ): Promise<void> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { error } = await supabase
         .from(table)
@@ -354,7 +353,7 @@ export const db = {
     serverSide = false
   ): Promise<T[]> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: query,
@@ -386,7 +385,7 @@ export const db = {
    */
   async beginTransaction(serverSide = false): Promise<string> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { data, error } = await supabase.rpc('begin_transaction');
 
@@ -414,7 +413,7 @@ export const db = {
    */
   async commitTransaction(serverSide = false): Promise<void> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { error } = await supabase.rpc('commit_transaction');
 
@@ -440,7 +439,7 @@ export const db = {
    */
   async rollbackTransaction(serverSide = false): Promise<void> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { error } = await supabase.rpc('rollback_transaction');
 
@@ -473,7 +472,7 @@ export const db = {
     serverSide = false
   ): Promise<any> {
     try {
-      const supabase = getDbClient(serverSide);
+      const supabase = await getDbClient(serverSide);
 
       const { data, error } = await supabase
         .rpc(funcName, params);

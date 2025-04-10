@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Order, OrderItem, OrderPayment } from '@/types/orders';
 import { createClient } from '@/lib/supabase/client';
 import { useOrdersPage } from '@/app/dashboard/orders/_context/OrdersPageContext';
+import { showNotification, requestNotificationPermission } from '@/utils/push-notifications';
 
 interface UseOrderCreationProps {
   onSuccess?: (orderId: string) => void;
@@ -16,10 +17,13 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
 
   // Get the handleLoadMore function from the OrdersPage context to refresh the orders list
   // We use a try-catch because this hook might be used outside the OrdersPage context
-  let handleLoadMore: (() => Promise<void>) | undefined;
+  let handleLoadMore: ((showToast?: boolean) => Promise<void>) | undefined;
   try {
     const ordersPageContext = useOrdersPage();
-    handleLoadMore = ordersPageContext.handleLoadMore;
+    // Convert the handleLoadMore function to a Promise if it's not already
+    handleLoadMore = async (showToast: boolean = true) => {
+      await Promise.resolve(ordersPageContext.handleLoadMore(showToast));
+    };
   } catch (error) {
     // The hook is being used outside the OrdersPage context, which is fine
     console.log('useOrderCreation used outside OrdersPage context');
@@ -83,10 +87,10 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
       });
 
       // Prepare payments for the function
-      const payments = ((order as any).payments || []).map((payment: OrderPayment) => {
+      const payments = ((order as any).payments || []).map((payment: any) => {
         // Ensure we have a payment_date for the database function
-        // The database function expects payment_date but our OrderPayment type uses date
-        const payment_date = payment.date || new Date().toISOString().split('T')[0];
+        // The database function expects payment_date but our form might use different field names
+        const payment_date = payment.payment_date || payment.date || new Date().toISOString().split('T')[0];
 
         console.log('Processing payment for database:', {
           original: payment,
@@ -177,41 +181,76 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
           } else {
             console.log('Notification created successfully:', notificationData);
 
-            // Show a toast notification to the user
-            toast({
-              title: "Order Created",
-              description: `New order for ${clientData.name} has been created successfully.`,
-              variant: "default",
-            });
+            // Don't show a toast here - it will be shown by the OrderFormSheet component
+            console.log('Order created successfully for', clientData.name);
+
+            // Show a push notification if permission is granted
+            if (Notification.permission === 'granted') {
+              showNotification('New Order Created', {
+                body: `New order created for ${clientData.name} with ${items.length} item(s)`,
+                data: {
+                  url: `/dashboard/orders?id=${data.order_id}`,
+                  orderId: data.order_id,
+                  clientName: clientData.name
+                }
+              });
+            } else if (Notification.permission !== 'denied') {
+              // Request permission if not already denied
+              requestNotificationPermission().then(permission => {
+                if (permission === 'granted') {
+                  showNotification('New Order Created', {
+                    body: `New order created for ${clientData.name} with ${items.length} item(s)`,
+                    data: {
+                      url: `/dashboard/orders?id=${data.order_id}`,
+                      orderId: data.order_id,
+                      clientName: clientData.name
+                    }
+                  });
+                }
+              });
+            }
           }
         } else {
           console.error('Could not get client data for notification:', clientError);
 
-          // Show a generic toast notification
-          toast({
-            title: "Order Created",
-            description: `New order has been created successfully.`,
-            variant: "default",
-          });
+          // Don't show a toast here - it will be shown by the OrderFormSheet component
+          console.log('Order created successfully (generic)');
         }
       } catch (notificationError) {
         // Don't fail the order creation if notification fails
         console.error('Error creating notification:', notificationError);
 
-        // Show a generic toast notification
-        toast({
-          title: "Order Created",
-          description: `New order has been created successfully.`,
-          variant: "default",
-        });
+        // Don't show a toast here - it will be shown by the OrderFormSheet component
+        console.log('Order created successfully (fallback)');
       }
 
       // Refresh the orders list if we have access to the handleLoadMore function
       if (handleLoadMore) {
         try {
-          await handleLoadMore();
+          console.log('Refreshing orders after creation');
+          // Add a small delay to ensure the database has time to process the new order
+          setTimeout(async () => {
+            try {
+              await handleLoadMore(false);
+              console.log('Orders refreshed successfully after creation');
+            } catch (refreshError) {
+              console.error('Error in delayed refresh:', refreshError);
+            }
+          }, 500);
+
+          // Also try an immediate refresh without showing a toast
+          await handleLoadMore(false);
         } catch (error) {
           console.error('Error refreshing orders after creation:', error);
+          // Try one more time after a delay
+          setTimeout(async () => {
+            try {
+              await handleLoadMore(false);
+              console.log('Orders refreshed successfully on retry');
+            } catch (retryError) {
+              console.error('Error in retry refresh:', retryError);
+            }
+          }, 1000);
         }
       }
 

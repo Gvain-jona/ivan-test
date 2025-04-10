@@ -70,10 +70,8 @@ export function useContextMenu(): UseContextMenuReturn {
   const closeMenu = useCallback(() => {
     setContextMenuOpen(false);
 
-    // Reset activeMenu after animation completes
-    setTimeout(() => {
-      setActiveMenu(null);
-    }, 200); // Match animation duration
+    // We no longer reset the activeMenu to maintain the visual state
+    // This allows the footer nav to keep track of which contextual menu was last opened
   }, []);
 
   // Toggle the context menu
@@ -83,6 +81,7 @@ export function useContextMenu(): UseContextMenuReturn {
       closeMenu();
     } else if (contextMenuOpen && activeMenu !== null && activeMenu !== menuType) {
       // If switching from one menu to another, update directly without closing first
+      // This ensures smooth transition between different contextual menus
       setActiveMenu(menuType);
 
       // Calculate position for the context menu
@@ -94,6 +93,9 @@ export function useContextMenu(): UseContextMenuReturn {
         };
         setClickPosition(newPosition);
       }
+
+      // Make sure the menu is open (in case it was in the process of closing)
+      setContextMenuOpen(true);
     } else {
       // Normal opening of a menu
       openMenu(menuType, event);

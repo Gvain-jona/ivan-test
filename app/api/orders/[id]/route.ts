@@ -1,6 +1,6 @@
 // Next.js API Route Handler for fetching a single order by ID
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 
 /**
@@ -22,8 +22,7 @@ export async function GET(
     }
 
     // Create Supabase client
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = await createClient();
 
     // Get order with related data
     const { data, error } = await supabase
@@ -38,7 +37,11 @@ export async function GET(
     // Get order items if they exist
     const { data: orderItems, error: orderItemsError } = await supabase
       .from('order_items')
-      .select('*')
+      .select(`
+        *,
+        items:item_id (id, name),
+        categories:category_id (id, name)
+      `)
       .eq('order_id', id);
 
     if (orderItemsError) {
@@ -57,9 +60,14 @@ export async function GET(
 
     // Get order notes if they exist
     const { data: orderNotes, error: orderNotesError } = await supabase
-      .from('order_notes')
-      .select('*')
-      .eq('order_id', id);
+      .from('notes')
+      .select(`
+        *,
+        profiles:created_by (id, full_name, email)
+      `)
+      .eq('linked_item_id', id)
+      .eq('linked_item_type', 'order')
+      .order('created_at', { ascending: false });
 
     if (orderNotesError) {
       console.error('Error fetching order notes:', orderNotesError);
@@ -96,9 +104,31 @@ export async function GET(
       created_by: data.created_by,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      items: orderItems || [],
+      items: orderItems ? orderItems.map(item => ({
+        id: item.id,
+        order_id: item.order_id,
+        item_id: item.item_id,
+        item_name: item.items?.name || 'Unknown Item',
+        category_id: item.category_id,
+        category_name: item.categories?.name || 'Uncategorized',
+        quantity: item.quantity || 0,
+        unit_price: item.unit_price || 0,
+        total_amount: item.total_amount || 0,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      })) : [],
       payments: orderPayments || [],
-      notes: orderNotes || []
+      notes: orderNotes ? orderNotes.map(note => ({
+        id: note.id,
+        order_id: note.linked_item_id,
+        text: note.text || '',
+        note_type: note.type || 'general',
+        created_by: note.created_by,
+        created_by_name: note.profiles?.full_name || 'Unknown User',
+        created_by_email: note.profiles?.email || '',
+        created_at: note.created_at,
+        updated_at: note.updated_at
+      })) : []
     };
 
     return NextResponse.json({ order: orderDetails });

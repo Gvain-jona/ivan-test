@@ -14,14 +14,32 @@ const useInvoiceActions = ({
   invoiceUrl 
 }: UseInvoiceActionsProps): UseInvoiceActionsReturn => {
   /**
-   * Handles downloading the invoice
+   * Handles downloading the invoice as a PDF
    */
   const handleDownload = useCallback(() => {
     if (!invoiceUrl) return;
     
-    // In a real app, this would download the PDF file
-    // For now, we'll just open the URL in a new tab
-    window.open(invoiceUrl, '_blank');
+    try {
+      // Create a link element
+      const link = document.createElement('a');
+      
+      // Set the href to the invoice URL
+      link.href = invoiceUrl;
+      
+      // Set the download attribute to force download instead of navigation
+      link.download = `Invoice-${new Date().getTime()}.pdf`;
+      
+      // Append the link to the body
+      document.body.appendChild(link);
+      
+      // Trigger the download
+      link.click();
+      
+      // Remove the link from the DOM
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to download invoice:', error);
+    }
   }, [invoiceUrl]);
   
   /**
@@ -30,13 +48,18 @@ const useInvoiceActions = ({
   const handlePrint = useCallback(() => {
     if (!invoiceUrl) return;
     
-    // In a real app, this would print the invoice
-    // For now, we'll just simulate printing by opening the URL
-    const printWindow = window.open(invoiceUrl, '_blank');
-    if (printWindow) {
-      printWindow.onload = () => {
-        printWindow.print();
-      };
+    try {
+      // Open the invoice in a new window for printing
+      const printWindow = window.open(invoiceUrl, '_blank');
+      
+      // Wait for the window to load before printing
+      if (printWindow) {
+        printWindow.addEventListener('load', () => {
+          printWindow.print();
+        });
+      }
+    } catch (error) {
+      console.error('Failed to print invoice:', error);
     }
   }, [invoiceUrl]);
   

@@ -9,6 +9,7 @@ import { NavigationProgress } from '../ui/navigation-progress';
 import ErrorBoundary from '../error/ErrorBoundary';
 import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { NotificationsWrapper } from '../notifications/NotificationsWrapper';
+import NotificationPermissionRequest from '../ui/NotificationPermissionRequest';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -63,6 +64,9 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
           <FooterNav />
           <NotificationsDrawer />
         </NotificationsWrapper>
+
+        {/* Notification Permission Request */}
+        <NotificationPermissionRequest />
       </div>
     </div>
   );

@@ -10,13 +10,13 @@ interface NotificationGroupProps {
 
 export function NotificationGroup({ group }: NotificationGroupProps) {
   const { date, notifications } = group;
-  
+
   // Count unread notifications in this group
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
-  
+
   return (
     <div className="mb-4">
-      <div className="flex justify-between items-center px-4 py-2">
+      <div className="flex justify-between items-center px-4 py-2 border-b border-border/30">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-medium">{date}</h3>
           {unreadCount > 0 && (
@@ -25,11 +25,8 @@ export function NotificationGroup({ group }: NotificationGroupProps) {
             </span>
           )}
         </div>
-        <button className="text-xs text-primary hover:underline">
-          View All
-        </button>
       </div>
-      
+
       <div className="divide-y divide-border/40">
         {notifications.map(notification => (
           <NotificationItem key={notification.id} notification={notification} />

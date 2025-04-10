@@ -7,7 +7,7 @@ import { useNavigation } from '@/context/navigation-context';
 // Define navigation item types
 export type NavItem = {
   title: string;
-  icon: React.ComponentType;
+  icon: React.ComponentType | (() => JSX.Element);
   href: string;
   isContextMenu?: boolean;
   menuType?: 'notifications' | 'search' | 'profile';
@@ -37,6 +37,7 @@ interface UseTabNavigationReturn {
   activeTab: number | null;
   activeTabIndex: number;
   initialTab: number | null;
+  activeContextMenuTab: number | null;
   handleTabChange: (index: number | null, event?: React.MouseEvent) => void;
   findContextMenuIndex: (menuType: 'notifications' | 'search' | 'profile' | null) => number;
 }
@@ -94,6 +95,14 @@ export function useTabNavigation({
         // Set active tab immediately for visual feedback
         setActiveTab(index);
 
+        // If we're navigating to a page (not a context menu), we should close any open context menu
+        // This is a signal to the parent component that we're navigating away
+        // The parent component should handle closing the context menu
+        if (contextMenuOpen) {
+          console.log('Navigating to a page, contextual menu should close');
+          // The actual closing is handled by the parent component that receives this callback
+        }
+
         // Check if this item should use direct link navigation
         if (item.useDirectLink) {
           // Use direct window.location navigation for problematic routes
@@ -107,7 +116,7 @@ export function useTabNavigation({
         }
       }
     }
-  }, [navigationItems, startNavigation]);
+  }, [navigationItems, startNavigation, contextMenuOpen]);
 
   // Initialize with the active tab from URL and ensure it persists
   useEffect(() => {
@@ -118,16 +127,26 @@ export function useTabNavigation({
     }
   }, [activeTabIndex]);
 
-  // Use active tab or fallback to activeTabIndex or active context menu
+  // Always prioritize the active tab from URL, but keep context menu visually active when open
   const contextMenuIndex = findContextMenuIndex(activeMenu);
-  const initialTab = activeTab !== null ? activeTab :
-                    (contextMenuOpen && contextMenuIndex !== -1) ? contextMenuIndex :
-                    (activeTabIndex !== -1) ? activeTabIndex : null;
+
+  // We need to handle two active states simultaneously:
+  // 1. The actual page navigation state (which tab is active based on the current URL)
+  // 2. The contextual menu visual state (which contextual menu is open)
+  //
+  // Instead of using a single 'initialTab' value, we'll return both values
+  // and let the UI component decide how to display them
+  const initialTab = activeTabIndex !== -1 ? activeTabIndex :
+                    activeTab !== null ? activeTab : null;
+
+  // The contextual menu tab is only considered active when the menu is open
+  const activeContextMenuTab = (contextMenuOpen && contextMenuIndex !== -1) ? contextMenuIndex : null;
 
   return {
     activeTab,
     activeTabIndex,
     initialTab,
+    activeContextMenuTab,
     handleTabChange,
     findContextMenuIndex
   };

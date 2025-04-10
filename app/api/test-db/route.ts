@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 
 /**
@@ -9,15 +9,14 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   try {
     // Create Supabase client
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
-    
+    const supabase = await createClient();
+
     // Get database schema for orders table
     const { data: ordersSchema, error: ordersSchemaError } = await supabase
       .from('orders')
       .select('*')
       .limit(1);
-    
+
     if (ordersSchemaError) {
       console.error('Error fetching orders schema:', ordersSchemaError);
       return NextResponse.json(
@@ -25,13 +24,13 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Get database schema for clients table
     const { data: clientsSchema, error: clientsSchemaError } = await supabase
       .from('clients')
       .select('*')
       .limit(1);
-    
+
     if (clientsSchemaError) {
       console.error('Error fetching clients schema:', clientsSchemaError);
       return NextResponse.json(
@@ -39,13 +38,13 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Get database schema for order_items table
     const { data: orderItemsSchema, error: orderItemsSchemaError } = await supabase
       .from('order_items')
       .select('*')
       .limit(1);
-    
+
     if (orderItemsSchemaError) {
       console.error('Error fetching order_items schema:', orderItemsSchemaError);
       return NextResponse.json(
@@ -53,13 +52,13 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Get database schema for order_payments table
     const { data: orderPaymentsSchema, error: orderPaymentsSchemaError } = await supabase
       .from('order_payments')
       .select('*')
       .limit(1);
-    
+
     if (orderPaymentsSchemaError) {
       console.error('Error fetching order_payments schema:', orderPaymentsSchemaError);
       return NextResponse.json(
@@ -67,11 +66,11 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // Get all tables in the database
     const { data: tables, error: tablesError } = await supabase
       .rpc('get_tables');
-    
+
     if (tablesError) {
       console.error('Error fetching tables:', tablesError);
       return NextResponse.json(
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json({
       tables,
       ordersSchema: ordersSchema ? Object.keys(ordersSchema[0]) : [],

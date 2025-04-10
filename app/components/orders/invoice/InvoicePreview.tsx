@@ -1,154 +1,126 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
+import { FilePlus, Loader2, FileText } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { InvoicePreviewProps } from './types';
 import { OrderItem } from '@/types/orders';
 
 /**
- * Component for displaying an invoice preview
- *
- * Shows either an empty state with a generate button or a preview of the generated invoice
+ * Renders a preview of the invoice or a placeholder if not yet generated
  */
 const InvoicePreview: React.FC<InvoicePreviewProps> = ({
   order,
   invoiceUrl,
   isGenerating,
+  error,
   settings,
   onGenerate,
 }) => {
-  // If no invoice has been generated, show the empty state
-  if (!invoiceUrl) {
+  if (isGenerating) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center h-full">
-        <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-        <h3 className="text-xl font-medium mb-2">Invoice Preview</h3>
-        <p className="text-muted-foreground mb-6 max-w-md">
-          Configure your invoice settings and click the generate button to preview your invoice.
-        </p>
-        <Button
-          onClick={onGenerate}
-          className="bg-orange-500 hover:bg-orange-600 text-white min-w-[150px]"
-          disabled={isGenerating}
-        >
-          {isGenerating ? 'Generating...' : 'Generate Invoice'}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Generating invoice...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="bg-red-500/10 text-red-400 rounded border border-red-500/20 p-4 mb-4 max-w-md">
+          <p className="font-medium">Error generating invoice</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+        <Button onClick={onGenerate} className="bg-orange-500 hover:bg-orange-600 text-white">
+          <FilePlus className="mr-2 h-4 w-4" />
+          Try Again
         </Button>
       </div>
     );
   }
 
-  // If an invoice has been generated, show the preview
+  if (!invoiceUrl) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center text-center max-w-md">
+          <div className="mb-6 p-5 rounded-full bg-muted/20">
+            <FilePlus className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">No Invoice Generated Yet</h3>
+          <p className="text-muted-foreground mb-6">
+            Generate an invoice for order #{order.id.substring(0, 8)} to preview it here.
+          </p>
+          <Button onClick={onGenerate} className="bg-orange-500 hover:bg-orange-600 text-white">
+            <FilePlus className="mr-2 h-4 w-4" />
+            Generate Invoice
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white p-8 rounded-md text-gray-900 flex-1 overflow-auto">
-      {/* Invoice Header */}
-      <div className="border-b border-gray-200 pb-6">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h2 className="text-2xl font-bold">INVOICE</h2>
-            <p className="text-gray-600">#{order.id.substring(0, 8)}</p>
-          </div>
-          <div className="text-right">
-            <h3 className="font-bold">Ivan Prints</h3>
-            <p className="text-sm text-gray-600">123 Print Avenue</p>
-            <p className="text-sm text-gray-600">Pretoria, South Africa</p>
-            <p className="text-sm text-gray-600">info@ivanprints.com</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div>
-            <h4 className="text-sm font-bold uppercase text-gray-500 mb-2">Bill To:</h4>
-            <p className="font-medium">{order.client_name}</p>
-            <p className="text-sm text-gray-600">Client Address Line 1</p>
-            <p className="text-sm text-gray-600">Client Address Line 2</p>
-          </div>
-          <div className="text-right">
-            <h4 className="text-sm font-bold uppercase text-gray-500 mb-2">Invoice Details:</h4>
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Invoice Date:</span>
-                <span className="text-sm">{formatDate(new Date().toISOString())}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Order Date:</span>
-                <span className="text-sm">{formatDate(order.date)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Payment Terms:</span>
-                <span className="text-sm">30 days</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Invoice Items Table */}
-      <div className="my-6">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-300">
-              <th className="py-3 text-sm font-semibold">Item</th>
-              <th className="py-3 text-sm font-semibold">Quantity</th>
-              <th className="py-3 text-sm font-semibold text-right">Price</th>
-              <th className="py-3 text-sm font-semibold text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items?.map((item: OrderItem) => (
-              <tr key={item.id} className="border-b border-gray-200">
-                <td className="py-4">
-                  <div className="font-medium">{item.item_name}</div>
-                  <div className="text-sm text-gray-500">{item.category_name}</div>
-                </td>
-                <td className="py-4">{item.quantity}</td>
-                <td className="py-4 text-right">{formatCurrency(item.unit_price)}</td>
-                <td className="py-4 text-right">{formatCurrency(item.total_amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={2} className="pt-6"></td>
-              <td className="pt-6 text-right font-medium">Subtotal</td>
-              <td className="pt-6 text-right font-medium">{formatCurrency(order.total_amount)}</td>
-            </tr>
-            <tr>
-              <td colSpan={2}></td>
-              <td className="py-2 text-right font-medium">Tax</td>
-              <td className="py-2 text-right font-medium">{formatCurrency(0)}</td>
-            </tr>
-            <tr className="border-t border-gray-300">
-              <td colSpan={2}></td>
-              <td className="py-4 text-right font-bold">Total</td>
-              <td className="py-4 text-right font-bold">{formatCurrency(order.total_amount)}</td>
-            </tr>
-            <tr>
-              <td colSpan={2}></td>
-              <td className="py-2 text-right font-medium">Amount Paid</td>
-              <td className="py-2 text-right font-medium">{formatCurrency(order.amount_paid)}</td>
-            </tr>
-            <tr className="border-t border-gray-300">
-              <td colSpan={2}></td>
-              <td className="py-4 text-right font-bold">Balance Due</td>
-              <td className="py-4 text-right font-bold">{formatCurrency(order.balance)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {/* Invoice Footer */}
-      <div className="mt-8 pt-8 border-t border-gray-200">
-        <div className="text-sm text-gray-500">
-          <p className="font-semibold mb-2">Notes:</p>
-          <p>{settings.notes}</p>
-        </div>
-
-        <div className="mt-8 text-sm text-gray-500">
-          <p>{settings.paymentTerms}</p>
-        </div>
+    <div className="w-full h-full flex flex-col">
+      <div className="flex-1 overflow-hidden bg-white rounded-md shadow flex justify-center">
+        <iframe
+          src={invoiceUrl}
+          className="border-0"
+          title={`Invoice for Order #${order.id.substring(0, 8)}`}
+          style={{ 
+            width: '100%',
+            maxWidth: '800px',
+            minHeight: '600px',
+            maxHeight: '80vh', 
+            aspectRatio: '1 / 1.414', // A4 aspect ratio
+            backgroundColor: 'white',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}
+        />
       </div>
     </div>
   );
 };
+
+// Helper function to convert number to words
+function numberToWords(num: number): string {
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+
+  function convertLessThanOneThousand(n: number): string {
+    if (n === 0) return '';
+
+    if (n < 10) return ones[n];
+    
+    if (n < 20) return teens[n - 10];
+    
+    if (n < 100) {
+      return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+    }
+    
+    return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 !== 0 ? ' ' + convertLessThanOneThousand(n % 100) : '');
+  }
+
+  if (num === 0) return 'zero';
+
+  let words = '';
+  
+  if (num >= 1000000) {
+    words += convertLessThanOneThousand(Math.floor(num / 1000000)) + ' million ';
+    num %= 1000000;
+  }
+
+  if (num >= 1000) {
+    words += convertLessThanOneThousand(Math.floor(num / 1000)) + ' thousand ';
+    num %= 1000;
+  }
+
+  words += convertLessThanOneThousand(num);
+  
+  return words.trim();
+}
 
 export default InvoicePreview;

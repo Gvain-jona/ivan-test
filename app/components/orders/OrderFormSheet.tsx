@@ -527,6 +527,29 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
           if (!result) {
             throw new Error('Failed to create order');
           }
+
+          // Show a single success toast
+          if (isMountedRef.current) {
+            safeSetFormStatus('success');
+
+            toast({
+              title: "Order Created",
+              description: `New order has been created successfully.`,
+              variant: "default",
+            });
+
+            // Reset the form for another entry
+            try {
+              console.log('Resetting form for new entry');
+              resetOrder();
+              // Reset form sections
+              safeSetActiveTab('general-info');
+              safeSetValidationErrors({});
+              safeSetFormStatus('idle');
+            } catch (resetError) {
+              console.error('Error resetting form:', resetError);
+            }
+          }
         } catch (createError) {
           console.error('Error in createOrder:', createError);
           throw createError;

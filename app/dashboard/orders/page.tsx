@@ -3,7 +3,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
-import { ScrollArea, ScrollBar } from "../../components/ui/scroll-area";
 import { Package, CheckSquare } from "lucide-react";
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
 import OrderFormSheet from '../../components/orders/OrderFormSheet';
@@ -41,39 +40,45 @@ const OrdersPageContent: React.FC = () => {
     handleEditOrder,
     handleGenerateInvoice,
     handleSaveOrder,
+    handleCreateOrder,
 
     // User role
     userRole,
 
     // Metrics
-    stats
+    stats,
+
+    // Filtering
+    filterByStatus
   } = useOrdersPage();
 
   return (
-    <div className="space-y-6 min-h-screen p-6">
+    <div className="space-y-5 min-h-screen px-6 py-4">
       {/* Page Header */}
       <OrdersPageHeader
         title="Orders Management"
         description="Manage customer orders, track status, and generate invoices."
+        onCreateOrder={handleCreateOrder}
       />
 
       {/* Metric Cards */}
       <OrderMetricsCards
         stats={stats}
         isLoading={initialLoading}
+        onFilterByStatus={filterByStatus}
       />
 
       {/* Tabs */}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="space-y-6"
+        className="space-y-5"
       >
-        <ScrollArea className="w-full">
-          <TabsList className="bg-transparent border border-[#2B2B40] rounded-lg p-1 mb-3">
+        <div className="mb-5">
+          <TabsList className="bg-background/80 border border-border/60 rounded-lg p-2 w-full inline-flex gap-1.5 shadow-sm">
             <TabsTrigger
               value="orders"
-              className="text-sm font-medium text-[#6D6D80] py-2 px-4 rounded-md data-[state=active]:bg-orange-500 data-[state=active]:text-white hover:bg-white/[0.02] group"
+              className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
             >
               <Package
                 className="-ms-0.5 me-1.5 opacity-60"
@@ -83,7 +88,7 @@ const OrdersPageContent: React.FC = () => {
               />
               Orders
               <Badge
-                className="ms-1.5 min-w-5 bg-orange-500/15 px-1 transition-opacity group-data-[state=inactive]:opacity-50"
+                className="ms-1.5 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full transition-opacity group-data-[state=inactive]:opacity-50"
                 variant="secondary"
               >
                 {stats.pendingOrders}
@@ -91,7 +96,7 @@ const OrdersPageContent: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger
               value="tasks"
-              className="text-sm font-medium text-[#6D6D80] py-2 px-4 rounded-md data-[state=active]:bg-orange-500 data-[state=active]:text-white hover:bg-white/[0.02] group"
+              className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
             >
               <CheckSquare
                 className="-ms-0.5 me-1.5 opacity-60"
@@ -99,22 +104,21 @@ const OrdersPageContent: React.FC = () => {
                 strokeWidth={2}
                 aria-hidden="true"
               />
-              Related Tasks
+              Tasks
               <Badge
-                className="ms-1.5 transition-opacity group-data-[state=inactive]:opacity-50"
+                className="ms-1.5 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full transition-opacity group-data-[state=inactive]:opacity-50"
               >
                 New
               </Badge>
             </TabsTrigger>
           </TabsList>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
 
-        <TabsContent value="orders" className="space-y-6">
+        <TabsContent value="orders" className="space-y-5 animate-in fade-in-50 duration-300">
           <OrdersTab />
         </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-6">
+        <TabsContent value="tasks" className="space-y-5 animate-in fade-in-50 duration-300">
           <TasksTab />
         </TabsContent>
       </Tabs>

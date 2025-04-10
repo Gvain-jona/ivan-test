@@ -30,6 +30,7 @@ interface ExpandableTabsProps {
   activeColor?: string;
   onChange?: (index: number | null, event?: React.MouseEvent) => void;
   initialSelectedIndex?: number | null;
+  activeContextMenuIndex?: number | null;
 }
 
 const buttonVariants = {
@@ -59,6 +60,7 @@ export function ExpandableTabs({
   activeColor = "text-primary",
   onChange,
   initialSelectedIndex = null,
+  activeContextMenuIndex = null,
 }: ExpandableTabsProps) {
   const [selected, setSelected] = React.useState<number | null>(initialSelectedIndex);
   const outsideClickRef = React.useRef<HTMLDivElement>(null);
@@ -116,26 +118,35 @@ export function ExpandableTabs({
             transition={transition}
             className={cn(
               "relative flex items-center rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-300",
-              selected === index
+              // Regular navigation items are active based on the selected state
+              !tab.isContextMenu && selected === index
                 ? cn("bg-muted", activeColor)
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              // Context menu items have special handling
               tab.isContextMenu && "context-menu-item",
-              // Add a persistent class for active context menu items
-              tab.isContextMenu && selected === index && "active-context-menu-item"
+              // Context menu items can be active based on activeContextMenuIndex
+              tab.isContextMenu && activeContextMenuIndex === index && cn("bg-muted", activeColor, "active-context-menu-item"),
+              // Always keep the current page tab active even when a context menu is open
+              initialSelectedIndex === index && cn("bg-muted", activeColor)
             )}
             role="tab"
-            aria-selected={selected === index}
+            aria-selected={selected === index || activeContextMenuIndex === index || initialSelectedIndex === index}
           >
-            <div className="relative">
-              <Icon size={20} />
-              {tab.badge && tab.badge > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+            <div className="relative inline-flex items-center justify-center">
+              {typeof Icon === 'function' && typeof Icon({}).type === 'undefined' ?
+                <Icon /> :
+                <Icon size={20} />
+              }
+              {tab.badge !== undefined && (
+                <span
+                  className={`absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground ${tab.badge === 0 ? 'opacity-0' : ''}`}
+                >
                   {tab.badge > 99 ? '99+' : tab.badge}
                 </span>
               )}
             </div>
             <AnimatePresence initial={false}>
-              {selected === index && !tab.isContextMenu && (
+              {(selected === index || initialSelectedIndex === index) && !tab.isContextMenu && (
                 <motion.span
                   variants={spanVariants}
                   initial="initial"

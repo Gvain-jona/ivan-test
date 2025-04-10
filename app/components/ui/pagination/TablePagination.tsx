@@ -29,7 +29,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
     const delta = 2;
     const range = [];
     const rangeWithDots = [];
-    
+
     for (
       let i = Math.max(2, currentPage - delta);
       i <= Math.min(totalPages - 1, currentPage + delta);
@@ -37,32 +37,33 @@ const TablePagination: React.FC<TablePaginationProps> = ({
     ) {
       range.push(i);
     }
-    
+
     if (currentPage > delta + 1) {
       rangeWithDots.push(1);
     }
-    
+
     if (currentPage > delta + 2) {
       rangeWithDots.push('dots1');
     }
-    
+
     rangeWithDots.push(...range);
-    
+
     if (currentPage < totalPages - delta - 1) {
       rangeWithDots.push('dots2');
     }
-    
+
     if (totalPages > 1 && currentPage < totalPages - delta) {
       rangeWithDots.push(totalPages);
     }
-    
+
     return rangeWithDots;
   };
 
-  if (totalPages <= 1) return null;
+  // Always show pagination controls when there's at least one record
+  // (removed condition that hid pagination when totalPages <= 1)
 
   return (
-    <motion.div 
+    <motion.div
       key={`pagination-${currentPage}`}
       initial="initial"
       animate="animate"
@@ -115,7 +116,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               </motion.div>
-              
+
               <AnimatePresence mode="wait">
                 {getPaginationRange().map((page, index) => (
                   page === 'dots1' || page === 'dots2' ? (
@@ -146,7 +147,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
                   )
                 ))}
               </AnimatePresence>
-              
+
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
                   onClick={() => onPageChange(currentPage + 1)}
@@ -167,4 +168,4 @@ const TablePagination: React.FC<TablePaginationProps> = ({
   );
 };
 
-export default TablePagination; 
+export default TablePagination;

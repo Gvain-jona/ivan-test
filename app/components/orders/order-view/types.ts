@@ -6,7 +6,7 @@ import { Order, OrderPayment } from '@/types/orders';
 export interface OrderViewSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: Order;
+  order: Order | null;
   onClose: () => void;
   onEdit: (order: Order) => void;
   onGenerateInvoice: (order: Order) => void;

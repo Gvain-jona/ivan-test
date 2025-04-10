@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
@@ -16,9 +16,8 @@ export async function GET(
       );
     }
 
-    // Get the cookie store and create Supabase client
-    const cookieStore = cookies();
-    const supabase = await createServerClient(cookieStore);
+    // Create Supabase client
+    const supabase = await createClient();
 
     // Get user profile
     const { data, error } = await supabase

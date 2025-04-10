@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { Order, Task, TasksFilters } from '../../../types/orders';
+import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
+import { Order, Task, TasksFilters, OrderStatus, PaymentStatus } from '../../../types/orders';
 import { useToast } from '../../../components/ui/use-toast';
-import { useRealOrders } from '@/app/hooks/useRealOrders';
+import { useSWROrders } from '@/app/hooks/useSWROrders';
 
 // Import sample data for tasks and metrics
 import { SAMPLE_TASKS } from '../_data/sample-tasks';
@@ -33,7 +33,7 @@ interface OrdersPageContextType {
   handleCompleteTask: (taskId: string) => void;
 
   // Loading
-  handleLoadMore: () => void;
+  handleLoadMore: (showToast?: boolean) => Promise<void>;
 
   // Filtering
   filters: ReturnType<typeof useOrderFiltering>['filters'];
@@ -44,6 +44,7 @@ interface OrdersPageContextType {
   handleSearch: ReturnType<typeof useOrderFiltering>['handleSearch'];
   resetFilters: ReturnType<typeof useOrderFiltering>['resetFilters'];
   toggleFilters: ReturnType<typeof useOrderFiltering>['toggleFilters'];
+  filterByStatus: ReturnType<typeof useOrderFiltering>['filterByStatus'];
 
   // Pagination
   currentPage: ReturnType<typeof useOrdersPagination>['currentPage'];
@@ -84,20 +85,56 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'tasks'
   const [userRole] = useState<'admin' | 'manager' | 'employee'>('admin'); // Placeholder, would come from auth
-  const stats = METRICS_DATA;
+  const [stats, setStats] = useState(METRICS_DATA);
 
   // Tasks related state
   const [filteredTasks, setFilteredTasks] = useState<Task[]>(SAMPLE_TASKS);
   const [taskFilters, setTaskFilters] = useState<TasksFilters>({});
 
-  // Initialize real orders hook
+  // State for filters and pagination
+  const [currentFilters, setCurrentFilters] = useState<{
+    status?: OrderStatus[];
+    paymentStatus?: PaymentStatus[];
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+  }>({});
+
+  const [currentPagination, setCurrentPagination] = useState({
+    page: 1,
+    pageSize: 50
+  });
+
+  // Initialize SWR orders hook
   const {
     orders,
     totalCount,
     pageCount,
     loading: ordersLoading,
-    fetchOrders,
-  } = useRealOrders();
+    mutate: refreshOrders,
+  } = useSWROrders(currentFilters, currentPagination);
+
+  // Function to fetch orders with optional filters
+  const fetchOrders = useCallback(async (filters?: any) => {
+    try {
+      setLoading(true);
+      // Update filters and refresh data
+      if (filters) {
+        setCurrentFilters(filters);
+      }
+      // Trigger SWR to revalidate data
+      await refreshOrders();
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch orders',
+        variant: 'destructive',
+      });
+      setLoading(false);
+    }
+  }, [toast, refreshOrders, setCurrentFilters]);
 
   // Initialize custom hooks
   const {
@@ -105,20 +142,67 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     filteredOrders,
     searchTerm,
     showFilters,
-    handleFilterChange,
-    handleSearch,
-    resetFilters,
-    toggleFilters
+    handleFilterChange: localHandleFilterChange,
+    handleSearch: localHandleSearch,
+    resetFilters: localResetFilters,
+    toggleFilters,
+    filterByStatus: localFilterByStatus
   } = useOrderFiltering(orders || []);
 
+  // Enhanced filter handlers that update SWR filters
+  const handleFilterChange = useCallback((newFilters: any) => {
+    localHandleFilterChange(newFilters);
+    setCurrentFilters(prev => ({
+      ...prev,
+      ...newFilters
+    }));
+  }, [localHandleFilterChange]);
+
+  const handleSearch = useCallback((term: string) => {
+    localHandleSearch(term);
+    setCurrentFilters(prev => ({
+      ...prev,
+      search: term
+    }));
+  }, [localHandleSearch]);
+
+  const resetFilters = useCallback(() => {
+    localResetFilters();
+    setCurrentFilters({});
+  }, [localResetFilters]);
+
+  const filterByStatus = useCallback((status: string) => {
+    localFilterByStatus(status);
+    setCurrentFilters(prev => ({
+      ...prev,
+      status: [status as any]
+    }));
+  }, [localFilterByStatus]);
+
+  // Custom pagination handler that updates the SWR pagination
+  const handleSWRPageChange = useCallback((page: number) => {
+    setCurrentPagination(prev => ({
+      ...prev,
+      page
+    }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Use the pagination hook for local pagination (will be phased out)
   const {
     currentPage,
     itemsPerPage,
     totalPages,
     paginatedOrders,
-    handlePageChange,
+    handlePageChange: legacyHandlePageChange,
     updateTotalPages
   } = useOrdersPagination(filteredOrders);
+
+  // Use the SWR pagination for API pagination
+  const handlePageChange = useCallback((page: number) => {
+    handleSWRPageChange(page);
+    legacyHandlePageChange(page);
+  }, [handleSWRPageChange, legacyHandlePageChange]);
 
   const {
     selectedOrder,
@@ -140,30 +224,87 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     handleSaveOrder
   } = useOrderModals();
 
-  // Fetch orders on component mount
-  useEffect(() => {
-    const loadOrders = async () => {
-      await fetchOrders();
-      setInitialLoading(false);
-    };
+  // Fetch orders on component mount - with a stable dependency array
+  // We use useRef to ensure the dependency doesn't change between renders
+  const initialFetchRef = React.useRef(false);
 
-    loadOrders();
-  }, [fetchOrders]);
+  useEffect(() => {
+    // Only run this effect once
+    if (!initialFetchRef.current) {
+      const loadOrders = async () => {
+        console.log('Initial orders fetch - should only run once');
+        // Reset any filters to ensure all data is shown
+        resetFilters();
+        setInitialLoading(false);
+      };
+
+      loadOrders();
+      initialFetchRef.current = true;
+    }
+  }, [resetFilters]); // Stable dependency array
+
+  // Calculate metrics separately to avoid infinite loops
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      // Calculate metrics from real data
+      const totalOrders = orders.length;
+      const revenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      const activeClientsSet = new Set(orders.map(order => order.client_id));
+      const activeClients = activeClientsSet.size;
+      const pendingOrders = orders.filter(order =>
+        order.status === 'pending' ||
+        order.status === 'in_progress' ||
+        order.status === 'draft'
+      ).length;
+
+      setStats({
+        totalOrders,
+        revenue,
+        activeClients,
+        pendingOrders
+      });
+    }
+  }, [orders]);
 
   // Update total pages when filtered orders change
   useEffect(() => {
     updateTotalPages(filteredOrders.length);
   }, [filteredOrders.length, updateTotalPages]);
 
-  // Handle loading more items
-  const handleLoadMore = async () => {
+  // Handle loading more items with debounce to prevent multiple calls
+  const loadingRef = React.useRef(false);
+
+  const handleLoadMore = useCallback(async (showToast: boolean = true) => {
+    // Prevent multiple simultaneous calls
+    if (loadingRef.current) return;
+
+    loadingRef.current = true;
     setLoading(true);
+
     try {
-      await fetchOrders();
-      toast({
-        title: "Data refreshed",
-        description: "The latest order data has been loaded",
+      // Add a timestamp to force cache invalidation
+      setCurrentFilters(prev => ({
+        ...prev,
+        _t: Date.now() // Add a timestamp to force cache invalidation
+      }));
+
+      // Force revalidation of the data with cache-busting
+      await refreshOrders();
+
+      // Clear the timestamp after refresh to avoid polluting the URL
+      setCurrentFilters(prev => {
+        const { _t, ...rest } = prev;
+        return rest;
       });
+
+      // Only show toast if this was triggered by a manual refresh button click
+      // and not by an automatic refresh after order creation
+      if (showToast) {
+        toast({
+          title: "Data refreshed",
+          description: "The latest order data has been loaded",
+        });
+      }
     } catch (error) {
       console.error('Error refreshing orders:', error);
       toast({
@@ -173,8 +314,12 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
       });
     } finally {
       setLoading(false);
+      // Reset the loading flag after a short delay to prevent rapid successive calls
+      setTimeout(() => {
+        loadingRef.current = false;
+      }, 1000);
     }
-  };
+  }, [refreshOrders, toast, setCurrentFilters]);
 
   // Tasks handlers
   const handleTaskFilterChange = (newFilters: TasksFilters) => {
@@ -240,6 +385,7 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     handleSearch,
     resetFilters,
     toggleFilters,
+    filterByStatus,
 
     // Pagination
     currentPage,

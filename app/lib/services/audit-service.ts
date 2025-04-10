@@ -1,18 +1,17 @@
 /**
  * Security Audit Logging Service
- * 
+ *
  * This service provides functions for logging security-related events.
  */
 
 import { createClient } from '../supabase/client';
-import { createServerClient } from '../supabase/server';
+import { createClient as createServerClient } from '../supabase/server';
 import { cookies } from 'next/headers';
 
 // Get the appropriate Supabase client based on context
-function getAuditClient(serverSide = true) {
+async function getAuditClient(serverSide = true) {
   if (serverSide) {
-    const cookieStore = cookies();
-    return createServerClient(cookieStore);
+    return await createServerClient();
   }
 
   return createClient();
@@ -34,29 +33,29 @@ export enum AuditEventType {
   PIN_SETUP = 'PIN_SETUP',
   PIN_CHANGE = 'PIN_CHANGE',
   PIN_RESET = 'PIN_RESET',
-  
+
   // Session events
   SESSION_CREATED = 'SESSION_CREATED',
   SESSION_EXTENDED = 'SESSION_EXTENDED',
   SESSION_EXPIRED = 'SESSION_EXPIRED',
   SESSION_TERMINATED = 'SESSION_TERMINATED',
-  
+
   // Account events
   ACCOUNT_CREATED = 'ACCOUNT_CREATED',
   ACCOUNT_UPDATED = 'ACCOUNT_UPDATED',
   ACCOUNT_DELETED = 'ACCOUNT_DELETED',
   ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
   ACCOUNT_UNLOCKED = 'ACCOUNT_UNLOCKED',
-  
+
   // Permission events
   PERMISSION_GRANTED = 'PERMISSION_GRANTED',
   PERMISSION_REVOKED = 'PERMISSION_REVOKED',
-  
+
   // Data access events
   DATA_ACCESSED = 'DATA_ACCESSED',
   DATA_MODIFIED = 'DATA_MODIFIED',
   DATA_DELETED = 'DATA_DELETED',
-  
+
   // System events
   SYSTEM_ERROR = 'SYSTEM_ERROR',
   SYSTEM_WARNING = 'SYSTEM_WARNING',
@@ -67,7 +66,7 @@ export enum AuditEventType {
 export const auditService = {
   /**
    * Log an audit event
-   * 
+   *
    * @param eventType - Type of audit event
    * @param userId - User ID (if applicable)
    * @param details - Additional event details
@@ -85,8 +84,8 @@ export const auditService = {
     serverSide = true
   ) {
     try {
-      const supabase = getAuditClient(serverSide);
-      
+      const supabase = await getAuditClient(serverSide);
+
       // Create audit log entry
       const { error } = await supabase
         .from('audit_logs')
@@ -98,22 +97,22 @@ export const auditService = {
           user_agent: userAgent,
           created_at: new Date().toISOString()
         });
-      
+
       if (error) {
         console.error('Error logging audit event:', error);
         return { success: false, error };
       }
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error in audit logging:', error);
       return { success: false, error };
     }
   },
-  
+
   /**
    * Log an authentication event
-   * 
+   *
    * @param eventType - Type of authentication event
    * @param userId - User ID (if applicable)
    * @param email - User email
@@ -147,10 +146,10 @@ export const auditService = {
       serverSide
     );
   },
-  
+
   /**
    * Log a session event
-   * 
+   *
    * @param eventType - Type of session event
    * @param userId - User ID
    * @param sessionId - Session ID
@@ -181,10 +180,10 @@ export const auditService = {
       serverSide
     );
   },
-  
+
   /**
    * Log a data access event
-   * 
+   *
    * @param eventType - Type of data access event
    * @param userId - User ID
    * @param resourceType - Type of resource accessed

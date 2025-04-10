@@ -12,17 +12,17 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Order ID is required' },
         { status: 400 }
       );
     }
-    
+
     // Create Supabase client
     const supabase = await createClient();
-    
+
     // Get notes for the order
     const { data, error } = await supabase
       .from('notes')
@@ -33,7 +33,7 @@ export async function GET(
       .eq('linked_item_type', 'order')
       .eq('linked_item_id', id)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching order notes:', error);
       return NextResponse.json(
@@ -41,14 +41,14 @@ export async function GET(
         { status: 500 }
       );
     }
-    
+
     // Format the response
     const formattedNotes = data.map(note => ({
       ...note,
       created_by_name: note.users?.name || 'Unknown',
       users: undefined
     }));
-    
+
     return NextResponse.json({ notes: formattedNotes });
   } catch (error) {
     console.error('Unexpected error in GET /api/orders/[id]/notes:', error);
@@ -71,24 +71,24 @@ export async function POST(
     const { id } = params;
     const body = await request.json();
     const { type, text, createdBy } = body;
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Order ID is required' },
         { status: 400 }
       );
     }
-    
+
     if (!type || !text || !createdBy) {
       return NextResponse.json(
         { error: 'Note type, text, and creator are required' },
         { status: 400 }
       );
     }
-    
+
     // Create Supabase client
     const supabase = await createClient();
-    
+
     // Call the database function to add note
     const { data, error } = await supabase.rpc('add_order_note', {
       p_order_id: id,
@@ -96,7 +96,7 @@ export async function POST(
       p_text: text,
       p_created_by: createdBy
     });
-    
+
     if (error) {
       console.error('Error adding order note:', error);
       return NextResponse.json(
@@ -104,7 +104,7 @@ export async function POST(
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json({
       id: data,
       message: 'Note added successfully'
@@ -130,17 +130,17 @@ export async function DELETE(
     const { id } = params;
     const { searchParams } = new URL(request.url);
     const noteId = searchParams.get('noteId');
-    
+
     if (!id || !noteId) {
       return NextResponse.json(
         { error: 'Order ID and Note ID are required' },
         { status: 400 }
       );
     }
-    
+
     // Create Supabase client
     const supabase = await createClient();
-    
+
     // Delete the note
     const { error } = await supabase
       .from('notes')
@@ -148,7 +148,7 @@ export async function DELETE(
       .eq('id', noteId)
       .eq('linked_item_type', 'order')
       .eq('linked_item_id', id);
-    
+
     if (error) {
       console.error('Error deleting order note:', error);
       return NextResponse.json(
@@ -156,7 +156,7 @@ export async function DELETE(
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json({
       success: true,
       message: 'Note deleted successfully'
@@ -168,4 +168,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}

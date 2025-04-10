@@ -17,8 +17,18 @@ const OrderNotesTab: React.FC<OrderNotesTabProps> = ({ order }) => {
     >
       <div className="border border-[#2B2B40] rounded-lg p-4">
         <h3 className="text-sm font-medium text-[#6D6D80] mb-3">Order Notes</h3>
-        {order.notes ? (
-          <p className="text-sm text-white whitespace-pre-line">{order.notes}</p>
+        {order.notes && order.notes.length > 0 ? (
+          <div className="space-y-3">
+            {order.notes.map((note, index) => (
+              <div key={note.id || index} className="border-l-2 border-brand pl-3 py-1">
+                <p className="text-sm text-white whitespace-pre-line">{note.text}</p>
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-brand">{note.created_by_name}</p>
+                  <p className="text-xs text-[#6D6D80]">{new Date(note.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <p className="text-sm text-[#6D6D80]">No notes available for this order.</p>
         )}

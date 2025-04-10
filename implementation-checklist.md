@@ -30,6 +30,14 @@
   - [x] Created panels for product categories, customer segments, and marketing channels
   - [x] Added sample data visualization 
 
+- [x] Implemented Feature-In-Development Page
+  - [x] Created an interactive under construction page
+  - [x] Redirected Expenses, Material, and Todo routes to this page
+  - [x] Added a timeline showing development progress
+  - [x] Included an orders page alternative
+  - [x] Implemented a feedback section
+  - [x] Created proper loading states
+
 ## Orders Page Implementation
 
 ### Phase 1: UI Components

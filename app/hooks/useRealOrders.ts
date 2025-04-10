@@ -44,65 +44,53 @@ export function useRealOrders() {
     try {
       setLoading(true);
 
-      // Use sample data instead of making API request
-      console.log('Using sample orders data instead of API');
+      // Build query string for API request
+      const queryParams = new URLSearchParams();
 
-      // Filter the sample data based on the filters
-      let filteredOrders = [...SAMPLE_ORDERS];
-
+      // Add filters
       if (filters) {
         if (filters.status?.length) {
-          filteredOrders = filteredOrders.filter(order =>
-            filters.status?.includes(order.status as OrderStatus)
-          );
+          filters.status.forEach(status => queryParams.append('status', status));
         }
 
         if (filters.paymentStatus?.length) {
-          filteredOrders = filteredOrders.filter(order =>
-            filters.paymentStatus?.includes(order.payment_status as PaymentStatus)
-          );
+          filters.paymentStatus.forEach(status => queryParams.append('paymentStatus', status));
         }
 
         if (filters.startDate) {
-          filteredOrders = filteredOrders.filter(order =>
-            new Date(order.date) >= new Date(filters.startDate!)
-          );
+          queryParams.append('startDate', filters.startDate);
         }
 
         if (filters.endDate) {
-          filteredOrders = filteredOrders.filter(order =>
-            new Date(order.date) <= new Date(filters.endDate!)
-          );
+          queryParams.append('endDate', filters.endDate);
         }
 
         if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filteredOrders = filteredOrders.filter(order =>
-            order.id.toLowerCase().includes(searchLower) ||
-            order.client_name.toLowerCase().includes(searchLower)
-          );
+          queryParams.append('search', filters.search);
         }
       }
 
-      // Apply pagination
-      const totalCount = filteredOrders.length;
-      let paginatedOrders = filteredOrders;
-
+      // Add pagination
       if (pagination) {
-        const startIndex = (pagination.page - 1) * pagination.pageSize;
-        const endIndex = startIndex + pagination.pageSize;
-        paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+        const limit = pagination.pageSize;
+        const offset = (pagination.page - 1) * pagination.pageSize;
+        queryParams.append('limit', limit.toString());
+        queryParams.append('offset', offset.toString());
       }
 
-      // Create mock response
-      const data: OrdersResponse = {
-        orders: paginatedOrders,
-        totalCount: totalCount,
-        pageCount: Math.ceil(totalCount / (pagination?.pageSize || 10))
-      };
+      // Make API request
+      console.log('Fetching orders from API with params:', queryParams.toString());
+      const response = await fetch(`/api/orders?${queryParams.toString()}`);
 
-      setOrders(paginatedOrders);
-      setTotalCount(totalCount);
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+
+      const data: OrdersResponse = await response.json();
+      console.log('Received orders data:', data);
+
+      setOrders(data.orders);
+      setTotalCount(data.totalCount);
       setPageCount(data.pageCount);
 
       return data;
@@ -126,14 +114,15 @@ export function useRealOrders() {
     try {
       setLoading(true);
 
-      // Use sample data instead of making API request
-      console.log('Using sample orders data instead of API for getOrderById');
+      // Make API request to get order by ID
+      console.log('Fetching order from API');
+      const response = await fetch(`/api/orders/${id}`);
 
-      const order = SAMPLE_ORDERS.find(order => order.id === id);
-
-      if (!order) {
-        throw new Error('Order not found');
+      if (!response.ok) {
+        throw new Error('Failed to fetch order');
       }
+
+      const order = await response.json();
 
       return order;
     } catch (error) {

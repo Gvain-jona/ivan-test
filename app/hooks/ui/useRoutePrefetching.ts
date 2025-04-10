@@ -46,6 +46,9 @@ export function useRoutePrefetching(navigationItems: NavItemType[]) {
             prefetchService.prefetchTasks();
           } else if (href === '/dashboard' || href.includes('/home')) {
             prefetchService.prefetchDashboardStats();
+          } else if (href.includes('/feature-in-development')) {
+            // No specific data to prefetch for feature-in-development page
+            console.log('Prefetching feature-in-development page');
           }
         }
       };

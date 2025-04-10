@@ -37,7 +37,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
    * Calculate the balance percent for the progress bar
    */
   const calculateBalancePercent = () => {
-    if (order.total_amount === 0) return 0;
+    if (!order || order.total_amount === 0) return 0;
     return (order.amount_paid / order.total_amount) * 100;
   };
 
@@ -45,6 +45,8 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
    * Handle adding a new payment
    */
   const handleAddPayment = (newPayment: OrderPayment) => {
+    if (!order) return;
+
     // Update the order with the new payment
     // In a real app, this would be an API call
     const updatedPayments = [...(order.payments || []), newPayment];
@@ -55,11 +57,17 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
       newAmountPaid >= order.total_amount ? 'paid' :
       newAmountPaid > 0 ? 'partially_paid' : 'unpaid';
 
-    // Update the order object
-    order.payments = updatedPayments;
-    order.amount_paid = newAmountPaid;
-    order.balance = newBalance;
-    order.payment_status = newPaymentStatus;
+    // Create a new order object to pass to onEdit
+    const updatedOrder = {
+      ...order,
+      payments: updatedPayments,
+      amount_paid: newAmountPaid,
+      balance: newBalance,
+      payment_status: newPaymentStatus
+    };
+
+    // Call the edit handler with the updated order
+    onEdit(updatedOrder);
 
     // Hide the payment form
     setShowPaymentForm(false);
@@ -69,8 +77,8 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
     <OrderSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={`Order #${order.id}`}
-      description={`Client: ${order.client_name}`}
+      title={order ? `Order #${order.id}` : 'Order Details'}
+      description={order ? `Client: ${order.client_name}` : 'Loading order details...'}
       onClose={onClose}
       size="lg"
     >
@@ -107,15 +115,15 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
 
           {/* Details Tab */}
           <TabsContent value="details" className="space-y-4">
-            <OrderDetailsTab
+            {order && <OrderDetailsTab
               order={order}
               calculateBalancePercent={calculateBalancePercent}
-            />
+            />}
           </TabsContent>
 
           {/* Items Tab */}
           <TabsContent value="items" className="space-y-4">
-            <OrderItemsTab order={order} />
+            {order && <OrderItemsTab order={order} />}
           </TabsContent>
 
           {/* Payments Tab */}
@@ -131,7 +139,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
 
           {/* Notes Tab */}
           <TabsContent value="notes" className="space-y-4">
-            <OrderNotesTab order={order} />
+            {order && <OrderNotesTab order={order} />}
           </TabsContent>
         </Tabs>
       </div>
@@ -141,7 +149,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
           {canEdit && (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
-                onClick={() => onEdit(order)}
+                onClick={() => order && onEdit(order)}
                 className="bg-orange-500 hover:bg-orange-600 text-white"
               >
                 Edit Order
@@ -150,7 +158,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
           )}
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              onClick={() => onGenerateInvoice(order)}
+              onClick={() => order && onGenerateInvoice(order)}
               variant="outline"
               className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white"
             >

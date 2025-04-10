@@ -44,18 +44,37 @@ function ContextMenu({
       // Prevent handling clicks immediately after opening
       if (justOpenedRef.current) return;
 
+      // Get the target element
+      const targetElement = event.target as HTMLElement;
+
+      // Check if the click was on a footer nav item that's not a context menu item
+      const isFooterNavNonContextItem = targetElement.closest('.footer-nav button:not(.context-menu-item)');
+
       // Check if the click was outside the menu
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(targetElement)) {
         console.log('Click outside detected');
-        // Use requestAnimationFrame to ensure we're not in the middle of a React render cycle
-        requestAnimationFrame(() => {
-          onOpenChange(false);
-        });
+
+        // If clicked on a footer nav item that's not a context menu, let the nav handle it
+        // Otherwise, close the menu
+        if (!isFooterNavNonContextItem) {
+          // Use requestAnimationFrame to ensure we're not in the middle of a React render cycle
+          requestAnimationFrame(() => {
+            onOpenChange(false);
+          });
+        }
       }
     };
 
     // Add the event listener to the document
     document.addEventListener('mousedown', handleClickOutside, true); // Use capture phase
+
+    // Also handle escape key to close the menu
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onOpenChange(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscapeKey);
 
     // After a short delay, allow click outside handling
     clickOutsideTimeout = setTimeout(() => {
@@ -65,6 +84,7 @@ function ContextMenu({
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleEscapeKey);
       clearTimeout(clickOutsideTimeout);
     };
   }, [open, onOpenChange]);
@@ -111,10 +131,10 @@ function ContextMenu({
 
       case 'search':
         return (
-          <>
+          <div className="flex flex-col items-center w-full">
             <h3 className="text-lg font-semibold mb-2">Search</h3>
             <div className="h-px w-full bg-border mb-3"></div>
-            <div className="mb-3">
+            <div className="mb-3 w-full max-w-[350px]">
               <input
                 type="text"
                 placeholder="Search..."
@@ -133,20 +153,20 @@ function ContextMenu({
                 }}
               />
             </div>
-            <div className="max-h-[250px] overflow-y-auto">
+            <div className="max-h-[250px] overflow-y-auto custom-scrollbar w-full max-w-[350px]">
               <div className="py-2 text-sm text-muted-foreground text-center">
                 Type to search
               </div>
             </div>
-          </>
+          </div>
         );
 
       case 'profile':
         return (
-          <>
+          <div className="flex flex-col items-center w-full">
             <h3 className="text-lg font-semibold mb-2">Profile</h3>
             <div className="h-px w-full bg-border mb-3"></div>
-            <div className="space-y-2">
+            <div className="space-y-2 w-full max-w-[350px]">
               <button className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors">
                 <User className="mr-2 h-4 w-4" />
                 <span>My Profile</span>
@@ -188,7 +208,7 @@ function ContextMenu({
                 text="Logout"
               />
             </div>
-          </>
+          </div>
         );
 
       default:
@@ -198,36 +218,40 @@ function ContextMenu({
 
   // Calculate position to center the menu above the footer navigation
   const calculatePosition = () => {
-    if (!position) return {};
-
-    // Use the navWidth if provided, otherwise use a default width
-    const footerNavWidth = navWidth || 350;
-    const menuWidth = footerNavWidth; // Match the width of the footer nav
-
+    // Always center the menu in the viewport to match footer nav positioning
     const viewportWidth = window.innerWidth;
+
+    // Get the footer nav element to match its width exactly
+    const footerNavElement = document.querySelector('.footer-nav');
+    // Use the actual footer nav width if available, otherwise calculate a reasonable default
+    const footerNavWidth = footerNavElement
+      ? footerNavElement.getBoundingClientRect().width
+      : Math.min(500, Math.max(300, viewportWidth - 32));
 
     // Calculate the center position of the viewport
     const viewportCenter = viewportWidth / 2;
 
     // Calculate the left position to center the menu
-    const leftPosition = viewportCenter - (menuWidth / 2);
+    const leftPosition = viewportCenter - (footerNavWidth / 2);
 
     // Ensure the menu doesn't overflow the viewport
-    const adjustedLeft = Math.max(20, Math.min(leftPosition, viewportWidth - menuWidth - 20));
+    const adjustedLeft = Math.max(16, Math.min(leftPosition, viewportWidth - footerNavWidth - 16));
 
     // Log position for debugging
-    console.log('Menu position:', {
-      viewportCenter,
-      leftPosition,
-      adjustedLeft,
-      viewportWidth,
-      menuWidth,
-      footerNavWidth
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Menu position:', {
+        viewportCenter,
+        leftPosition,
+        adjustedLeft,
+        viewportWidth,
+        footerNavWidth,
+        footerNavElementWidth: footerNavElement?.getBoundingClientRect().width
+      });
+    }
 
     return {
       left: `${adjustedLeft}px`,
-      width: `${menuWidth}px`, // Set the width to match the footer nav
+      width: `${footerNavWidth}px`, // Match the width of the footer nav exactly
       transform: 'none', // No need for transform since we're calculating the exact position
     };
   };
@@ -298,15 +322,23 @@ function ContextMenu({
         ...calculatePosition(),
         bottom: 'calc(var(--footer-height) + 24px)', // Increased gap from 16px to 24px
       }}
-      // Add click handler to prevent clicks inside the menu from closing it
+      // Add event handlers to prevent clicks inside the menu from closing it
       onClick={(e) => {
         // Prevent click from propagating to document
         e.stopPropagation();
       }}
+      onMouseDown={(e) => {
+        // Prevent mousedown from propagating to document
+        e.stopPropagation();
+      }}
     >
       <div
-        className="bg-popover border rounded-md shadow-md w-full max-h-[80vh] overflow-y-auto p-4"
+        className="bg-popover border rounded-md shadow-lg w-full max-h-[400px] h-auto overflow-y-auto p-4 backdrop-blur-md custom-scrollbar"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent' }}
         tabIndex={-1} // Make the div focusable
+        // Add event handlers to prevent propagation
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         // Add keyboard event handling for accessibility
         onKeyDown={(e) => {
           // Close on escape key
@@ -315,6 +347,8 @@ function ContextMenu({
           }
         }}
       >
+        {/* Visual indicator pointing to the active footer nav item */}
+        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-popover border-b border-r border-border rotate-45"></div>
         {renderMenuContent()}
       </div>
     </div>

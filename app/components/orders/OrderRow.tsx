@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Order, OrderStatus } from '@/types/orders';
 import StatusBadge from './StatusBadge';
 import OrderActions from './OrderActions';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -74,7 +74,7 @@ const OrderRow: React.FC<OrderRowProps> = ({
     <>
       <motion.tr
         className={cn(
-          "hover:bg-table-hover transition-colors duration-150",
+          "hover:bg-table-hover transition-colors duration-150 cursor-pointer",
           isExpanded && "bg-table-hover"
         )}
         initial="initial"
@@ -83,11 +83,15 @@ const OrderRow: React.FC<OrderRowProps> = ({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         layout="position"
+        onClick={() => onView(order)}
       >
         <td className="px-4 py-3 whitespace-nowrap">
           <div className="flex items-center space-x-2">
             <motion.button
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent row click event
+                setIsExpanded(!isExpanded);
+              }}
               className="group inline-flex items-center text-sm text-table-header hover:text-white focus:outline-none"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -127,7 +131,20 @@ const OrderRow: React.FC<OrderRowProps> = ({
           <div className="text-sm text-white">{formatCurrency(order.balance || 0)}</div>
         </td>
         <td className="px-4 py-3 whitespace-nowrap text-right">
-          <div className="w-full flex justify-end">
+          <div className="w-full flex justify-end items-center space-x-2">
+            <motion.button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent row click event
+                onInvoice(order);
+              }}
+              className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-brand hover:bg-brand/80 text-white"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Generate Invoice"
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              Invoice
+            </motion.button>
             <OrderActions
               order={order}
               userRole={userRole}
@@ -169,7 +186,7 @@ const OrderRow: React.FC<OrderRowProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-table-border">
-                        {order.items && order.items.length > 0 ? (
+                        {console.log('Order items:', order.items) || (order.items && order.items.length > 0) ? (
                           order.items.map((item) => (
                             <tr key={item.id} className="hover:bg-table-hover">
                               <td className="px-4 py-2 whitespace-nowrap text-sm text-white">{item.item_name}</td>
@@ -192,7 +209,7 @@ const OrderRow: React.FC<OrderRowProps> = ({
                 {/* Notes Section */}
                 <div>
                   <h4 className="text-sm font-medium text-table-header mb-2">Notes</h4>
-                  {order.notes && order.notes.length > 0 ? (
+                  {console.log('Order notes:', order.notes) || (order.notes && order.notes.length > 0) ? (
                     <div className="space-y-2">
                       {order.notes.map((note) => (
                         <div

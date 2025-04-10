@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { OrderStatus } from '@/types/orders';
 
@@ -13,29 +13,28 @@ export async function PATCH(
 ) {
   try {
     const orderId = params.id;
-    
+
     if (!orderId) {
       return NextResponse.json(
         { error: 'Order ID is required' },
         { status: 400 }
       );
     }
-    
+
     // Parse request body
     const body = await request.json();
     const { status } = body as { status: OrderStatus };
-    
+
     if (!status) {
       return NextResponse.json(
         { error: 'Status is required' },
         { status: 400 }
       );
     }
-    
+
     // Create Supabase client
-    const cookieStore = cookies();
-    const supabase = createServerClient(cookieStore);
-    
+    const supabase = await createClient();
+
     // Update order status
     const { data, error } = await supabase
       .from('orders')
@@ -43,7 +42,7 @@ export async function PATCH(
       .eq('id', orderId)
       .select()
       .single();
-    
+
     if (error) {
       console.error('Error updating order status:', error);
       return NextResponse.json(
@@ -51,7 +50,7 @@ export async function PATCH(
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json({
       success: true,
       order: data

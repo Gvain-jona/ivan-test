@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Notification, NotificationStatus } from '@/types/notifications';
+import type { Notification as NotificationType, NotificationStatus } from '@/types/notifications';
 import { format, subDays } from 'date-fns';
 import { useAuth } from '@/context/auth-context';
 
 export const useRealNotifications = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -312,7 +312,17 @@ export const useRealNotifications = () => {
   // Fetch notifications on mount and when user changes
   useEffect(() => {
     if (user?.id) {
+      // Initial fetch
       fetchNotifications();
+
+      // Set up polling for notifications every 30 seconds
+      const intervalId = setInterval(() => {
+        console.log('Polling for notifications...');
+        fetchNotifications();
+      }, 30000); // 30 seconds
+
+      // Clean up interval on unmount
+      return () => clearInterval(intervalId);
     }
   }, [user?.id, fetchNotifications]);
 
@@ -325,46 +335,91 @@ export const useRealNotifications = () => {
     const supabase = createClient();
 
     // Subscribe to changes in the notifications table
-    const subscription = supabase
-      .channel('notifications-changes')
+    const channel = supabase.channel('notifications-changes-' + Date.now());
+
+    // Add subscription for INSERT events
+    channel
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        console.log('Received new notification:', payload);
-        // Add the new notification to the state
-        const newNotification = payload.new as any;
+        console.log('Received new notification INSERT:', payload);
+        try {
+          // Add the new notification to the state
+          const newNotification = payload.new as any;
 
-        // Transform to match our Notification interface
-        const parsedData = newNotification.data ? newNotification.data : {};
+          // Parse the data field if it's a string
+          let parsedData: { order_id?: string; client_name?: string; [key: string]: any } = {};
+          if (newNotification.data) {
+            try {
+              if (typeof newNotification.data === 'string') {
+                parsedData = JSON.parse(newNotification.data);
+              } else {
+                parsedData = newNotification.data;
+              }
+            } catch (e) {
+              console.error('Error parsing notification data:', e);
+              parsedData = {};
+            }
+          }
 
-        const transformedNotification: Notification = {
-          id: newNotification.id,
-          type: newNotification.type,
-          title: newNotification.title,
-          message: newNotification.message,
-          timestamp: newNotification.timestamp || newNotification.created_at,
-          status: newNotification.status as NotificationStatus,
-          sender: {
-            id: 'system',
-            name: 'System',
-          },
-          target: {
-            id: parsedData.order_id || '',
-            type: 'order',
-            title: parsedData.client_name ? `${parsedData.client_name}'s Order` : 'Order',
-          },
-        };
+          console.log('Parsed notification data:', parsedData);
 
-        setNotifications(prev => [transformedNotification, ...prev]);
+          const transformedNotification: Notification = {
+            id: newNotification.id,
+            type: newNotification.type,
+            title: newNotification.title,
+            message: newNotification.message,
+            timestamp: newNotification.timestamp || newNotification.created_at,
+            status: newNotification.status as NotificationStatus,
+            sender: {
+              id: 'system',
+              name: 'System',
+            },
+            target: {
+              id: parsedData.order_id || '',
+              type: 'order',
+              title: parsedData.client_name ? `${parsedData.client_name}'s Order` : 'Order',
+            },
+          };
+
+          // Update the notifications state
+          setNotifications(prev => [transformedNotification, ...prev]);
+
+          // Trigger a browser notification if permission is granted
+          if (Notification.permission === 'granted') {
+            const notification = new Notification(transformedNotification.title, {
+              body: transformedNotification.message,
+              icon: '/logo.png',
+              badge: '/logo.png',
+              data: {
+                url: `/dashboard/orders?id=${parsedData.order_id || ''}`,
+                ...parsedData
+              }
+            });
+
+            // Handle notification click
+            notification.onclick = function() {
+              window.focus();
+              notification.close();
+
+              // Navigate to the target URL
+              if (parsedData.order_id) {
+                window.location.href = `/dashboard/orders?id=${parsedData.order_id}`;
+              }
+            };
+          }
+        } catch (error) {
+          console.error('Error processing notification:', error);
+        }
       })
       .subscribe();
 
     // Clean up subscription on unmount
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
   }, [user?.id]);
 

@@ -4,7 +4,7 @@ import { Control } from 'react-hook-form';
 export interface InvoiceSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: Order;
+  order: Order | null;
   onClose: () => void;
 }
 
@@ -19,6 +19,21 @@ export interface InvoiceSettings {
   paymentTerms: string;
   customHeader: string;
   customFooter: string;
+  tinNumber: string;
+  proformaNumber: string;
+  companyName: string;
+  companyEmail: string;
+  companyPhone: string;
+  companyAddress: string;
+  companyLogo: string;
+  // Bank details
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  // Mobile money details
+  mobileProvider: string;
+  mobilePhone: string;
+  mobileContact: string;
 }
 
 // Props for the InvoicePreview component
@@ -26,6 +41,7 @@ export interface InvoicePreviewProps {
   order: Order;
   invoiceUrl: string | null;
   isGenerating: boolean;
+  error?: string | null;
   settings: InvoiceSettings;
   onGenerate: () => void;
 }
@@ -42,13 +58,15 @@ export interface InvoiceSettingsProps {
 
 // Props for the useInvoiceGeneration hook
 export interface UseInvoiceGenerationProps {
-  orderId: string;
+  orderId?: string;
+  order?: Order | null;
 }
 
 // Return type for the useInvoiceGeneration hook
 export interface UseInvoiceGenerationReturn {
   invoiceUrl: string | null;
   isGenerating: boolean;
+  error: string | null;
   generateInvoiceWithSettings: (settings: InvoiceSettings) => Promise<void>;
   resetInvoice: () => void;
 }

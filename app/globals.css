@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted) / 0.6);
+  border-radius: 20px;
+  border: 2px solid transparent;
+  transition: background-color 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* For Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted) / 0.6) transparent;
+}
+
 /* Custom animations */
 @keyframes slideUp {
   from {
@@ -230,6 +257,35 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Table-specific CSS variables */
+  :root {
+    /* Light theme table variables */
+    --table-header-bg: 0 0% 96%;
+    --table-header-text: 0 0% 20%;
+    --table-row-hover: 0 0% 94%;
+    --table-border: 0 0% 85%;
+    --table-stripe: 0 0% 98%;
+    --table-subrow-bg: 0 0% 97%;
+    --table-subrow-title: 0 0% 30%;
+    --table-note-border: 16 100% 50%;
+    --table-pagination-active: 16 100% 50%;
+    --table-pagination-hover: 0 0% 90%;
+  }
+
+  .dark {
+    /* Dark theme table variables */
+    --table-header-bg: 0 0% 10%;
+    --table-header-text: 0 0% 80%;
+    --table-row-hover: 0 0% 12%;
+    --table-border: 0 0% 20%;
+    --table-stripe: 0 0% 7%;
+    --table-subrow-bg: 0 0% 9%;
+    --table-subrow-title: 0 0% 90%;
+    --table-note-border: 16 100% 50%;
+    --table-pagination-active: 16 100% 50%;
+    --table-pagination-hover: 0 0% 15%;
+  }
 }
 
 /* Custom styles for a more modern and clean look */
@@ -278,5 +334,64 @@
   /* Header styling */
   .top-header {
     @apply bg-card border-b border-border h-16 flex items-center;
+  }
+
+  /* Table styling */
+  .table-container {
+    @apply rounded-lg border border-[hsl(var(--table-border))] overflow-hidden;
+  }
+
+  .table-header {
+    @apply bg-[hsl(var(--table-header-bg))] text-[hsl(var(--table-header-text))] font-medium text-sm;
+  }
+
+  .table-header th {
+    @apply py-3 px-4 text-left;
+  }
+
+  .table-row {
+    @apply border-b border-[hsl(var(--table-border))] transition-colors;
+  }
+
+  .table-row:hover {
+    @apply bg-[hsl(var(--table-row-hover))];
+  }
+
+  .table-row-expanded {
+    @apply bg-[hsl(var(--table-subrow-bg))];
+  }
+
+  .table-cell {
+    @apply py-3 px-4 text-sm;
+  }
+
+  .table-subrow-title {
+    @apply text-sm font-medium text-[hsl(var(--table-subrow-title))] mb-2;
+  }
+
+  .table-note-card {
+    @apply border border-[hsl(var(--table-border))] rounded-lg p-3 relative overflow-hidden;
+  }
+
+  .table-note-card::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-1 bg-[hsl(var(--table-note-border))];
+  }
+
+  /* Pagination styling */
+  .pagination-container {
+    @apply flex items-center justify-between py-3 px-4 border-t border-[hsl(var(--table-border))];
+  }
+
+  .pagination-button {
+    @apply h-8 w-8 p-0 flex items-center justify-center rounded-md transition-colors;
+  }
+
+  .pagination-button-active {
+    @apply bg-[hsl(var(--table-pagination-active))] text-white;
+  }
+
+  .pagination-button-inactive {
+    @apply bg-card border border-[hsl(var(--table-border))] hover:bg-[hsl(var(--table-pagination-hover))];
   }
 }

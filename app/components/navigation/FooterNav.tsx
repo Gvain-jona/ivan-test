@@ -10,10 +10,10 @@ import {
   CheckSquare,
   BarChart3,
   ArrowUp,
-  Bell,
   Search,
   User
 } from 'lucide-react';
+import { NotificationsIndicator } from '@/components/notifications/NotificationsIndicator';
 import { useNotifications } from '@/context/NotificationsContext';
 
 import { ExpandableTabs } from '@/components/ui/expandable-tabs';
@@ -34,7 +34,7 @@ import ContextMenu from '@/components/ui/context-menu';
 // Import custom hooks
 import { useContextMenu } from '@/hooks/ui/useContextMenu';
 import { useScrollNavigation } from '@/hooks/ui/useScrollNavigation';
-import { useTabNavigation, NavItemType } from '@/hooks/ui/useTabNavigation';
+import { useTabNavigation, NavItemType, NavItem } from '@/hooks/ui/useTabNavigation';
 import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
 // Define navigation items with direct link flags for problematic routes
@@ -42,13 +42,19 @@ const getNavigationItems = (unreadCount: number): NavItemType[] => [
   // Home page removed temporarily
   // { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
-  { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },
-  { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
+  { title: 'Expenses', icon: Banknote, href: '/dashboard/feature-in-development' },
+  { title: 'Material', icon: ShoppingBag, href: '/dashboard/feature-in-development' },
   { type: 'separator' },
-  { title: 'To-Do', icon: CheckSquare, href: '/dashboard/todo' },
-  { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', useDirectLink: true },
+  { title: 'To-Do', icon: CheckSquare, href: '/dashboard/feature-in-development' },
+  { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', useDirectLink: true } as NavItem,
   { type: 'separator' },
-  { title: 'Notifications', icon: Bell, href: '#', isContextMenu: true, menuType: 'notifications', badge: unreadCount },
+  {
+    title: 'Notifications',
+    icon: () => <NotificationsIndicator />,
+    href: '#',
+    isContextMenu: true,
+    menuType: 'notifications'
+  },
   { title: 'Search', icon: Search, href: '#', isContextMenu: true, menuType: 'search' },
   { title: 'Profile', icon: User, href: '#', isContextMenu: true, menuType: 'profile' },
 ];
@@ -62,6 +68,18 @@ function FooterNavComponent({ className }: FooterNavProps) {
   const { isNavigating, navigationError, cancelNavigation } = useNavigation();
   const { unreadCount } = useNotifications();
 
+  const footerNavRef = useRef<HTMLDivElement>(null);
+
+  // Use custom hooks
+  const {
+    activeMenu,
+    contextMenuOpen,
+    clickPosition,
+    navWidth,
+    toggleMenu,
+    closeMenu
+  } = useContextMenu();
+
   // Handle navigation errors
   useEffect(() => {
     if (navigationError) {
@@ -72,16 +90,35 @@ function FooterNavComponent({ className }: FooterNavProps) {
       cancelNavigation();
     }
   }, [navigationError, cancelNavigation]);
-  const footerNavRef = useRef<HTMLDivElement>(null);
 
-  // Use custom hooks
-  const {
-    activeMenu,
-    contextMenuOpen,
-    clickPosition,
-    navWidth,
-    toggleMenu
-  } = useContextMenu();
+  // Add a global click handler to close the contextual menu when clicking outside
+  useEffect(() => {
+    if (!contextMenuOpen) return;
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      // Get the target element
+      const targetElement = e.target as HTMLElement;
+
+      // Check if the click was on a footer nav item or inside a contextual menu
+      const isFooterNavItem = targetElement.closest('.footer-nav');
+      const isContextMenu = targetElement.closest('.context-menu-container');
+
+      // If the click was not on a footer nav item or inside a contextual menu, close the menu
+      if (!isFooterNavItem && !isContextMenu) {
+        closeMenu();
+      }
+    };
+
+    // Add the event listener with a slight delay to prevent immediate closing
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleGlobalClick);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, [contextMenuOpen, closeMenu]);
 
   const {
     showScrollTop,
@@ -97,6 +134,7 @@ function FooterNavComponent({ className }: FooterNavProps) {
     activeTab,
     activeTabIndex,
     initialTab,
+    activeContextMenuTab,
     handleTabChange
   } = useTabNavigation({
     navigationItems,
@@ -115,14 +153,21 @@ function FooterNavComponent({ className }: FooterNavProps) {
       if (item.isContextMenu) {
         // Handle context menu click
         toggleMenu(item.menuType as 'notifications' | 'search' | 'profile', event);
-      } else if (item.useDirectLink) {
-        // Handle direct link navigation
-        console.log(`Using direct link for ${item.title} (${item.href})`);
-        // Set active tab for visual feedback
-        handleTabChange(index, event);
       } else {
-        // Handle regular navigation
-        handleTabChange(index, event);
+        // If we're clicking on a page navigation item, close any open context menu
+        if (contextMenuOpen) {
+          closeMenu();
+        }
+
+        if (item.useDirectLink) {
+          // Handle direct link navigation
+          console.log(`Using direct link for ${item.title} (${item.href})`);
+          // Set active tab for visual feedback
+          handleTabChange(index, event);
+        } else {
+          // Handle regular navigation
+          handleTabChange(index, event);
+        }
       }
     }
   };
@@ -158,7 +203,8 @@ function FooterNavComponent({ className }: FooterNavProps) {
           activeColor="text-orange-500"
           className="border-border bg-popover backdrop-blur-md shadow-lg px-2 py-2"
           onChange={handleTabChangeWithContext}
-          initialSelectedIndex={initialTab}
+          initialSelectedIndex={activeTabIndex !== -1 ? activeTabIndex : initialTab}
+          activeContextMenuIndex={activeContextMenuTab || null}
         />
       </div>
 
@@ -167,12 +213,9 @@ function FooterNavComponent({ className }: FooterNavProps) {
         open={contextMenuOpen}
         onOpenChange={(open) => {
           if (!open) {
-            // Reset active tab to the current navigation item after animation completes
-            setTimeout(() => {
-              if (activeTabIndex !== -1) {
-                handleTabChange(activeTabIndex);
-              }
-            }, 200); // Match animation duration
+            // No need to reset active tab - we want to maintain the current page's active state
+            // Just close the menu
+            closeMenu();
           }
         }}
         menuType={activeMenu}
