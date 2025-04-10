@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,6 +14,7 @@ import { FormSection } from '@/components/ui/form/FormSection';
 import { Combobox, ComboboxOption } from '@/components/ui/combobox';
 import { SmartCombobox } from '@/components/ui/smart-combobox';
 import { useSmartDropdown } from '@/hooks/useSmartDropdown';
+import FieldError from '@/components/ui/form/FieldError';
 
 interface OrderGeneralInfoFormProps {
   active: boolean;
@@ -55,6 +56,21 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
     }
     return null;
   };
+  // Set default values for new orders
+  React.useEffect(() => {
+    if (!active) return;
+
+    // Set default client type if not already set
+    if (!order.client_type) {
+      updateOrderField('client_type', 'regular' as ClientType);
+    }
+
+    // Set default status if not already set
+    if (!order.status) {
+      updateOrderField('status', 'pending' as OrderStatus);
+    }
+  }, [active, order.client_type, order.status, updateOrderField]);
+
   return (
     <div className="space-y-6">
       <FormSection title="Order Details" titleClassName="text-lg font-semibold text-foreground mb-4">
@@ -76,31 +92,39 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="order_date" className="text-sm font-medium">Order Date</Label>
+              <Label htmlFor="order_date" className="text-sm font-medium">
+                Order Date
+                {errors['date'] && <span className="text-destructive ml-1">*</span>}
+              </Label>
               <Input
                 id="order_date"
                 type="date"
                 value={order.date || ''}
                 onChange={(e) => updateOrderField('date', e.target.value)}
-                className="bg-background border-input h-10"
+                className={errors['date'] ? 'border-destructive bg-background border-input h-10' : 'bg-background border-input h-10'}
               />
+              <FieldError errors={errors['date']} fieldName="date" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="client" className="text-sm font-medium">Client</Label>
+              <Label htmlFor="client" className="text-sm font-medium">
+                Client
+                {errors['client_id'] && <span className="text-destructive ml-1">*</span>}
+              </Label>
               <SmartCombobox
                 options={clientOptions}
                 value={order.client_id || ''}
                 onChange={(value) => updateOrderField('client_id', value)}
                 onSearch={setClientSearch}
                 isLoading={clientsLoading}
-                placeholder="Select or search client"
+                placeholder="Select client"
                 allowCreate={true}
                 onCreateOption={handleCreateClient}
                 entityName="Client"
-                className="bg-background border-input"
+                className={errors['client_id'] ? 'border-destructive bg-background border-input' : 'bg-background border-input'}
                 emptyMessage="No clients found. Create one?"
               />
+              <FieldError errors={errors['client_id']} fieldName="client_id" />
             </div>
           </div>
 
@@ -110,6 +134,7 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
               <Select
                 value={order.client_type || 'regular'}
                 onValueChange={(value) => updateOrderField('client_type', value as ClientType)}
+                defaultValue="regular"
               >
                 <SelectTrigger id="client_type" className="bg-background border-input">
                   <SelectValue placeholder="Select client type" />
@@ -122,15 +147,23 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status" className="text-sm font-medium">Status</Label>
+              <Label htmlFor="status" className="text-sm font-medium">
+                Status
+                {errors['status'] && <span className="text-destructive ml-1">*</span>}
+              </Label>
               <Select
-                value={order.status || 'paused'}
+                value={order.status || 'pending'}
                 onValueChange={(value) => updateOrderField('status', value as OrderStatus)}
+                defaultValue="pending"
               >
-                <SelectTrigger id="status" className="bg-background border-input">
+                <SelectTrigger
+                  id="status"
+                  className={errors['status'] ? 'border-destructive bg-background border-input' : 'bg-background border-input'}
+                >
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="paused">Paused</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
@@ -138,6 +171,7 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              <FieldError errors={errors['status']} fieldName="status" />
             </div>
           </div>
         </div>
@@ -169,7 +203,7 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
               <Label className="text-sm font-medium">Balance</Label>
               <Input
                 disabled
-                value={formatCurrency((order.total_amount || 0) - (order.amount_paid || 0))}
+                value={formatCurrency(order.balance || 0)}
                 className="bg-muted/30 border-muted text-foreground/90 font-medium"
               />
             </div>

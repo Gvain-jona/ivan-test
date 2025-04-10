@@ -22,13 +22,17 @@ export const orderPaymentSchema = z.object({
   id: z.string().optional(),
   order_id: z.string().optional(),
   amount: z.number().min(0.01, "Payment amount must be greater than 0"),
-  payment_date: z.string().min(1, "Payment date is required"),
+  payment_date: z.string().min(1, "Payment date is required")
+    .default(() => new Date().toISOString().split('T')[0]), // Default to today's date
   payment_method: z.enum(["cash", "bank_transfer", "credit_card", "cheque", "mobile_payment"] as const, {
     errorMap: () => ({ message: "Please select a valid payment method" }),
   }),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
+
+// Define the form values type
+export type OrderPaymentFormValues = z.infer<typeof orderPaymentSchema>;
 
 // Order Note Schema
 export const orderNoteSchema = z.object({
