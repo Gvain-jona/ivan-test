@@ -171,6 +171,30 @@ export interface Database {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          id: string
+          created_at: string
+          key: string
+          value: string
+          description: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          key: string
+          value: string
+          description?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          key?: string
+          value?: string
+          description?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
