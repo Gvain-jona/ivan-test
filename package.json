@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
+    "test": "echo \"No tests specified\" && exit 0",
     "prepare": "husky",
     "clean": "node clean-build.js",
     "clean:dev": "node clean-build.js && npm install && npm run dev",
