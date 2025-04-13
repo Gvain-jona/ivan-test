@@ -100,21 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) throw error
         if (session) {
-          // Store session data in localStorage
-          localStorage.setItem('sb-access-token', accessToken)
-          if (refreshToken) {
-            localStorage.setItem('sb-refresh-token', refreshToken)
+          // Store session data in localStorage via the sb-auth key
+          const sessionData = {
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+            expires_at: Math.floor(Date.now() / 1000) + (parseInt(expiresIn || '3600')),
+            user: session.user,
+            token_type: tokenType || 'bearer'
           }
-          localStorage.setItem('sb-token-type', tokenType || 'bearer')
-          localStorage.setItem('sb-expires-in', expiresIn || '3600')
+          localStorage.setItem('sb-auth', JSON.stringify(sessionData))
           localStorage.setItem('auth_completed', 'true')
           localStorage.setItem('auth_timestamp', Date.now().toString())
-
-          // Set auth cookies
-          document.cookie = `sb-auth-token=${accessToken};path=/;max-age=${expiresIn || 3600};SameSite=Lax`
-          if (refreshToken) {
-            document.cookie = `sb-refresh-token=${refreshToken};path=/;max-age=${expiresIn || 3600};SameSite=Lax`
-          }
 
           // Get the redirect path
           const searchParams = new URLSearchParams(window.location.search)
@@ -136,154 +132,132 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        console.log('Checking auth state... URL:', window.location.href)
+        console.log('Checking auth state...')
+        console.log('URL:', window.location.href)
+        console.log('URL parameters:', new URLSearchParams(window.location.search))
 
-        if (typeof window !== 'undefined') {
-          const url = new URL(window.location.href)
-          const hashParams = new URLSearchParams(url.hash.substring(1))
-          const error = hashParams.get('error') || url.searchParams.get('error')
-          const error_code = hashParams.get('error_code') || url.searchParams.get('error_code')
-          const error_description = hashParams.get('error_description') || url.searchParams.get('error_description')
+        // Check for hash fragment first (magic link flow)
+        if (window.location.hash) {
+          console.log('Found hash fragment, handling magic link...')
+          await handleHashFragment()
+        }
 
-          console.log('URL parameters:', {
-            error: error || 'none',
-            error_code: error_code || 'none',
-            error_description: error_description || 'none',
-          })
+        // Check existing session
+        console.log('Checking existing session...')
+        const { data: { session }, error } = await supabase.auth.getSession()
 
-          // Handle error parameters
-          if (error) {
-            console.error('Auth error:', error, error_description)
-            const isExpiredLink = error_code === 'otp_expired' || error_description?.toLowerCase().includes('expired')
-            const errorMessage = isExpiredLink 
-              ? 'The magic link has expired. Please request a new one.'
-              : error_description || error
-            router.push(`/auth/signin?error=${encodeURIComponent(errorMessage)}`)
-            return
+        if (error) {
+          console.error('Session error:', error)
+          throw error
+        }
+
+        setUser(session?.user || null)
+
+        if (session?.user) {
+          console.log('Found existing session, fetching profile...')
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle()
+
+          if (profileError) {
+            console.error('Profile fetch error:', profileError)
+            throw profileError
           }
 
-          // Try to handle hash fragment first
-          const hashSession = await handleHashFragment()
-          if (hashSession) {
-            console.log('Session established from hash')
-            setUser(hashSession.user)
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', hashSession.user.id)
-              .single()
-
-            if (profileError) {
-              if (profileError.code === 'PGRST116') {
-                await createUserProfile(hashSession.user)
-              } else {
-                console.error('Profile fetch error:', profileError)
-              }
-            } else {
-              setProfile(profileData)
-            }
-            return
-          }
-
-          // Check for existing session
-          console.log('Checking existing session...')
-          const { data: { session } } = await supabase.auth.getSession()
-
-          if (session?.user) {
-            console.log('Found existing session')
-            setUser(session.user)
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single()
-
-            if (profileError) {
-              if (profileError.code === 'PGRST116') {
-                await createUserProfile(session.user)
-              } else {
-                console.error('Profile fetch error:', profileError)
-              }
-            } else {
-              setProfile(profileData)
-            }
+          if (!profileData) {
+            console.log('No profile found, creating one...')
+            await createUserProfile(session.user)
           } else {
-            console.log('No session found')
+            console.log('Profile found:', profileData)
+            setProfile(profileData)
           }
         }
       } catch (error) {
-        console.error('Auth check error:', error)
+        console.error('Auth initialization error:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
     handleAuth()
+  }, [])
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
-        console.log('Auth state changed:', event)
+  // Listen for auth changes
+  useEffect(() => {
+    console.log('Setting up auth state change listener...')
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event)
+      console.log('Session present:', !!session)
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           setUser(session.user)
+          
+          // Store session data in localStorage
+          const sessionData = {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+            user: session.user,
+            token_type: session.token_type
+          }
+          localStorage.setItem('sb-auth', JSON.stringify(sessionData))
           localStorage.setItem('auth_completed', 'true')
           localStorage.setItem('auth_timestamp', Date.now().toString())
           localStorage.setItem('auth_user_id', session.user.id)
           localStorage.setItem('auth_in_progress', 'false')
 
-          // Set auth cookies
-          document.cookie = `sb-auth-token=${session.access_token};path=/;max-age=3600;SameSite=Lax`
-          if (session.refresh_token) {
-            document.cookie = `sb-refresh-token=${session.refresh_token};path=/;max-age=3600;SameSite=Lax`
-          }
-
-          if (session.user.email) {
-            localStorage.setItem('auth_email', session.user.email)
-            localStorage.setItem('auth_email_temp', session.user.email)
-          }
-
+          // Fetch or create profile
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single()
+            .maybeSingle()
 
           if (profileError) {
-            if (profileError.code === 'PGRST116') {
-              await createUserProfile(session.user)
-            } else {
-              console.error('Profile fetch error:', profileError)
-            }
+            console.error('Profile fetch error:', profileError)
+          } else if (!profileData) {
+            console.log('Creating new profile...')
+            await createUserProfile(session.user)
           } else {
+            console.log('Setting existing profile...')
             setProfile(profileData)
           }
 
-          // Get the redirect path
+          // Get the redirect path and navigate
           const searchParams = new URLSearchParams(window.location.search)
           const redirect = searchParams.get('redirect') || '/dashboard/orders'
           router.push(redirect)
-        } else if (event === 'SIGNED_OUT') {
-          console.log('Signed out')
-          setUser(null)
-          setProfile(null)
-          localStorage.removeItem('auth_completed')
-          localStorage.removeItem('auth_timestamp')
-          localStorage.removeItem('auth_user_id')
-          localStorage.removeItem('auth_in_progress')
-          localStorage.removeItem('auth_email')
-          localStorage.removeItem('auth_email_temp')
-          localStorage.removeItem('sb-access-token')
-          localStorage.removeItem('sb-refresh-token')
-          localStorage.removeItem('sb-token-type')
-          localStorage.removeItem('sb-expires-in')
-          // Remove auth cookies
-          document.cookie = 'sb-auth-token=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT'
-          document.cookie = 'sb-refresh-token=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT'
         }
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out, cleaning up...')
+        setUser(null)
+        setProfile(null)
+        
+        // Clear all auth-related data
+        const authKeys = [
+          'auth_completed',
+          'auth_timestamp',
+          'auth_user_id',
+          'auth_in_progress',
+          'auth_email',
+          'auth_email_temp',
+          'sb-auth'
+        ]
+        
+        authKeys.forEach(key => localStorage.removeItem(key))
+        
+        // Redirect to signin
+        router.push('/auth/signin')
       }
-    )
+    })
 
     return () => {
-      console.log('Cleaning up subscription')
+      console.log('Cleaning up auth subscription')
       subscription.unsubscribe()
     }
   }, [supabase, router])

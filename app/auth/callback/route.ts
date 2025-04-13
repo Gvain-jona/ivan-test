@@ -48,7 +48,21 @@ export async function GET(request: NextRequest) {
     // Set auth cookies
     const response = NextResponse.redirect(`${requestUrl.origin}${next}`)
     
-    // Set the session cookie
+    // Store the full session in the sb-auth cookie (matches localStorage format)
+    response.cookies.set('sb-auth', JSON.stringify({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: Math.floor(Date.now() / 1000) + (session.expires_in || 3600),
+      user: session.user,
+      token_type: 'bearer'
+    }), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    })
+
+    // Also set individual token cookies for middleware
     response.cookies.set('sb-auth-token', session.access_token, {
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
@@ -57,7 +71,6 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production'
     })
 
-    // Set refresh token
     if (session.refresh_token) {
       response.cookies.set('sb-refresh-token', session.refresh_token, {
         path: '/',

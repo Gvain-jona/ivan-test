@@ -7,38 +7,34 @@ export async function updateSession(request: NextRequest) {
   const isAuthPage = requestUrl.pathname.startsWith('/auth')
   const isCallback = requestUrl.pathname === '/auth/callback'
 
+  console.log('Middleware: Processing request:', {
+    url: requestUrl.pathname,
+    isAuthPage,
+    isCallback
+  })
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  // Get auth tokens from cookies
-  const accessToken = request.cookies.get('sb-auth-token')?.value
-  const refreshToken = request.cookies.get('sb-refresh-token')?.value
-
-  // Get auth data from localStorage via cookie
-  const authData = request.cookies.get('sb-auth')?.value
+  // Get auth data from cookies
+  const authCookie = request.cookies.get('sb-auth')?.value
   let session = null
 
   try {
-    if (authData) {
-      const parsedAuthData = JSON.parse(authData)
-      if (parsedAuthData.access_token && parsedAuthData.refresh_token) {
-        console.log('Middleware: Found session data in sb-auth cookie')
-        session = parsedAuthData
+    if (authCookie) {
+      console.log('Middleware: Found sb-auth cookie')
+      const parsedAuth = JSON.parse(authCookie)
+      if (parsedAuth?.access_token) {
+        session = parsedAuth
+        console.log('Middleware: Parsed valid session from cookie')
       }
     }
   } catch (error) {
-    console.error('Middleware: Error parsing sb-auth cookie:', error)
+    console.error('Middleware: Error parsing auth cookie:', error)
   }
-
-  console.log('Middleware: Auth check:', {
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
-    hasAuthData: !!session,
-    path: requestUrl.pathname
-  })
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,14 +42,12 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          const cookie = request.cookies.get(name)
+          console.log('Middleware: Cookie get:', { name, value: cookie?.value ? 'present' : 'none' })
+          return cookie?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          console.log('Middleware: Cookie set:', { name, options })
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -66,11 +60,7 @@ export async function updateSession(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          console.log('Middleware: Cookie remove:', { name, options })
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -87,66 +77,63 @@ export async function updateSession(request: NextRequest) {
   )
 
   try {
-    if (session) {
-      // Set the session from localStorage data
+    // If we have a session from the cookie, set it in Supabase
+    if (session?.access_token) {
+      console.log('Middleware: Setting session from cookie')
       await supabase.auth.setSession({
         access_token: session.access_token,
-        refresh_token: session.refresh_token
+        refresh_token: session.refresh_token || ''
       })
     }
 
-    // Get user session
-    const { data: { session: serverSession }, error } = await supabase.auth.getSession()
+    // Verify the session with Supabase
+    const { data: { session: supabaseSession }, error } = await supabase.auth.getSession()
 
-    console.log('Middleware: Session check result:', {
-      hasSession: !!serverSession,
+    console.log('Middleware: Session verification result:', {
+      hasSession: !!supabaseSession,
       error: error?.message || 'none',
       path: requestUrl.pathname
     })
 
-    // Handle auth pages
+    // Handle auth pages (signin, signup, etc.)
     if (isAuthPage) {
-      if (serverSession && !isCallback) {
-        // If user is signed in and the current path starts with /auth
-        // redirect the user to /dashboard/orders
+      if (supabaseSession && !isCallback) {
+        console.log('Middleware: Redirecting authenticated user from auth page to dashboard')
         return NextResponse.redirect(new URL('/dashboard/orders', request.url))
       }
+      console.log('Middleware: Allowing access to auth page')
       return response
     }
 
-    // Check auth status for non-auth pages
-    if (!serverSession && !isAuthPage) {
-      // If user is not signed in and the current path is not /auth,
-      // redirect the user to /auth/signin
-      const redirectUrl = `${requestUrl.origin}/auth/signin?redirect=${encodeURIComponent(requestUrl.pathname)}`
+    // Handle protected pages
+    if (!supabaseSession) {
+      console.log('Middleware: No valid session, redirecting to signin')
+      const redirectUrl = new URL('/auth/signin', request.url)
+      redirectUrl.searchParams.set('redirect', requestUrl.pathname)
       return NextResponse.redirect(redirectUrl)
     }
 
-    // If we have a session but not the right cookies, set them
-    if (serverSession && (!accessToken || !refreshToken)) {
-      response.cookies.set('sb-auth-token', serverSession.access_token, {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      })
+    // Update cookies with the verified session
+    console.log('Middleware: Updating cookies with verified session')
+    response.cookies.set('sb-auth', JSON.stringify({
+      access_token: supabaseSession.access_token,
+      refresh_token: supabaseSession.refresh_token,
+      expires_at: supabaseSession.expires_at,
+      user: supabaseSession.user,
+      token_type: supabaseSession.token_type
+    }), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    })
 
-      if (serverSession.refresh_token) {
-        response.cookies.set('sb-refresh-token', serverSession.refresh_token, {
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7, // 1 week
-          httpOnly: true,
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production'
-        })
-      }
-    }
-
+    console.log('Middleware: Request processing complete')
     return response
   } catch (error) {
-    console.error('Middleware error:', error)
-    // On error, redirect to signin
-    return NextResponse.redirect(new URL('/auth/signin', request.url))
+    console.error('Middleware: Error processing request:', error)
+    const redirectUrl = new URL('/auth/signin', request.url)
+    redirectUrl.searchParams.set('error', 'Session verification failed')
+    return NextResponse.redirect(redirectUrl)
   }
 }
