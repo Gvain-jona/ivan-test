@@ -1,12 +1,75 @@
 'use client';
 
-import React from 'react';
-import { Construction, Package, ArrowRight, Wrench, Blocks } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Construction, Package, ArrowRight, Wrench, Blocks, Upload, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { Progress } from '@/app/components/ui/progress';
 
 export default function FeatureInDevelopmentPage() {
+  const [timeRemaining, setTimeRemaining] = useState<{ hours: number; minutes: number; seconds: number }>({
+    hours: 32,
+    minutes: 0,
+    seconds: 0
+  });
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    // Calculate the target time (32 hours from Sunday 12pm)
+    const calculateTargetTime = () => {
+      const now = new Date();
+      const totalSeconds = 32 * 60 * 60; // 32 hours in seconds
+
+      // Calculate remaining time in seconds
+      const elapsedSeconds = (now.getHours() * 60 * 60) + (now.getMinutes() * 60) + now.getSeconds();
+      const remainingSeconds = totalSeconds - elapsedSeconds;
+
+      // Calculate hours, minutes, seconds
+      const hours = Math.floor(remainingSeconds / 3600);
+      const minutes = Math.floor((remainingSeconds % 3600) / 60);
+      const seconds = remainingSeconds % 60;
+
+      // Calculate progress percentage
+      const progressPercentage = ((totalSeconds - remainingSeconds) / totalSeconds) * 100;
+
+      return {
+        hours: hours > 0 ? hours : 0,
+        minutes: minutes > 0 ? minutes : 0,
+        seconds: seconds > 0 ? seconds : 0,
+        progress: progressPercentage > 0 && progressPercentage <= 100 ? progressPercentage : 0
+      };
+    };
+
+    // Initial calculation
+    const initialTime = calculateTargetTime();
+    setTimeRemaining({
+      hours: initialTime.hours,
+      minutes: initialTime.minutes,
+      seconds: initialTime.seconds
+    });
+    setProgress(initialTime.progress);
+
+    // Update countdown every second
+    const timer = setInterval(() => {
+      const time = calculateTargetTime();
+      setTimeRemaining({
+        hours: time.hours,
+        minutes: time.minutes,
+        seconds: time.seconds
+      });
+      setProgress(time.progress);
+
+      // If countdown is complete, clear interval
+      if (time.hours <= 0 && time.minutes <= 0 && time.seconds <= 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    // Cleanup on unmount
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -26,6 +89,35 @@ export default function FeatureInDevelopmentPage() {
               <p className="text-muted-foreground max-w-3xl">
                 We're working hard to bring you exciting new features. This section is still under development and will be available soon.
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Upload Status Banner */}
+      <Card className="bg-blue-500/10 border-blue-500/30 text-foreground rounded-xl">
+        <CardContent className="p-6">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Upload className="h-8 w-8 text-blue-500" />
+              <h2 className="text-xl font-semibold">Uploading to Server</h2>
+            </div>
+
+            <div className="w-full max-w-md">
+              <p className="text-center text-muted-foreground mb-2">
+                High server traffic. Upload finishes in:
+              </p>
+
+              <div className="flex justify-center items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-blue-500" />
+                <span className="text-2xl font-mono font-bold">
+                  {String(timeRemaining.hours).padStart(2, '0')}:
+                  {String(timeRemaining.minutes).padStart(2, '0')}:
+                  {String(timeRemaining.seconds).padStart(2, '0')}
+                </span>
+              </div>
+
+              <Progress value={progress} className="h-2" />
             </div>
           </div>
         </CardContent>

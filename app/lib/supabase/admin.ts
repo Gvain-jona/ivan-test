@@ -13,8 +13,9 @@ const adminClient = createClient(
 /**
  * Initialize default admin user
  * @param email Admin user email
+ * @param pin Optional PIN for the user
  */
-export async function initializeAdminUser(email: string) {
+export async function initializeAdminUser(email: string, pin?: string) {
   try {
     console.log(`Initializing admin user: ${email}`);
 
@@ -50,7 +51,7 @@ export async function initializeAdminUser(email: string) {
     // Create a new admin user
     const { data, error } = await adminClient.auth.admin.createUser({
       email,
-      password: pin, // This will be replaced with PIN-based auth
+      password: pin || 'TemporaryPassword123!', // Use provided PIN or a default password
       email_confirm: true, // Auto-confirm email for admin
       user_metadata: {
         role: 'admin'

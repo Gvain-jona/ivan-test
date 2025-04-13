@@ -383,11 +383,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log(`Signing in with email: ${email}, redirect to: ${redirectTo}`)
 
+      // Get the app URL from environment variables or use window.location.origin as fallback
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      console.log(`Using app URL for redirect: ${appUrl}`);
+
       // Send OTP
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
           shouldCreateUser: true
         },
       })
