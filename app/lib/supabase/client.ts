@@ -1,12 +1,13 @@
-import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import type { Database } from '../../../types/supabase'
 
 /**
- * Creates a Supabase client for database operations
- * Creates a singleton instance to prevent cross-instance contamination
+ * Creates a Supabase client for browser/client components
+ * This client is used in client components and automatically handles cookies
  */
-let supabaseClientInstance: ReturnType<typeof createSupabaseClient> | null = null
+let supabaseClientInstance: ReturnType<typeof createBrowserClient> | null = null
 
-export function createClient(): SupabaseClient {
+export function createClient() {
   if (supabaseClientInstance) {
     return supabaseClientInstance
   }
@@ -17,26 +18,11 @@ export function createClient(): SupabaseClient {
     console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Not loaded')
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
   // Create a new browser client
-  supabaseClientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      storageKey: 'sb-auth',
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      detectSessionInUrl: true,
-      persistSession: true,
-      autoRefreshToken: true,
-      flowType: 'pkce',
-      debug: true, // Enable debug for all environments temporarily
-    },
-    global: {
-      headers: {
-        'X-Client-Info': 'supabase-js-web'
-      }
-    }
-  })
+  supabaseClientInstance = createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   return supabaseClientInstance
 }

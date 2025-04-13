@@ -1,91 +1,91 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import type { Database } from '../../../types/supabase'
+import { getBaseUrl } from '@/app/lib/auth/session-utils'
+import { createClient } from '../../../utils/supabase/server'
+import { type EmailOtpType } from '@supabase/supabase-js'
 
+/**
+ * Auth callback route handler
+ * Processes authentication callbacks from Supabase (magic links, OAuth)
+ * Following Supabase's recommended pattern for Next.js App Router
+ */
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const searchParams = requestUrl.searchParams
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') || '/'
-  const error = searchParams.get('error')
-  const error_description = searchParams.get('error_description')
-
-  // Handle errors first
-  if (error) {
-    console.error('Auth error:', error, error_description)
-    return NextResponse.redirect(
-      `${requestUrl.origin}/auth/signin?error=${encodeURIComponent(error_description || error)}`
-    )
-  }
-
-  // No code, redirect to signin
-  if (!code) {
-    console.error('No code in callback')
-    return NextResponse.redirect(
-      `${requestUrl.origin}/auth/signin?error=${encodeURIComponent('No authentication code found')}`
-    )
-  }
-
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
   try {
-    console.log('Exchanging code for session...')
-    const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
+    const { searchParams } = new URL(request.url)
     
-    if (error) {
-      console.error('Code exchange error:', error)
-      throw error
-    }
-
-    if (!session) {
-      console.error('No session from code exchange')
-      throw new Error('No session from code exchange')
-    }
-
-    console.log('Session established, setting cookies...')
-
-    // Set auth cookies
-    const response = NextResponse.redirect(`${requestUrl.origin}${next}`)
+    // Log all search parameters to debug what's coming in
+    console.log('Auth callback received with params:', Object.fromEntries(searchParams.entries()))
     
-    // Store the full session in the sb-auth cookie (matches localStorage format)
-    response.cookies.set('sb-auth', JSON.stringify({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-      expires_at: Math.floor(Date.now() / 1000) + (session.expires_in || 3600),
-      user: session.user,
-      token_type: 'bearer'
-    }), {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    })
-
-    // Also set individual token cookies for middleware
-    response.cookies.set('sb-auth-token', session.access_token, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    })
-
-    if (session.refresh_token) {
-      response.cookies.set('sb-refresh-token', session.refresh_token, {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
+    // Check for token_hash (used in email confirmation)
+    const token_hash = searchParams.get('token_hash')
+    const type = searchParams.get('type') as EmailOtpType | null
+    
+    // Check for code (used in magic link/OTP)
+    const code = searchParams.get('code')
+    
+    // Get the redirect path
+    const next = searchParams.get('next') || '/dashboard/orders'
+    
+    // Handle token_hash flow (email confirmation)
+    if (token_hash && type) {
+      console.log('Processing token_hash flow')
+      const supabase = createClient()
+      
+      const { error } = await supabase.auth.verifyOtp({
+        type,
+        token_hash,
       })
+      
+      if (error) {
+        console.error('Error verifying OTP:', error)
+        return NextResponse.redirect(
+          `${getBaseUrl()}/auth/error?error=${encodeURIComponent(error.message)}`
+        )
+      }
+    } 
+    // Handle code flow (magic link)
+    else if (code) {
+      console.log('Processing code flow')
+      const supabase = createClient()
+      
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      
+      if (error) {
+        console.error('Error exchanging code for session:', error)
+        return NextResponse.redirect(
+          `${getBaseUrl()}/auth/error?error=${encodeURIComponent(error.message)}`
+        )
+      }
     }
-
-    return response
+    // No valid auth parameters
+    else {
+      console.error('No valid authentication parameters found')
+      return NextResponse.redirect(
+        `${getBaseUrl()}/auth/error?error=${encodeURIComponent('Invalid authentication link')}`
+      )
+    }
+    
+    // If we get here, authentication was successful
+    
+    // Ensure the next path is properly formatted
+    const formattedNext = next.startsWith('/') ? next : `/${next}`
+    
+    // Get the environment-specific base URL
+    // Force HTTP for local development to avoid SSL errors
+    const baseUrl = getBaseUrl().replace('https://', 'http://')
+    
+    // Construct the full redirect URL
+    const redirectUrl = `${baseUrl}${formattedNext}`
+    
+    // Redirect to the requested page or default dashboard
+    console.log('Auth successful, redirecting to:', redirectUrl)
+    return NextResponse.redirect(redirectUrl)
   } catch (error) {
-    console.error('Callback error:', error)
+    console.error('Exception in auth callback:', error)
     return NextResponse.redirect(
-      `${requestUrl.origin}/auth/signin?error=${encodeURIComponent(error instanceof Error ? error.message : 'Authentication failed')}`
+      `${getBaseUrl()}/auth/error?error=${encodeURIComponent('An unexpected error occurred')}`
     )
   }
 }

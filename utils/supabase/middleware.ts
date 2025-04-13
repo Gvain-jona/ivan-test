@@ -1,58 +1,44 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { Database } from '@/types/supabase'
-import { formatSessionForCookie } from '@/app/lib/auth/session-utils'
+import type { Database } from '../../types/supabase'
 
 /**
  * Middleware to handle authentication and session management
  * Runs on every request to check auth status and redirect as needed
+ * 
+ * This follows Supabase's recommended pattern for Next.js App Router
+ * https://supabase.com/docs/guides/auth/server-side/nextjs
  */
 export async function updateSession(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const isAuthPage = requestUrl.pathname.startsWith('/auth')
-  const isCallback = requestUrl.pathname === '/auth/callback' || requestUrl.pathname === '/auth/hash-callback'
+  const isCallback = requestUrl.pathname === '/auth/callback'
   const isSigninPage = requestUrl.pathname === '/auth/signin'
 
-  console.log('Middleware: Processing request:', {
-    url: requestUrl.pathname,
-    isAuthPage,
-    isCallback,
-    isSigninPage
-  })
-
+  // Create a response with the original request headers
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  // Get auth data from cookies
-  const authCookie = request.cookies.get('sb-auth')?.value
-  let session = null
-
-  try {
-    if (authCookie) {
-      console.log('Middleware: Found sb-auth cookie')
-      const parsedAuth = JSON.parse(authCookie)
-      if (parsedAuth?.access_token) {
-        session = parsedAuth
-        console.log('Middleware: Parsed valid session from cookie')
-      }
-    }
-  } catch (error) {
-    console.error('Middleware: Error parsing auth cookie:', error)
-  }
-
+  // Create a Supabase client using the request cookies
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          const cookie = request.cookies.get(name)
-          return cookie?.value
+          return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
+          // This is called when Supabase needs to set a cookie
+          // We need to set the cookie in both the request and response
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -65,6 +51,9 @@ export async function updateSession(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
+          // This is called when Supabase needs to remove a cookie
+          // We need to remove the cookie from both the request and response
+          request.cookies.delete(name)
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -81,27 +70,15 @@ export async function updateSession(request: NextRequest) {
   )
 
   try {
-    // If we have a session from the cookie, set it in Supabase
-    if (session?.access_token) {
-      console.log('Middleware: Setting session from cookie')
-      await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token || ''
-      })
-    }
-
-    // Verify the session with Supabase
-    const { data: { session: supabaseSession }, error } = await supabase.auth.getSession()
-
-    console.log('Middleware: Session verification result:', {
-      hasSession: !!supabaseSession,
-      error: error?.message || 'none',
-      path: requestUrl.pathname
-    })
+    // This will refresh the session if needed and set the auth cookies
+    // This is the key part of the middleware that keeps the session alive
+    const { data } = await supabase.auth.getUser()
+    const isAuthenticated = !!data.user
 
     // Handle auth pages (signin, signup, etc.)
     if (isAuthPage) {
-      if (supabaseSession && !isCallback) {
+      if (isAuthenticated && !isCallback) {
+        // If user is authenticated and trying to access auth pages, redirect to dashboard
         console.log('Middleware: Redirecting authenticated user from auth page to dashboard')
         
         // For signin page, use a more aggressive redirect approach
@@ -124,25 +101,13 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Handle protected pages
-    if (!supabaseSession) {
+    if (!isAuthenticated) {
       console.log('Middleware: No valid session, redirecting to signin')
       const redirectUrl = new URL('/auth/signin', request.url)
       redirectUrl.searchParams.set('redirect', requestUrl.pathname)
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Update cookies with the verified session
-    if (supabaseSession) {
-      console.log('Middleware: Updating cookies with verified session')
-      response.cookies.set('sb-auth', formatSessionForCookie(supabaseSession), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      })
-    }
-
-    console.log('Middleware: Request processing complete')
     return response
   } catch (error) {
     console.error('Middleware: Error processing request:', error)

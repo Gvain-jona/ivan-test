@@ -4,9 +4,9 @@
  */
 
 import { Session, User } from '@supabase/supabase-js';
-import { createClient } from '../supabase/client';
+import { createClient } from '../../lib/supabase/client';
 
-// Session storage key in localStorage
+// Session storage key in localStorage - matches Supabase's default
 export const SESSION_STORAGE_KEY = 'sb-auth';
 
 // Auth-related localStorage keys
@@ -21,79 +21,47 @@ export const AUTH_KEYS = [
 ];
 
 /**
- * Store session data in localStorage
+ * Get the base URL for the current environment
+ * Uses NEXT_PUBLIC_APP_URL from environment variables
  */
-export function storeSessionData(session: Session): void {
-  if (!session) return;
-  
-  const sessionData = {
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_at: session.expires_at,
-    user: session.user,
-    token_type: session.token_type
-  };
-  
-  try {
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-    localStorage.setItem('auth_completed', 'true');
-    localStorage.setItem('auth_timestamp', Date.now().toString());
-    
-    if (session.user?.id) {
-      localStorage.setItem('auth_user_id', session.user.id);
+export function getBaseUrl(): string {
+  // First check for explicit environment variable
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    // Always ensure we return HTTP for localhost to avoid SSL errors
+    const url = process.env.NEXT_PUBLIC_APP_URL.trim();
+    if (url.includes('localhost')) {
+      return url.replace('https://', 'http://');
     }
-    
-    localStorage.setItem('auth_in_progress', 'false');
-    
-    if (session.user?.email) {
-      localStorage.setItem('auth_email', session.user.email);
-      localStorage.setItem('auth_email_temp', session.user.email);
+    return url;
+  }
+  
+  // Fallback to window location in browser
+  if (typeof window !== 'undefined') {
+    // For localhost, always use HTTP to avoid SSL errors
+    const origin = window.location.origin;
+    if (origin.includes('localhost')) {
+      return origin.replace('https://', 'http://');
     }
-  } catch (error) {
-    console.error('Error storing session data:', error);
+    return origin;
   }
+  
+  // Environment-specific fallback
+  return process.env.NODE_ENV === 'production'
+    ? 'https://ivan-test.vercel.app'  // Production URL
+    : 'http://localhost:3000';        // Development URL (using HTTP, not HTTPS)
 }
 
 /**
- * Retrieve session data from localStorage
+ * Get the auth callback URL for the current environment
  */
-export function getStoredSessionData(): Session | null {
-  try {
-    const storedData = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!storedData) return null;
-    
-    return JSON.parse(storedData);
-  } catch (error) {
-    console.error('Error retrieving session data:', error);
-    return null;
-  }
-}
-
-/**
- * Clear all auth-related data from localStorage
- */
-export function clearSessionData(): void {
-  AUTH_KEYS.forEach(key => localStorage.removeItem(key));
-}
-
-/**
- * Set the session in Supabase client
- */
-export async function setClientSession(session: Session): Promise<{ success: boolean, error?: any }> {
-  try {
-    if (!session?.access_token) return { success: false };
-    
-    const supabase = createClient();
-    await supabase.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token || ''
-    });
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error setting client session:', error);
-    return { success: false, error };
-  }
+export function getAuthCallbackUrl(customPath?: string): string {
+  const baseUrl = getBaseUrl();
+  const callbackPath = customPath || '/auth/callback';
+  
+  // Ensure path starts with a slash
+  const normalizedPath = callbackPath.startsWith('/') ? callbackPath : `/${callbackPath}`;
+  
+  return `${baseUrl}${normalizedPath}`;
 }
 
 /**
@@ -104,14 +72,45 @@ export function getRedirectPath(searchParams: URLSearchParams | null): string {
 }
 
 /**
- * Format session for cookie storage
+ * Retrieve current user from Supabase client
+ * This is the recommended way to get the current user
  */
-export function formatSessionForCookie(session: Session): string {
-  return JSON.stringify({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_at: session.expires_at,
-    user: session.user,
-    token_type: session.token_type
-  });
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+}
+
+/**
+ * Sign out the current user
+ * This will clear the session from both cookies and localStorage
+ */
+export async function signOut(): Promise<{ success: boolean, error?: any }> {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      throw error;
+    }
+    
+    // Clear any local storage items we might have set
+    AUTH_KEYS.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        // Ignore errors when clearing localStorage
+      }
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error signing out:', error);
+    return { success: false, error };
+  }
 }
