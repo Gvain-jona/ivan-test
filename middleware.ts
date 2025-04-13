@@ -1,5 +1,6 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { updateSession } from './utils/supabase/middleware'
 
 /**
  * Middleware - Authentication Required
@@ -9,94 +10,47 @@ import { NextResponse, type NextRequest } from 'next/server'
  */
 
 export async function middleware(request: NextRequest) {
-  // Create a response object that we'll modify and return
-  let response = NextResponse.next()
-
-  // Check if this is a magic link verification request
-  const { searchParams } = new URL(request.url)
-  const hasTokenHash = searchParams.has('token_hash')
-  const hasType = searchParams.has('type')
-
-  // If this is a magic link verification, let it pass through without middleware processing
-  if (hasTokenHash && hasType) {
-    console.log('Middleware: Magic link verification detected, skipping middleware')
-    return response
-  }
-
-  // Log all cookies for debugging
-  const allCookies = request.cookies.getAll();
-  console.log('Middleware cookies:', allCookies.map(c => c.name).join(', '));
-
-  // Check for Supabase auth cookies
-  const hasAuthCookie = allCookies.some(cookie => cookie.name.startsWith('sb-') && cookie.name.includes('-auth-'));
-  console.log('Has Supabase auth cookie:', hasAuthCookie);
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        set(name, value, options) {
-          // Set cookie on the request and the response
-          try {
-            request.cookies.set({
-              name,
-              value,
-              ...options,
-            })
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            })
-            console.log(`Middleware: Set cookie ${name}`);
-          } catch (e) {
-            console.error(`Middleware: Error setting cookie ${name}:`, e);
-          }
-        },
-        remove(name, options) {
-          try {
-            request.cookies.delete({
-              name,
-              ...options,
-            })
-            response.cookies.delete({
-              name,
-              ...options,
-            })
-            console.log(`Middleware: Removed cookie ${name}`);
-          } catch (e) {
-            console.error(`Middleware: Error removing cookie ${name}:`, e);
-          }
-        },
-      },
+  // Get the pathname from the URL
+  const { pathname } = request.nextUrl
+  
+  // Special handling for signin page to prevent loops
+  if (pathname === '/auth/signin') {
+    // Check if there's a session cookie
+    const authCookie = request.cookies.get('sb-auth')?.value
+    
+    if (authCookie) {
+      try {
+        // Try to parse the cookie to verify it's a valid session
+        const session = JSON.parse(authCookie)
+        
+        if (session?.access_token) {
+          console.log('Root middleware: Found valid session, redirecting from signin page')
+          
+          // Get the redirect path from query params or default to dashboard
+          const url = new URL(request.url)
+          const redirectPath = url.searchParams.get('redirect') || '/dashboard/orders'
+          
+          // Force an immediate redirect with cache-busting headers
+          return NextResponse.redirect(new URL(redirectPath, request.url), {
+            status: 302,
+            headers: {
+              'Cache-Control': 'no-store, must-revalidate, max-age=0',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Root middleware: Error parsing auth cookie:', error)
+      }
     }
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Define public routes
-  const isPublicRoute =
-    request.nextUrl.pathname.startsWith('/auth') ||
-    request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/api') ||
-    request.nextUrl.pathname.includes('.');
-
-  // If there's no user and the path isn't public, redirect to login
-  if (!user && !isPublicRoute) {
-    const redirectUrl = new URL('/auth/signin', request.url)
-    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
   }
-
-  return response
+  
+  // For all other routes, use the regular session handling
+  return updateSession(request)
 }
 
+// Only run middleware on specific paths
 export const config = {
   matcher: [
     /*
@@ -104,8 +58,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images|fonts).*)',
   ],
 }
