@@ -1,10 +1,15 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { type User, AuthError, type AuthChangeEvent, type Session } from '@supabase/supabase-js'
-import type { PostgrestError } from '@supabase/supabase-js/dist/module/types'
+import { createContext, useContext, useEffect, useState } from 'react';
+import { createClient } from '@/app/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import { 
+  type User, 
+  type AuthError, 
+  type AuthChangeEvent, 
+  type Session,
+  type PostgrestError 
+} from '@supabase/supabase-js';
 
 type Profile = {
   id: string
@@ -75,6 +80,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const handleHashFragment = async () => {
+    try {
+      if (typeof window === 'undefined') return null
+
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const expiresIn = hashParams.get('expires_in')
+
+      if (accessToken) {
+        console.log('Found access token in hash')
+        const { data: { session }, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        })
+
+        if (error) throw error
+        if (session) {
+          // Set custom auth cookie for middleware
+          document.cookie = `auth-token=${accessToken};path=/;max-age=${expiresIn || 3600};SameSite=Lax`
+          return session
+        }
+      }
+      return null
+    } catch (error) {
+      console.error('Error handling hash fragment:', error)
+      return null
+    }
+  }
+
   useEffect(() => {
     const handleAuth = async () => {
       try {
@@ -82,187 +117,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href)
-          const token = url.searchParams.get('token')
-          const type = url.searchParams.get('type')
-          const error = url.searchParams.get('error')
-          const error_description = url.searchParams.get('error_description')
+          const hashParams = new URLSearchParams(url.hash.substring(1))
+          const error = hashParams.get('error') || url.searchParams.get('error')
+          const error_code = hashParams.get('error_code') || url.searchParams.get('error_code')
+          const error_description = hashParams.get('error_description') || url.searchParams.get('error_description')
 
           console.log('URL parameters:', {
-            token: token ? 'present' : 'missing',
-            type: type || 'missing',
             error: error || 'none',
+            error_code: error_code || 'none',
             error_description: error_description || 'none',
           })
 
           // Handle error parameters
           if (error) {
             console.error('Auth error:', error, error_description)
-            router.push(`/auth/signin?error=${encodeURIComponent(error_description || error)}`)
+            const isExpiredLink = error_code === 'otp_expired' || error_description?.toLowerCase().includes('expired')
+            const errorMessage = isExpiredLink 
+              ? 'The magic link has expired. Please request a new one.'
+              : error_description || error
+            router.push(`/auth/signin?error=${encodeURIComponent(errorMessage)}`)
             return
           }
 
-          // Handle magic link token
-          if (token && type === 'magiclink') {
-            console.log('Processing magic link token:', token.slice(0, 10) + '...')
-            setIsLoading(true)
+          // Try to handle hash fragment first
+          const hashSession = await handleHashFragment()
+          if (hashSession) {
+            console.log('Session established from hash')
+            setUser(hashSession.user)
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', hashSession.user.id)
+              .single()
 
-            // Store token temporarily in localStorage to survive redirects
-            localStorage.setItem('pending_auth_token', token)
-            localStorage.setItem('pending_auth_type', type)
-
-            let attempts = 0
-            const maxAttempts = 3
-            let sessionData = null
-            let verifyError: AuthError | Error | null = null
-
-            while (attempts < maxAttempts && !sessionData) {
-              attempts++
-              console.log(`Verification attempt ${attempts}/${maxAttempts}`)
-              try {
-                const { data, error } = await supabase.auth.verifyOtp({
-                  token_hash: token,
-                  type: 'magiclink',
-                })
-
-                if (error) {
-                  console.error(`Attempt ${attempts} failed:`, error.message)
-                  verifyError = error
-                  if (attempts < maxAttempts) {
-                    await new Promise(resolve => setTimeout(resolve, 1000))
-                    continue
-                  }
-                  throw error
-                }
-
-                sessionData = data
-                break
-              } catch (err) {
-                console.error(`Attempt ${attempts} exception:`, err)
-                verifyError = err instanceof Error ? err : new Error('Verification failed')
-              }
-            }
-
-            if (sessionData?.session) {
-              console.log('Session established:', sessionData.session.user.email)
-              setUser(sessionData.session.user)
-              localStorage.setItem('auth_completed', 'true')
-              localStorage.setItem('auth_timestamp', Date.now().toString())
-              localStorage.setItem('auth_user_id', sessionData.session.user.id)
-              localStorage.setItem('auth_in_progress', 'false')
-
-              if (sessionData.session.user.email) {
-                localStorage.setItem('auth_email', sessionData.session.user.email)
-                localStorage.setItem('auth_email_temp', sessionData.session.user.email)
-              }
-
-              // Clear pending token
-              localStorage.removeItem('pending_auth_token')
-              localStorage.removeItem('pending_auth_type')
-
-              try {
-                const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('id', sessionData.session.user.id)
-                  .single()
-
-                if (profileError) {
-                  if (profileError.code === 'PGRST116') {
-                    await createUserProfile(sessionData.session.user)
-                  } else {
-                    throw profileError
-                  }
-                } else {
-                  setProfile(profileData)
-                }
-
-                const { data: { session: verifiedSession } } = await supabase.auth.getSession()
-                if (!verifiedSession) {
-                  throw new Error('Session failed to persist')
-                }
-
-                console.log('Session verified:', verifiedSession.user.email)
-                window.history.replaceState({}, '', window.location.pathname)
-                router.push('/dashboard/orders')
-              } catch (err) {
-                console.error('Post-auth error:', err)
-                router.push(`/auth/signin?error=${encodeURIComponent(err.message || 'Authentication failed')}`)
+            if (profileError) {
+              if (profileError.code === 'PGRST116') {
+                await createUserProfile(hashSession.user)
+              } else {
+                console.error('Profile fetch error:', profileError)
               }
             } else {
-              console.error('Verification failed:', verifyError?.message || 'No session data')
-              router.push(`/auth/signin?error=${encodeURIComponent(verifyError?.message || 'Invalid or expired link')}`)
+              setProfile(profileData)
             }
+            router.push('/dashboard/orders')
             return
           }
 
-          // Fallback: Check for pending token in localStorage
-          const pendingToken = localStorage.getItem('pending_auth_token')
-          const pendingType = localStorage.getItem('pending_auth_type')
-          if (pendingToken && pendingType === 'magiclink') {
-            console.log('Found pending token, retrying verification...')
-            try {
-              const { data, error } = await supabase.auth.verifyOtp({
-                token_hash: pendingToken,
-                type: 'magiclink',
-              })
+          // Check for existing session
+          console.log('Checking existing session...')
+          const { data: { session } } = await supabase.auth.getSession()
 
-              if (error) throw error
-              if (data.session) {
-                console.log('Session established from pending token:', data.session.user.email)
-                setUser(data.session.user)
-                localStorage.setItem('auth_completed', 'true')
-                localStorage.setItem('auth_timestamp', Date.now().toString())
-                localStorage.setItem('auth_user_id', data.session.user.id)
-                localStorage.setItem('auth_in_progress', 'false')
-
-                if (data.session.user.email) {
-                  localStorage.setItem('auth_email', data.session.user.email)
-                  localStorage.setItem('auth_email_temp', data.session.user.email)
-                }
-
-                localStorage.removeItem('pending_auth_token')
-                localStorage.removeItem('pending_auth_type')
-
-                const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('id', data.session.user.id)
-                  .single()
-
-                if (profileError) {
-                  if (profileError.code === 'PGRST116') {
-                    await createUserProfile(data.session.user)
-                  } else {
-                    throw profileError
-                  }
-                } else {
-                  setProfile(profileData)
-                }
-
-                window.history.replaceState({}, '', window.location.pathname)
-                router.push('/dashboard/orders')
-              }
-            } catch (err) {
-              console.error('Pending token verification failed:', err)
-              router.push(`/auth/signin?error=${encodeURIComponent(err.message || 'Invalid or expired link')}`)
-            }
-            return
-          }
-        }
-
-        // Check existing session
-        console.log('Checking existing session...')
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        if (sessionError) {
-          console.error('Session check error:', sessionError)
-          throw sessionError
-        }
-
-        if (session) {
-          console.log('Session found:', session.user.email)
-          setUser(session.user)
-
-          try {
+          if (session?.user) {
+            console.log('Found existing session')
+            setUser(session.user)
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('*')
@@ -273,30 +180,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (profileError.code === 'PGRST116') {
                 await createUserProfile(session.user)
               } else {
-                throw profileError
+                console.error('Profile fetch error:', profileError)
               }
             } else {
               setProfile(profileData)
             }
-          } catch (error) {
-            console.error('Error fetching profile:', error)
-          }
-        } else {
-          console.log('No session found')
-          setUser(null)
-          setProfile(null)
-
-          const authEmail = localStorage.getItem('auth_email')
-          if (authEmail) {
-            console.log('Found auth email:', authEmail)
-            // Don’t redirect here; let the root route handle it
+          } else {
+            console.log('No session found')
           }
         }
       } catch (error) {
-        console.error('Error in handleAuth:', error)
-        router.push(`/auth/signin?error=${encodeURIComponent(error.message || 'Authentication error')}`)
+        console.error('Auth check error:', error)
       } finally {
-        console.log('Auth check complete')
         setIsLoading(false)
       }
     }
@@ -304,37 +199,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handleAuth()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, session: Session | null) => {
+      async (event: AuthChangeEvent, session: Session | null) => {
         console.log('Auth state changed:', event)
-        if (event === 'SIGNED_IN' && session) {
-          console.log('Signed in:', session.user.email)
+        if (session?.user) {
           setUser(session.user)
           localStorage.setItem('auth_completed', 'true')
           localStorage.setItem('auth_timestamp', Date.now().toString())
           localStorage.setItem('auth_user_id', session.user.id)
           localStorage.setItem('auth_in_progress', 'false')
 
+          // Set custom auth cookie for middleware
+          document.cookie = `auth-token=${session.access_token};path=/;max-age=3600;SameSite=Lax`
+
           if (session.user.email) {
             localStorage.setItem('auth_email', session.user.email)
             localStorage.setItem('auth_email_temp', session.user.email)
           }
 
-          supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single()
-            .then(({ data: profileData, error: profileError }: { data: Profile | null; error: PostgrestError | null }) => {
-              if (profileError) {
-                if (profileError.code === 'PGRST116') {
-                  createUserProfile(session.user)
-                } else {
-                  console.error('Profile fetch error:', profileError)
-                }
-              } else {
-                setProfile(profileData)
-              }
-            })
+
+          if (profileError) {
+            if (profileError.code === 'PGRST116') {
+              await createUserProfile(session.user)
+            } else {
+              console.error('Profile fetch error:', profileError)
+            }
+          } else {
+            setProfile(profileData)
+          }
         } else if (event === 'SIGNED_OUT') {
           console.log('Signed out')
           setUser(null)
@@ -345,6 +241,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('auth_in_progress')
           localStorage.removeItem('auth_email')
           localStorage.removeItem('auth_email_temp')
+          // Remove custom auth cookie
+          document.cookie = 'auth-token=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT'
         }
       }
     )
