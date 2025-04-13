@@ -95,30 +95,56 @@ export default function AuthHandler() {
         } else if (hasAuthCookie) {
           console.log('🍪 Auth cookie detected, checking session...');
 
-          // We have an auth cookie but no auth params in the URL
-          // This could be a returning user with a valid session
-          const { data } = await supabase.auth.getSession();
+          try {
+            // We have an auth cookie but no auth params in the URL
+            // This could be a returning user with a valid session
+            const { data } = await supabase.auth.getSession();
 
-          if (data?.session) {
-            console.log('Valid session found from cookie');
-            const { data: userData } = await supabase.auth.getUser();
+            if (data?.session) {
+              console.log('Valid session found from cookie');
+              const { data: userData } = await supabase.auth.getUser();
 
-            if (userData?.user) {
-              console.log('User found from cookie session:', userData.user.email);
+              if (userData?.user) {
+                console.log('User found from cookie session:', userData.user.email);
 
-              localStorage.setItem('auth_completed', 'true');
-              localStorage.setItem('auth_user_id', userData.user.id);
+                localStorage.setItem('auth_completed', 'true');
+                localStorage.setItem('auth_user_id', userData.user.id);
 
-              if (userData.user.email) {
-                localStorage.setItem('auth_email', userData.user.email);
-                localStorage.setItem('auth_email_temp', userData.user.email);
+                if (userData.user.email) {
+                  localStorage.setItem('auth_email', userData.user.email);
+                  localStorage.setItem('auth_email_temp', userData.user.email);
+                }
+
+                // If we're on the signin page, redirect to dashboard
+                if (window.location.pathname.includes('/auth/signin')) {
+                  console.log('Redirecting from signin to dashboard...');
+                  window.location.href = window.location.origin + '/dashboard/orders';
+                }
               }
+            } else {
+              console.log('No valid session found despite having auth cookie');
 
-              // If we're on the signin page, redirect to dashboard
-              if (window.location.pathname.includes('/auth/signin')) {
-                console.log('Redirecting from signin to dashboard...');
-                window.location.href = window.location.origin + '/dashboard/orders';
+              // If we're on a protected page but have no valid session, redirect to signin
+              if (!window.location.pathname.includes('/auth/')) {
+                console.log('Redirecting to signin page due to invalid session...');
+                window.location.href = window.location.origin + '/auth/signin';
               }
+            }
+          } catch (error) {
+            console.error('Error checking session from cookie:', error);
+
+            // Clear the invalid cookie by signing out
+            try {
+              await supabase.auth.signOut();
+              console.log('Signed out due to invalid session');
+
+              // If we're on a protected page, redirect to signin
+              if (!window.location.pathname.includes('/auth/')) {
+                console.log('Redirecting to signin page after signout...');
+                window.location.href = window.location.origin + '/auth/signin';
+              }
+            } catch (signOutError) {
+              console.error('Error signing out:', signOutError);
             }
           }
         } else {

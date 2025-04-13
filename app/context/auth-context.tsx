@@ -183,35 +183,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user || callbackCompleted || lastAuthEmail || hasSupabaseAuthCookie) {
           console.log('Trying to recover session...')
 
-          // First try to get the session
-          const { data: sessionData } = await supabase.auth.getSession();
-          console.log('Current session:', sessionData.session ? 'present' : 'missing');
+          try {
+            // First try to get the session
+            const { data: sessionData } = await supabase.auth.getSession();
+            console.log('Current session:', sessionData.session ? 'present' : 'missing');
 
-          if (sessionData.session) {
-            console.log('Session found, getting user...');
-            // If we have a session, try to get the user again
-            const { data: userData } = await supabase.auth.getUser();
-            if (userData.user) {
-              console.log('User found after session check:', userData.user.email);
-              user = userData.user;
-              setUser(user);
+            if (sessionData.session) {
+              console.log('Session found, getting user...');
+              // If we have a session, try to get the user again
+              const { data: userData } = await supabase.auth.getUser();
+              if (userData.user) {
+                console.log('User found after session check:', userData.user.email);
+                user = userData.user;
+                setUser(user);
 
-              // Store the email for future use
-              if (user.email) {
-                localStorage.setItem('auth_email', user.email);
-                localStorage.setItem('auth_email_temp', user.email);
+                // Store the email for future use
+                if (user.email) {
+                  localStorage.setItem('auth_email', user.email);
+                  localStorage.setItem('auth_email_temp', user.email);
+                  localStorage.setItem('auth_completed', 'true');
+                }
               }
+            } else {
+              console.log('No valid session found, trying to refresh...');
             }
-          }
 
-          // Then try to refresh the session
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+            // Then try to refresh the session
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
 
-          if (refreshError) {
-            console.error('Error refreshing session:', refreshError)
+            if (refreshError) {
+              console.error('Error refreshing session:', refreshError)
 
-            // If refresh fails and we have an email, try to re-authenticate
-            if (lastAuthEmail) {
+              // If we're on a protected page but have no valid session, try to sign out to clear cookies
+              if (!window.location.pathname.includes('/auth/')) {
+                try {
+                  await supabase.auth.signOut();
+                  console.log('Signed out due to invalid session');
+                  window.location.href = window.location.origin + '/auth/signin';
+                } catch (signOutError) {
+                  console.error('Error signing out:', signOutError);
+                }
+              }
+
+              // If refresh fails and we have an email, try to re-authenticate
+              if (lastAuthEmail) {
               console.log('Attempting re-authentication with stored email:', lastAuthEmail)
 
               try {
@@ -245,6 +260,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(refreshData.user)
             // Continue with the rest of the function using the refreshed user
             user = refreshData.user
+
+            // Store the email for future use
+            if (refreshData.user.email) {
+              localStorage.setItem('auth_email', refreshData.user.email);
+              localStorage.setItem('auth_email_temp', refreshData.user.email);
+              localStorage.setItem('auth_completed', 'true');
+            }
+          }
+
+          } catch (error) {
+            console.error('Error in session recovery process:', error);
+
+            // If we're on a protected page but have an error, redirect to signin
+            if (!window.location.pathname.includes('/auth/')) {
+              try {
+                await supabase.auth.signOut();
+                console.log('Signed out due to error in session recovery');
+                window.location.href = window.location.origin + '/auth/signin';
+              } catch (signOutError) {
+                console.error('Error signing out after session recovery error:', signOutError);
+              }
+            }
           }
         } else {
           // User fetch result logged
@@ -602,7 +639,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         options: {
           emailRedirectTo: redirectUrl,
-          shouldCreateUser: true
+          shouldCreateUser: false // Changed to false since we're only allowing pre-approved users
         },
       })
 
