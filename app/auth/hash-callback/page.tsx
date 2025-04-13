@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function HashCallbackPage() {
+function HashCallbackContent() {
   const [status, setStatus] = useState('Processing authentication...')
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -109,5 +109,25 @@ export default function HashCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function HashCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-md">
+          <h1 className="mb-4 text-xl font-semibold text-gray-800">Authentication</h1>
+          <div className="flex flex-col items-center space-y-4">
+            <p className="text-center text-gray-600">Loading authentication...</p>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+              <div className="animate-pulse h-full w-full bg-blue-500"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <HashCallbackContent />
+    </Suspense>
   )
 }
