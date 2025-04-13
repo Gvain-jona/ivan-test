@@ -5,6 +5,7 @@ import type { Database } from '../../../types/supabase'
 import { getBaseUrl } from '@/app/lib/auth/session-utils'
 import { createClient } from '../../../utils/supabase/server'
 import { type EmailOtpType } from '@supabase/supabase-js'
+import { redirect } from 'next/navigation'
 
 /**
  * Auth callback route handler
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       
       // Check if we have the code verifier cookie
       const cookieStore = cookies()
-      const codeVerifier = cookieStore.get('sb-giwurfpxxktfsdyitgvr-auth-token-code-verifier')
+      const codeVerifier = cookieStore.get('sb-giwurfpxxktfsdyitgvr-auth-token-code-verifier')?.value
       
       console.log('Code verifier cookie present:', !!codeVerifier)
       
@@ -88,15 +89,16 @@ export async function GET(request: NextRequest) {
     const formattedNext = next.startsWith('/') ? next : `/${next}`
     
     // Get the environment-specific base URL
-    // Force HTTP for local development to avoid SSL errors
-    const baseUrl = getBaseUrl().replace('https://', 'http://')
+    const baseUrl = getBaseUrl()
     
     // Construct the full redirect URL
     const redirectUrl = `${baseUrl}${formattedNext}`
     
     // Redirect to the requested page or default dashboard
     console.log('Auth successful, redirecting to:', redirectUrl)
-    return NextResponse.redirect(redirectUrl)
+    
+    // Use Next.js redirect for server components as recommended by Supabase
+    return redirect(redirectUrl)
   } catch (error) {
     console.error('Exception in auth callback:', error)
     return NextResponse.redirect(

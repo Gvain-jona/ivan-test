@@ -12,8 +12,9 @@ import type { Database } from '../../types/supabase'
 export async function updateSession(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const isAuthPage = requestUrl.pathname.startsWith('/auth')
-  const isCallback = requestUrl.pathname === '/auth/callback'
+  const isCallback = requestUrl.pathname === '/auth/callback' || requestUrl.pathname === '/auth/confirm'
   const isSigninPage = requestUrl.pathname === '/auth/signin'
+  const isProduction = process.env.NODE_ENV === 'production'
 
   // Create a response with the original request headers
   let response = NextResponse.next({
@@ -33,36 +34,46 @@ export async function updateSession(request: NextRequest) {
         },
         set(name: string, value: string, options: CookieOptions) {
           // This is called when Supabase needs to set a cookie
-          // We need to set the cookie in both the request and response
+          // Add secure, sameSite, and path options for better security and compatibility
+          const cookieOptions = {
+            ...options,
+            secure: isProduction, // Only use secure in production
+            sameSite: 'lax' as const, // Use lax for better compatibility
+            path: '/' // Ensure cookies are available across the site
+          }
+          
+          // Set the cookie in the request for future use in this middleware
           request.cookies.set({
             name,
             value,
-            ...options,
+            ...cookieOptions,
           })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+          
+          // Set the cookie in the response to be sent back to the client
           response.cookies.set({
             name,
             value,
-            ...options,
+            ...cookieOptions,
           })
         },
         remove(name: string, options: CookieOptions) {
           // This is called when Supabase needs to remove a cookie
-          // We need to remove the cookie from both the request and response
+          // Add secure, sameSite, and path options for better security and compatibility
+          const cookieOptions = {
+            ...options,
+            secure: isProduction, // Only use secure in production
+            sameSite: 'lax' as const, // Use lax for better compatibility
+            path: '/' // Ensure cookies are available across the site
+          }
+          
+          // Remove from request
           request.cookies.delete(name)
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+          
+          // Set empty in response with expiration
           response.cookies.set({
             name,
             value: '',
-            ...options,
+            ...cookieOptions,
           })
         },
       },
