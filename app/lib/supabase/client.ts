@@ -24,6 +24,11 @@ export function createClient() {
         detectSessionInUrl: true,
         flowType: 'pkce'
       },
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      },
       global: {
         headers: {
           'X-Client-Info': 'ivan-prints-web'
