@@ -12,6 +12,9 @@ export async function middleware(request: NextRequest) {
   // Create a response object that we'll modify and return
   let response = NextResponse.next()
 
+  // Log all cookies for debugging
+  console.log('Middleware cookies:', request.cookies.getAll().map(c => c.name).join(', '));
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -22,26 +25,36 @@ export async function middleware(request: NextRequest) {
         },
         set(name, value, options) {
           // Set cookie on the request and the response
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          try {
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+            console.log(`Middleware: Set cookie ${name}`);
+          } catch (e) {
+            console.error(`Middleware: Error setting cookie ${name}:`, e);
+          }
         },
         remove(name, options) {
-          request.cookies.delete({
-            name,
-            ...options,
-          })
-          response.cookies.delete({
-            name,
-            ...options,
-          })
+          try {
+            request.cookies.delete({
+              name,
+              ...options,
+            })
+            response.cookies.delete({
+              name,
+              ...options,
+            })
+            console.log(`Middleware: Removed cookie ${name}`);
+          } catch (e) {
+            console.error(`Middleware: Error removing cookie ${name}:`, e);
+          }
         },
       },
     }

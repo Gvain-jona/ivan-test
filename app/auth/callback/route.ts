@@ -8,6 +8,12 @@ export async function GET(request: NextRequest) {
   const error_description = requestUrl.searchParams.get('error_description')
   const next = requestUrl.searchParams.get('next') || '/dashboard/orders'
 
+  console.log('Auth callback received:', {
+    code: code ? 'present' : 'missing',
+    error,
+    next
+  })
+
   // Default redirect path
   let redirectPath = next
 
@@ -25,8 +31,36 @@ export async function GET(request: NextRequest) {
     try {
       const supabase = await createClient()
 
+      console.log('Exchanging code for session...')
       // Exchange the code for a session
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+      if (data) {
+        console.log('Session exchange successful:', {
+          user: data.user ? 'present' : 'missing',
+          session: data.session ? 'present' : 'missing'
+        })
+
+        // Add a script to set localStorage as another fallback mechanism
+        // This ensures we have multiple ways to detect a successful authentication
+        const script = `
+          <script>
+            localStorage.setItem('auth_callback_completed', 'true');
+            localStorage.setItem('auth_timestamp', '${Date.now()}');
+            ${data.user?.email ? `localStorage.setItem('auth_email', '${data.user.email}');` : ''}
+            console.log('Auth callback localStorage values set');
+            window.location.href = '${redirectPath}';
+          </script>
+        `;
+
+        // Return an HTML response with the script
+        // This will execute the script and then redirect
+        return new NextResponse(script, {
+          headers: {
+            'Content-Type': 'text/html',
+          },
+        });
+      }
 
       if (error) {
         console.error('Error exchanging code for session:', error.message)
@@ -89,9 +123,31 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Use a 303 redirect to ensure the browser uses GET for the redirect
-  // Use the origin from the request URL to ensure we're redirecting to the correct domain
+  // Create a response with the redirect
   const origin = requestUrl.origin;
   console.log(`Redirecting to ${redirectPath} with origin ${origin}`);
-  return NextResponse.redirect(new URL(redirectPath, origin), { status: 303 })
+
+  // Create the response with the redirect
+  const response = NextResponse.redirect(new URL(redirectPath, origin), { status: 303 })
+
+  // Set a cookie to indicate successful authentication
+  // This helps with debugging and can be used as a fallback
+  response.cookies.set('auth_callback_completed', 'true', {
+    path: '/',
+    maxAge: 60 * 60, // 1 hour
+    httpOnly: false, // Make it accessible from JavaScript
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production' // Only secure in production
+  })
+
+  // Also set a cookie that will definitely be accessible from JavaScript
+  response.cookies.set('auth_completed_js', 'true', {
+    path: '/',
+    maxAge: 60 * 60, // 1 hour
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  })
+
+  return response
 }

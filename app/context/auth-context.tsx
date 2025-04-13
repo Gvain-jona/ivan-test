@@ -48,11 +48,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
       try {
         console.log('Checking auth state...')
+
+        // Check if we have a callback cookie indicating successful authentication
+        // Check both cookies to ensure we catch the authentication
+        const callbackCookie = document.cookie.includes('auth_callback_completed=true');
+        const jsCallbackCookie = document.cookie.includes('auth_completed_js=true');
+        const localStorageCallback = localStorage.getItem('auth_callback_completed') === 'true';
+
+        const callbackCompleted = callbackCookie || jsCallbackCookie || localStorageCallback;
+
+        console.log('Auth indicators:', {
+          callbackCookie,
+          jsCallbackCookie,
+          localStorageCallback,
+          allCookies: document.cookie,
+          localStorage: {
+            auth_callback_completed: localStorage.getItem('auth_callback_completed'),
+            auth_email: localStorage.getItem('auth_email'),
+            auth_timestamp: localStorage.getItem('auth_timestamp')
+          }
+        });
+
         // Fetch current user from Supabase
-        const { data: { user } } = await supabase.auth.getUser()
+        let { data: { user } } = await supabase.auth.getUser()
         console.log('Auth state check result:', user ? 'User found' : 'No user found')
-        // User fetch result logged
-        setUser(user)
+
+        // Check localStorage for email used in recent authentication
+        const lastAuthEmail = localStorage.getItem('auth_email')
+
+        // If we don't have a user but we have the callback cookie or localStorage email, try to refresh or re-authenticate
+        if (!user && (callbackCompleted || lastAuthEmail)) {
+          console.log('No user found but authentication indicators present, trying to recover session...')
+
+          // First try to refresh the session
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+
+          if (refreshError) {
+            console.error('Error refreshing session:', refreshError)
+
+            // If refresh fails and we have an email, try to re-authenticate
+            if (lastAuthEmail) {
+              console.log('Attempting re-authentication with stored email:', lastAuthEmail)
+
+              try {
+                // Send a new OTP to the user's email
+                const { error: signInError } = await supabase.auth.signInWithOtp({
+                  email: lastAuthEmail,
+                  options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard/orders`,
+                  },
+                })
+
+                if (signInError) {
+                  console.error('Error re-authenticating:', signInError)
+                } else {
+                  console.log('Re-authentication email sent successfully')
+                  // Show a message to the user that a new verification email has been sent
+                  // This would be better with a toast notification
+                  alert('A new verification email has been sent. Please check your inbox.')
+                }
+              } catch (e) {
+                console.error('Exception during re-authentication:', e)
+              }
+            }
+          } else if (refreshData.user) {
+            console.log('Session refreshed successfully, user found')
+            setUser(refreshData.user)
+            // Continue with the rest of the function using the refreshed user
+            user = refreshData.user
+          }
+        } else {
+          // User fetch result logged
+          setUser(user)
+        }
 
         if (user) {
           try {
@@ -390,8 +458,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const appUrl = window.location.origin;
       console.log(`Using app URL for redirect: ${appUrl}`);
 
-      // Store the current URL in localStorage for verification later
+      // Store authentication information in localStorage for verification and recovery
       localStorage.setItem('auth_redirect_origin', appUrl);
+      localStorage.setItem('auth_email', email);
+      localStorage.setItem('auth_timestamp', Date.now().toString());
 
       // Send OTP
       const { error } = await supabase.auth.signInWithOtp({
