@@ -3,9 +3,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { type User } from '@supabase/supabase-js'
+import { type User, AuthError, type AuthChangeEvent, type Session } from '@supabase/supabase-js'
+import type { PostgrestError } from '@supabase/supabase-js/dist/module/types'
 
-// Define the profile type based on our database schema
 type Profile = {
   id: string
   email: string
@@ -20,12 +20,12 @@ type AuthContextType = {
   user: User | null
   profile: Profile | null
   isLoading: boolean
-  signIn: (email: string, redirectTo?: string) => Promise<{ error: any | null }>
+  signIn: (email: string, redirectTo?: string) => Promise<{ error: Error | AuthError | null }>
   signOut: () => Promise<void>
   isAdmin: boolean
   isManager: boolean
   isStaff: boolean
-  checkSupabaseHealth: () => Promise<{ ok: boolean; error?: any }>
+  checkSupabaseHealth: () => Promise<{ ok: boolean; error?: Error | AuthError }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -37,57 +37,192 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const supabase = createClient()
 
-  // Derived state
   const isAdmin = profile?.role === 'admin'
   const isManager = profile?.role === 'manager'
   const isStaff = profile?.role === 'staff'
 
+  const createUserProfile = async (user: User) => {
+    try {
+      console.log('Creating profile for:', user.email)
+      const { data: allowedEmail } = await supabase
+        .from('allowed_emails')
+        .select('role')
+        .eq('email', user.email)
+        .maybeSingle()
+
+      const userRole = allowedEmail?.role || 'staff'
+      console.log(`Assigning role: ${userRole}`)
+
+      const { data: newProfile, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+          role: userRole,
+          status: 'active',
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+      console.log('Profile created')
+      setProfile(newProfile)
+      return newProfile
+    } catch (error) {
+      console.error('Error creating profile:', error)
+      throw error
+    }
+  }
+
   useEffect(() => {
     const handleAuth = async () => {
-      setIsLoading(true)
       try {
-        console.log('Checking auth state...')
+        console.log('Checking auth state... URL:', window.location.href)
 
-        // CRITICAL: Check for magic link token parameters
-        // This handles the case where Supabase redirects to the root URL with token and type=magiclink
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href)
           const token = url.searchParams.get('token')
           const type = url.searchParams.get('type')
+          const error = url.searchParams.get('error')
+          const error_description = url.searchParams.get('error_description')
 
+          console.log('URL parameters:', {
+            token: token ? 'present' : 'missing',
+            type: type || 'missing',
+            error: error || 'none',
+            error_description: error_description || 'none',
+          })
+
+          // Handle error parameters
+          if (error) {
+            console.error('Auth error:', error, error_description)
+            router.push(`/auth/signin?error=${encodeURIComponent(error_description || error)}`)
+            return
+          }
+
+          // Handle magic link token
           if (token && type === 'magiclink') {
-            console.log('Magic link detected with token, processing...')
-            
-            // Handle the token using verifyOtp
-            const { data, error } = await supabase.auth.verifyOtp({
-              token_hash: token,
-              type: 'magiclink',
-            })
-            
-            if (error) {
-              console.error('Error verifying magic link:', error.message)
-              router.push(`/auth/signin?error=${encodeURIComponent(error.message)}`)
-              setIsLoading(false)
-              return
-            } 
-            
-            if (data.session) {
-              console.log('Session established via magic link:', data.session.user.email)
-              setUser(data.session.user)
-              
-              // Store authentication information
+            console.log('Processing magic link token:', token.slice(0, 10) + '...')
+            setIsLoading(true)
+
+            // Store token temporarily in localStorage to survive redirects
+            localStorage.setItem('pending_auth_token', token)
+            localStorage.setItem('pending_auth_type', type)
+
+            let attempts = 0
+            const maxAttempts = 3
+            let sessionData = null
+            let verifyError: AuthError | Error | null = null
+
+            while (attempts < maxAttempts && !sessionData) {
+              attempts++
+              console.log(`Verification attempt ${attempts}/${maxAttempts}`)
+              try {
+                const { data, error } = await supabase.auth.verifyOtp({
+                  token_hash: token,
+                  type: 'magiclink',
+                })
+
+                if (error) {
+                  console.error(`Attempt ${attempts} failed:`, error.message)
+                  verifyError = error
+                  if (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                    continue
+                  }
+                  throw error
+                }
+
+                sessionData = data
+                break
+              } catch (err) {
+                console.error(`Attempt ${attempts} exception:`, err)
+                verifyError = err instanceof Error ? err : new Error('Verification failed')
+              }
+            }
+
+            if (sessionData?.session) {
+              console.log('Session established:', sessionData.session.user.email)
+              setUser(sessionData.session.user)
               localStorage.setItem('auth_completed', 'true')
               localStorage.setItem('auth_timestamp', Date.now().toString())
-              localStorage.setItem('auth_user_id', data.session.user.id)
+              localStorage.setItem('auth_user_id', sessionData.session.user.id)
               localStorage.setItem('auth_in_progress', 'false')
-              
-              if (data.session.user.email) {
-                localStorage.setItem('auth_email', data.session.user.email)
-                localStorage.setItem('auth_email_temp', data.session.user.email)
+
+              if (sessionData.session.user.email) {
+                localStorage.setItem('auth_email', sessionData.session.user.email)
+                localStorage.setItem('auth_email_temp', sessionData.session.user.email)
               }
-              
-              // Fetch profile
+
+              // Clear pending token
+              localStorage.removeItem('pending_auth_token')
+              localStorage.removeItem('pending_auth_type')
+
               try {
+                const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', sessionData.session.user.id)
+                  .single()
+
+                if (profileError) {
+                  if (profileError.code === 'PGRST116') {
+                    await createUserProfile(sessionData.session.user)
+                  } else {
+                    throw profileError
+                  }
+                } else {
+                  setProfile(profileData)
+                }
+
+                const { data: { session: verifiedSession } } = await supabase.auth.getSession()
+                if (!verifiedSession) {
+                  throw new Error('Session failed to persist')
+                }
+
+                console.log('Session verified:', verifiedSession.user.email)
+                window.history.replaceState({}, '', window.location.pathname)
+                router.push('/dashboard/orders')
+              } catch (err) {
+                console.error('Post-auth error:', err)
+                router.push(`/auth/signin?error=${encodeURIComponent(err.message || 'Authentication failed')}`)
+              }
+            } else {
+              console.error('Verification failed:', verifyError?.message || 'No session data')
+              router.push(`/auth/signin?error=${encodeURIComponent(verifyError?.message || 'Invalid or expired link')}`)
+            }
+            return
+          }
+
+          // Fallback: Check for pending token in localStorage
+          const pendingToken = localStorage.getItem('pending_auth_token')
+          const pendingType = localStorage.getItem('pending_auth_type')
+          if (pendingToken && pendingType === 'magiclink') {
+            console.log('Found pending token, retrying verification...')
+            try {
+              const { data, error } = await supabase.auth.verifyOtp({
+                token_hash: pendingToken,
+                type: 'magiclink',
+              })
+
+              if (error) throw error
+              if (data.session) {
+                console.log('Session established from pending token:', data.session.user.email)
+                setUser(data.session.user)
+                localStorage.setItem('auth_completed', 'true')
+                localStorage.setItem('auth_timestamp', Date.now().toString())
+                localStorage.setItem('auth_user_id', data.session.user.id)
+                localStorage.setItem('auth_in_progress', 'false')
+
+                if (data.session.user.email) {
+                  localStorage.setItem('auth_email', data.session.user.email)
+                  localStorage.setItem('auth_email_temp', data.session.user.email)
+                }
+
+                localStorage.removeItem('pending_auth_token')
+                localStorage.removeItem('pending_auth_type')
+
                 const { data: profileData, error: profileError } = await supabase
                   .from('profiles')
                   .select('*')
@@ -95,8 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   .single()
 
                 if (profileError) {
-                  if (profileError.code === 'PGRST116') { // No rows returned
-                    // Create profile for new user
+                  if (profileError.code === 'PGRST116') {
                     await createUserProfile(data.session.user)
                   } else {
                     throw profileError
@@ -104,267 +238,183 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 } else {
                   setProfile(profileData)
                 }
-              } catch (profileError) {
-                console.error('Error fetching profile after magic link auth:', profileError)
+
+                window.history.replaceState({}, '', window.location.pathname)
+                router.push('/dashboard/orders')
               }
-              
-              // Clear the token from the URL to prevent token exposure
-              window.history.replaceState(null, '', window.location.pathname)
-              
-              // Redirect to dashboard
-              router.push('/dashboard/orders')
-              setIsLoading(false)
-              return
+            } catch (err) {
+              console.error('Pending token verification failed:', err)
+              router.push(`/auth/signin?error=${encodeURIComponent(err.message || 'Invalid or expired link')}`)
             }
+            return
           }
         }
 
-        // Check for existing session if no magic link token
-        const { data: { session } } = await supabase.auth.getSession()
+        // Check existing session
+        console.log('Checking existing session...')
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) {
+          console.error('Session check error:', sessionError)
+          throw sessionError
+        }
 
         if (session) {
           console.log('Session found:', session.user.email)
           setUser(session.user)
 
-          // Get the user's profile
           try {
-            const { data, error } = await supabase
+            const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single()
 
-            if (error) {
-              console.error('Error fetching profile:', error)
-              if (error.code === 'PGRST116') { // No rows returned
-                // Create profile for new user
+            if (profileError) {
+              if (profileError.code === 'PGRST116') {
                 await createUserProfile(session.user)
+              } else {
+                throw profileError
               }
-            } else if (data) {
-              setProfile(data)
+            } else {
+              setProfile(profileData)
             }
           } catch (error) {
-            console.error('Exception fetching profile:', error)
+            console.error('Error fetching profile:', error)
           }
         } else {
           console.log('No session found')
           setUser(null)
           setProfile(null)
 
-          // Try to recover from localStorage if we have auth info but no session
           const authEmail = localStorage.getItem('auth_email')
           if (authEmail) {
-            console.log('Found auth email in localStorage, but no session. User may need to re-authenticate.')
-            // Don't auto-redirect to sign-in, let the app handle it
+            console.log('Found auth email:', authEmail)
+            // Don’t redirect here; let the root route handle it
           }
         }
       } catch (error) {
         console.error('Error in handleAuth:', error)
+        router.push(`/auth/signin?error=${encodeURIComponent(error.message || 'Authentication error')}`)
       } finally {
+        console.log('Auth check complete')
         setIsLoading(false)
-      }
-    }
-
-    // Helper function to create a user profile
-    const createUserProfile = async (user: User) => {
-      try {
-        // Check if the user is in the allowed_emails table and get their role
-        const { data: allowedEmail, error: allowedEmailError } = await supabase
-          .from('allowed_emails')
-          .select('role')
-          .eq('email', user.email)
-          .maybeSingle()
-
-        // Use the role from allowed_emails if available, otherwise default to 'staff'
-        const userRole = allowedEmail?.role || 'staff'
-        console.log(`Using role from allowed_emails: ${userRole} for user ${user.email}`)
-
-        // Create the profile
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-            role: userRole,
-            status: 'active'
-          })
-          .select('*')
-          .single()
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError)
-        } else {
-          console.log('Created new profile:', newProfile)
-          setProfile(newProfile)
-        }
-      } catch (error) {
-        console.error('Exception creating profile:', error)
       }
     }
 
     handleAuth()
 
-    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session ? 'Session exists' : 'No session')
-
+      (event: AuthChangeEvent, session: Session | null) => {
+        console.log('Auth state changed:', event)
         if (event === 'SIGNED_IN' && session) {
-          console.log('User signed in:', session.user.email)
+          console.log('Signed in:', session.user.email)
           setUser(session.user)
           localStorage.setItem('auth_completed', 'true')
-          localStorage.setItem('auth_in_progress', 'false')
+          localStorage.setItem('auth_timestamp', Date.now().toString())
           localStorage.setItem('auth_user_id', session.user.id)
-          
+          localStorage.setItem('auth_in_progress', 'false')
+
           if (session.user.email) {
             localStorage.setItem('auth_email', session.user.email)
             localStorage.setItem('auth_email_temp', session.user.email)
           }
+
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+            .then(({ data: profileData, error: profileError }: { data: Profile | null; error: PostgrestError | null }) => {
+              if (profileError) {
+                if (profileError.code === 'PGRST116') {
+                  createUserProfile(session.user)
+                } else {
+                  console.error('Profile fetch error:', profileError)
+                }
+              } else {
+                setProfile(profileData)
+              }
+            })
         } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out')
+          console.log('Signed out')
           setUser(null)
           setProfile(null)
           localStorage.removeItem('auth_completed')
+          localStorage.removeItem('auth_timestamp')
           localStorage.removeItem('auth_user_id')
-          // Don't remove auth_email or auth_email_temp to allow for re-authentication
-        } else if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed')
-        } else if (event === 'USER_UPDATED') {
-          console.log('User updated')
-          if (session) {
-            setUser(session.user)
-          }
-        }
-
-        if (session?.user) {
-          try {
-            // Get the user's profile
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single()
-
-            if (error) {
-              console.error('Error fetching profile on auth change:', error)
-
-              // If the profile doesn't exist, we need to create it
-              if (error.code === 'PGRST116') { // No rows returned
-                await createUserProfile(session.user)
-              }
-            } else {
-              setProfile(data)
-              // User profile loaded successfully
-            }
-          } catch (profileError) {
-            console.error('Exception fetching profile on auth change:', profileError)
-          }
+          localStorage.removeItem('auth_in_progress')
+          localStorage.removeItem('auth_email')
+          localStorage.removeItem('auth_email_temp')
         }
       }
     )
 
-    // Clean up subscription on unmount
     return () => {
+      console.log('Cleaning up subscription')
       subscription.unsubscribe()
     }
   }, [supabase, router])
 
   const signIn = async (email: string, customRedirect?: string) => {
     try {
-      // Use the provided redirect or get it from URL parameters or use default
-      const currentPath = window.location.pathname
-      const searchParams = new URLSearchParams(window.location.search)
-      const redirectTo = customRedirect || searchParams.get('redirect') || '/dashboard/orders'
+      console.log('Sign in:', email)
+      const redirectTo = customRedirect || new URLSearchParams(window.location.search).get('redirect') || '/dashboard/orders'
+      const appUrl = window.location.origin
+      const redirectUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`
 
-      // Check if email is allowed (if the function exists)
-      try {
-        const { data: isAllowed, error: allowedError } = await supabase.rpc('is_email_allowed', {
-          input_email: email
-        })
+      console.log('Sign in config:', { email, redirectUrl })
 
-        if (!allowedError && !isAllowed) {
-          return {
-            error: {
-              message: 'This email is not authorized to sign in. Please contact an administrator.'
-            }
-          }
-        }
-      } catch (rpcError) {
-        // Continue with sign-in even if the RPC call fails
-        console.log('RPC check skipped:', rpcError)
-      }
-
-      console.log(`Signing in with email: ${email}, redirect to: ${redirectTo}`)
-
-      // Always use window.location.origin for client-side redirects
-      // This ensures we're using the actual URL the user is accessing
-      const appUrl = window.location.origin;
-      console.log(`Using app URL for redirect: ${appUrl}`);
-
-      // Store authentication information in localStorage for verification and recovery
-      localStorage.setItem('auth_redirect_origin', appUrl);
-      localStorage.setItem('auth_timestamp', Date.now().toString());
-      localStorage.setItem('auth_email', email);
-      localStorage.setItem('auth_email_temp', email);
-      localStorage.setItem('auth_in_progress', 'true');
-
-      // CRITICAL: The redirect URL must point to our auth callback route
-      // This is where the PKCE flow will be completed after the user clicks the magic link
-      const redirectUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`;
-      console.log('Using redirect URL:', redirectUrl);
+      localStorage.setItem('auth_redirect_origin', appUrl)
+      localStorage.setItem('auth_timestamp', Date.now().toString())
+      localStorage.setItem('auth_email', email)
+      localStorage.setItem('auth_email_temp', email)
+      localStorage.setItem('auth_in_progress', 'true')
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: redirectUrl,
-          shouldCreateUser: true // Allow creating new users
+          shouldCreateUser: true,
         },
       })
 
-      // Log the stored values for debugging
-      console.log('Stored auth email in localStorage:', email);
-
       if (error) {
-        console.error('Error in signInWithOtp:', error.message)
+        console.error('Sign in error:', error.message)
+        return { error }
       }
 
-      return { error }
+      console.log('Sign in email sent')
+      return { error: null }
     } catch (error) {
-      console.error('Error signing in:', error)
-      return { error }
+      console.error('Sign in exception:', error)
+      return { error: error instanceof Error ? error : new Error('Failed to sign in') }
     }
   }
 
   const signOut = async () => {
     try {
-      // Sign out from Supabase
+      console.log('Signing out')
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-      return
+      console.log('Signed out')
     } catch (error) {
-      console.error('Error signing out:', error)
-      throw error
+      console.error('Sign out error:', error)
+      throw error instanceof Error ? error : new Error('Failed to sign out')
     }
   }
 
-  // Health check function to diagnose Supabase connection issues
   const checkSupabaseHealth = async () => {
-    // Run Supabase health check
     try {
-      // Check if we can connect to Supabase
+      console.log('Checking Supabase health')
       const { data, error } = await supabase.from('profiles').select('count').limit(1).maybeSingle()
-
       if (error) {
-        console.error('Supabase health check failed:', error)
+        console.error('Health check failed:', error)
         return { ok: false, error }
       }
-
-      // Supabase health check passed
       return { ok: true }
     } catch (error) {
-      console.error('Supabase health check exception:', error)
-      return { ok: false, error }
+      console.error('Health check exception:', error)
+      return { ok: false, error: error instanceof Error ? error : new Error('Health check failed') }
     }
   }
 
@@ -377,7 +427,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin,
     isManager,
     isStaff,
-    checkSupabaseHealth
+    checkSupabaseHealth,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
