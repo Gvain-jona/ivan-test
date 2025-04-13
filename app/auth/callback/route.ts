@@ -22,6 +22,18 @@ export async function GET(request: NextRequest) {
     email: email || 'not provided'
   })
 
+  // CRITICAL: If we don't have a code or token_hash, this might be a hash fragment authentication
+  // Hash fragments are not sent to the server, so we need to redirect to a client-side handler
+  if (!code && !token_hash && !error) {
+    console.log('No code or token_hash found, redirecting to hash-callback handler...')
+    const hashCallbackUrl = new URL('/auth/hash-callback', requestUrl.origin)
+    hashCallbackUrl.searchParams.set('next', next)
+    if (email) {
+      hashCallbackUrl.searchParams.set('email', email)
+    }
+    return NextResponse.redirect(hashCallbackUrl)
+  }
+
   // If we have a token_hash and type, redirect to the verify endpoint
   if (token_hash && type) {
     console.log('Redirecting to verify endpoint...')

@@ -312,13 +312,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Using app URL for redirect: ${appUrl}`);
 
       // Store authentication information in localStorage for verification and recovery
-      // Store the email in both regular and temporary keys to ensure it's available throughout the flow
       localStorage.setItem('auth_redirect_origin', appUrl);
       localStorage.setItem('auth_timestamp', Date.now().toString());
+      localStorage.setItem('auth_email', email);
+      localStorage.setItem('auth_email_temp', email);
+      localStorage.setItem('auth_in_progress', 'true');
 
-      // Send OTP
-      // Use the app URL directly as the redirect URL
-      // Supabase will append the necessary parameters
+      // CRITICAL: The redirect URL must point to our auth callback route
+      // Supabase will append necessary parameters, and our callback route will handle both
+      // code-based and hash fragment-based authentication flows
       const redirectUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`;
       console.log('Using redirect URL:', redirectUrl);
 
@@ -326,16 +328,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         options: {
           emailRedirectTo: redirectUrl,
-          shouldCreateUser: true // Changed to true to allow creating users who pass the allowed_emails check
+          shouldCreateUser: true // CRITICAL: This must be true to allow new user creation
         },
       })
-
-      // Store the timestamp of when the magic link was sent
-      // This will help us detect if the user is coming back from a magic link
-      localStorage.setItem('magic_link_sent_at', Date.now().toString());
-      localStorage.setItem('magic_link_email', email);
-      localStorage.setItem('auth_email', email);
-      localStorage.setItem('auth_email_temp', email);
 
       // Log the stored values for debugging
       console.log('Stored auth email in localStorage:', email);
