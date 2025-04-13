@@ -49,6 +49,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('Checking auth state...')
 
+        // Check for Supabase token in the URL (this indicates we're coming directly from a magic link)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasToken = urlParams.has('token') || urlParams.has('access_token') || urlParams.has('refresh_token');
+
+        if (hasToken) {
+          console.log('Detected Supabase token in URL - coming from magic link');
+
+          // If we have a token in the URL, we're definitely coming from a magic link
+          // Try to get the email from localStorage
+          const magicLinkEmail = localStorage.getItem('magic_link_email');
+
+          if (magicLinkEmail) {
+            console.log('Using stored email from magic link:', magicLinkEmail);
+            localStorage.setItem('auth_email', magicLinkEmail);
+            localStorage.setItem('auth_email_temp', magicLinkEmail);
+            localStorage.setItem('auth_callback_completed', 'true');
+          }
+        }
+
+        // Check if we're coming back from a magic link
+        // We can detect this by checking if the current timestamp is within a reasonable window
+        // of when the magic link was sent (e.g., within 5 minutes)
+        const magicLinkSentAt = localStorage.getItem('magic_link_sent_at');
+        const magicLinkEmail = localStorage.getItem('magic_link_email');
+
+        if (magicLinkSentAt && magicLinkEmail) {
+          const sentTimestamp = parseInt(magicLinkSentAt, 10);
+          const currentTimestamp = Date.now();
+          const timeDifference = currentTimestamp - sentTimestamp;
+
+          // If the magic link was sent within the last 5 minutes, we're likely coming back from it
+          if (timeDifference < 5 * 60 * 1000) { // 5 minutes in milliseconds
+            console.log('Detected recent magic link usage for email:', magicLinkEmail);
+
+            // Store the email in our standard locations
+            localStorage.setItem('auth_email', magicLinkEmail);
+            localStorage.setItem('auth_email_temp', magicLinkEmail);
+            localStorage.setItem('auth_callback_completed', 'true');
+
+            // Clear the magic link indicators to prevent false positives on future page loads
+            localStorage.removeItem('magic_link_sent_at');
+          }
+        }
+
         // Log stored email information for debugging
         const storedEmail = localStorage.getItem('auth_email');
         const storedEmailTemp = localStorage.getItem('auth_email_temp');
@@ -60,12 +104,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const jsCallbackCookie = document.cookie.includes('auth_completed_js=true');
         const localStorageCallback = localStorage.getItem('auth_callback_completed') === 'true';
 
-        const callbackCompleted = callbackCookie || jsCallbackCookie || localStorageCallback;
+        // Also check URL for callback parameter (for cases where the page just loaded from callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCallback = urlParams.get('auth_callback') === 'true';
+
+        // If we detect we're coming from a callback, set localStorage immediately
+        if (urlCallback) {
+          console.log('Detected callback parameter in URL, setting localStorage');
+          localStorage.setItem('auth_callback_completed', 'true');
+          localStorage.setItem('auth_timestamp', Date.now().toString());
+
+          // Try to get email from URL
+          const urlEmail = urlParams.get('email');
+          if (urlEmail) {
+            console.log('Found email in URL:', urlEmail);
+            localStorage.setItem('auth_email', urlEmail);
+            localStorage.setItem('auth_email_temp', urlEmail);
+          }
+        }
+
+        const callbackCompleted = callbackCookie || jsCallbackCookie || localStorageCallback || urlCallback;
 
         console.log('Auth indicators:', {
           callbackCookie,
           jsCallbackCookie,
           localStorageCallback,
+          urlCallback,
           allCookies: document.cookie,
           localStorage: {
             auth_callback_completed: localStorage.getItem('auth_callback_completed'),
@@ -78,6 +142,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let { data: { user } } = await supabase.auth.getUser()
         console.log('Auth state check result:', user ? 'User found' : 'No user found')
 
+        // If we found a user, make sure to store their email
+        if (user?.email) {
+          console.log('User found with email:', user.email);
+          localStorage.setItem('auth_email', user.email);
+          localStorage.setItem('auth_email_temp', user.email);
+        }
+
         // Check localStorage for email used in recent authentication
         // Try both the regular and temporary email keys
         const lastAuthEmail = localStorage.getItem('auth_email') || localStorage.getItem('auth_email_temp')
@@ -87,7 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user && (callbackCompleted || lastAuthEmail)) {
           console.log('No user found but authentication indicators present, trying to recover session...')
 
-          // First try to refresh the session
+          // First try to get the session
+          const { data: sessionData } = await supabase.auth.getSession();
+          console.log('Current session:', sessionData.session ? 'present' : 'missing');
+
+          // Then try to refresh the session
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
 
           if (refreshError) {
@@ -480,13 +555,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Stored auth email in localStorage:', email);
 
       // Send OTP
+      // Use the app URL directly as the redirect URL
+      // Supabase will append the necessary parameters
+      const redirectUrl = appUrl;
+      console.log('Using redirect URL:', redirectUrl);
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          emailRedirectTo: redirectUrl,
           shouldCreateUser: true
         },
       })
+
+      // Store the timestamp of when the magic link was sent
+      // This will help us detect if the user is coming back from a magic link
+      localStorage.setItem('magic_link_sent_at', Date.now().toString());
+      localStorage.setItem('magic_link_email', email);
 
       if (error) {
         console.error('Error in signInWithOtp:', error.message)

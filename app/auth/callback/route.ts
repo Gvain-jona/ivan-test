@@ -8,10 +8,14 @@ export async function GET(request: NextRequest) {
   const error_description = requestUrl.searchParams.get('error_description')
   const next = requestUrl.searchParams.get('next') || '/dashboard/orders'
 
+  // Extract email from the URL if present (we'll add this to the magic link URL)
+  const email = requestUrl.searchParams.get('email')
+
   console.log('Auth callback received:', {
     code: code ? 'present' : 'missing',
     error,
-    next
+    next,
+    email: email || 'not provided'
   })
 
   // Default redirect path
@@ -38,35 +42,54 @@ export async function GET(request: NextRequest) {
       if (data) {
         console.log('Session exchange successful:', {
           user: data.user ? 'present' : 'missing',
-          session: data.session ? 'present' : 'missing'
+          session: data.session ? 'present' : 'missing',
+          email: data.user?.email || email || 'not available'
         })
 
         // Add a script to set localStorage as another fallback mechanism
         // This ensures we have multiple ways to detect a successful authentication
         const script = `
           <script>
+            // CRITICAL: Set these values immediately before any other code runs
+            console.log('Auth callback script executing...');
+
             // Always set these authentication indicators
             localStorage.setItem('auth_callback_completed', 'true');
             localStorage.setItem('auth_timestamp', '${Date.now()}');
 
-            // Set the email if available from the user data
-            ${data.user?.email ? `localStorage.setItem('auth_email', '${data.user.email}');` : ''}
+            // Set the email with multiple fallbacks to ensure it's available
+            const userEmail = ${data.user?.email ? `'${data.user.email}'` : 'null'};
+            const urlEmail = ${email ? `'${email}'` : 'null'};
+            const storedEmail = localStorage.getItem('auth_email_temp');
 
-            // If we don't have the email from user data, try to get it from localStorage
-            // This ensures we maintain the email across the authentication flow
-            if (!localStorage.getItem('auth_email')) {
-              const storedEmail = localStorage.getItem('auth_email_temp');
-              if (storedEmail) {
-                localStorage.setItem('auth_email', storedEmail);
-                console.log('Using stored email from auth_email_temp:', storedEmail);
-              }
+            // Use the first available email source
+            const emailToUse = userEmail || urlEmail || storedEmail;
+
+            if (emailToUse) {
+              localStorage.setItem('auth_email', emailToUse);
+              localStorage.setItem('auth_email_temp', emailToUse);
+              console.log('Auth email set to:', emailToUse);
+            } else {
+              console.warn('No email available from any source!');
             }
 
-            console.log('Auth callback localStorage values set');
-            console.log('Auth email:', localStorage.getItem('auth_email'));
+            // Log all authentication-related localStorage values
+            console.log('Auth localStorage values:', {
+              auth_callback_completed: localStorage.getItem('auth_callback_completed'),
+              auth_timestamp: localStorage.getItem('auth_timestamp'),
+              auth_email: localStorage.getItem('auth_email'),
+              auth_email_temp: localStorage.getItem('auth_email_temp')
+            });
 
-            // Redirect to the specified path
-            window.location.href = '${redirectPath}';
+            // Redirect to the specified path after a short delay to ensure localStorage is set
+            // Add auth_callback=true to the URL to indicate we're coming from a callback
+            setTimeout(() => {
+              const redirectUrl = '${redirectPath}';
+              const separator = redirectUrl.includes('?') ? '&' : '?';
+              const finalUrl = `${redirectUrl}${separator}auth_callback=true&email=${encodeURIComponent(emailToUse || '')}`;
+              console.log('Redirecting to:', finalUrl);
+              window.location.href = finalUrl;
+            }, 500);
           </script>
         `;
 
