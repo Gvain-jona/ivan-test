@@ -22,7 +22,7 @@ export function createClient() {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce'
+        flowType: 'pkce' // Use PKCE flow as expected by Supabase
       },
       realtime: {
         params: {
