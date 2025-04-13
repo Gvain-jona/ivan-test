@@ -55,7 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('email', user.email)
         .maybeSingle()
 
-      const userRole = allowedEmail?.role || 'staff'
+      // Default to 'staff' if no role is found or if the role is not valid
+      const userRole = (allowedEmail?.role === 'admin' || allowedEmail?.role === 'manager' || allowedEmail?.role === 'staff') 
+        ? allowedEmail.role 
+        : 'staff'
+      
       console.log(`Assigning role: ${userRole}`)
 
       const { data: newProfile, error } = await supabase
@@ -70,12 +74,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select('*')
         .single()
 
-      if (error) throw error
-      console.log('Profile created')
+      if (error) {
+        console.error('Error creating profile:', error)
+        throw error
+      }
+      
+      console.log('Profile created successfully')
       setProfile(newProfile)
       return newProfile
     } catch (error) {
       console.error('Error creating profile:', error)
+      
+      // Even if profile creation fails, we should still redirect the user
+      // to avoid them being stuck on the signin page
+      const searchParams = new URLSearchParams(window.location.search)
+      const redirect = searchParams.get('redirect') || '/dashboard/orders'
+      router.push(redirect)
+      
       throw error
     }
   }
@@ -211,21 +226,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('auth_user_id', session.user.id)
           localStorage.setItem('auth_in_progress', 'false')
 
-          // Fetch or create profile
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle()
+          try {
+            // Fetch or create profile
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle()
 
-          if (profileError) {
-            console.error('Profile fetch error:', profileError)
-          } else if (!profileData) {
-            console.log('Creating new profile...')
-            await createUserProfile(session.user)
-          } else {
-            console.log('Setting existing profile...')
-            setProfile(profileData)
+            if (profileError) {
+              console.error('Profile fetch error:', profileError)
+            } else if (!profileData) {
+              console.log('Creating new profile...')
+              await createUserProfile(session.user)
+            } else {
+              console.log('Setting existing profile...')
+              setProfile(profileData)
+            }
+          } catch (error) {
+            console.error('Error handling profile:', error)
+            // Continue with redirect even if profile handling fails
           }
 
           // Get the redirect path and navigate

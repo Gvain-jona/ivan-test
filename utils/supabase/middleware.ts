@@ -99,7 +99,14 @@ export async function updateSession(request: NextRequest) {
     if (isAuthPage) {
       if (supabaseSession && !isCallback) {
         console.log('Middleware: Redirecting authenticated user from auth page to dashboard')
-        return NextResponse.redirect(new URL('/dashboard/orders', request.url))
+        // Force a hard redirect to dashboard to ensure we break out of any potential loops
+        return NextResponse.redirect(new URL('/dashboard/orders', request.url), {
+          status: 302, // Use 302 for temporary redirect
+          headers: {
+            'Cache-Control': 'no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache'
+          }
+        })
       }
       console.log('Middleware: Allowing access to auth page')
       return response
