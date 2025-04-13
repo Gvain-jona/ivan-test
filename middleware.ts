@@ -12,8 +12,24 @@ export async function middleware(request: NextRequest) {
   // Create a response object that we'll modify and return
   let response = NextResponse.next()
 
+  // Check if this is a magic link verification request
+  const { searchParams } = new URL(request.url)
+  const hasTokenHash = searchParams.has('token_hash')
+  const hasType = searchParams.has('type')
+
+  // If this is a magic link verification, let it pass through without middleware processing
+  if (hasTokenHash && hasType) {
+    console.log('Middleware: Magic link verification detected, skipping middleware')
+    return response
+  }
+
   // Log all cookies for debugging
-  console.log('Middleware cookies:', request.cookies.getAll().map(c => c.name).join(', '));
+  const allCookies = request.cookies.getAll();
+  console.log('Middleware cookies:', allCookies.map(c => c.name).join(', '));
+
+  // Check for Supabase auth cookies
+  const hasAuthCookie = allCookies.some(cookie => cookie.name.startsWith('sb-') && cookie.name.includes('-auth-'));
+  console.log('Has Supabase auth cookie:', hasAuthCookie);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

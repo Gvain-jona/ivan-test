@@ -104,6 +104,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const jsCallbackCookie = document.cookie.includes('auth_completed_js=true');
         const localStorageCallback = localStorage.getItem('auth_callback_completed') === 'true';
 
+        // Check for auth_completed flag set by AuthHandler
+        const authCompleted = localStorage.getItem('auth_completed') === 'true';
+
+        // Check for Supabase auth token cookie
+        const hasSupabaseAuthCookie = document.cookie.includes('sb-giwurfpxxktfsdyitgvr-auth-token');
+        console.log('Has Supabase auth cookie:', hasSupabaseAuthCookie);
+
+        // Check if authentication is in progress (set by AuthHandler)
+        const authInProgress = localStorage.getItem('auth_in_progress') === 'true';
+
         // Also check URL for callback parameter (for cases where the page just loaded from callback)
         // Reuse the urlParams from above
         const urlCallback = urlParams.get('auth_callback') === 'true';
@@ -123,18 +133,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        const callbackCompleted = callbackCookie || jsCallbackCookie || localStorageCallback || urlCallback;
+        const callbackCompleted = callbackCookie || jsCallbackCookie || localStorageCallback || urlCallback || hasSupabaseAuthCookie || authCompleted;
+
+        // If authentication is in progress, don't try to refresh the session
+        if (authInProgress) {
+          console.log('Authentication is in progress, waiting for completion...');
+          return;
+        }
 
         console.log('Auth indicators:', {
           callbackCookie,
           jsCallbackCookie,
           localStorageCallback,
           urlCallback,
+          hasSupabaseAuthCookie,
+          authCompleted,
+          authInProgress,
           allCookies: document.cookie,
           localStorage: {
             auth_callback_completed: localStorage.getItem('auth_callback_completed'),
+            auth_completed: localStorage.getItem('auth_completed'),
+            auth_in_progress: localStorage.getItem('auth_in_progress'),
             auth_email: localStorage.getItem('auth_email'),
-            auth_timestamp: localStorage.getItem('auth_timestamp')
+            auth_timestamp: localStorage.getItem('auth_timestamp'),
+            auth_user_id: localStorage.getItem('auth_user_id'),
+            magic_link_email: localStorage.getItem('magic_link_email'),
+            magic_link_sent_at: localStorage.getItem('magic_link_sent_at')
           }
         });
 
@@ -154,13 +178,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const lastAuthEmail = localStorage.getItem('auth_email') || localStorage.getItem('auth_email_temp')
         console.log('Last auth email from localStorage:', lastAuthEmail);
 
-        // If we don't have a user but we have the callback cookie or localStorage email, try to refresh or re-authenticate
-        if (!user && (callbackCompleted || lastAuthEmail)) {
-          console.log('No user found but authentication indicators present, trying to recover session...')
+        // Always try to refresh the session if we have any indication of authentication
+        // This is more aggressive but ensures we catch all authentication scenarios
+        if (!user || callbackCompleted || lastAuthEmail || hasSupabaseAuthCookie) {
+          console.log('Trying to recover session...')
 
           // First try to get the session
           const { data: sessionData } = await supabase.auth.getSession();
           console.log('Current session:', sessionData.session ? 'present' : 'missing');
+
+          if (sessionData.session) {
+            console.log('Session found, getting user...');
+            // If we have a session, try to get the user again
+            const { data: userData } = await supabase.auth.getUser();
+            if (userData.user) {
+              console.log('User found after session check:', userData.user.email);
+              user = userData.user;
+              setUser(user);
+
+              // Store the email for future use
+              if (user.email) {
+                localStorage.setItem('auth_email', user.email);
+                localStorage.setItem('auth_email_temp', user.email);
+              }
+            }
+          }
 
           // Then try to refresh the session
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
@@ -548,11 +590,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Store authentication information in localStorage for verification and recovery
       // Store the email in both regular and temporary keys to ensure it's available throughout the flow
       localStorage.setItem('auth_redirect_origin', appUrl);
-      localStorage.setItem('auth_email', email);
-      localStorage.setItem('auth_email_temp', email); // Temporary key that won't be overwritten
       localStorage.setItem('auth_timestamp', Date.now().toString());
-
-      console.log('Stored auth email in localStorage:', email);
 
       // Send OTP
       // Use the app URL directly as the redirect URL
@@ -572,6 +610,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // This will help us detect if the user is coming back from a magic link
       localStorage.setItem('magic_link_sent_at', Date.now().toString());
       localStorage.setItem('magic_link_email', email);
+      localStorage.setItem('auth_email', email);
+      localStorage.setItem('auth_email_temp', email);
+
+      // Log the stored values for debugging
+      console.log('Stored auth email in localStorage:', email);
 
       if (error) {
         console.error('Error in signInWithOtp:', error.message)

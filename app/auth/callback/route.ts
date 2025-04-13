@@ -7,16 +7,33 @@ export async function GET(request: NextRequest) {
   const error = requestUrl.searchParams.get('error')
   const error_description = requestUrl.searchParams.get('error_description')
   const next = requestUrl.searchParams.get('next') || '/dashboard/orders'
+  const token_hash = requestUrl.searchParams.get('token_hash')
+  const type = requestUrl.searchParams.get('type')
 
   // Extract email from the URL if present (we'll add this to the magic link URL)
   const email = requestUrl.searchParams.get('email')
 
   console.log('Auth callback received:', {
     code: code ? 'present' : 'missing',
+    token_hash: token_hash ? 'present' : 'missing',
+    type,
     error,
     next,
     email: email || 'not provided'
   })
+
+  // If we have a token_hash and type, redirect to the verify endpoint
+  if (token_hash && type) {
+    console.log('Redirecting to verify endpoint...')
+    const verifyUrl = new URL('/auth/verify', requestUrl.origin)
+    verifyUrl.searchParams.set('token_hash', token_hash)
+    verifyUrl.searchParams.set('type', type)
+    verifyUrl.searchParams.set('next', next)
+    if (email) {
+      verifyUrl.searchParams.set('email', email)
+    }
+    return NextResponse.redirect(verifyUrl)
+  }
 
   // Default redirect path
   let redirectPath = next
