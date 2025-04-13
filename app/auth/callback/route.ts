@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
             setTimeout(() => {
               const redirectUrl = '${redirectPath}';
               const separator = redirectUrl.includes('?') ? '&' : '?';
-              const finalUrl = `${redirectUrl}${separator}auth_callback=true&email=${encodeURIComponent(emailToUse || '')}`;
+              const finalUrl = redirectUrl + separator + 'auth_callback=true&email=' + encodeURIComponent(emailToUse || '');
               console.log('Redirecting to:', finalUrl);
               window.location.href = finalUrl;
             }, 500);

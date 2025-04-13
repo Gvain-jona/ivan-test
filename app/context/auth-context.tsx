@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const localStorageCallback = localStorage.getItem('auth_callback_completed') === 'true';
 
         // Also check URL for callback parameter (for cases where the page just loaded from callback)
-        const urlParams = new URLSearchParams(window.location.search);
+        // Reuse the urlParams from above
         const urlCallback = urlParams.get('auth_callback') === 'true';
 
         // If we detect we're coming from a callback, set localStorage immediately
