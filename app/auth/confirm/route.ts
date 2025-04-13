@@ -1,7 +1,9 @@
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { Database } from '../../../types/supabase'
 import { getBaseUrl } from '@/app/lib/auth/session-utils'
+import { getAllAuthCookieNames } from '@/app/lib/auth/cookie-utils'
 import { createClient } from '../../../utils/supabase/server'
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
@@ -36,6 +38,13 @@ export async function GET(request: NextRequest) {
         `${getBaseUrl()}/auth/error?error=${encodeURIComponent('Invalid confirmation link')}`
       )
     }
+    
+    // Log all available auth cookies for debugging
+    const cookieStore = cookies()
+    const allAuthCookies = getAllAuthCookieNames()
+    const availableCookies = cookieStore.getAll().map((c: any) => c.name)
+    console.log('All auth cookies:', allAuthCookies)
+    console.log('Available cookies:', availableCookies)
     
     // Verify the OTP
     const { error } = await supabase.auth.verifyOtp({

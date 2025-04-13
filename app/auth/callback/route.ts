@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { Database } from '../../../types/supabase'
 import { getBaseUrl } from '@/app/lib/auth/session-utils'
+import { getCodeVerifierCookieName, getAllAuthCookieNames } from '@/app/lib/auth/cookie-utils'
 import { createClient } from '../../../utils/supabase/server'
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
@@ -52,10 +53,19 @@ export async function GET(request: NextRequest) {
     else if (code) {
       console.log('Processing code flow')
       
+      // Get the cookie name for the code verifier
+      const cookieName = getCodeVerifierCookieName()
+      console.log('Looking for cookie:', cookieName)
+      
       // Check if we have the code verifier cookie
       const cookieStore = cookies()
-      const codeVerifier = cookieStore.get('sb-giwurfpxxktfsdyitgvr-auth-token-code-verifier')?.value
+      const codeVerifier = cookieStore.get(cookieName)?.value
       
+      // Log all available auth cookies for debugging
+      const allAuthCookies = getAllAuthCookieNames()
+      const availableCookies = cookieStore.getAll().map((c: any) => c.name)
+      console.log('All auth cookies:', allAuthCookies)
+      console.log('Available cookies:', availableCookies)
       console.log('Code verifier cookie present:', !!codeVerifier)
       
       // If code verifier is missing, redirect to sign-in with an error
