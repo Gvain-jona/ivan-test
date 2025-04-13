@@ -28,10 +28,12 @@ export async function GET(request: NextRequest) {
     // Get the redirect path
     const next = searchParams.get('next') || '/dashboard/orders'
     
+    // Create Supabase client
+    const supabase = createClient()
+    
     // Handle token_hash flow (email confirmation)
     if (token_hash && type) {
       console.log('Processing token_hash flow')
-      const supabase = createClient()
       
       const { error } = await supabase.auth.verifyOtp({
         type,
@@ -48,7 +50,20 @@ export async function GET(request: NextRequest) {
     // Handle code flow (magic link)
     else if (code) {
       console.log('Processing code flow')
-      const supabase = createClient()
+      
+      // Check if we have the code verifier cookie
+      const cookieStore = cookies()
+      const codeVerifier = cookieStore.get('sb-giwurfpxxktfsdyitgvr-auth-token-code-verifier')
+      
+      console.log('Code verifier cookie present:', !!codeVerifier)
+      
+      // If code verifier is missing, redirect to sign-in with an error
+      if (!codeVerifier) {
+        console.error('Code verifier cookie is missing')
+        return NextResponse.redirect(
+          `${getBaseUrl()}/auth/error?error=${encodeURIComponent('Authentication session expired or invalid. Please try signing in again.')}`
+        )
+      }
       
       const { error } = await supabase.auth.exchangeCodeForSession(code)
       
