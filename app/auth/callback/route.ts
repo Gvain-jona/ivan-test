@@ -90,5 +90,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Use a 303 redirect to ensure the browser uses GET for the redirect
-  return NextResponse.redirect(new URL(redirectPath, requestUrl.origin), { status: 303 })
+  // Use the origin from the request URL to ensure we're redirecting to the correct domain
+  const origin = requestUrl.origin;
+  console.log(`Redirecting to ${redirectPath} with origin ${origin}`);
+  return NextResponse.redirect(new URL(redirectPath, origin), { status: 303 })
 }

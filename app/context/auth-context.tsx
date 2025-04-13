@@ -47,8 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Initialize auth context and check user session
       setIsLoading(true)
       try {
+        console.log('Checking auth state...')
         // Fetch current user from Supabase
         const { data: { user } } = await supabase.auth.getUser()
+        console.log('Auth state check result:', user ? 'User found' : 'No user found')
         // User fetch result logged
         setUser(user)
 
@@ -383,9 +385,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log(`Signing in with email: ${email}, redirect to: ${redirectTo}`)
 
-      // Get the app URL from environment variables or use window.location.origin as fallback
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      // Always use window.location.origin for client-side redirects
+      // This ensures we're using the actual URL the user is accessing
+      const appUrl = window.location.origin;
       console.log(`Using app URL for redirect: ${appUrl}`);
+
+      // Store the current URL in localStorage for verification later
+      localStorage.setItem('auth_redirect_origin', appUrl);
 
       // Send OTP
       const { error } = await supabase.auth.signInWithOtp({
