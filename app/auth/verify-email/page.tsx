@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/context/auth-context'
 import { Button } from '@/components/ui/button'
@@ -11,17 +11,17 @@ import { AlertCircle, CheckCircle, Mail, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import { Progress } from '@/components/ui/progress'
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const { user, profile, isLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard/orders'
-  
+
   const [verificationCode, setVerificationCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   // Handle verification code submission
   const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,7 +36,7 @@ export default function VerifyEmailPage() {
       // In production, verify against the stored code in the database
       if (verificationCode.length === 6) {
         setSuccess('Email verification successful. You will be redirected shortly.')
-        
+
         // Redirect to setup PIN page after a short delay
         setTimeout(() => {
           router.push(`/auth/setup-pin?redirect=${encodeURIComponent(redirect)}`)
@@ -54,7 +54,7 @@ export default function VerifyEmailPage() {
 
   // Get current year for copyright
   const currentYear = new Date().getFullYear();
-  
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background relative overflow-hidden">
       {/* Background Pattern */}
@@ -72,7 +72,7 @@ export default function VerifyEmailPage() {
           <h1 className="text-2xl font-bold text-foreground">Ivan Prints</h1>
           <p className="text-sm text-muted-foreground">Business Management System</p>
         </div>
-        
+
         <Card className="w-full border-border/60 shadow-lg">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl text-center flex items-center justify-center gap-2">
@@ -83,7 +83,7 @@ export default function VerifyEmailPage() {
               Enter the verification code sent to your email
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-4">
             {/* Error message */}
             {error && (
@@ -146,14 +146,14 @@ export default function VerifyEmailPage() {
               </div>
             </form>
           </CardContent>
-          
+
           <CardFooter className="flex justify-center pt-2 pb-4">
             <p className="text-sm text-muted-foreground">
               Didn't receive the code? <Link href="#" className="text-primary hover:underline">Resend code</Link>
             </p>
           </CardFooter>
         </Card>
-        
+
         {/* Copyright Footer */}
         <div className="mt-8 text-center text-xs text-muted-foreground">
           <p>&copy; {currentYear} Ivan Prints. All rights reserved.</p>
@@ -161,4 +161,30 @@ export default function VerifyEmailPage() {
       </div>
     </div>
   )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-5">
+          <div className="absolute inset-0 bg-grid-foreground/[0.05] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)]"></div>
+        </div>
+        <div className="w-full max-w-md px-4 relative z-10">
+          <Card className="w-full border-border/60 shadow-lg">
+            <CardContent className="flex flex-col items-center justify-center p-8">
+              <div className="animate-spin h-8 w-8 text-primary mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
+              </div>
+              <p className="text-muted-foreground">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
+  );
 }

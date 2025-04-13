@@ -44,6 +44,7 @@ export interface OrderPaymentsTabProps {
  */
 export interface OrderNotesTabProps {
   order: Order;
+  canEdit?: boolean;
 }
 
 /**
@@ -62,6 +63,8 @@ export interface UseOrderPaymentsReturn {
   setPaymentAmount: (amount: string) => void;
   paymentMethod: string;
   setPaymentMethod: (method: string) => void;
+  paymentDate: string;
+  setPaymentDate: (date: string) => void;
   handleSubmit: () => void;
   resetForm: () => void;
 }

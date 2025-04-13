@@ -48,7 +48,7 @@ export function InlinePaymentForm({
     if (existingPayment) {
       return {
         amount: existingPayment.amount || 0,
-        payment_date: existingPayment.date || new Date().toISOString().split('T')[0],
+        payment_date: existingPayment.payment_date || new Date().toISOString().split('T')[0],
         payment_method: existingPayment.payment_method || 'cash',
       };
     }
@@ -88,6 +88,8 @@ export function InlinePaymentForm({
   const paymentDate = form.watch('payment_date');
   const paymentMethod = form.watch('payment_method');
 
+  // Ref to track if we have valid data to prevent duplicate saves
+  const hasValidData = useRef(false);
 
   // Create a save function
   const savePayment = useCallback((formData: OrderPaymentFormValues) => {
@@ -122,83 +124,34 @@ export function InlinePaymentForm({
       // Create payment object with the correct field mapping
       const newPayment: OrderPayment = {
         id: paymentId,
-        order_id: existingPayment?.order_id || '',
-        // Map payment_date to date for database compatibility
-        date: payment_date, // Use the validated payment_date
-        payment_method: validatedFormData.payment_method,
-        // Ensure amount is a number
         amount: amount,
+        payment_date: payment_date,
+        payment_method: formData.payment_method as PaymentMethod,
+        order_id: existingPayment?.order_id || '',
         created_at: existingPayment?.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
-      console.log('Creating payment with date:', payment_date);
-      console.log('Final payment object:', JSON.stringify(newPayment));
-
-      console.log('Saving payment with amount:', amount, newPayment);
-
-      // If we haven't saved a payment yet, store the ID
-      if (!savedPaymentId) {
-        setSavedPaymentId(paymentId);
-      }
-
+      // Call the parent component's onAddPayment function
       onAddPayment(newPayment);
+
+      // Update the saved payment ID
+      setSavedPaymentId(paymentId);
+
+      // Update the valid data flag
+      hasValidData.current = true;
+
+      return true;
     }
-  }, [onAddPayment, savedPaymentId, formIndex, setSavedPaymentId, existingPayment]);
 
-  const debouncedSave = useDebouncedCallback(savePayment, 800); // 800ms debounce time
+    return false;
+  }, [formIndex, onAddPayment, savedPaymentId, existingPayment]);
 
-  // Handle manual save button click
+  // Create a debounced version of the save function
+  const debouncedSave = useDebouncedCallback(savePayment, 500);
+
+  // Manual save handler
   const handleManualSave = useCallback(() => {
-    // Set payment_date to today if it's missing
-    const currentValues = form.getValues();
-    if (!currentValues.payment_date) {
-      const today = new Date().toISOString().split('T')[0];
-      form.setValue('payment_date', today);
-    }
-
-    // Validate the form
-    form.trigger().then(isValid => {
-      if (isValid) {
-        // Get the current form data
-        const formData = form.getValues();
-        console.log('Manual save clicked with data:', formData);
-
-        // Save the payment
-        savePayment(formData);
-      } else {
-        // Log validation errors
-        console.log('Form validation failed:', form.formState.errors);
-
-        // If payment_date is missing, set it to today
-        if (form.formState.errors.payment_date) {
-          const today = new Date().toISOString().split('T')[0];
-          form.setValue('payment_date', today);
-          form.trigger('payment_date').then(() => {
-            // Try to save again if payment_date was the only issue
-            if (Object.keys(form.formState.errors).length === 1 && form.formState.errors.payment_date) {
-              const updatedData = form.getValues();
-              savePayment(updatedData);
-            }
-          });
-        }
-      }
-    });
-  }, [form, savePayment]);
-
-  // Watch for form changes and trigger the debounced save
-  // Use a ref to track if this is the first render to prevent duplicate saves
-  const isFirstRender = useRef(true);
-  const hasValidData = useRef(false);
-
-  // Store form data in localStorage when it changes and auto-save when all required fields are filled
-  useEffect(() => {
-    // Skip the first render
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
     const formData = form.getValues();
 
     // Always store in localStorage to preserve data between section collapses
@@ -223,14 +176,13 @@ export function InlinePaymentForm({
       else if (existingPayment && (
         existingPayment.amount !== formData.amount ||
         existingPayment.payment_date !== formData.payment_date ||
-        existingPayment.payment_method !== formData.payment_method ||
-        existingPayment.notes !== formData.notes
+        existingPayment.payment_method !== formData.payment_method
       )) {
         console.log('Auto-saving updated payment with valid data:', formData);
         debouncedSave(formData);
       }
     }
-  }, [form.watch('amount'), form.watch('payment_date'), form.watch('payment_method'), form, formIndex, existingPayment, debouncedSave, savedPaymentId]);
+  }, [form, formIndex, existingPayment, debouncedSave, savedPaymentId]);
 
   // We're using the handleManualSave function defined above with useCallback
 
@@ -247,8 +199,23 @@ export function InlinePaymentForm({
     { value: 'mobile_payment', label: 'Mobile Payment' },
   ];
 
+  // Auto-save form data when values change
+  useEffect(() => {
+    // Only save if we have valid data
+    const dependencies = [amount, paymentDate, paymentMethod, form, formIndex, existingPayment, debouncedSave, savedPaymentId];
+    const hasValidData = amount > 0 && paymentDate && paymentMethod;
+    if (hasValidData) {
+      console.log('Auto-saving payment form data...');
+      debouncedSave({
+        amount,
+        payment_date: paymentDate,
+        payment_method: paymentMethod
+      });
+    }
+  }, [amount, paymentDate, paymentMethod, form, formIndex, existingPayment, debouncedSave, savedPaymentId]);
+
   return (
-    <div className="bg-card/30 border border-border/50 rounded-md p-6 mb-6">
+    <div className="bg-[hsl(var(--card))]/30 border border-[hsl(var(--border))]/50 rounded-md p-6 mb-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-sm font-medium">Payment #{displayNumber || formIndex + 1}</h3>
         <Button

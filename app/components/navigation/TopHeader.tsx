@@ -73,11 +73,16 @@ export default function TopHeader({
   logoUrl = ''
 }: TopHeaderProps) {
   // Get user profile information from auth context
-  const { profile, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
   // Use provided values or fallback to profile data
-  const displayName = userName || profile?.full_name || 'User';
+  const displayName = userName || profile?.full_name || user?.email?.split('@')[0] || 'User';
   const displayInitials = userInitials || getInitials(displayName);
+
+  // Log auth state for debugging
+  useEffect(() => {
+    console.log('Auth state in TopHeader:', { user, profile, isLoading });
+  }, [user, profile, isLoading]);
 
   // Get time-based greeting
   const [greeting, setGreeting] = useState(getTimeBasedGreeting());
@@ -104,8 +109,8 @@ export default function TopHeader({
   return (
     <header className={cn(
       "top-header px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
-      scrolled && "shadow-md backdrop-blur-md bg-card/90 border-b border-border/60",
-      !scrolled && "bg-card border-b border-border/40",
+      scrolled && "shadow-md backdrop-blur-md bg-[hsl(var(--card))]/90 border-b border-[hsl(var(--border))]/60",
+      !scrolled && "bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]/40",
       className
     )}>
       <div className="flex items-center">

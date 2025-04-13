@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import useSWR from 'swr';
 import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
@@ -118,15 +119,17 @@ export function useSWROrders(
     }
   );
 
-  // Handle error
-  if (error) {
-    console.error('Error fetching orders:', error);
-    toast({
-      title: 'Error',
-      description: 'Failed to fetch orders',
-      variant: 'destructive',
-    });
-  }
+  // Handle error with useEffect to avoid React state updates during render
+  useEffect(() => {
+    if (error) {
+      console.error('Error fetching orders:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch orders',
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
   return {
     orders: data?.orders || [],

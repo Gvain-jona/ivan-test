@@ -208,7 +208,7 @@ export function SmartCombobox({
       setIsCreating(false)
       setOpen(false)
     }
-  }, [onCreateOption, searchValue, allowCreate, onChange, entityName, filteredOptions, options])
+  }, [onCreateOption, searchValue, allowCreate, onChange, entityName, filteredOptions])
 
   // Handle opening and closing the dropdown, respecting the disabled state
   const handleOpenChange = React.useCallback((isOpen: boolean) => {

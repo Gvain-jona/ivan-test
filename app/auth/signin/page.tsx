@@ -1,65 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { AlertCircle, CheckCircle, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/context/auth-context';
-import { Progress } from '@/components/ui/progress';
+import './signin.css';
 
-// Helper function to validate redirect URLs for security
-function validateRedirectUrl(url: string): string {
-  // Only allow redirects to internal dashboard pages
-  if (url && (
-    url.startsWith('/dashboard') ||
-    url.startsWith('/admin') ||
-    url.startsWith('/manager')
-  )) {
-    return url;
-  }
-
-  // Default to dashboard if the URL is not allowed
-  return '/dashboard';
-}
-
-export default function SignInPage() {
-  const router = useRouter();
+function SignInContent() {
   const searchParams = useSearchParams();
   const { signIn, checkSupabaseHealth } = useAuth();
 
   // Run a health check when the page loads
   useEffect(() => {
     const runHealthCheck = async () => {
-      console.log('Running Supabase health check on sign-in page load...');
       const result = await checkSupabaseHealth();
-      console.log('Health check result:', result.ok ? 'OK' : 'Failed', result.error || '');
-
-      // Log environment variables for debugging
-      console.log('Environment mode:', process.env.NODE_ENV);
-      console.log('BYPASS_SIGNIN:', process.env.BYPASS_SIGNIN);
-      console.log('SKIP_PROFILE_CHECK:', process.env.SKIP_PROFILE_CHECK);
+      if (!result.ok) {
+        console.error('Supabase health check failed:', result.error);
+      }
     };
 
     runHealthCheck();
   }, [checkSupabaseHealth]);
 
-  // Get the redirect URL from the query parameters
-  const redirectTo = searchParams?.get('redirect') || '/dashboard';
-
-  // Get error message from query parameters if present
+  // Get parameters from URL
   const errorFromUrl = searchParams?.get('error');
-
-  // For security, we'll validate the redirect URL before actually redirecting
-  // This happens in the handlePasswordSignIn and handleMagicLinkSignIn functions
+  const redirectTo = searchParams?.get('redirect') || '/dashboard/orders';
 
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(errorFromUrl || '');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [redirect, setRedirect] = useState(redirectTo);
+
   const [step, setStep] = useState<'input' | 'sending' | 'sent'>('input');
   const [progress, setProgress] = useState(0);
 
@@ -88,15 +60,11 @@ export default function SignInPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sign-in form submitted');
 
     if (!email || !isValidEmail(email)) {
-      console.log('Invalid email format');
       setError('Please enter a valid email address');
       return;
     }
-
-    console.log('Email validation passed, proceeding with sign-in');
 
     setIsLoading(true);
     setError('');
@@ -107,49 +75,19 @@ export default function SignInPage() {
       // Simulate a slight delay to show the progress animation
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      console.log('Calling signIn function with email:', email);
-      const signInResult = await signIn(email);
-      console.log('Sign-in result:', signInResult);
-
+      const signInResult = await signIn(email, redirect);
       const { error } = signInResult;
 
-      // Special handling for various errors
       if (error) {
-        console.log('Sign-in error details:', { code: error.code, message: error.message });
-
-        // Handle database policy errors
-        if (error.code === '42P17' && error.message?.includes('infinite recursion detected in policy')) {
-          console.warn('RLS policy error detected, but proceeding with sign-in in development mode');
-          // In development mode, we'll pretend the magic link was sent
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Development mode: simulating successful magic link sending');
-            setProgress(100);
-            setStep('sent');
-            setSuccessMessage(`Development mode: Magic link would be sent to ${email}. In production, check your email inbox for the login link.`);
-            return;
-          }
-        }
-
-        // Handle timeout errors
-        if (error.code === 'TIMEOUT') {
-          console.warn('Sign-in timed out');
-          setProgress(100);
-          setStep('input');
-          setError(error.message || 'Sign-in timed out. Please try again later.');
-          return;
-        }
+        setError(error.message || 'Failed to send OTP. Please try again.');
+        setStep('input');
       } else {
-        console.log('Magic link sent successfully');
+        setProgress(100);
+        setStep('sent');
+        // Success message is displayed in the UI directly
       }
-
-      if (error) throw error;
-
-      setProgress(100);
-      setStep('sent');
-      setSuccessMessage(`Magic link sent to ${email}. Please check your email inbox for the login link.`);
     } catch (err: any) {
-      console.error('Magic link error:', err);
-      setError(err.message || 'Failed to send magic link. Please try again.');
+      setError(err.message || 'Failed to send OTP. Please try again.');
       setStep('input');
     } finally {
       setIsLoading(false);
@@ -161,10 +99,13 @@ export default function SignInPage() {
       case 'input':
         return (
           <form onSubmit={handleSignIn}>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
+            <div className="form-group">
+              <label htmlFor="email" className="signin-input-label">Email Address</label>
+              <div className="input-wrapper">
+                <div className="input-icon">
+                  <Mail size={18} color="#f97316" />
+                </div>
+                <input
                   id="email"
                   type="email"
                   placeholder="name@example.com"
@@ -173,80 +114,91 @@ export default function SignInPage() {
                   autoComplete="email"
                   disabled={isLoading}
                   autoFocus
+                  className="signin-input"
                 />
               </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || !email || !isValidEmail(email)}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Continue with Email'
-                )}
-              </Button>
+              <p className="help-text">We'll send a verification code to this email</p>
             </div>
+
+            {error && (
+              <div className="error-message">
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="signin-button"
+              disabled={isLoading || !email || !isValidEmail(email)}
+            >
+              {isLoading ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Loader2 size={20} className="animate-spin" style={{ marginRight: '8px' }} />
+                  Sending...
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  Continue with Email
+                  <ArrowRight size={20} style={{ marginLeft: '8px' }} />
+                </span>
+              )}
+            </button>
           </form>
         );
 
       case 'sending':
         return (
-          <div className="grid gap-6 py-4">
-            <div className="flex flex-col items-center justify-center gap-2 py-4">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <h3 className="mt-4 text-lg font-medium">Sending Magic Link</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                We're sending a secure login link to {email}
-              </p>
+          <div className="loading-state">
+            <div className="loading-icon-container">
+              <div className="loading-icon-pulse" />
+              <div className="loading-icon-wrapper">
+                <Loader2 size={48} color="#f97316" className="animate-spin" />
+              </div>
             </div>
-            <Progress value={progress} className="w-full" />
+            <h3 className="loading-title">Sending Verification Code</h3>
+            <p className="loading-description">
+              We're sending a verification code to <span className="email-highlight">{email}</span>
+            </p>
+            <div className="progress-bar-container">
+              <div
+                className="progress-bar-fill"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
           </div>
         );
 
       case 'sent':
         return (
-          <div className="grid gap-6 py-4">
-            <div className="flex flex-col items-center justify-center gap-2 py-4">
-              <div className="rounded-full bg-primary/10 p-3">
-                <CheckCircle className="h-10 w-10 text-primary" />
+          <div className="success-state">
+            <div className="success-icon-container">
+              <div className="success-icon-pulse" />
+              <div className="success-icon-wrapper">
+                <CheckCircle size={48} color="#f97316" />
               </div>
-              <h3 className="mt-4 text-lg font-medium">Check Your Email</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                We've sent a magic link to <strong>{email}</strong>
-              </p>
-              <div className="mt-4 flex flex-col gap-2 w-full">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => window.open(`mailto:${email}`, '_blank')}
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  Open Email App
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => {
-                    setStep('input');
-                    setProgress(0);
-                    setSuccessMessage('');
-                  }}
-                >
-                  Use a different email
-                </Button>
-              </div>
+            </div>
+            <h3 className="success-title">Check Your Email</h3>
+            <p className="success-description">
+              We've sent a verification code to <span className="email-highlight">{email}</span>
+            </p>
+            <div className="action-buttons">
+              <button
+                className="primary-action-button"
+                onClick={() => window.open(`mailto:${email}`, '_blank')}
+              >
+                <Mail size={20} style={{ marginRight: '8px' }} />
+                <span>Open Email App</span>
+              </button>
+              <button
+                className="secondary-action-button"
+                onClick={() => {
+                  setStep('input');
+                  setProgress(0);
+                }}
+              >
+                Use a different email
+              </button>
             </div>
           </div>
         );
@@ -257,25 +209,77 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-          <CardDescription className="text-center">
-            {step === 'input' && 'Enter your email to receive a magic link'}
-            {step === 'sending' && 'Sending secure login link...'}
-            {step === 'sent' && 'Magic link sent!'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="signin-container">
+      {/* Background patterns */}
+      <div className="grid-pattern" />
+      <div className="starry-background" />
+
+      {/* Company logo and branding */}
+      <div className="logo-container">
+        <div className="relative w-16 h-16">
+          <Image
+            src="/images/default-logo.svg"
+            alt="Ivan Prints Logo"
+            className="signin-logo"
+            fill
+            priority
+          />
+        </div>
+        <h1 className="signin-title">Ivan Prints</h1>
+        <p className="signin-subtitle">Print Management System</p>
+      </div>
+
+      <div className="signin-card">
+        <div className="signin-card-header">
+          <h2 className="signin-title" style={{ textAlign: 'center', marginBottom: '6px', fontSize: '22px' }}>
+            {step === 'input' && 'Sign In'}
+            {step === 'sending' && 'Verifying'}
+            {step === 'sent' && 'Check Your Email'}
+          </h2>
+          <p style={{ textAlign: 'center', color: '#a1a1aa', fontSize: '14px' }}>
+            {step === 'input' && 'Enter your email to receive a verification code'}
+            {step === 'sending' && 'Sending verification code...'}
+            {step === 'sent' && 'Verification code sent!'}
+          </p>
+        </div>
+
+        <div className="signin-card-content">
           {renderStepContent()}
-        </CardContent>
-        <CardFooter className="flex flex-col gap-2 items-center">
-          <div className="text-sm text-muted-foreground">
-            Only authorized emails can sign in. Contact your administrator for access.
-          </div>
-        </CardFooter>
-      </Card>
+        </div>
+
+        <div className="signin-card-footer">
+          Only authorized emails can sign in.<br />
+          Contact your administrator for access.
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="signin-footer">
+        &copy; {new Date().getFullYear()} Ivan Prints. All rights reserved.
+      </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="signin-container">
+        <div className="grid-pattern" />
+        <div className="starry-background" />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="signin-card">
+            <div className="signin-card-content">
+              <div className="flex flex-col items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+                <p className="text-muted-foreground">Loading...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

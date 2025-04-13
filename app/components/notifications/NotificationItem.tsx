@@ -88,11 +88,11 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       <div className="flex gap-3">
         {/* Avatar */}
         <Avatar className="h-10 w-10">
-          {notification.sender.avatar ? (
-            <AvatarImage src={notification.sender.avatar} alt={notification.sender.name} />
+          {notification.sender?.avatar ? (
+            <AvatarImage src={notification.sender.avatar} alt={notification.sender?.name || 'User'} />
           ) : (
             <AvatarFallback>
-              {notification.sender.name.charAt(0)}
+              {notification.sender?.name?.charAt(0) || 'U'}
             </AvatarFallback>
           )}
         </Avatar>
@@ -108,7 +108,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
 
               {/* Sender and target */}
               <p className="text-sm text-muted-foreground mb-1">
-                <span className="font-medium">{notification.sender.name}</span>
+                <span className="font-medium">{notification.sender?.name || 'System'}</span>
                 {notification.type === 'comment' && ' commented on '}
                 {notification.type === 'invitation' && ' invited you to '}
                 {notification.type === 'status_change' && ' updated status of '}
@@ -116,7 +116,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 {notification.type === 'mention' && ' mentioned you in '}
                 {notification.type === 'payment' && ' processed payment for '}
                 {notification.type === 'due_date' && ' reminder for '}
-                <span className="font-medium">{notification.target.title}</span>
+                <span className="font-medium">{notification.target?.title || 'Unknown'}</span>
               </p>
 
               {/* Message */}

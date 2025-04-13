@@ -34,15 +34,24 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesToSet) {
+        set(name, value, options) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
+            cookieStore.set(name, value, options)
+          } catch (error) {
+            // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
+            console.error('Error setting cookie:', error)
+          }
+        },
+        remove(name, options) {
+          try {
+            cookieStore.delete(name, options)
+          } catch (error) {
+            // The `remove` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+            console.error('Error removing cookie:', error)
           }
         },
       },

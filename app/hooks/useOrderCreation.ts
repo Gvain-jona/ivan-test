@@ -282,7 +282,7 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [toast, onSuccess]);
+  }, [toast, onSuccess, handleLoadMore]);
 
   return {
     createOrder,

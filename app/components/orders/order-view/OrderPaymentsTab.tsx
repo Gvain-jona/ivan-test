@@ -1,10 +1,8 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Calendar, CreditCard, DollarSign, Wallet, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { OrderPaymentsTabProps } from './types';
-import { fadeIn } from '@/utils/animation-variants';
 import PaymentForm from './PaymentForm';
 import { OrderPayment } from '@/types/orders';
 
@@ -19,12 +17,7 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
   onAddPayment
 }) => {
   return (
-    <motion.div
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      variants={fadeIn}
-    >
+    <div>
       {showPaymentForm ? (
         <PaymentForm
           onSubmit={onAddPayment}
@@ -45,50 +38,74 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
         )
       )}
 
-      <div className="border border-[#2B2B40] rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-[#2B2B40]">
-          <thead className="bg-[#1E1E2D]">
-            <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-[#6D6D80] uppercase tracking-wider">Date</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-[#6D6D80] uppercase tracking-wider">Method</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-[#6D6D80] uppercase tracking-wider">Amount</th>
-            </tr>
-          </thead>
-          <tbody className="bg-transparent divide-y divide-[#2B2B40]">
-            {order.payments?.length ? order.payments.map((payment: OrderPayment) => (
-              <tr key={payment.id} className="hover:bg-white/[0.02]">
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-white">
-                  {new Date(payment.date).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-white capitalize">
-                  {payment.method.replace('_', ' ')}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-green-500">
-                  {formatCurrency(payment.amount)}
-                </td>
+      <div className="space-y-4">
+        {order?.payments?.length ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {order.payments.map((payment: OrderPayment) => (
+                <div
+                  key={payment.id}
+                  className="border border-[#2B2B40] rounded-lg p-4 hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-[#1E1E2D] rounded-md">
+                      {payment.method === 'cash' ? (
+                        <Wallet className="h-5 w-5 text-green-500" />
+                      ) : payment.method === 'bank_transfer' ? (
+                        <CreditCard className="h-5 w-5 text-blue-500" />
+                      ) : (
+                        <DollarSign className="h-5 w-5 text-orange-500" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-white capitalize">
+                        {payment.method.replace('_', ' ')} Payment
+                      </h4>
+                      <div className="flex items-center mt-1">
+                        <Calendar className="h-3 w-3 text-[#6D6D80] mr-1" />
+                        <span className="text-xs text-[#6D6D80]">
+                          {new Date(payment.payment_date).toLocaleDateString()}
+                        </span>
+                      </div>
 
-              </tr>
-            )) : (
-              <tr>
-                <td colSpan={3} className="px-4 py-4 text-center text-sm text-[#6D6D80]">No payments found</td>
-              </tr>
-            )}
-          </tbody>
-          <tfoot className="bg-[#1E1E2D]">
-            <tr>
-              <td colSpan={2} className="px-4 py-3 text-right text-sm font-medium text-[#6D6D80]">Total Paid</td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-green-500">{formatCurrency(order.amount_paid)}</td>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[#6D6D80]">Amount</span>
+                          <span className="text-sm font-medium text-green-500">{formatCurrency(payment.amount)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-            </tr>
-            <tr>
-              <td colSpan={2} className="px-4 py-3 text-right text-sm font-medium text-[#6D6D80]">Balance</td>
-              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-orange-500">{formatCurrency(order.balance)}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
+            <div className="border border-[#2B2B40] rounded-lg p-4 mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center">
+                  <Wallet className="h-4 w-4 text-[#6D6D80] mr-2" />
+                  <span className="text-sm text-[#6D6D80]">Total Paid</span>
+                </div>
+                <span className="text-sm font-medium text-green-500">{formatCurrency(order.amount_paid)}</span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                  <DollarSign className="h-4 w-4 text-[#6D6D80] mr-2" />
+                  <span className="text-sm text-[#6D6D80]">Balance</span>
+                </div>
+                <span className="text-sm font-medium text-orange-500">{formatCurrency(order.balance || (order.total_amount - order.amount_paid))}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="border border-[#2B2B40] rounded-lg p-6 text-center">
+            <AlertCircle className="h-8 w-8 text-[#6D6D80] mx-auto mb-2" />
+            <p className="text-sm text-[#6D6D80]">No payments found</p>
+          </div>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
 };
 

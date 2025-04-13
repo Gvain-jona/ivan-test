@@ -33,29 +33,29 @@ export default function FeatureInDevelopmentPage() {
 
       {/* Features Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-        <FeatureCard 
-          title="Enhanced Expense Tracking" 
+        <FeatureCard
+          title="Enhanced Expense Tracking"
           description="Track and categorize expenses with detailed reporting and analytics."
           icon={<Blocks className="h-8 w-8 text-orange-500" />}
           comingSoon={true}
         />
-        
-        <FeatureCard 
-          title="Smart Task Management" 
+
+        <FeatureCard
+          title="Smart Task Management"
           description="Organize your work with intelligent task prioritization and reminders."
           icon={<CheckSquare className="h-8 w-8 text-orange-500" />}
           comingSoon={true}
         />
-        
-        <FeatureCard 
-          title="Material Purchases" 
+
+        <FeatureCard
+          title="Material Purchases"
           description="Manage your material purchases with tracking, alerts, and automated reordering."
           icon={<Wrench className="h-8 w-8 text-orange-500" />}
           comingSoon={true}
         />
-        
-        <FeatureCard 
-          title="Order Management" 
+
+        <FeatureCard
+          title="Order Management"
           description="Track and manage customer orders from creation to delivery."
           icon={<Package className="h-8 w-8 text-orange-500" />}
           available={true}
@@ -78,23 +78,23 @@ export default function FeatureInDevelopmentPage() {
 }
 
 // Feature Card Component
-function FeatureCard({ 
-  title, 
-  description, 
-  icon, 
-  comingSoon = false, 
+function FeatureCard({
+  title,
+  description,
+  icon,
+  comingSoon = false,
   available = false,
   href = "#"
-}: { 
-  title: string; 
-  description: string; 
-  icon: React.ReactNode; 
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
   comingSoon?: boolean;
   available?: boolean;
   href?: string;
 }) {
   return (
-    <Card className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 rounded-xl h-full flex flex-col">
+    <Card className="bg-transparent border-[hsl(var(--border))]/40 hover:bg-muted/10 transition-all duration-200 rounded-xl h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           {icon}
@@ -146,4 +146,4 @@ function CheckSquare(props: React.SVGProps<SVGSVGElement>) {
       <path d="m9 12 2 2 4-4" />
     </svg>
   );
-} 
+}

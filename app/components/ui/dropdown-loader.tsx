@@ -69,8 +69,8 @@ export function DropdownLoader({
 
 function DefaultLoadingFallback() {
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-card rounded-lg shadow-lg p-6 max-w-md w-full mx-4 flex flex-col items-center space-y-4">
+    <div className="fixed inset-0 bg-[hsl(var(--background))]/80 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-[hsl(var(--card))] rounded-lg shadow-lg p-6 max-w-md w-full mx-4 flex flex-col items-center space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <h3 className="text-lg font-medium">Loading Data</h3>
         <p className="text-center text-muted-foreground">

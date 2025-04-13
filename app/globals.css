@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Grid pattern background */
+.bg-grid-pattern {
+  background-image: linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 /* Custom scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
@@ -249,149 +256,235 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+/* Base styles */
+* {
+  border-color: hsl(var(--border));
+}
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
 
-  /* Table-specific CSS variables */
-  :root {
-    /* Light theme table variables */
-    --table-header-bg: 0 0% 96%;
-    --table-header-text: 0 0% 20%;
-    --table-row-hover: 0 0% 94%;
-    --table-border: 0 0% 85%;
-    --table-stripe: 0 0% 98%;
-    --table-subrow-bg: 0 0% 97%;
-    --table-subrow-title: 0 0% 30%;
-    --table-note-border: 16 100% 50%;
-    --table-pagination-active: 16 100% 50%;
-    --table-pagination-hover: 0 0% 90%;
-  }
+/* Table-specific CSS variables */
+:root {
+  /* Light theme table variables */
+  --table-header-bg: 0 0% 96%;
+  --table-header-text: 0 0% 20%;
+  --table-row-hover: 0 0% 94%;
+  --table-border: 0 0% 85%;
+  --table-stripe: 0 0% 98%;
+  --table-expanded-bg: 0 0% 97%;
+  --table-expanded-title: 0 0% 30%;
+  --table-note-border: 16 100% 50%;
+  --table-pagination-active: 16 100% 50%;
+  --table-pagination-hover: 0 0% 90%;
+}
 
-  .dark {
-    /* Dark theme table variables */
-    --table-header-bg: 0 0% 10%;
-    --table-header-text: 0 0% 80%;
-    --table-row-hover: 0 0% 12%;
-    --table-border: 0 0% 20%;
-    --table-stripe: 0 0% 7%;
-    --table-subrow-bg: 0 0% 9%;
-    --table-subrow-title: 0 0% 90%;
-    --table-note-border: 16 100% 50%;
-    --table-pagination-active: 16 100% 50%;
-    --table-pagination-hover: 0 0% 15%;
-  }
+.dark {
+  /* Dark theme table variables */
+  --table-header-bg: 0 0% 10%;
+  --table-header-text: 0 0% 80%;
+  --table-row-hover: 0 0% 12%;
+  --table-border: 0 0% 20%;
+  --table-stripe: 0 0% 7%;
+  --table-expanded-bg: 0 0% 9%;
+  --table-expanded-title: 0 0% 90%;
+  --table-note-border: 16 100% 50%;
+  --table-pagination-active: 16 100% 50%;
+  --table-pagination-hover: 0 0% 15%;
 }
 
 /* Custom styles for a more modern and clean look */
-@layer components {
-  /* Sidebar styling */
-  .sidebar {
-    @apply bg-card border-r border-border shadow-none transition-all duration-200;
-  }
+/* Sidebar styling */
+.sidebar {
+  background-color: hsl(var(--card));
+  border-right-width: 1px;
+  border-right-color: hsl(var(--border));
+  box-shadow: none;
+  transition-property: all;
+  transition-duration: 200ms;
+}
 
-  /* Navigation item styling */
-  .nav-item {
-    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors;
-  }
+/* Navigation item styling */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.375rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition-property: color, background-color, border-color;
+}
 
-  .nav-item-active {
-    @apply bg-secondary text-primary;
-  }
+.nav-item-active {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--primary));
+}
 
-  .nav-item-inactive {
-    @apply text-muted-foreground hover:bg-secondary hover:text-foreground;
-  }
+.nav-item-inactive {
+  color: hsl(var(--muted-foreground));
+}
 
-  /* Card styling for dashboard panels */
-  .dashboard-card {
-    @apply bg-card shadow-card rounded-lg border border-border p-4;
-  }
+.nav-item-inactive:hover {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
 
-  /* Stats display */
-  .stat-value {
-    @apply text-2xl font-bold;
-  }
+/* Card styling for dashboard panels */
+.dashboard-card {
+  background-color: hsl(var(--card));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border-radius: 0.5rem;
+  border-width: 1px;
+  border-color: hsl(var(--border));
+  padding: 1rem;
+}
 
-  .stat-label {
-    @apply text-xs text-muted-foreground;
-  }
+/* Stats display */
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
 
-  /* Trend indicators */
-  .trend-up {
-    @apply text-green-500 font-medium text-xs;
-  }
+.stat-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
 
-  .trend-down {
-    @apply text-red-500 font-medium text-xs;
-  }
+/* Trend indicators */
+.trend-up {
+  color: rgb(34, 197, 94);
+  font-weight: 500;
+  font-size: 0.75rem;
+}
 
-  /* Header styling */
-  .top-header {
-    @apply bg-card border-b border-border h-16 flex items-center;
-  }
+.trend-down {
+  color: rgb(239, 68, 68);
+  font-weight: 500;
+  font-size: 0.75rem;
+}
 
-  /* Table styling */
-  .table-container {
-    @apply rounded-lg border border-[hsl(var(--table-border))] overflow-hidden;
-  }
+/* Header styling */
+.top-header {
+  background-color: hsl(var(--card));
+  border-bottom-width: 1px;
+  border-bottom-color: hsl(var(--border));
+  height: 4rem;
+  display: flex;
+  align-items: center;
+}
 
-  .table-header {
-    @apply bg-[hsl(var(--table-header-bg))] text-[hsl(var(--table-header-text))] font-medium text-sm;
-  }
+/* Table styling */
+.table-container {
+  border-radius: 0.5rem;
+  border-width: 1px;
+  border-color: hsl(var(--table-border));
+  overflow: hidden;
+}
 
-  .table-header th {
-    @apply py-3 px-4 text-left;
-  }
+.table-header {
+  background-color: hsl(var(--table-header-bg));
+  color: hsl(var(--table-header-text));
+  font-weight: 500;
+  font-size: 0.875rem;
+}
 
-  .table-row {
-    @apply border-b border-[hsl(var(--table-border))] transition-colors;
-  }
+.table-header th {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  text-align: left;
+}
 
-  .table-row:hover {
-    @apply bg-[hsl(var(--table-row-hover))];
-  }
+.table-row {
+  border-bottom-width: 1px;
+  border-bottom-color: hsl(var(--table-border));
+  transition-property: color, background-color, border-color;
+}
 
-  .table-row-expanded {
-    @apply bg-[hsl(var(--table-subrow-bg))];
-  }
+.table-row:hover {
+  background-color: hsl(var(--table-row-hover));
+}
 
-  .table-cell {
-    @apply py-3 px-4 text-sm;
-  }
+.table-row-expanded {
+  background-color: hsl(var(--table-expanded-bg));
+}
 
-  .table-subrow-title {
-    @apply text-sm font-medium text-[hsl(var(--table-subrow-title))] mb-2;
-  }
+.table-cell {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  font-size: 0.875rem;
+}
 
-  .table-note-card {
-    @apply border border-[hsl(var(--table-border))] rounded-lg p-3 relative overflow-hidden;
-  }
+.table-expanded-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--table-expanded-title));
+  margin-bottom: 0.5rem;
+}
 
-  .table-note-card::before {
-    content: '';
-    @apply absolute left-0 top-0 bottom-0 w-1 bg-[hsl(var(--table-note-border))];
-  }
+.table-note-card {
+  border-width: 1px;
+  border-color: hsl(var(--table-border));
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
 
-  /* Pagination styling */
-  .pagination-container {
-    @apply flex items-center justify-between py-3 px-4 border-t border-[hsl(var(--table-border))];
-  }
+.table-note-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0.25rem;
+  background-color: hsl(var(--table-note-border));
+}
 
-  .pagination-button {
-    @apply h-8 w-8 p-0 flex items-center justify-center rounded-md transition-colors;
-  }
+/* Pagination styling */
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-top-width: 1px;
+  border-top-color: hsl(var(--table-border));
+}
 
-  .pagination-button-active {
-    @apply bg-[hsl(var(--table-pagination-active))] text-white;
-  }
+.pagination-button {
+  height: 2rem;
+  width: 2rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition-property: color, background-color, border-color;
+}
 
-  .pagination-button-inactive {
-    @apply bg-card border border-[hsl(var(--table-border))] hover:bg-[hsl(var(--table-pagination-hover))];
-  }
+.pagination-button-active {
+  background-color: hsl(var(--table-pagination-active));
+  color: white;
+}
+
+.pagination-button-inactive {
+  background-color: hsl(var(--card));
+  border-width: 1px;
+  border-color: hsl(var(--table-border));
+}
+
+.pagination-button-inactive:hover {
+  background-color: hsl(var(--table-pagination-hover));
 }

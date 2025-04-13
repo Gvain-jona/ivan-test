@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
-import { motion } from 'framer-motion';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { OrderViewSheetProps } from './types';
 import { OrderPayment } from '@/types/orders';
@@ -27,7 +25,6 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   userRole = 'user'
 }) => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('details');
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   // Determine if the user can edit based on role
@@ -77,57 +74,48 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
     <OrderSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={order ? `Order #${order.id}` : 'Order Details'}
+      title={order ? `Order ${order.order_number || `#${order.id.substring(0, 8)}`}` : 'Order Details'}
       description={order ? `Client: ${order.client_name}` : 'Loading order details...'}
       onClose={onClose}
       size="lg"
     >
       <div className="p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="border-b border-border/40">
-            <TabsList className="bg-transparent">
-              <TabsTrigger
-                value="details"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-muted-foreground px-4 py-2"
+        <div className="space-y-8">
+          {/* Order Details Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-border/40 pb-2">
+              <h3 className="text-lg font-semibold">Order Details</h3>
+              <Button
+                onClick={() => order && onGenerateInvoice(order)}
+                variant="outline"
+                size="sm"
+                className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white"
               >
-                Details
-              </TabsTrigger>
-              <TabsTrigger
-                value="items"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-muted-foreground px-4 py-2"
-              >
-                Items
-              </TabsTrigger>
-              <TabsTrigger
-                value="payments"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-muted-foreground px-4 py-2"
-              >
-                Payments
-              </TabsTrigger>
-              <TabsTrigger
-                value="notes"
-                className="data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-muted-foreground px-4 py-2"
-              >
-                Notes
-              </TabsTrigger>
-            </TabsList>
+                <Printer className="mr-2 h-4 w-4" />
+                Generate Invoice
+              </Button>
+            </div>
+            {order && (
+              <OrderDetailsTab
+                order={order}
+                calculateBalancePercent={calculateBalancePercent}
+              />
+            )}
           </div>
 
-          {/* Details Tab */}
-          <TabsContent value="details" className="space-y-4">
-            {order && <OrderDetailsTab
-              order={order}
-              calculateBalancePercent={calculateBalancePercent}
-            />}
-          </TabsContent>
-
-          {/* Items Tab */}
-          <TabsContent value="items" className="space-y-4">
+          {/* Order Items Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-border/40 pb-2">
+              <h3 className="text-lg font-semibold">Order Items</h3>
+            </div>
             {order && <OrderItemsTab order={order} />}
-          </TabsContent>
+          </div>
 
-          {/* Payments Tab */}
-          <TabsContent value="payments" className="space-y-4">
+          {/* Payments Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-border/40 pb-2">
+              <h3 className="text-lg font-semibold">Payments</h3>
+            </div>
             <OrderPaymentsTab
               order={order}
               showPaymentForm={showPaymentForm}
@@ -135,37 +123,28 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
               canEdit={canEdit}
               onAddPayment={handleAddPayment}
             />
-          </TabsContent>
+          </div>
 
-          {/* Notes Tab */}
-          <TabsContent value="notes" className="space-y-4">
-            {order && <OrderNotesTab order={order} />}
-          </TabsContent>
-        </Tabs>
+          {/* Notes Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-border/40 pb-2">
+              <h3 className="text-lg font-semibold">Notes</h3>
+            </div>
+            {order && <OrderNotesTab order={order} canEdit={canEdit} />}
+          </div>
+        </div>
       </div>
 
       <div className="border-t border-[#2B2B40] p-6">
         <div className="flex flex-wrap gap-3">
           {canEdit && (
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                onClick={() => order && onEdit(order)}
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                Edit Order
-              </Button>
-            </motion.div>
-          )}
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              onClick={() => order && onGenerateInvoice(order)}
-              variant="outline"
-              className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white"
+              onClick={() => order && onEdit(order)}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
             >
-              <Printer className="mr-2 h-4 w-4" />
-              Generate Invoice
+              Edit Order
             </Button>
-          </motion.div>
+          )}
         </div>
       </div>
     </OrderSheet>

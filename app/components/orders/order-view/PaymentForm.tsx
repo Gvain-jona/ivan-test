@@ -25,6 +25,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setPaymentAmount,
     paymentMethod,
     setPaymentMethod,
+    paymentDate,
+    setPaymentDate,
 
     handleSubmit
   } = useOrderPayments({
@@ -58,6 +60,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           />
         </div>
         <div>
+          <Label htmlFor="date">Payment Date</Label>
+          <Input
+            id="date"
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+            className="bg-transparent border-[#2B2B40] focus:border-orange-500"
+          />
+        </div>
+        <div>
           <Label htmlFor="method">Payment Method</Label>
           <Select
             value={paymentMethod}
@@ -68,9 +80,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             </SelectTrigger>
             <SelectContent className="bg-gray-950 border-[#2B2B40]">
               <SelectItem value="cash">Cash</SelectItem>
-              <SelectItem value="card">Card</SelectItem>
               <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="credit_card">Credit Card</SelectItem>
+              <SelectItem value="cheque">Cheque</SelectItem>
+              <SelectItem value="mobile_payment">Mobile Payment</SelectItem>
             </SelectContent>
           </Select>
         </div>

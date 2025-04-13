@@ -30,7 +30,7 @@ const HomeMetricsCards: React.FC<HomeMetricsCardsProps> = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Total Orders Card */}
-      <Card className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
+      <Card className="bg-transparent border-[hsl(var(--border))]/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
           <div className="w-8 h-8 bg-muted/10 rounded-lg flex items-center justify-center">
@@ -53,7 +53,7 @@ const HomeMetricsCards: React.FC<HomeMetricsCardsProps> = ({
       </Card>
 
       {/* Revenue Card */}
-      <Card className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
+      <Card className="bg-transparent border-[hsl(var(--border))]/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
           <div className="w-8 h-8 bg-muted/10 rounded-lg flex items-center justify-center">
@@ -76,7 +76,7 @@ const HomeMetricsCards: React.FC<HomeMetricsCardsProps> = ({
       </Card>
 
       {/* Active Clients Card */}
-      <Card className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
+      <Card className="bg-transparent border-[hsl(var(--border))]/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
           <CardTitle className="text-sm font-medium text-muted-foreground">Active Clients</CardTitle>
           <div className="w-8 h-8 bg-muted/10 rounded-lg flex items-center justify-center">

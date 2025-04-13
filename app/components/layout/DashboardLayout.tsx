@@ -25,7 +25,7 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[hsl(var(--background))]">
       {/* Navigation progress and indicators */}
       <NavigationProgress />
       <NavigationIndicator />
@@ -39,7 +39,7 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
         {/* Page Content with Error Boundary and Suspense */}
         <main className={cn(
-          "flex-1 overflow-y-auto bg-background p-4 lg:p-6",
+          "flex-1 overflow-y-auto bg-[hsl(var(--background))] p-4 lg:p-6",
           className
         )}>
           <ErrorBoundary>

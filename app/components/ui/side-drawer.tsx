@@ -32,7 +32,7 @@ export function SideDrawer({
     };
 
     document.addEventListener('keydown', handleEscape);
-    
+
     // Prevent scrolling when drawer is open
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -66,7 +66,7 @@ export function SideDrawer({
         {/* Drawer */}
         <div
           className={cn(
-            'fixed top-0 bottom-0 bg-background border-l border-border/40 shadow-lg transition-transform duration-300 ease-in-out z-50 flex flex-col',
+            'fixed top-0 bottom-0 bg-[hsl(var(--background))] border-l border-[hsl(var(--border))]/40 shadow-lg transition-transform duration-300 ease-in-out z-50 flex flex-col',
             position === 'right' ? 'right-0' : 'left-0',
             isOpen
               ? 'translate-x-0'
@@ -78,7 +78,7 @@ export function SideDrawer({
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-4 border-b border-border/40">
+            <div className="flex items-center justify-between p-4 border-b border-[hsl(var(--border))]/40">
               {title && <h2 className="text-xl font-semibold">{title}</h2>}
               {showCloseButton && (
                 <button

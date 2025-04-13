@@ -53,6 +53,7 @@ const OrderSheet: React.FC<OrderSheetProps> = ({
       <SheetContent
         side="right"
         className={`p-0 bg-background border-border/40 text-foreground ${getSizeClass()}`}
+        hideCloseButton={true}
       >
         <motion.div
           initial="initial"
@@ -61,7 +62,7 @@ const OrderSheet: React.FC<OrderSheetProps> = ({
           variants={slideInRight}
           className="h-full flex flex-col"
         >
-          <SheetHeader className="p-6 border-b border-border/40 flex flex-row justify-between items-center bg-card">
+          <SheetHeader className="p-6 border-b border-[hsl(var(--border))]/40 flex flex-row justify-between items-center bg-[hsl(var(--card))]">
             <div>
               <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
               {description && (

@@ -20,12 +20,6 @@ export const profileSchema = baseEntitySchema.extend({
   email: z.string().email(),
   role: z.enum(['admin', 'manager', 'staff']),
   status: z.enum(['active', 'inactive', 'locked']),
-  pin: z.string().nullable().optional(), // Bcrypt-hashed 4-digit PIN
-  verification_code: z.string().nullable().optional(),
-  code_expiry: z.string().datetime().nullable().optional(),
-  is_verified: z.boolean().default(false).optional(),
-  failed_attempts: z.number().default(0).optional(),
-  devices: z.array(z.any()).default([]).optional(),
 });
 
 export type Profile = z.infer<typeof profileSchema>;

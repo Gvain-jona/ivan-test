@@ -23,7 +23,7 @@ export function LoadingCard({
 }: LoadingCardProps) {
   return (
     <Card className={cn(
-      "bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 rounded-xl",
+      "bg-transparent border-[hsl(var(--border))]/40 hover:bg-muted/10 transition-all duration-200 rounded-xl",
       className
     )}>
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -63,12 +63,12 @@ export function LoadingMetricsGrid({ count = 4 }: { count?: number }) {
 /**
  * A loading table component
  */
-export function LoadingTable({ 
-  rows = 5, 
+export function LoadingTable({
+  rows = 5,
   columns = 4,
   className
-}: { 
-  rows?: number; 
+}: {
+  rows?: number;
   columns?: number;
   className?: string;
 }) {
@@ -80,7 +80,7 @@ export function LoadingTable({
           <Skeleton key={`header-${i}`} className="h-8 flex-1" />
         ))}
       </div>
-      
+
       {/* Rows */}
       {Array.from({ length: rows }).map((_, rowIndex) => (
         <div key={`row-${rowIndex}`} className="flex gap-4">
@@ -96,11 +96,11 @@ export function LoadingTable({
 /**
  * A loading content section with title and content
  */
-export function LoadingSection({ 
+export function LoadingSection({
   className,
   hasTitle = true,
   contentType = 'table'
-}: { 
+}: {
   className?: string;
   hasTitle?: boolean;
   contentType?: 'table' | 'cards' | 'form';
@@ -113,7 +113,7 @@ export function LoadingSection({
           <Skeleton className="h-9 w-24" />
         </div>
       )}
-      
+
       {contentType === 'table' && <LoadingTable />}
       {contentType === 'cards' && <LoadingMetricsGrid />}
       {contentType === 'form' && (

@@ -38,7 +38,7 @@ export function ThemeSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="bg-card border-border/40"
+        className="bg-[hsl(var(--card))] border-[hsl(var(--border))]/40"
         sideOffset={8}
       >
         <DropdownMenuItem

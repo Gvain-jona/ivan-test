@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  Package, 
-  Banknote, 
-  ShoppingBag, 
-  CheckSquare, 
-  BarChart3, 
-  Settings, 
+import {
+  Package,
+  Banknote,
+  ShoppingBag,
+  CheckSquare,
+  BarChart3,
+  Settings,
   User,
   X,
   LogOut,
@@ -78,9 +78,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
   };
 
   return (
-    <aside 
+    <aside
       className={cn(
-        "sidebar flex flex-col z-30 transition-all duration-300 border-r border-border/60 bg-card/80 backdrop-blur-sm",
+        "sidebar flex flex-col z-30 transition-all duration-300 border-r border-[hsl(var(--border))]/60 bg-[hsl(var(--card))]/80 backdrop-blur-sm",
         isCollapsed ? "w-16" : (isMobile ? "w-64" : "w-64"),
         isMobile && "absolute inset-y-0 left-0",
         className
@@ -98,7 +98,7 @@ export default function SideNav({ className, onClose }: SideNavProps) {
           <X className="h-4 w-4" />
         </Button>
       )}
-      
+
       {/* Collapse toggle for desktop */}
       {!isMobile && (
         <Button
@@ -111,7 +111,7 @@ export default function SideNav({ className, onClose }: SideNavProps) {
           <Menu className="h-4 w-4" />
         </Button>
       )}
-      
+
       {/* Logo */}
       <div className={cn(
         "p-4 transition-all duration-300",
@@ -132,16 +132,16 @@ export default function SideNav({ className, onClose }: SideNavProps) {
           )}
         </Link>
       </div>
-      
+
       <Separator className="my-2" />
-      
+
       {/* Main section label */}
       {!isCollapsed && (
         <div className="px-4 py-2">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Main</p>
         </div>
       )}
-      
+
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto px-2">
         <ul className="space-y-1">
@@ -151,9 +151,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <NavLink 
-                        href={item.href} 
-                        icon={<item.icon className="h-4 w-4" />} 
+                      <NavLink
+                        href={item.href}
+                        icon={<item.icon className="h-4 w-4" />}
                         label={item.label}
                         isActive={isRouteActive(item.href)}
                         onClick={onClose}
@@ -166,9 +166,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                   </Tooltip>
                 </TooltipProvider>
               ) : (
-                <NavLink 
-                  href={item.href} 
-                  icon={<item.icon className="h-4 w-4" />} 
+                <NavLink
+                  href={item.href}
+                  icon={<item.icon className="h-4 w-4" />}
                   label={item.label}
                   isActive={isRouteActive(item.href)}
                   onClick={onClose}
@@ -179,14 +179,14 @@ export default function SideNav({ className, onClose }: SideNavProps) {
           ))}
         </ul>
       </nav>
-      
+
       {/* Sales channels section */}
       {!isCollapsed && (
         <div className="px-4 py-2 mt-2">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Sales Channels</p>
         </div>
       )}
-      
+
       <nav className="px-2 mb-2">
         <ul className="space-y-1">
           <li>
@@ -194,9 +194,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <NavLink 
-                      href="/dashboard/facebook" 
-                      icon={<div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">f</div>} 
+                    <NavLink
+                      href="/dashboard/facebook"
+                      icon={<div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">f</div>}
                       label="Facebook"
                       isActive={isRouteActive('/dashboard/facebook')}
                       onClick={onClose}
@@ -209,9 +209,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                 </Tooltip>
               </TooltipProvider>
             ) : (
-              <NavLink 
-                href="/dashboard/facebook" 
-                icon={<div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">f</div>} 
+              <NavLink
+                href="/dashboard/facebook"
+                icon={<div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">f</div>}
                 label="Facebook"
                 isActive={isRouteActive('/dashboard/facebook')}
                 onClick={onClose}
@@ -224,9 +224,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <NavLink 
-                      href="/dashboard/store" 
-                      icon={<div className="h-4 w-4 rounded flex items-center justify-center text-primary">🛒</div>} 
+                    <NavLink
+                      href="/dashboard/store"
+                      icon={<div className="h-4 w-4 rounded flex items-center justify-center text-primary">🛒</div>}
                       label="Online Store"
                       isActive={isRouteActive('/dashboard/store')}
                       onClick={onClose}
@@ -239,9 +239,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                 </Tooltip>
               </TooltipProvider>
             ) : (
-              <NavLink 
-                href="/dashboard/store" 
-                icon={<div className="h-4 w-4 rounded flex items-center justify-center text-primary">🛒</div>} 
+              <NavLink
+                href="/dashboard/store"
+                icon={<div className="h-4 w-4 rounded flex items-center justify-center text-primary">🛒</div>}
                 label="Online Store"
                 isActive={isRouteActive('/dashboard/store')}
                 onClick={onClose}
@@ -254,9 +254,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <NavLink 
-                      href="/dashboard/instagram" 
-                      icon={<div className="h-4 w-4 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">i</div>} 
+                    <NavLink
+                      href="/dashboard/instagram"
+                      icon={<div className="h-4 w-4 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">i</div>}
                       label="Instagram"
                       isActive={isRouteActive('/dashboard/instagram')}
                       onClick={onClose}
@@ -269,9 +269,9 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                 </Tooltip>
               </TooltipProvider>
             ) : (
-              <NavLink 
-                href="/dashboard/instagram" 
-                icon={<div className="h-4 w-4 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">i</div>} 
+              <NavLink
+                href="/dashboard/instagram"
+                icon={<div className="h-4 w-4 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">i</div>}
                 label="Instagram"
                 isActive={isRouteActive('/dashboard/instagram')}
                 onClick={onClose}
@@ -281,10 +281,10 @@ export default function SideNav({ className, onClose }: SideNavProps) {
           </li>
         </ul>
       </nav>
-      
+
       <div className="mt-auto p-4">
         <Separator className="my-2" />
-        
+
         {/* User profile section */}
         <div className={cn(
           "flex items-center gap-3 p-2 rounded-md hover:bg-secondary/60 transition-colors",
@@ -323,8 +323,8 @@ function NavLink({ href, icon, label, isActive, className, onClick, isCollapsed 
       href={href}
       className={cn(
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
-        isActive ? 
-          "text-primary bg-primary/10 font-semibold" : 
+        isActive ?
+          "text-primary bg-primary/10 font-semibold" :
           "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
         isCollapsed && "justify-center px-2",
         className
@@ -349,4 +349,4 @@ function NavLink({ href, icon, label, isActive, className, onClick, isCollapsed 
       )}
     </Link>
   );
-} 
+}

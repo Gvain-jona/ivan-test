@@ -14,12 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     initGlobalErrorHandlers();
 
-    // Log page navigation for debugging
-    console.log('===== PAGE NAVIGATION =====');
-    console.log('URL:', window.location.href);
-    console.log('Pathname:', window.location.pathname);
-    console.log('Search:', window.location.search);
-    console.log('Timestamp:', new Date().toISOString());
+    // Initialize application
   }, []);
 
   return (

@@ -26,29 +26,28 @@ export function VirtualizedTable<T>({
 }: VirtualizedTableProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [parentHeight, setParentHeight] = useState(500);
-  
+
   // Update parent height on resize
   useEffect(() => {
     if (!parentRef.current) return;
-    
+
     const updateSize = () => {
       if (parentRef.current) {
         setParentHeight(parentRef.current.offsetHeight);
       }
     };
-    
+
     updateSize();
-    
+
     const observer = new ResizeObserver(updateSize);
-    observer.observe(parentRef.current);
-    
+    const currentRef = parentRef.current;
+    observer.observe(currentRef);
+
     return () => {
-      if (parentRef.current) {
-        observer.unobserve(parentRef.current);
-      }
+      observer.unobserve(currentRef);
     };
   }, []);
-  
+
   // Create virtualizer
   const rowVirtualizer = useVirtualizer({
     count: data.length,
@@ -56,10 +55,10 @@ export function VirtualizedTable<T>({
     estimateSize: () => rowHeight,
     overscan: 10,
   });
-  
+
   return (
-    <div 
-      ref={parentRef} 
+    <div
+      ref={parentRef}
       className={`h-[500px] overflow-auto border rounded-md ${className}`}
     >
       <table className="w-full border-collapse">

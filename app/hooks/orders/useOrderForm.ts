@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { calculateOrderBalance, calculateOrderTotal, getPaymentStatus } from '@/utils/orders/order-form.utils';
 
@@ -19,7 +19,7 @@ interface UseOrderFormReturn {
  * Custom hook for managing order form state
  */
 export const useOrderForm = ({ initialOrder }: UseOrderFormProps = {}): UseOrderFormReturn => {
-  const defaultOrder: Partial<Order> = {
+  const defaultOrder = useMemo(() => ({
     status: 'paused' as OrderStatus,
     payment_status: 'unpaid' as PaymentStatus,
     total_amount: 0,
@@ -28,7 +28,7 @@ export const useOrderForm = ({ initialOrder }: UseOrderFormProps = {}): UseOrder
     items: [],
     notes: [],
     payments: [], // Add empty payments array to ensure it's always defined
-  };
+  }), []);
 
   const [order, setOrder] = useState<Partial<Order>>(initialOrder || defaultOrder);
   const [initialFormState] = useState<Partial<Order>>(initialOrder || defaultOrder);

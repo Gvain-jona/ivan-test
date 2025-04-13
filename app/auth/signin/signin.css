@@ -1,0 +1,431 @@
+.signin-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f0f, #1a1a1a, #0a0a0a);
+  position: relative;
+  overflow: hidden;
+}
+
+.starry-background {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.2) 1px, transparent 1px),
+                    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 100px 100px, 120px 120px, 80px 80px;
+  opacity: 0.3;
+  pointer-events: none;
+  animation: twinkle 8s infinite alternate;
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+.logo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.signin-logo {
+  width: 70px;
+  height: 70px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.signin-logo:hover {
+  transform: scale(1.05);
+}
+
+.signin-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.signin-subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: #a1a1aa;
+  margin-bottom: 28px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.signin-card {
+  width: 100%;
+  max-width: 380px;
+  background-color: rgba(24, 24, 27, 0.85);
+  border: 1px solid rgba(39, 39, 42, 0.7);
+  border-radius: 10px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), 0 0 15px rgba(249, 115, 22, 0.1);
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(10px);
+  transform: translateZ(0);
+}
+
+.signin-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.3), rgba(249, 115, 22, 0.8), rgba(249, 115, 22, 0.3));
+  z-index: 1;
+}
+
+.signin-card-header {
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid rgba(39, 39, 42, 0.3);
+  text-align: center;
+}
+
+.signin-card-content {
+  padding: 20px 24px;
+}
+
+.signin-card-footer {
+  padding: 12px 24px 16px;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid rgba(39, 39, 42, 0.3);
+  text-align: center;
+  color: #71717a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.signin-input-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #e4e4e7;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+.signin-input {
+  width: 100%;
+  padding: 14px 16px;
+  background-color: rgba(39, 39, 42, 0.7);
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 8px;
+  color: white;
+  font-size: 15px;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) inset;
+  text-align: center;
+}
+
+.signin-input:focus {
+  border-color: #f97316;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+}
+
+.signin-input::placeholder {
+  color: #71717a;
+  text-align: center;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #71717a;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.signin-button {
+  width: 100%;
+  padding: 14px 16px;
+  background: linear-gradient(to right, #f97316, #fb923c);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 24px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+.signin-button:hover {
+  background: linear-gradient(to right, #ea580c, #f97316);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.signin-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.signin-button:disabled {
+  background: #71717a;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.signin-footer {
+  margin-top: 24px;
+  color: #52525b;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  position: relative;
+  padding: 0 20px;
+}
+
+.signin-footer::before,
+.signin-footer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 1px;
+  background: rgba(82, 82, 91, 0.3);
+}
+
+.signin-footer::before {
+  left: -15px;
+}
+
+.signin-footer::after {
+  right: -15px;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #f97316;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  z-index: 2;
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.input-wrapper .signin-input {
+  padding-left: 40px;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #71717a;
+  margin-top: 4px;
+  margin-left: 2px;
+}
+
+.error-message {
+  background-color: rgba(220, 38, 38, 0.1);
+  color: #ef4444;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  text-align: center;
+}
+
+.error-message svg {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* Loading state styles */
+.loading-state,
+.success-state {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-icon-container,
+.success-icon-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+}
+
+.loading-icon-pulse,
+.success-icon-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: rgba(249, 115, 22, 0.1);
+  animation: pulse 2s infinite;
+}
+
+.loading-icon-wrapper,
+.success-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.loading-icon-wrapper {
+  background-color: rgba(39, 39, 42, 0.7);
+}
+
+.success-icon-wrapper {
+  background-color: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.loading-title,
+.success-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+  margin: 8px 0 6px;
+  text-align: center;
+}
+
+.loading-description,
+.success-description {
+  font-size: 14px;
+  color: #a1a1aa;
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+.email-highlight {
+  font-weight: 500;
+  color: #e4e4e7;
+  word-break: break-all;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 4px;
+  background-color: rgba(39, 39, 42, 0.7);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(to right, #f97316, #fb923c);
+  transition: width 0.3s ease;
+}
+
+.action-buttons {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.primary-action-button {
+  width: 100%;
+  padding: 14px 16px;
+  background-color: rgba(39, 39, 42, 0.7);
+  color: white;
+  border: 1px solid rgba(63, 63, 70, 0.8);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.primary-action-button:hover {
+  background-color: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.secondary-action-button {
+  width: 100%;
+  padding: 14px 16px;
+  background-color: transparent;
+  color: #a1a1aa;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.secondary-action-button:hover {
+  color: #e4e4e7;
+  background-color: rgba(39, 39, 42, 0.3);
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.1;
+  pointer-events: none;
+}

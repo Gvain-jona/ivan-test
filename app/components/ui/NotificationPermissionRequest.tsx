@@ -60,7 +60,7 @@ export function NotificationPermissionRequest() {
   };
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 bg-card border border-border rounded-lg shadow-lg p-4 max-w-xs">
+    <div className="fixed bottom-20 right-4 z-50 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg shadow-lg p-4 max-w-xs">
       <div className="flex items-start space-x-3">
         <div className="flex-shrink-0 mt-1">
           <Bell className="h-5 w-5 text-brand" />

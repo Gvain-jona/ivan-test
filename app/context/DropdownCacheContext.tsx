@@ -675,7 +675,7 @@ export function DropdownCacheProvider({ children }: { children: React.ReactNode 
       });
       timeoutIdsRef.current = {};
     };
-  }, [fetchData, createFallbackData]);
+  }, [fetchData, createFallbackData, checkSupabaseConnection]);
 
   // Create context value
   const value: DropdownCacheContextValue = {

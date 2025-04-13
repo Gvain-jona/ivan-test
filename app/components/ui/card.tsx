@@ -9,7 +9,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border border-border/40 bg-card text-card-foreground shadow-sm transition-all duration-200 hover:shadow-md hover:border-border/60",
+      "rounded-xl border border-[hsl(var(--border))]/40 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:shadow-md hover:border-[hsl(var(--border))]/60",
       "relative overflow-hidden backdrop-blur-sm",
       className
     )}
@@ -82,7 +82,7 @@ const GradientCard = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border border-border/40 bg-card text-card-foreground shadow-sm transition-all duration-200 hover:shadow-md",
+      "rounded-xl border border-[hsl(var(--border))]/40 bg-[hsl(var(--card))] text-[hsl(var(--card-foreground))] shadow-sm transition-all duration-200 hover:shadow-md",
       "relative overflow-hidden",
       className
     )}
@@ -124,8 +124,8 @@ const StatCard = React.forwardRef<
           <span
             className={cn(
               "mr-1 rounded-sm px-1 py-0.5",
-              trend.isPositive 
-                ? "bg-green-500/20 text-green-500" 
+              trend.isPositive
+                ? "bg-green-500/20 text-green-500"
                 : "bg-red-500/20 text-red-500"
             )}
           >
@@ -139,13 +139,13 @@ const StatCard = React.forwardRef<
 ))
 StatCard.displayName = "StatCard"
 
-export { 
-  Card, 
-  CardHeader, 
-  CardFooter, 
-  CardTitle, 
-  CardDescription, 
-  CardContent, 
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
   GradientCard,
-  StatCard 
+  StatCard
 }

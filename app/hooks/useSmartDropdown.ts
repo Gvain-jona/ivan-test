@@ -268,7 +268,7 @@ export function useSmartDropdown({
       // Clear the timeout
       clearTimeout(timeoutId)
     }
-  }, [supabase, entityType, parentId, limit, filterField, filterValue])
+  }, [supabase, entityType, parentId, limit, filterField, filterValue, instanceId])
 
   // Create a new option
   const createOption = useCallback(async (label: string): Promise<SmartComboboxOption | null> => {
@@ -444,7 +444,7 @@ export function useSmartDropdown({
       console.log(`Search query changed for ${entityType}:`, searchQuery)
       fetchOptions(searchQuery)
     }
-  }, [searchQuery, fetchOptions])
+  }, [searchQuery, fetchOptions, entityType])
 
   // Add a cleanup effect to prevent memory leaks
   useEffect(() => {

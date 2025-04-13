@@ -14,6 +14,7 @@ const useOrderPayments = ({
   const { toast } = useToast();
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
+  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]); // Default to today's date in YYYY-MM-DD format
 
 
   /**
@@ -33,9 +34,12 @@ const useOrderPayments = ({
     // Create new payment object
     const newPayment: OrderPayment = {
       id: `payment-${Date.now()}`,
-      date: new Date().toISOString(),
+      order_id: order.id,
+      payment_date: paymentDate,
       amount: parseFloat(paymentAmount),
-      method: paymentMethod,
+      payment_method: paymentMethod as any,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     // Call the onAddPayment callback
@@ -57,6 +61,7 @@ const useOrderPayments = ({
   const resetForm = () => {
     setPaymentAmount('');
     setPaymentMethod('cash');
+    setPaymentDate(new Date().toISOString().split('T')[0]); // Reset to today's date
   };
 
   return {
@@ -64,6 +69,8 @@ const useOrderPayments = ({
     setPaymentAmount,
     paymentMethod,
     setPaymentMethod,
+    paymentDate,
+    setPaymentDate,
 
     handleSubmit,
     resetForm

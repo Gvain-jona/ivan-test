@@ -49,15 +49,17 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Create a hidden input field for CSRF token
+ * Create properties for a hidden input field for CSRF token
  * 
  * @param token - The CSRF token
- * @returns JSX element for the hidden input
+ * @returns Properties for the hidden input
  */
-export function CsrfTokenInput({ token }: { token: string }) {
-  return (
-    <input type="hidden" name="csrf_token" value={token} />
-  );
+export function getCsrfTokenInputProps(token: string): { type: string; name: string; value: string } {
+  return {
+    type: "hidden",
+    name: "csrf_token",
+    value: token
+  };
 }
 
 /**
