@@ -88,9 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
       const expiresIn = hashParams.get('expires_in')
+      const tokenType = hashParams.get('token_type')
+      const type = hashParams.get('type')
 
-      if (accessToken) {
-        console.log('Found access token in hash')
+      if (accessToken && type === 'magiclink') {
+        console.log('Found magic link access token in hash')
         const { data: { session }, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken || '',
@@ -98,8 +100,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) throw error
         if (session) {
-          // Set custom auth cookie for middleware
-          document.cookie = `auth-token=${accessToken};path=/;max-age=${expiresIn || 3600};SameSite=Lax`
+          // Store session data in localStorage
+          localStorage.setItem('sb-access-token', accessToken)
+          if (refreshToken) {
+            localStorage.setItem('sb-refresh-token', refreshToken)
+          }
+          localStorage.setItem('sb-token-type', tokenType || 'bearer')
+          localStorage.setItem('sb-expires-in', expiresIn || '3600')
+          localStorage.setItem('auth_completed', 'true')
+          localStorage.setItem('auth_timestamp', Date.now().toString())
+
+          // Set auth cookies
+          document.cookie = `sb-auth-token=${accessToken};path=/;max-age=${expiresIn || 3600};SameSite=Lax`
+          if (refreshToken) {
+            document.cookie = `sb-refresh-token=${refreshToken};path=/;max-age=${expiresIn || 3600};SameSite=Lax`
+          }
+
+          // Get the redirect path
+          const searchParams = new URLSearchParams(window.location.search)
+          const redirect = searchParams.get('redirect') || '/dashboard/orders'
+          
+          // Clean up URL
+          window.history.replaceState({}, '', redirect)
+          
           return session
         }
       }
@@ -159,7 +182,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
               setProfile(profileData)
             }
-            router.push('/dashboard/orders')
             return
           }
 
@@ -208,8 +230,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('auth_user_id', session.user.id)
           localStorage.setItem('auth_in_progress', 'false')
 
-          // Set custom auth cookie for middleware
-          document.cookie = `auth-token=${session.access_token};path=/;max-age=3600;SameSite=Lax`
+          // Set auth cookies
+          document.cookie = `sb-auth-token=${session.access_token};path=/;max-age=3600;SameSite=Lax`
+          if (session.refresh_token) {
+            document.cookie = `sb-refresh-token=${session.refresh_token};path=/;max-age=3600;SameSite=Lax`
+          }
 
           if (session.user.email) {
             localStorage.setItem('auth_email', session.user.email)
@@ -231,6 +256,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             setProfile(profileData)
           }
+
+          // Get the redirect path
+          const searchParams = new URLSearchParams(window.location.search)
+          const redirect = searchParams.get('redirect') || '/dashboard/orders'
+          router.push(redirect)
         } else if (event === 'SIGNED_OUT') {
           console.log('Signed out')
           setUser(null)
@@ -241,8 +271,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('auth_in_progress')
           localStorage.removeItem('auth_email')
           localStorage.removeItem('auth_email_temp')
-          // Remove custom auth cookie
-          document.cookie = 'auth-token=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT'
+          localStorage.removeItem('sb-access-token')
+          localStorage.removeItem('sb-refresh-token')
+          localStorage.removeItem('sb-token-type')
+          localStorage.removeItem('sb-expires-in')
+          // Remove auth cookies
+          document.cookie = 'sb-auth-token=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT'
+          document.cookie = 'sb-refresh-token=;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT'
         }
       }
     )

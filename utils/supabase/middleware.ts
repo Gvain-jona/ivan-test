@@ -13,6 +13,16 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
+  // Get auth tokens from cookies
+  const accessToken = request.cookies.get('sb-auth-token')?.value
+  const refreshToken = request.cookies.get('sb-refresh-token')?.value
+
+  console.log('Middleware: Checking auth tokens:', {
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    path: requestUrl.pathname
+  })
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -62,6 +72,12 @@ export async function updateSession(request: NextRequest) {
   try {
     // Get user session
     const { data: { session }, error } = await supabase.auth.getSession()
+
+    console.log('Middleware: Session check result:', {
+      hasSession: !!session,
+      error: error?.message || 'none',
+      path: requestUrl.pathname
+    })
 
     // Handle auth pages
     if (isAuthPage) {

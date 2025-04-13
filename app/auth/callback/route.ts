@@ -4,10 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') || '/dashboard/orders'
-  const error = requestUrl.searchParams.get('error')
-  const error_description = requestUrl.searchParams.get('error_description')
+  const searchParams = requestUrl.searchParams
+  const code = searchParams.get('code')
+  const next = searchParams.get('next') || '/'
+  const error = searchParams.get('error')
+  const error_description = searchParams.get('error_description')
 
   // Handle errors first
   if (error) {
@@ -17,33 +18,55 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // No code, check for hash fragment
+  // No code, redirect to signin
   if (!code) {
-    // Redirect to client-side handler for hash fragments
-    return NextResponse.redirect(`${requestUrl.origin}/auth/hash-callback${requestUrl.hash || ''}`)
+    console.error('No code in callback')
+    return NextResponse.redirect(
+      `${requestUrl.origin}/auth/signin?error=${encodeURIComponent('No authentication code found')}`
+    )
   }
 
   const cookieStore = cookies()
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
   try {
-    // Exchange code for session
+    console.log('Exchanging code for session...')
     const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) throw error
+    
+    if (error) {
+      console.error('Code exchange error:', error)
+      throw error
+    }
 
     if (!session) {
+      console.error('No session from code exchange')
       throw new Error('No session from code exchange')
     }
 
-    // Set auth cookie for middleware
+    console.log('Session established, setting cookies...')
+
+    // Set auth cookies
     const response = NextResponse.redirect(`${requestUrl.origin}${next}`)
-    response.cookies.set('sb-auth', session.access_token, {
+    
+    // Set the session cookie
+    response.cookies.set('sb-auth-token', session.access_token, {
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production'
     })
+
+    // Set refresh token
+    if (session.refresh_token) {
+      response.cookies.set('sb-refresh-token', session.refresh_token, {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+      })
+    }
 
     return response
   } catch (error) {

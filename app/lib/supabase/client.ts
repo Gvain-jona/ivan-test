@@ -29,16 +29,13 @@ export function createClient(): SupabaseClient {
       persistSession: true,
       autoRefreshToken: true,
       flowType: 'pkce',
-      debug: process.env.NODE_ENV === 'development',
-      cookieOptions: {
-        name: 'sb-auth',
-        lifetime: 60 * 60 * 24 * 7, // 1 week
-        domain: typeof window !== 'undefined' ? window.location.hostname : undefined,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production'
-      }
+      debug: true, // Enable debug for all environments temporarily
     },
+    global: {
+      headers: {
+        'X-Client-Info': 'supabase-js-web'
+      }
+    }
   })
 
   return supabaseClientInstance
