@@ -375,7 +375,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                   if (existingProfile) {
                     console.log('Profile already exists, using existing profile:', existingProfile)
-                    return { data: existingProfile, error: null }
+                    setProfile(existingProfile);
+                    console.log('Using existing profile:', existingProfile);
+                    return;
                   }
 
                   // Check if the user is in the allowed_emails table and get their role
@@ -493,7 +495,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Then check if the profiles table exists
             try {
-              const { data, error: tableError } = await supabase
+              const { error: tableError } = await supabase
                 .from('profiles')
                 .select('count')
                 .limit(1)
@@ -534,7 +536,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                   if (existingProfile) {
                     // Profile already exists on auth change
-                    return { data: existingProfile, error: null }
+                    setProfile(existingProfile);
+                    console.log('Using existing profile on auth change:', existingProfile);
+                    return;
                   }
 
                   // Check if the user is in the allowed_emails table and get their role
@@ -639,7 +643,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         options: {
           emailRedirectTo: redirectUrl,
-          shouldCreateUser: false // Changed to false since we're only allowing pre-approved users
+          shouldCreateUser: true // Changed to true to allow creating users who pass the allowed_emails check
         },
       })
 
@@ -667,14 +671,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       // Sign out from Supabase
-      return await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      return
     } catch (error) {
       console.error('Error signing out:', error)
       throw error
     }
   }
-
-
 
   // Health check function to diagnose Supabase connection issues
   const checkSupabaseHealth = async () => {
@@ -695,8 +699,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, error }
     }
   }
-
-
 
   const value = {
     user,

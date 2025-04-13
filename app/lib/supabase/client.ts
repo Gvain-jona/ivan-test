@@ -22,7 +22,25 @@ export function createClient() {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce'
+        flowType: 'pkce',
+        storage: {
+          getItem: (key) => {
+            if (typeof window === 'undefined') return null
+            return window.localStorage.getItem(key)
+          },
+          setItem: (key, value) => {
+            if (typeof window === 'undefined') return
+            window.localStorage.setItem(key, value)
+            // Also set a fallback cookie for middleware
+            document.cookie = `sb-${key}=${value}; path=/; max-age=604800; secure; samesite=lax`
+          },
+          removeItem: (key) => {
+            if (typeof window === 'undefined') return
+            window.localStorage.removeItem(key)
+            // Remove fallback cookie as well
+            document.cookie = `sb-${key}=; path=/; max-age=0; secure; samesite=lax`
+          }
+        }
       },
       realtime: {
         params: {
