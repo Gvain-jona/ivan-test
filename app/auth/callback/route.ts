@@ -6,62 +6,46 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const next = requestUrl.searchParams.get('next') || '/dashboard/orders'
-  const token = requestUrl.searchParams.get('token')
-  const type = requestUrl.searchParams.get('type')
+  const error = requestUrl.searchParams.get('error')
+  const error_description = requestUrl.searchParams.get('error_description')
 
-  console.log('Callback params:', { code: code ? 'present' : 'none', token: token ? 'present' : 'none', type })
-
-  if (!code && !token) {
-    console.error('No code or token found in callback')
+  // Handle errors first
+  if (error) {
+    console.error('Auth error:', error, error_description)
     return NextResponse.redirect(
-      `${requestUrl.origin}/auth/signin?error=${encodeURIComponent('Authentication failed - no code or token found')}`
+      `${requestUrl.origin}/auth/signin?error=${encodeURIComponent(error_description || error)}`
     )
+  }
+
+  // No code, check for hash fragment
+  if (!code) {
+    // Redirect to client-side handler for hash fragments
+    return NextResponse.redirect(`${requestUrl.origin}/auth/hash-callback${requestUrl.hash || ''}`)
   }
 
   const cookieStore = cookies()
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
   try {
-    if (token && type === 'magiclink') {
-      console.log('Processing magic link token')
-      const { data, error } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'magiclink'
-      })
+    // Exchange code for session
+    const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) throw error
 
-      if (error) throw error
-      if (!data.session) throw new Error('No session from magic link verification')
-
-      console.log('Magic link verified, redirecting with token')
-      const response = NextResponse.redirect(`${requestUrl.origin}?token=${token}&type=${type}`)
-
-      // Set auth cookies
-      response.cookies.set('auth_token', token, {
-        path: '/',
-        maxAge: 60 * 60, // 1 hour
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      })
-
-      response.cookies.set('auth_type', type, {
-        path: '/',
-        maxAge: 60 * 60,
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      })
-
-      return response
+    if (!session) {
+      throw new Error('No session from code exchange')
     }
 
-    if (code) {
-      console.log('Processing PKCE code')
-      const { error } = await supabase.auth.exchangeCodeForSession(code)
-      if (error) throw error
-    }
+    // Set auth cookie for middleware
+    const response = NextResponse.redirect(`${requestUrl.origin}${next}`)
+    response.cookies.set('sb-auth', session.access_token, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    })
 
-    return NextResponse.redirect(`${requestUrl.origin}${next}`)
+    return response
   } catch (error) {
     console.error('Callback error:', error)
     return NextResponse.redirect(

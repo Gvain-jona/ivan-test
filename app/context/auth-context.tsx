@@ -273,6 +273,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           emailRedirectTo: redirectUrl,
           shouldCreateUser: true,
+          data: {
+            redirect_url: redirectUrl
+          }
         },
       })
 

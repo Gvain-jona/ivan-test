@@ -23,12 +23,21 @@ export function createClient(): SupabaseClient {
   // Create a new browser client
   supabaseClientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      storageKey: 'auth',
+      storageKey: 'sb-auth',
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       detectSessionInUrl: true,
       persistSession: true,
       autoRefreshToken: true,
       flowType: 'pkce',
+      debug: process.env.NODE_ENV === 'development',
+      cookieOptions: {
+        name: 'sb-auth',
+        lifetime: 60 * 60 * 24 * 7, // 1 week
+        domain: typeof window !== 'undefined' ? window.location.hostname : undefined,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
     },
   })
 

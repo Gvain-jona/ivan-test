@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { Database } from '@/types/supabase'
 
 export async function updateSession(request: NextRequest) {
+  const requestUrl = new URL(request.url)
+  const isAuthPage = requestUrl.pathname.startsWith('/auth')
+  const isCallback = requestUrl.pathname === '/auth/callback'
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -55,8 +59,32 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired - required for Server Components
-  await supabase.auth.getUser()
+  try {
+    // Get user session
+    const { data: { session }, error } = await supabase.auth.getSession()
 
-  return response
-} 
+    // Handle auth pages
+    if (isAuthPage) {
+      if (session && !isCallback) {
+        // If user is signed in and the current path starts with /auth
+        // redirect the user to /dashboard/orders
+        return NextResponse.redirect(new URL('/dashboard/orders', request.url))
+      }
+      return response
+    }
+
+    // Check auth status for non-auth pages
+    if (!session && !isAuthPage) {
+      // If user is not signed in and the current path is not /auth,
+      // redirect the user to /auth/signin
+      const redirectUrl = `${requestUrl.origin}/auth/signin?redirect=${encodeURIComponent(requestUrl.pathname)}`
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    return response
+  } catch (error) {
+    console.error('Middleware error:', error)
+    // On error, redirect to signin
+    return NextResponse.redirect(new URL('/auth/signin', request.url))
+  }
+}
