@@ -45,10 +45,27 @@ export async function GET(request: NextRequest) {
         // This ensures we have multiple ways to detect a successful authentication
         const script = `
           <script>
+            // Always set these authentication indicators
             localStorage.setItem('auth_callback_completed', 'true');
             localStorage.setItem('auth_timestamp', '${Date.now()}');
+
+            // Set the email if available from the user data
             ${data.user?.email ? `localStorage.setItem('auth_email', '${data.user.email}');` : ''}
+
+            // If we don't have the email from user data, try to get it from localStorage
+            // This ensures we maintain the email across the authentication flow
+            if (!localStorage.getItem('auth_email')) {
+              const storedEmail = localStorage.getItem('auth_email_temp');
+              if (storedEmail) {
+                localStorage.setItem('auth_email', storedEmail);
+                console.log('Using stored email from auth_email_temp:', storedEmail);
+              }
+            }
+
             console.log('Auth callback localStorage values set');
+            console.log('Auth email:', localStorage.getItem('auth_email'));
+
+            // Redirect to the specified path
             window.location.href = '${redirectPath}';
           </script>
         `;

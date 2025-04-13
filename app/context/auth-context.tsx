@@ -49,6 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('Checking auth state...')
 
+        // Log stored email information for debugging
+        const storedEmail = localStorage.getItem('auth_email');
+        const storedEmailTemp = localStorage.getItem('auth_email_temp');
+        console.log('Stored emails:', { regular: storedEmail, temp: storedEmailTemp });
+
         // Check if we have a callback cookie indicating successful authentication
         // Check both cookies to ensure we catch the authentication
         const callbackCookie = document.cookie.includes('auth_callback_completed=true');
@@ -74,7 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Auth state check result:', user ? 'User found' : 'No user found')
 
         // Check localStorage for email used in recent authentication
-        const lastAuthEmail = localStorage.getItem('auth_email')
+        // Try both the regular and temporary email keys
+        const lastAuthEmail = localStorage.getItem('auth_email') || localStorage.getItem('auth_email_temp')
+        console.log('Last auth email from localStorage:', lastAuthEmail);
 
         // If we don't have a user but we have the callback cookie or localStorage email, try to refresh or re-authenticate
         if (!user && (callbackCompleted || lastAuthEmail)) {
@@ -91,11 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.log('Attempting re-authentication with stored email:', lastAuthEmail)
 
               try {
+                // Store the email again to ensure it's available throughout the flow
+                localStorage.setItem('auth_email', lastAuthEmail);
+                localStorage.setItem('auth_email_temp', lastAuthEmail);
+
                 // Send a new OTP to the user's email
                 const { error: signInError } = await supabase.auth.signInWithOtp({
                   email: lastAuthEmail,
                   options: {
                     emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard/orders`,
+                    shouldCreateUser: true
                   },
                 })
 
@@ -459,9 +471,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`Using app URL for redirect: ${appUrl}`);
 
       // Store authentication information in localStorage for verification and recovery
+      // Store the email in both regular and temporary keys to ensure it's available throughout the flow
       localStorage.setItem('auth_redirect_origin', appUrl);
       localStorage.setItem('auth_email', email);
+      localStorage.setItem('auth_email_temp', email); // Temporary key that won't be overwritten
       localStorage.setItem('auth_timestamp', Date.now().toString());
+
+      console.log('Stored auth email in localStorage:', email);
 
       // Send OTP
       const { error } = await supabase.auth.signInWithOtp({
