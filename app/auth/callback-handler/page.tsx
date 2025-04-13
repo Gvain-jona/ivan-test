@@ -106,7 +106,7 @@ function CallbackContent() {
           
           if (error) {
             console.error('Code exchange error:', error)
-            setError(`Code exchange error: ${error.message}`)
+            setError(`Authentication error: ${error.message}`)
           } else if (data.session) {
             console.log('Session established via code exchange:', data.session.user.email)
             
@@ -131,17 +131,23 @@ function CallbackContent() {
             setError('Authentication successful but no session data received')
           }
         } else {
-          // Check if we have a hash fragment
-          if (typeof window !== 'undefined' && window.location.hash) {
-            setStatus('Processing hash fragment...')
-            console.log('Hash fragment detected, attempting to process...')
+          // Check for hash fragment authentication
+          const hash = window.location.hash
+          
+          if (hash && (hash.includes('access_token=') || hash.includes('error='))) {
+            setStatus('Processing hash fragment authentication...')
             
-            // This should be handled by detectSessionInUrl, but we'll process it manually as a fallback
-            const hashParams = new URLSearchParams(window.location.hash.substring(1))
+            // Parse the hash fragment
+            const hashParams = new URLSearchParams(hash.substring(1))
             const accessToken = hashParams.get('access_token')
             const refreshToken = hashParams.get('refresh_token')
+            const hashError = hashParams.get('error')
+            const hashErrorDescription = hashParams.get('error_description')
             
-            if (accessToken && refreshToken) {
+            if (hashError) {
+              console.error('Hash fragment error:', hashError, hashErrorDescription)
+              setError(`Authentication error: ${hashErrorDescription || hashError}`)
+            } else if (accessToken && refreshToken) {
               setStatus('Found access and refresh tokens, setting up session...')
               
               const { data, error } = await supabase.auth.setSession({
