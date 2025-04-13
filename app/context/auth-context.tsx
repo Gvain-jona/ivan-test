@@ -49,6 +49,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('Checking auth state...')
 
+        // CRITICAL: Check for hash fragments in the URL (#access_token=...)
+        // This is the key issue mentioned in the memory - magic links redirect to hash fragments
+        if (typeof window !== 'undefined' && window.location.hash) {
+          console.log('Hash fragment detected in URL, attempting to process...');
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            console.log('Found access and refresh tokens in hash fragment, setting session manually');
+            try {
+              // Set the session directly with the tokens
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              });
+              
+              if (error) {
+                console.error('Error setting session from hash tokens:', error.message);
+              } else {
+                console.log('Successfully set session from hash tokens');
+                // Clear the hash to prevent token exposure
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                // Set user state
+                if (data.user) {
+                  setUser(data.user);
+                  // Store email for recovery
+                  localStorage.setItem('auth_email', data.user.email || '');
+                  localStorage.setItem('auth_email_temp', data.user.email || '');
+                  localStorage.setItem('auth_callback_completed', 'true');
+                }
+                
+                // No need to continue with other checks
+                setIsLoading(false);
+                return;
+              }
+            } catch (tokenError) {
+              console.error('Exception setting session from hash tokens:', tokenError);
+            }
+          }
+        }
+
         // Check for Supabase token in the URL (this indicates we're coming directly from a magic link)
         const urlParams = new URLSearchParams(window.location.search);
         const hasToken = urlParams.has('token') || urlParams.has('access_token') || urlParams.has('refresh_token');
@@ -173,117 +215,166 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('auth_email_temp', user.email);
         }
 
-        // Check localStorage for email used in recent authentication
-        // Try both the regular and temporary email keys
-        const lastAuthEmail = localStorage.getItem('auth_email') || localStorage.getItem('auth_email_temp')
-        console.log('Last auth email from localStorage:', lastAuthEmail);
-
-        // Always try to refresh the session if we have any indication of authentication
-        // This is more aggressive but ensures we catch all authentication scenarios
-        if (!user || callbackCompleted || lastAuthEmail || hasSupabaseAuthCookie) {
-          console.log('Trying to recover session...')
-
-          try {
-            // First try to get the session
-            const { data: sessionData } = await supabase.auth.getSession();
-            console.log('Current session:', sessionData.session ? 'present' : 'missing');
-
-            if (sessionData.session) {
-              console.log('Session found, getting user...');
-              // If we have a session, try to get the user again
-              const { data: userData } = await supabase.auth.getUser();
-              if (userData.user) {
-                console.log('User found after session check:', userData.user.email);
-                user = userData.user;
-                setUser(user);
-
-                // Store the email for future use
-                if (user.email) {
-                  localStorage.setItem('auth_email', user.email);
-                  localStorage.setItem('auth_email_temp', user.email);
-                  localStorage.setItem('auth_completed', 'true');
-                }
-              }
-            } else {
-              console.log('No valid session found, trying to refresh...');
-            }
-
-            // Then try to refresh the session
-            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-
-            if (refreshError) {
-              console.error('Error refreshing session:', refreshError)
-
-              // If we're on a protected page but have no valid session, try to sign out to clear cookies
-              if (!window.location.pathname.includes('/auth/')) {
+        // If we still don't have a user, try to recover the session from localStorage
+        if (!user) {
+          console.log('Auth state check result: No user found');
+          
+          // Check localStorage for email used in recent authentication
+          const storedEmail = localStorage.getItem('auth_email') || localStorage.getItem('auth_email_temp');
+          const authCallbackCompleted = localStorage.getItem('auth_callback_completed') === 'true';
+          const hasSupabaseAuthCookie = document.cookie.includes('sb-');
+          const magicLinkSentAt = localStorage.getItem('magic_link_sent_at');
+          
+          console.log('Stored emails:', { storedEmail, authCallbackCompleted });
+          console.log('Has Supabase auth cookie:', hasSupabaseAuthCookie);
+          
+          // Collect all indicators that suggest we should be logged in
+          const authIndicators = {
+            hasStoredEmail: !!storedEmail,
+            authCallbackCompleted,
+            hasSupabaseAuthCookie,
+            hasMagicLinkTimestamp: !!magicLinkSentAt
+          };
+          console.log('Auth indicators:', authIndicators);
+          
+          // If we have any indicators that suggest we should be logged in, try to recover the session
+          if (authCallbackCompleted || hasSupabaseAuthCookie || storedEmail) {
+            console.log('Trying to recover session...');
+            
+            try {
+              // First check if we have a session in localStorage that Supabase isn't detecting
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+              const storageKey = supabaseUrl ? `sb-${supabaseUrl.split('//')[1]}-auth-token` : null;
+              
+              if (storageKey) {
                 try {
-                  await supabase.auth.signOut();
-                  console.log('Signed out due to invalid session');
-                  window.location.href = window.location.origin + '/auth/signin';
-                } catch (signOutError) {
-                  console.error('Error signing out:', signOutError);
+                  const sessionStr = localStorage.getItem(storageKey);
+                  if (sessionStr) {
+                    const session = JSON.parse(sessionStr);
+                    
+                    if (session && session.access_token && session.refresh_token) {
+                      console.log('Found session data in localStorage, attempting to restore...');
+                      
+                      // Try to set the session directly
+                      const { data, error } = await supabase.auth.setSession({
+                        access_token: session.access_token,
+                        refresh_token: session.refresh_token
+                      });
+                      
+                      if (error) {
+                        console.error('Error restoring session from localStorage:', error.message);
+                      } else if (data.user) {
+                        console.log('Successfully restored session from localStorage');
+                        setUser(data.user);
+                        
+                        // Get the user's profile
+                        const { data: profileData } = await supabase
+                          .from('profiles')
+                          .select('*')
+                          .eq('id', data.user.id)
+                          .single();
+                          
+                        if (profileData) {
+                          setProfile(profileData);
+                        }
+                        
+                        setIsLoading(false);
+                        return;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error parsing session from localStorage:', e);
                 }
               }
-
-              // If refresh fails and we have an email, try to re-authenticate
-              if (lastAuthEmail) {
-              console.log('Attempting re-authentication with stored email:', lastAuthEmail)
-
-              try {
-                // Store the email again to ensure it's available throughout the flow
-                localStorage.setItem('auth_email', lastAuthEmail);
-                localStorage.setItem('auth_email_temp', lastAuthEmail);
-
-                // Send a new OTP to the user's email
-                const { error: signInError } = await supabase.auth.signInWithOtp({
-                  email: lastAuthEmail,
-                  options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard/orders`,
-                    shouldCreateUser: true
-                  },
-                })
-
-                if (signInError) {
-                  console.error('Error re-authenticating:', signInError)
-                } else {
-                  console.log('Re-authentication email sent successfully')
-                  // Show a message to the user that a new verification email has been sent
-                  // This would be better with a toast notification
-                  alert('A new verification email has been sent. Please check your inbox.')
+              
+              // Try to refresh the session
+              console.log('Trying to refresh session...');
+              const { data, error } = await supabase.auth.refreshSession();
+              
+              if (error) {
+                console.error('Error refreshing session:', error.message);
+                
+                // Only try to re-authenticate if we haven't already tried recently
+                // This prevents rate limiting errors (429)
+                if (storedEmail && magicLinkSentAt) {
+                  const sentAtTimestamp = parseInt(magicLinkSentAt, 10);
+                  const now = Date.now();
+                  const timeSinceSent = now - sentAtTimestamp;
+                  
+                  // Only attempt re-auth if it's been more than 60 seconds since the last attempt
+                  // This prevents the 429 rate limit error
+                  if (timeSinceSent > 60000) {
+                    console.log('Attempting re-authentication with stored email:', storedEmail);
+                    
+                    // Update the timestamp to prevent multiple attempts
+                    localStorage.setItem('magic_link_sent_at', Date.now().toString());
+                    
+                    // Try to sign in again
+                    const { error: signInError } = await supabase.auth.signInWithOtp({
+                      email: storedEmail,
+                      options: {
+                        shouldCreateUser: true
+                      }
+                    });
+                    
+                    if (signInError) {
+                      console.error('Error re-authenticating:', signInError);
+                    } else {
+                      console.log('Re-authentication initiated successfully');
+                    }
+                  } else {
+                    // Calculate how many seconds until we can try again
+                    const secondsToWait = Math.ceil((60000 - timeSinceSent) / 1000);
+                    console.log(`Rate limit protection active. Can try again in ${secondsToWait} seconds.`);
+                    
+                    // If we're not on the sign-in page and not in a callback, redirect to sign-in
+                    if (!window.location.pathname.startsWith('/auth/')) {
+                      console.log('Redirecting to sign-in page due to rate limit');
+                      router.push(`/auth/signin?error=Please+wait+${secondsToWait}+seconds+before+trying+again.`);
+                      setIsLoading(false);
+                      return;
+                    }
+                  }
+                } else if (storedEmail) {
+                  // If we have an email but no timestamp, set the timestamp now
+                  localStorage.setItem('magic_link_sent_at', Date.now().toString());
                 }
-              } catch (e) {
-                console.error('Exception during re-authentication:', e)
+              } else if (data.user) {
+                console.log('Session refresh successful');
+                setUser(data.user);
+                
+                // Get the user's profile
+                const { data: profileData } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', data.user.id)
+                  .single();
+                  
+                if (profileData) {
+                  setProfile(profileData);
+                }
+                
+                setIsLoading(false);
+                return;
               }
-            }
-          } else if (refreshData.user) {
-            console.log('Session refreshed successfully, user found')
-            setUser(refreshData.user)
-            // Continue with the rest of the function using the refreshed user
-            user = refreshData.user
-
-            // Store the email for future use
-            if (refreshData.user.email) {
-              localStorage.setItem('auth_email', refreshData.user.email);
-              localStorage.setItem('auth_email_temp', refreshData.user.email);
-              localStorage.setItem('auth_completed', 'true');
+            } catch (e) {
+              console.error('Exception during session recovery:', e);
             }
           }
+        }
 
-          } catch (error) {
-            console.error('Error in session recovery process:', error);
-
-            // If we're on a protected page but have an error, redirect to signin
-            if (!window.location.pathname.includes('/auth/')) {
-              try {
-                await supabase.auth.signOut();
-                console.log('Signed out due to error in session recovery');
-                window.location.href = window.location.origin + '/auth/signin';
-              } catch (signOutError) {
-                console.error('Error signing out after session recovery error:', signOutError);
-              }
-            }
-          }
-        } else {
+        // Final fallback: If we still don't have a user but we're on a protected page, redirect to sign-in
+        if (!user && !window.location.pathname.startsWith('/auth/')) {
+          console.log('No user found after all recovery attempts, redirecting to sign-in');
+          
+          // Store the current path to redirect back after login
+          const currentPath = window.location.pathname;
+          localStorage.setItem('auth_redirect_after_signin', currentPath);
+          
+          // Redirect to sign-in
+          router.push('/auth/signin');
+        } else if (user) {
           // User fetch result logged
           setUser(user)
         }
@@ -535,9 +626,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .maybeSingle()
 
                   if (existingProfile) {
-                    // Profile already exists on auth change
+                    console.log('Profile already exists, using existing profile:', existingProfile)
                     setProfile(existingProfile);
-                    console.log('Using existing profile on auth change:', existingProfile);
+                    console.log('Using existing profile:', existingProfile);
                     return;
                   }
 
