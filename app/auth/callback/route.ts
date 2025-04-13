@@ -1,6 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { type EmailOtpType } from '@supabase/supabase-js'
 
 export async function GET(request: NextRequest) {
@@ -33,32 +32,8 @@ export async function GET(request: NextRequest) {
     status: 303 
   })
 
-  // Create a server-side Supabase client with cookie handling
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
+  // Create a server-side Supabase client
+  const supabase = await createClient()
 
   // If there's an error in the URL parameters, redirect to sign-in with the error message
   if (error) {
@@ -103,24 +78,6 @@ export async function GET(request: NextRequest) {
 
       console.log('Session exchange successful')
     }
-    // Handle direct token auth (for hash fragment redirects)
-    else if (access_token && refresh_token) {
-      console.log('Setting session from tokens...')
-      const { data, error } = await supabase.auth.setSession({
-        access_token,
-        refresh_token
-      })
-
-      if (error) {
-        console.error('Error setting session from tokens:', error.message)
-        return NextResponse.redirect(
-          new URL(`/auth/signin?error=${encodeURIComponent('Invalid authentication tokens')}&redirect=${encodeURIComponent(next)}`, requestUrl.origin),
-          { status: 303 }
-        )
-      }
-
-      console.log('Session set from tokens successfully')
-    }
 
     // Get the user to verify authentication worked
     const { data: { user } } = await supabase.auth.getUser()
@@ -128,16 +85,7 @@ export async function GET(request: NextRequest) {
     if (user) {
       console.log('Authentication successful, user found:', user.id)
       
-      // Set cookies to help with client-side detection
-      response.cookies.set('auth_callback_completed', 'true', {
-        path: '/',
-        maxAge: 60 * 60, // 1 hour
-        httpOnly: false, // Make it accessible from JavaScript
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
-      })
-
-      // Add a script to set localStorage values
+      // Add a script to set localStorage values for client-side detection
       const htmlWithScript = `
         <!DOCTYPE html>
         <html>

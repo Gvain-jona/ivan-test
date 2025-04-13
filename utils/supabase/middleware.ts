@@ -2,16 +2,14 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  // Clone the request headers
-  const requestHeaders = new Headers(request.headers)
-  
-  // Create a new response
+  // Create a response object that we'll modify and return
   let response = NextResponse.next({
     request: {
-      headers: requestHeaders,
+      headers: request.headers,
     },
   })
 
+  // Create a Supabase client for server-side operations
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -27,9 +25,6 @@ export async function updateSession(request: NextRequest) {
             value,
             ...options,
           })
-          
-          // Also set it in the request so server components can access it
-          requestHeaders.set('cookie', `${name}=${value}; ${request.headers.get('cookie') || ''}`)
         },
         remove(name: string, options: CookieOptions) {
           // Remove cookie from the browser
@@ -38,11 +33,6 @@ export async function updateSession(request: NextRequest) {
             value: '',
             ...options,
           })
-          
-          // Also update the request headers
-          requestHeaders.set('cookie', request.headers.get('cookie')?.replace(
-            new RegExp(`${name}=([^;]+);? ?`), ''
-          ) || '')
         },
       },
     }
@@ -62,19 +52,15 @@ export async function updateSession(request: NextRequest) {
 
   // Refresh session if expired - required for Server Components
   // This sends a request to Supabase to validate the token
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  // If user is not found but we have auth cookies, clear them to prevent loops
-  if (!user) {
-    const authCookie = request.cookies.get('sb-giwurfpxxktfsdyitgvr-auth-token')
-    if (authCookie) {
-      response.cookies.set({
-        name: 'sb-giwurfpxxktfsdyitgvr-auth-token',
-        value: '',
-        maxAge: 0,
-        path: '/',
-      })
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    // If we have a session but it's expired, try to refresh it
+    if (session) {
+      await supabase.auth.getUser()
     }
+  } catch (error) {
+    console.error('Error refreshing auth session:', error)
   }
 
   return response
