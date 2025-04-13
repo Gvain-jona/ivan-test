@@ -10,16 +10,17 @@ import {
   type Session,
   type PostgrestError 
 } from '@supabase/supabase-js';
-
-type Profile = {
-  id: string
-  email: string
-  full_name: string | null
-  role: 'admin' | 'manager' | 'staff'
-  status: 'active' | 'inactive' | 'locked'
-  created_at: string
-  updated_at: string
-}
+import { 
+  storeSessionData, 
+  getStoredSessionData, 
+  clearSessionData, 
+  setClientSession,
+  getRedirectPath
+} from '@/app/lib/auth/session-utils';
+import {
+  type Profile,
+  getOrCreateProfile
+} from '@/app/lib/auth/profile-utils';
 
 type AuthContextType = {
   user: User | null
@@ -46,55 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isManager = profile?.role === 'manager'
   const isStaff = profile?.role === 'staff'
 
-  const createUserProfile = async (user: User) => {
-    try {
-      console.log('Creating profile for:', user.email)
-      const { data: allowedEmail } = await supabase
-        .from('allowed_emails')
-        .select('role')
-        .eq('email', user.email)
-        .maybeSingle()
-
-      // Default to 'staff' if no role is found or if the role is not valid
-      const userRole = (allowedEmail?.role === 'admin' || allowedEmail?.role === 'manager' || allowedEmail?.role === 'staff') 
-        ? allowedEmail.role 
-        : 'staff'
-      
-      console.log(`Assigning role: ${userRole}`)
-
-      const { data: newProfile, error } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-          role: userRole,
-          status: 'active',
-        })
-        .select('*')
-        .single()
-
-      if (error) {
-        console.error('Error creating profile:', error)
-        throw error
-      }
-      
-      console.log('Profile created successfully')
-      setProfile(newProfile)
-      return newProfile
-    } catch (error) {
-      console.error('Error creating profile:', error)
-      
-      // Even if profile creation fails, we should still redirect the user
-      // to avoid them being stuck on the signin page
-      const searchParams = new URLSearchParams(window.location.search)
-      const redirect = searchParams.get('redirect') || '/dashboard/orders'
-      router.push(redirect)
-      
-      throw error
-    }
-  }
-
   const handleHashFragment = async () => {
     try {
       if (typeof window === 'undefined') return null
@@ -115,24 +67,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) throw error
         if (session) {
-          // Store session data in localStorage via the sb-auth key
-          const sessionData = {
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-            expires_at: Math.floor(Date.now() / 1000) + (parseInt(expiresIn || '3600')),
-            user: session.user,
-            token_type: tokenType || 'bearer'
-          }
-          localStorage.setItem('sb-auth', JSON.stringify(sessionData))
-          localStorage.setItem('auth_completed', 'true')
-          localStorage.setItem('auth_timestamp', Date.now().toString())
+          // Store session data using our utility
+          storeSessionData(session)
 
           // Get the redirect path
           const searchParams = new URLSearchParams(window.location.search)
-          const redirect = searchParams.get('redirect') || '/dashboard/orders'
+          const redirect = getRedirectPath(searchParams)
           
-          // Clean up URL
-          window.history.replaceState({}, '', redirect)
+          // Clear the hash to prevent token exposure
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
           
           return session
         }
@@ -151,10 +94,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('URL:', window.location.href)
         console.log('URL parameters:', new URLSearchParams(window.location.search))
 
+        // Check if we're on the signin page
+        const isAuthPage = window.location.pathname.startsWith('/auth')
+        const isSigninPage = window.location.pathname === '/auth/signin'
+        
+        // If we're on the signin page, check if we have a session in localStorage
+        if (isSigninPage) {
+          console.log('On signin page, checking for existing session in localStorage')
+          const storedSession = getStoredSessionData()
+          
+          if (storedSession?.access_token) {
+            console.log('Found valid session in localStorage, setting session and redirecting')
+            
+            // Set the session in Supabase
+            const { success } = await setClientSession(storedSession)
+            
+            if (success) {
+              // Get redirect path
+              const searchParams = new URLSearchParams(window.location.search)
+              const redirect = getRedirectPath(searchParams)
+              
+              // Force redirect to dashboard
+              console.log('Redirecting to:', redirect)
+              router.push(redirect)
+              return
+            }
+          }
+        }
+
         // Check for hash fragment first (magic link flow)
         if (window.location.hash) {
           console.log('Found hash fragment, handling magic link...')
-          await handleHashFragment()
+          const session = await handleHashFragment()
+          if (session) {
+            setUser(session.user)
+            
+            // Fetch or create profile
+            if (session.user) {
+              const { profile: userProfile } = await getOrCreateProfile(session.user)
+              if (userProfile) {
+                setProfile(userProfile)
+              }
+            }
+            
+            // Get redirect path and navigate
+            const searchParams = new URLSearchParams(window.location.search)
+            const redirect = getRedirectPath(searchParams)
+            router.push(redirect)
+            return
+          }
         }
 
         // Check existing session
@@ -163,31 +151,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error('Session error:', error)
-          throw error
+          setIsLoading(false)
+          return
         }
 
-        setUser(session?.user || null)
-
         if (session?.user) {
-          console.log('Found existing session, fetching profile...')
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle()
-
-          if (profileError) {
-            console.error('Profile fetch error:', profileError)
-            throw profileError
+          console.log('Found existing session')
+          setUser(session.user)
+          
+          // Store session data
+          storeSessionData(session)
+          
+          // Fetch or create profile
+          const { profile: userProfile } = await getOrCreateProfile(session.user)
+          if (userProfile) {
+            setProfile(userProfile)
           }
-
-          if (!profileData) {
-            console.log('No profile found, creating one...')
-            await createUserProfile(session.user)
-          } else {
-            console.log('Profile found:', profileData)
-            setProfile(profileData)
+          
+          // If we're on an auth page and have a session, redirect to dashboard
+          if (isAuthPage && !window.location.pathname.includes('/callback')) {
+            const searchParams = new URLSearchParams(window.location.search)
+            const redirect = getRedirectPath(searchParams)
+            console.log('Authenticated on auth page, redirecting to:', redirect)
+            router.push(redirect)
           }
+        } else {
+          console.log('No session found')
         }
       } catch (error) {
         console.error('Auth initialization error:', error)
@@ -212,36 +201,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user)
           
-          // Store session data in localStorage
-          const sessionData = {
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-            user: session.user,
-            token_type: session.token_type
-          }
-          localStorage.setItem('sb-auth', JSON.stringify(sessionData))
-          localStorage.setItem('auth_completed', 'true')
-          localStorage.setItem('auth_timestamp', Date.now().toString())
-          localStorage.setItem('auth_user_id', session.user.id)
-          localStorage.setItem('auth_in_progress', 'false')
+          // Store session data
+          storeSessionData(session)
 
           try {
             // Fetch or create profile
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .maybeSingle()
-
-            if (profileError) {
-              console.error('Profile fetch error:', profileError)
-            } else if (!profileData) {
-              console.log('Creating new profile...')
-              await createUserProfile(session.user)
-            } else {
-              console.log('Setting existing profile...')
-              setProfile(profileData)
+            const { profile: userProfile } = await getOrCreateProfile(session.user)
+            if (userProfile) {
+              setProfile(userProfile)
             }
           } catch (error) {
             console.error('Error handling profile:', error)
@@ -250,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Get the redirect path and navigate
           const searchParams = new URLSearchParams(window.location.search)
-          const redirect = searchParams.get('redirect') || '/dashboard/orders'
+          const redirect = getRedirectPath(searchParams)
           router.push(redirect)
         }
       } else if (event === 'SIGNED_OUT') {
@@ -259,17 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null)
         
         // Clear all auth-related data
-        const authKeys = [
-          'auth_completed',
-          'auth_timestamp',
-          'auth_user_id',
-          'auth_in_progress',
-          'auth_email',
-          'auth_email_temp',
-          'sb-auth'
-        ]
-        
-        authKeys.forEach(key => localStorage.removeItem(key))
+        clearSessionData()
         
         // Redirect to signin
         router.push('/auth/signin')
@@ -326,6 +283,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Signing out')
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      
+      // Clear session data
+      clearSessionData()
+      
       console.log('Signed out')
     } catch (error) {
       console.error('Sign out error:', error)

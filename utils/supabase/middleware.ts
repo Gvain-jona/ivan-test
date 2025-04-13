@@ -1,16 +1,23 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { Database } from '@/types/supabase'
+import { formatSessionForCookie } from '@/app/lib/auth/session-utils'
 
+/**
+ * Middleware to handle authentication and session management
+ * Runs on every request to check auth status and redirect as needed
+ */
 export async function updateSession(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const isAuthPage = requestUrl.pathname.startsWith('/auth')
-  const isCallback = requestUrl.pathname === '/auth/callback'
+  const isCallback = requestUrl.pathname === '/auth/callback' || requestUrl.pathname === '/auth/hash-callback'
+  const isSigninPage = requestUrl.pathname === '/auth/signin'
 
   console.log('Middleware: Processing request:', {
     url: requestUrl.pathname,
     isAuthPage,
-    isCallback
+    isCallback,
+    isSigninPage
   })
 
   let response = NextResponse.next({
@@ -43,11 +50,9 @@ export async function updateSession(request: NextRequest) {
       cookies: {
         get(name: string) {
           const cookie = request.cookies.get(name)
-          console.log('Middleware: Cookie get:', { name, value: cookie?.value ? 'present' : 'none' })
           return cookie?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          console.log('Middleware: Cookie set:', { name, options })
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -60,7 +65,6 @@ export async function updateSession(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          console.log('Middleware: Cookie remove:', { name, options })
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -99,15 +103,22 @@ export async function updateSession(request: NextRequest) {
     if (isAuthPage) {
       if (supabaseSession && !isCallback) {
         console.log('Middleware: Redirecting authenticated user from auth page to dashboard')
-        // Force a hard redirect to dashboard to ensure we break out of any potential loops
-        return NextResponse.redirect(new URL('/dashboard/orders', request.url), {
-          status: 302, // Use 302 for temporary redirect
-          headers: {
-            'Cache-Control': 'no-store, must-revalidate, max-age=0',
-            'Pragma': 'no-cache'
-          }
-        })
+        
+        // For signin page, use a more aggressive redirect approach
+        if (isSigninPage) {
+          return NextResponse.redirect(new URL('/dashboard/orders', request.url), {
+            status: 302, // Use 302 for temporary redirect
+            headers: {
+              'Cache-Control': 'no-store, must-revalidate, max-age=0',
+              'Pragma': 'no-cache'
+            }
+          })
+        }
+        
+        // For other auth pages, use standard redirect
+        return NextResponse.redirect(new URL('/dashboard/orders', request.url))
       }
+      
       console.log('Middleware: Allowing access to auth page')
       return response
     }
@@ -121,19 +132,15 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Update cookies with the verified session
-    console.log('Middleware: Updating cookies with verified session')
-    response.cookies.set('sb-auth', JSON.stringify({
-      access_token: supabaseSession.access_token,
-      refresh_token: supabaseSession.refresh_token,
-      expires_at: supabaseSession.expires_at,
-      user: supabaseSession.user,
-      token_type: supabaseSession.token_type
-    }), {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    })
+    if (supabaseSession) {
+      console.log('Middleware: Updating cookies with verified session')
+      response.cookies.set('sb-auth', formatSessionForCookie(supabaseSession), {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+      })
+    }
 
     console.log('Middleware: Request processing complete')
     return response

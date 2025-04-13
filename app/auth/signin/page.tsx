@@ -5,18 +5,32 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { AlertCircle, CheckCircle, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/app/context/auth-context';
+import { useRouter } from 'next/navigation';
 import './signin.css';
 
 function SignInContent() {
   const searchParams = useSearchParams();
-  const { signIn, checkSupabaseHealth } = useAuth();
+  const { signIn, checkSupabaseHealth, user } = useAuth();
+  const router = useRouter();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (user) {
+      console.log('User already authenticated, redirecting to dashboard');
+      const redirectTo = searchParams?.get('redirect') || '/dashboard/orders';
+      router.push(redirectTo);
+    }
+  }, [user, router, searchParams]);
 
   // Run a health check when the page loads
   useEffect(() => {
     const runHealthCheck = async () => {
+      console.log('Running Supabase health check');
       const result = await checkSupabaseHealth();
       if (!result.ok) {
         console.error('Supabase health check failed:', result.error);
+      } else {
+        console.log('Supabase health check passed');
       }
     };
 
