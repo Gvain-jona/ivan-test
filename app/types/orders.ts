@@ -68,8 +68,22 @@ export interface OrderNote {
   updated_at: string;
 }
 
+export interface Invoice {
+  id: string;
+  order_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  file_url: string;
+  storage_path: string;
+  is_proforma: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Order {
   id: string;
+  order_number?: string; // Added order_number field
   client_id: string;
   client_name?: string;
   client_type: ClientType;
@@ -83,9 +97,12 @@ export interface Order {
   created_by?: string;
   created_at: string;
   updated_at: string;
+  latest_invoice_id?: string;
+  invoice_generated_at?: string;
   items: OrderItem[];
   notes?: OrderNote[];
   payments?: OrderPayment[];
+  invoice?: Invoice;
 }
 
 export interface Task {

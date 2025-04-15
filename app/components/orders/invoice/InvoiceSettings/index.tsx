@@ -5,6 +5,7 @@ import { InvoiceSettingsProps } from '../types';
 import InvoiceLayoutSection from './InvoiceLayoutSection';
 import FormatOptionsSection from './FormatOptionsSection';
 import AdditionalContentSection from './AdditionalContentSection';
+import PaymentDetailsSettings from '../PaymentDetailsSettings';
 
 /**
  * Main component for invoice settings
@@ -23,6 +24,13 @@ const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ form }) => {
         <Separator className="bg-border/40" />
 
         <AdditionalContentSection control={form.control} />
+
+        <Separator className="bg-border/40" />
+
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Payment Details</h2>
+          <PaymentDetailsSettings />
+        </div>
       </div>
     </Form>
   );

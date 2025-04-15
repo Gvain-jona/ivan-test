@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '../../../components/ui/button';
-import OrdersTable from '../../../components/orders/OrdersTable';
+import OrdersTable from '@/components/orders/OrdersTableNew';
 import FilterDrawer, { OrderFilters as FilterTypes } from '../../../components/orders/FilterDrawer';
 import { useOrdersPage } from '../_context/OrdersPageContext';
 
@@ -45,7 +45,7 @@ const OrdersTab: React.FC = () => {
   } = useOrdersPage();
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col h-full min-h-0">
       {/* Filter Drawer */}
       <FilterDrawer
         open={showFilters}
@@ -57,29 +57,31 @@ const OrdersTab: React.FC = () => {
         initialFilters={filters}
       />
 
-      {/* Orders Table */}
-      <OrdersTable
-        orders={paginatedOrders}
-        totalCount={filteredOrders.length}
-        userRole={userRole}
-        onView={handleViewOrder}
-        onEdit={handleEditOrder}
-        onDelete={handleDeleteOrder}
-        onDuplicate={handleDuplicateOrder}
-        onInvoice={handleGenerateInvoice}
-        onStatusChange={handleOrderStatusChange}
-        onLoadMore={handleLoadMore}
-        loading={loading}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        onSearch={handleSearch}
-        onFilter={toggleFilters}
-        onExport={() => console.log('Export')}
-        onCreateOrder={handleCreateOrder}
-        searchTerm={searchTerm}
-        showFilters={showFilters}
-      />
+      {/* Orders Table - Using flex-1 and min-h-0 to ensure proper scrolling */}
+      <div className="flex-1 min-h-0">
+        <OrdersTable
+          orders={paginatedOrders}
+          totalCount={filteredOrders.length}
+          userRole={userRole}
+          onView={handleViewOrder}
+          onEdit={handleEditOrder}
+          onDelete={handleDeleteOrder}
+          onDuplicate={handleDuplicateOrder}
+          onInvoice={handleGenerateInvoice}
+          onStatusChange={handleOrderStatusChange}
+          onLoadMore={handleLoadMore}
+          loading={loading}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          onSearch={handleSearch}
+          onFilter={toggleFilters}
+          onExport={() => console.log('Export')}
+          onCreateOrder={handleCreateOrder}
+          searchTerm={searchTerm}
+          showFilters={showFilters}
+        />
+      </div>
     </div>
   );
 };

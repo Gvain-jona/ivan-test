@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileText, FilePlus, Download, Printer } from 'lucide-react';
+import { FileText, FilePlus, Download, Printer, Loader2, FileDown, FileUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { InvoiceSheetProps, InvoiceSettings as InvoiceSettingsType } from './types';
 import InvoicePreview from './InvoicePreview';
 import InvoiceSettingsComponent from './InvoiceSettings';
-import useInvoiceGeneration from './hooks/useInvoiceGeneration';
-import useInvoiceActions from './hooks/useInvoiceActions';
+import useClientInvoiceGeneration from './hooks/useClientInvoiceGeneration';
+import LoadingOverlay from './LoadingOverlay';
 
 /**
  * Main container component for the invoice sheet
@@ -28,16 +28,26 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   // Form setup
   const form = useForm<InvoiceSettingsType>({
     defaultValues: {
+      // Display options
       includeHeader: true,
       includeFooter: true,
       includeLogo: true,
       includeSignature: false,
       format: 'a4',
       template: 'standard',
+
+      // Tax and discount options
+      includeTax: false,
+      taxRate: 0,
+      includeDiscount: false,
+      discountRate: 0,
+
+      // Content
       notes: `Thank you for your business!`,
-      paymentTerms: 'Payment due within 30 days.',
       customHeader: '',
       customFooter: 'Making You Visible.',
+
+      // Company information
       tinNumber: '1028570150',
       proformaNumber: order?.id.substring(0, 8) || '',
       companyName: 'IVAN PRINTS',
@@ -45,57 +55,69 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
       companyPhone: '0755 541 373',
       companyAddress: 'Printing, Designing, Branding.',
       companyLogo: '/images/logo.png',
-      // Bank details from the image
-      bankName: 'ABSA BANK',
-      accountName: 'IVAN PRINTS',
-      accountNumber: '6008084570',
-      // Mobile money details from the image
-      mobileProvider: 'Airtel',
-      mobilePhone: '0755 541 373',
-      mobileContact: '(Vuule Abdul)',
+
+      // Payment details arrays
+      bankDetails: [
+        {
+          id: '1',
+          bankName: 'ABSA BANK',
+          accountName: 'IVAN PRINTS',
+          accountNumber: '6008084570',
+        }
+      ],
+      mobileMoneyDetails: [
+        {
+          id: '1',
+          provider: 'Airtel',
+          phoneNumber: '0755 541 373',
+          contactName: 'Vuule Abdul',
+        }
+      ],
     },
   });
 
-  // Custom hooks
+  // Custom hooks for client-side PDF generation
   const {
-    invoiceUrl,
     isGenerating,
+    progress,
     error,
-    generateInvoiceWithSettings,
-    resetInvoice
-  } = useInvoiceGeneration({
-    orderId: order?.id || '',
-    order: order
-  });
-
-  const { handleDownload, handlePrint } = useInvoiceActions({
-    invoiceUrl
+    previewRef,
+    generateAndDownloadPdf
+  } = useClientInvoiceGeneration({
+    order
   });
 
   // Event handlers
-  const handleGenerate = async () => {
-    const settings = form.getValues();
-    await generateInvoiceWithSettings(settings);
-    // Only switch to preview if no error occurred
-    if (!error) {
-      setActiveTab('preview');
-    }
+  const handleGenerate = async (quality: number = 2) => {
+    // Switch to preview tab first
+    setActiveTab('preview');
+
+    // Generate and download the PDF with specified quality
+    await generateAndDownloadPdf(quality);
   };
 
   // If no order is provided, don't render anything
   if (!order) return null;
 
+  // We now get progress directly from the hook
+
   return (
-    <OrderSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={`Invoice for Order #${order.id.substring(0, 8)}`}
-      size="lg"
-      onClose={onClose}
-    >
+    <>
+      <LoadingOverlay
+        visible={isGenerating}
+        progress={progress}
+        message={progress > 80 ? "Preparing download..." : "Generating PDF..."}
+      />
+      <OrderSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        title={`Invoice for Order #${order.order_number || order.id.substring(0, 8)}`}
+        size="xxl"
+        onClose={onClose}
+      >
       <div className="p-0 flex-1 flex flex-col overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
-          <div className="border-b border-border/40 px-6">
+          <div className="border-b border-border/40 px-6 sticky top-0 bg-background z-10">
             <TabsList className="bg-transparent w-full justify-start">
               <TabsTrigger
                 value="preview"
@@ -117,8 +139,9 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
           <div className="flex-1 overflow-auto">
             <TabsContent value="preview" className="h-full flex flex-col p-6">
               <InvoicePreview
+                ref={previewRef}
                 order={order}
-                invoiceUrl={invoiceUrl}
+                invoiceUrl={null}
                 isGenerating={isGenerating}
                 error={error}
                 settings={form.getValues()}
@@ -133,66 +156,75 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
         </Tabs>
       </div>
 
-      <div className="border-t border-[#2B2B40] p-6 flex flex-wrap gap-3 justify-between">
+      <div className="border-t border-[#2B2B40] p-6 flex flex-wrap gap-3 justify-between sticky bottom-0 bg-background z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex gap-3">
-          {invoiceUrl && (
-            <>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  onClick={handleDownload}
-                  className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download PDF
-                </Button>
-              </motion.div>
+          {/* Digital Quality (1x) - Faster, smaller file */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              onClick={() => handleGenerate(1)}
+              className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
+              disabled={isGenerating}
+              title="Faster generation, smaller file size"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Digital PDF (1x)
+                </>
+              )}
+            </Button>
+          </motion.div>
 
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  onClick={handlePrint}
-                  variant="outline"
-                  className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white flex items-center"
-                >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print
-                </Button>
-              </motion.div>
-            </>
-          )}
+          {/* Print Quality (2x) - Higher quality for printing */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              onClick={() => handleGenerate(2)}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
+              disabled={isGenerating}
+              title="Higher quality for printing"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileUp className="mr-2 h-4 w-4" />
+                  Print PDF (2x)
+                </>
+              )}
+            </Button>
+          </motion.div>
 
-          {!invoiceUrl && activeTab === 'settings' && (
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                onClick={handleGenerate}
-                className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Generate Invoice
-                  </>
-                )}
-              </Button>
-            </motion.div>
-          )}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              onClick={() => window.print()}
+              variant="outline"
+              className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white flex items-center"
+              disabled={isGenerating}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+          </motion.div>
         </div>
-        
-        <div>
-          {error && (
-            <div className="flex-1 p-3 bg-red-500/10 text-red-400 rounded border border-red-500/20 max-w-md">
-              <p className="font-semibold mb-1">Error</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-        </div>
+
+        <Button
+          onClick={onClose}
+          variant="outline"
+          className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white"
+        >
+          Close
+        </Button>
       </div>
     </OrderSheet>
+    </>
   );
 };
 

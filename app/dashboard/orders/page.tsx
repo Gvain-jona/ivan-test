@@ -3,7 +3,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
-import { Package, CheckSquare } from "lucide-react";
+import { Package, CheckSquare, BarChart3 } from "lucide-react";
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
 import OrderFormSheet from '../../components/orders/OrderFormSheet';
 import InvoiceSheet from '../../components/orders/InvoiceSheet';
@@ -13,6 +13,7 @@ import OrdersPageHeader from './_components/OrdersPageHeader';
 import OrderMetricsCards from './_components/OrderMetricsCards';
 import OrdersTab from './_components/OrdersTab';
 import TasksTab from './_components/TasksTab';
+import InsightsTab from './_components/InsightsTab';
 
 // Import context provider
 import { OrdersPageProvider, useOrdersPage } from './_context/OrdersPageContext';
@@ -77,6 +78,18 @@ const OrdersPageContent: React.FC = () => {
         <div className="mb-5">
           <TabsList className="bg-background/80 border border-border/60 rounded-lg p-2 w-full inline-flex gap-1.5 shadow-sm">
             <TabsTrigger
+              value="insights"
+              className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
+            >
+              <BarChart3
+                className="-ms-0.5 me-1.5 opacity-60"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              Insights
+            </TabsTrigger>
+            <TabsTrigger
               value="orders"
               className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
             >
@@ -105,14 +118,13 @@ const OrdersPageContent: React.FC = () => {
                 aria-hidden="true"
               />
               Tasks
-              <Badge
-                className="ms-1.5 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full transition-opacity group-data-[state=inactive]:opacity-50"
-              >
-                New
-              </Badge>
             </TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="insights" className="space-y-5 animate-in fade-in-50 duration-300">
+          <InsightsTab />
+        </TabsContent>
 
         <TabsContent value="orders" className="space-y-5 animate-in fade-in-50 duration-300">
           <OrdersTab />

@@ -266,45 +266,88 @@ export function useRealOrders() {
   }, [fetchOrders, toast]);
 
   /**
-   * Update order status
+   * Update order status with optimistic updates
    */
   const updateOrderStatus = useCallback(async (id: string, status: OrderStatus) => {
     try {
-      setLoading(true);
-
-      // Use mock data instead of making API request
-      console.log('Using mock data instead of API for updateOrderStatus');
-
-      // Find the order to update
-      const orderIndex = SAMPLE_ORDERS.findIndex(o => o.id === id);
+      // Find the order to update in the current state
+      const orderIndex = orders.findIndex(o => o.id === id);
 
       if (orderIndex === -1) {
-        throw new Error('Order not found');
+        console.warn('Order not found in local state:', id);
+        // If we can't find the order, we'll still try to update it on the server
+      } else {
+        // Only update if the status is actually different
+        const currentOrder = orders[orderIndex];
+        if (currentOrder.status !== status) {
+          // Create a copy of the current orders
+          const updatedOrders = [...orders];
+
+          // Update the order status optimistically
+          updatedOrders[orderIndex] = {
+            ...updatedOrders[orderIndex],
+            status,
+            updated_at: new Date().toISOString()
+          };
+
+          // Update the state immediately for better UX
+          setOrders(updatedOrders);
+        }
       }
 
-      // Update the order status
-      SAMPLE_ORDERS[orderIndex] = {
-        ...SAMPLE_ORDERS[orderIndex],
-        status,
-        updated_at: new Date().toISOString()
-      };
+      // Set loading state for UI feedback
+      setLoading(true);
 
-      // Refresh orders
-      fetchOrders();
+      // Make API request to update order status
+      console.log('Updating order status via API:', id, status);
+      const response = await fetch(`/api/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
 
-      return { order: SAMPLE_ORDERS[orderIndex], success: true };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update order status');
+      }
+
+      const data = await response.json();
+
+      // If the order wasn't in our local state or we want to ensure consistency,
+      // we can update the specific order with the server response
+      if (orderIndex !== -1 && data.order) {
+        // Only update if there's an actual difference to avoid unnecessary re-renders
+        const currentOrder = orders[orderIndex];
+        const serverOrder = data.order;
+
+        // Check if there are actual differences
+        if (currentOrder.status !== serverOrder.status ||
+            currentOrder.updated_at !== serverOrder.updated_at) {
+          const updatedOrders = [...orders];
+          updatedOrders[orderIndex] = {
+            ...updatedOrders[orderIndex],
+            ...serverOrder
+          };
+          setOrders(updatedOrders);
+        }
+      }
+
+      return data;
     } catch (error) {
       console.error('Error updating order status:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update order status',
-        variant: 'destructive'
-      });
+
+      // If there was an error, revert the optimistic update
+      // by refreshing the orders data
+      fetchOrders();
+
+      // Don't show toast here - let the calling component handle it
       return null;
     } finally {
       setLoading(false);
     }
-  }, [fetchOrders, toast]);
+  }, [orders, fetchOrders]);
 
   return {
     orders,

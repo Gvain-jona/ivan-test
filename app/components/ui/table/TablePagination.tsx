@@ -101,11 +101,17 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className={`pagination-container ${className}`}>
+    <div className={`flex items-center justify-between ${className}`}>
       <div className="flex items-center space-x-6 text-sm">
         {total > 0 && (
-          <div className="text-foreground">
-            {startItem}-{endItem} of {total} items
+          <div className="text-sm text-white">
+            <span className="text-muted-foreground">Showing </span>
+            <span className="font-medium">{startItem}</span>
+            <span className="text-muted-foreground"> to </span>
+            <span className="font-medium">{endItem}</span>
+            <span className="text-muted-foreground"> of </span>
+            <span className="font-medium">{total}</span>
+            <span className="text-muted-foreground"> items</span>
           </div>
         )}
         {onPageSizeChange && (
@@ -115,12 +121,12 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
               value={String(pageSize)}
               onValueChange={handlePageSizeChange}
             >
-              <SelectTrigger className="h-8 w-[70px] bg-card border-[hsl(var(--table-border))]">
+              <SelectTrigger className="h-8 w-[70px] bg-muted/20 border-border hover:bg-muted/30">
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
-              <SelectContent className="bg-card border-[hsl(var(--table-border))]">
+              <SelectContent className="bg-background border-border">
                 {pageSizeOptions.map((size) => (
-                  <SelectItem key={size} value={String(size)} className="text-foreground hover:bg-[hsl(var(--table-pagination-hover))]">
+                  <SelectItem key={size} value={String(size)} className="text-foreground hover:bg-muted/20">
                     {size}
                   </SelectItem>
                 ))}
@@ -133,20 +139,20 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
       <div className="flex items-center space-x-1">
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(1)}
           disabled={currentPage <= 1}
-          className="pagination-button pagination-button-inactive"
+          className="h-8 w-8 p-0 bg-muted/20 border-border hover:bg-muted/30 disabled:opacity-50"
           aria-label="First page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="pagination-button pagination-button-inactive"
+          className="h-8 w-8 p-0 bg-muted/20 border-border hover:bg-muted/30 disabled:opacity-50"
           aria-label="Previous page"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -161,9 +167,9 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
                 variant={currentPage === page ? "default" : "outline"}
                 size="sm"
                 onClick={() => onPageChange(page)}
-                className={`pagination-button ${currentPage === page
-                  ? 'pagination-button-active'
-                  : 'pagination-button-inactive'}`}
+                className={`h-8 w-8 p-0 ${currentPage === page
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-muted/20 border-border hover:bg-muted/30'}`}
                 aria-label={`Page ${page}`}
                 aria-current={currentPage === page ? 'page' : undefined}
               >
@@ -177,20 +183,20 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
 
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="pagination-button pagination-button-inactive"
+          className="h-8 w-8 p-0 bg-muted/20 border-border hover:bg-muted/30 disabled:opacity-50"
           aria-label="Next page"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage >= totalPages}
-          className="pagination-button pagination-button-inactive"
+          className="h-8 w-8 p-0 bg-muted/20 border-border hover:bg-muted/30 disabled:opacity-50"
           aria-label="Last page"
         >
           <ChevronsRight className="h-4 w-4" />

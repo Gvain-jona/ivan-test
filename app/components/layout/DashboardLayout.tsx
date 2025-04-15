@@ -52,7 +52,7 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
                 </div>
               </div>
             }>
-              <div className="pb-24"> {/* Safe area for content to ensure it's not covered by nav */}
+              <div className="pb-16"> {/* Reduced padding to minimize wasted space */}
                 {children}
               </div>
             </Suspense>

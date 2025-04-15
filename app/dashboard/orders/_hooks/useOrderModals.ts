@@ -51,11 +51,12 @@ export const useOrderModals = () => {
   // Handle delete order
   const handleDeleteOrder = useCallback((order: Order) => {
     console.log('Delete order:', order.id);
+    // In a real app, make API call to delete
+    // Only show toast after successful deletion
     toast({
       title: "Order Deleted",
       description: `Order ${order.id} has been deleted`,
     });
-    // In a real app, make API call to delete
   }, [toast]);
 
   // Handle duplicate order
@@ -68,14 +69,21 @@ export const useOrderModals = () => {
     // In a real app, make API call to duplicate
   }, [toast]);
 
-  // Handle generate invoice
-  const handleGenerateInvoice = useCallback((order: Order) => {
+  // Handle generate or view invoice
+  const handleGenerateInvoice = useCallback(async (order: Order) => {
     setSelectedOrder(order);
     setInvoiceModalOpen(true);
-    console.log('Generate invoice for order:', order.id);
+
+    // Check if this order already has an invoice
+    const hasInvoice = order.latest_invoice_id || order.invoice_generated_at;
+
+    console.log(hasInvoice ? 'View invoice for order:' : 'Generate invoice for order:', order.id);
+
     toast({
-      title: "Generating Invoice",
-      description: `Preparing invoice for order ${order.id}`,
+      title: hasInvoice ? "View Invoice" : "Generate Invoice",
+      description: hasInvoice
+        ? `Viewing invoice for order ${order.id}`
+        : `Preparing invoice for order ${order.id}`,
     });
   }, [toast]);
 
@@ -90,19 +98,25 @@ export const useOrderModals = () => {
       // Call the API to update the order status
       const result = await updateOrderStatus(order.id, status);
 
-      if (result) {
+      if (result && result.success) {
+        // Only show success toast after the API call succeeds
         toast({
           title: "Status Updated",
-          description: `Order ${order.id} is now ${status}`,
+          description: `Order ${order.order_number || order.id.substring(0, 8)} is now ${status}`,
         });
+        return true;
+      } else {
+        throw new Error('Status update failed');
       }
     } catch (error) {
       console.error('Error updating order status:', error);
+      // Show error toast only when the API call fails
       toast({
         title: "Error",
         description: `Failed to update order status`,
         variant: "destructive"
       });
+      throw error; // Re-throw to allow the component to handle the error
     }
   }, [toast, updateOrderStatus]);
 

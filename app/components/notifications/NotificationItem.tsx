@@ -162,7 +162,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
               onMouseDown={(e) => e.stopPropagation()}
               className="relative z-10"
             >
-              <DropdownMenu modal={false}>
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -179,7 +179,6 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                   align="end"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
-                  onPointerDownOutside={(e) => e.preventDefault()}
                   className="z-50"
                 >
                   {notification.status === 'unread' && (

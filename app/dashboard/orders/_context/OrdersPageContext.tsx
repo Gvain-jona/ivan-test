@@ -83,7 +83,7 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   // Basic state
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'tasks'
+  const [activeTab, setActiveTab] = useState('insights'); // 'insights', 'orders' or 'tasks'
   const [userRole] = useState<'admin' | 'manager' | 'employee'>('admin'); // Placeholder, would come from auth
   const [stats, setStats] = useState(METRICS_DATA);
 

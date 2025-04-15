@@ -1,0 +1,128 @@
+/* Print-specific styles */
+@media print {
+  /* Hide everything except the invoice preview */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the invoice template and its contents */
+  .invoice-template,
+  .invoice-template * {
+    visibility: visible;
+  }
+
+  /* Position the invoice at the top of the page */
+  .invoice-template {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important; /* A4 width */
+    height: 297mm !important; /* A4 height */
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important; /* No padding - design covers entire page */
+    margin: 0 !important;
+    background-color: white !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    font-size: 10pt !important; /* Base font size for printing */
+  }
+
+  /* Hide all containers and preview elements */
+  .a4-preview-outer,
+  .a4-preview-container,
+  .a4-content,
+  .invoice-preview-container {
+    position: static !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    background-color: white !important;
+  }
+
+  /* Hide scrollbars */
+  .scrollbar-hide,
+  .a4-content.hide-scrollbars {
+    overflow: visible !important;
+  }
+
+  /* Ensure proper page breaks */
+  .invoice-template {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Set paper size to A4 */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* Fix table layout */
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  /* Ensure totals section doesn't wrap */
+  .invoice-template [style*="minWidth"] {
+    min-width: 250px !important;
+    width: 40% !important;
+  }
+
+  /* Ensure proper text rendering */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Ensure all text is visible */
+  .text-white, .text-gray-800, .text-gray-600, .text-gray-500, p, span, h1, h2, h3, h4, h5, h6, td, th {
+    color: black !important;
+  }
+
+  /* Ensure backgrounds print properly */
+  .bg-gradient-to-r, .bg-orange-50, .bg-gray-50 {
+    background: white !important;
+    background-color: white !important;
+  }
+
+  /* Ensure black footer prints correctly */
+  .bg-black {
+    background: black !important;
+    background-color: black !important;
+  }
+
+  /* Ensure tables print properly */
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  /* Ensure text sizes are appropriate for printing */
+  h1 { font-size: 14pt !important; }
+  h2 { font-size: 12pt !important; }
+  h3 { font-size: 11pt !important; }
+  p, td, th, span { font-size: 9pt !important; }
+  .text-xs { font-size: 8pt !important; }
+  .copyright-text { font-size: 7pt !important; color: white !important; }
+
+  /* Ensure flex layout works in print */
+  .flex-grow { flex-grow: 1 !important; }
+
+  /* Ensure notes and payment details print at the bottom */
+  .mt-auto { margin-top: auto !important; }
+}

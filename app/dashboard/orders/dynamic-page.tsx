@@ -5,7 +5,7 @@ import { OrdersSkeleton } from '@/components/skeletons';
 
 // Dynamically import the OrdersTable component
 const DynamicOrdersTable = dynamic(
-  () => import('./OrdersTable').then(mod => ({ default: mod.OrdersTable })),
+  () => import('@/components/orders/OrdersTable'),
   {
     loading: () => <OrdersSkeleton />,
     ssr: false // Disable server-side rendering for this component

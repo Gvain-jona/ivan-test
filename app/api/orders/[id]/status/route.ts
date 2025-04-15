@@ -38,7 +38,10 @@ export async function PATCH(
     // Update order status
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', orderId)
       .select()
       .single();

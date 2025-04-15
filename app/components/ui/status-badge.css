@@ -1,0 +1,85 @@
+/* Status badge styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.375rem 0.625rem;
+  border-width: 1px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
+}
+
+/* Status badge variants */
+.status-badge-pending {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: rgb(245, 158, 11);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.status-badge-in-progress {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: rgb(59, 130, 246);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.status-badge-paused {
+  background-color: rgba(107, 114, 128, 0.15);
+  color: rgb(107, 114, 128);
+  border-color: rgba(107, 114, 128, 0.3);
+}
+
+.status-badge-completed {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: rgb(16, 185, 129);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.status-badge-delivered {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: rgb(139, 92, 246);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.status-badge-cancelled {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: rgb(239, 68, 68);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Status badge icon */
+.status-badge-icon {
+  margin-right: 0.375rem;
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+/* Status change menu */
+.status-change-menu {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.status-change-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.status-change-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.status-change-button-icon {
+  margin-left: 0.25rem;
+  height: 0.875rem;
+  width: 0.875rem;
+}

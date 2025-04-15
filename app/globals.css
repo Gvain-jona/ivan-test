@@ -1,3 +1,5 @@
+@import './components/ui/status-badge.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -384,7 +386,8 @@ body {
   border-radius: 0.5rem;
   border-width: 1px;
   border-color: hsl(var(--table-border));
-  overflow: hidden;
+  overflow: auto;
+  max-height: 80vh;
 }
 
 .table-header {
@@ -406,6 +409,140 @@ body {
   border-bottom-width: 1px;
   border-bottom-color: hsl(var(--table-border));
   transition-property: color, background-color, border-color;
+}
+
+/* Fix for table header width issues */
+table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  display: table-header-group;
+}
+
+thead tr {
+  width: 100%;
+  display: table-row;
+}
+
+tbody {
+  width: 100%;
+  display: table-row-group;
+}
+
+/* Ensure right-aligned headers have proper alignment */
+th button {
+  width: 100%;
+  transition: color 0.15s ease-in-out;
+  padding: 0.25rem 0;
+}
+
+th button:hover {
+  color: white;
+}
+
+th button span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: inherit;
+  width: 100%;
+}
+
+/* Fix column alignment */
+th, td {
+  box-sizing: border-box;
+  padding: 0.85rem 1rem;
+  vertical-align: middle;
+}
+
+/* Ensure client column has proper width */
+th.client-column, td.client-column {
+  min-width: 230px;
+  max-width: 230px;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  width: 25%;
+}
+
+/* Improve client name styling */
+td.client-column .text-sm.font-medium {
+  letter-spacing: 0.01em;
+}
+
+/* Dropdown icon styles */
+.dropdown-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fix date column width */
+th.date-column, td.date-column {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  width: 15%;
+}
+
+/* Fix status column width */
+th.status-column, td.status-column {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  width: 20%;
+}
+
+/* Fix financial columns width */
+th.financial-column, td.financial-column {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+  text-align: right;
+  width: 9%;
+}
+
+/* Fix actions column width */
+th.actions-column, td.actions-column {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  width: 12%;
+  text-align: right;
+}
+
+/* Prevent text overflow in cells */
+td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure subrow matches main row */
+.order-subrow td {
+  padding: 0.5rem 1rem;
+  vertical-align: middle;
+}
+
+.order-subrow table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Improve row hover effect */
+tr.hover\:bg-table-hover:hover {
+  transition: background-color 0.15s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .table-row:hover {

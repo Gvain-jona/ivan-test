@@ -10,7 +10,7 @@ interface OrderSheetProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   children: React.ReactNode;
-  size?: 'default' | 'sm' | 'lg' | 'xl' | 'full';
+  size?: 'default' | 'sm' | 'lg' | 'xl' | 'xxl' | 'full';
   description?: string;
   showCloseButton?: boolean;
   onClose?: () => void;
@@ -36,6 +36,7 @@ const OrderSheet: React.FC<OrderSheetProps> = ({
       case 'sm': return 'sm:max-w-md';
       case 'lg': return 'sm:max-w-xl';
       case 'xl': return 'sm:max-w-2xl';
+      case 'xxl': return 'sm:max-w-3xl';
       case 'full': return 'sm:max-w-full';
       default: return 'sm:max-w-lg';
     }

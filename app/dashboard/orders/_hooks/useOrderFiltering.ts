@@ -13,8 +13,11 @@ export const useOrderFiltering = (initialOrders: Order[]) => {
   // Update filtered orders when initialOrders change
   useEffect(() => {
     console.log('Initial orders changed:', initialOrders.length);
-    setFilteredOrders(initialOrders);
-  }, [initialOrders]);
+    // Only update if filters are empty to prevent infinite loops
+    if (Object.keys(filters).length === 0 && !searchTerm) {
+      setFilteredOrders(initialOrders);
+    }
+  }, [initialOrders, filters, searchTerm]);
 
   /**
    * Handle filter changes for orders

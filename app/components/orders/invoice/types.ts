@@ -9,16 +9,26 @@ export interface InvoiceSheetProps {
 }
 
 export interface InvoiceSettings {
+  // Display options
   includeHeader: boolean;
   includeFooter: boolean;
   includeLogo: boolean;
   includeSignature: boolean;
   format: 'a4' | 'letter';
   template: 'standard' | 'minimal' | 'detailed';
+
+  // Tax and discount options
+  includeTax: boolean;
+  taxRate: number;
+  includeDiscount: boolean;
+  discountRate: number;
+
+  // Content
   notes: string;
-  paymentTerms: string;
   customHeader: string;
   customFooter: string;
+
+  // Company information
   tinNumber: string;
   proformaNumber: string;
   companyName: string;
@@ -26,14 +36,24 @@ export interface InvoiceSettings {
   companyPhone: string;
   companyAddress: string;
   companyLogo: string;
-  // Bank details
+
+  // Payment details
+  bankDetails: BankDetail[];
+  mobileMoneyDetails: MobileMoneyDetail[];
+}
+
+export interface BankDetail {
+  id: string;
   bankName: string;
   accountName: string;
   accountNumber: string;
-  // Mobile money details
-  mobileProvider: string;
-  mobilePhone: string;
-  mobileContact: string;
+}
+
+export interface MobileMoneyDetail {
+  id: string;
+  provider: string;
+  phoneNumber: string;
+  contactName: string;
 }
 
 // Props for the InvoicePreview component
@@ -74,10 +94,12 @@ export interface UseInvoiceGenerationReturn {
 // Props for the useInvoiceActions hook
 export interface UseInvoiceActionsProps {
   invoiceUrl: string | null;
+  order: Order | null;
 }
 
 // Return type for the useInvoiceActions hook
 export interface UseInvoiceActionsReturn {
-  handleDownload: () => void;
+  handleDownload: () => Promise<void>;
   handlePrint: () => void;
+  isDownloading: boolean;
 }

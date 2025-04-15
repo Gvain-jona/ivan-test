@@ -128,91 +128,214 @@ function ContextMenu({
     switch (menuType) {
       case 'notifications':
         return <NotificationsMenu />;
-
+        
       case 'search':
         return (
-          <div className="flex flex-col items-center w-full">
-            <h3 className="text-lg font-semibold mb-2">Search</h3>
-            <div className="h-px w-full bg-border mb-3"></div>
-            <div className="mb-3 w-full max-w-[350px]">
+          <div className="search-context-menu">
+            {/* Search input */}
+            <div className="flex items-center border-b border-border px-3 mb-4">
+              <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
               <input
-                type="text"
-                placeholder="Search..."
-                className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background"
+                className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Search HR tools or press..."
                 autoFocus
-                // Add explicit focus handling
-                onFocus={(e) => {
-                  // Select all text when focused
-                  e.currentTarget.select();
-                }}
-                onClick={(e) => {
-                  // Prevent click from propagating and closing the menu
-                  e.stopPropagation();
-                  // Select all text when clicked
-                  e.currentTarget.select();
-                }}
               />
+              <div className="ml-2 flex items-center gap-1">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                  ⌘K
+                </kbd>
+              </div>
             </div>
-            <div className="max-h-[250px] overflow-y-auto custom-scrollbar w-full max-w-[350px]">
-              <div className="py-2 text-sm text-muted-foreground text-center">
-                Type to search
+            
+            {/* Recent section */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Recent</h3>
+              <div className="flex flex-wrap gap-2">
+                {['Onboarding', 'Reviews', 'Hiring', 'Benefits', 'Learning'].map((item) => (
+                  <button
+                    key={item}
+                    className="rounded-md bg-muted px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Categories grid */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Tools & Apps */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Tools & Apps</h3>
+                  <div className="text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-md bg-gradient-to-r from-yellow-400 to-red-500 flex-shrink-0" />
+                    <span>Monday.com</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-purple-500 flex-shrink-0" />
+                    <span>Loom</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-red-400 flex-shrink-0" />
+                    <span>Asana</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Employees */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Employees</h3>
+                  <div className="text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-blue-400 flex-shrink-0" />
+                    <span>James Brown</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-green-400 flex-shrink-0" />
+                    <span>Sophia Williams</span>
+                    <div className="ml-auto text-muted-foreground">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-orange-400 flex-shrink-0" />
+                    <span>Laura Perez</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Teams */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Teams</h3>
+                  <div className="text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-red-500 flex-shrink-0" />
+                    <span>Aurora Solutions</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-blue-400 flex-shrink-0" />
+                    <span>Pulse Medical</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-purple-500 flex-shrink-0" />
+                    <span>Synergy HR</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Locations */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Locations</h3>
+                  <div className="text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-blue-500 flex-shrink-0" />
+                    <span>United States</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-yellow-500 flex-shrink-0" />
+                    <span>Spain</span>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0" />
+                    <span>Italy</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-2 border-t border-border text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-up mr-1"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-down mr-1"><path d="m19 12-7 7-7-7"/><path d="M12 5v14"/></svg>
+                  <span>Navigate</span>
+                </div>
+                <div className="flex items-center ml-3">
+                  <span className="mr-1">↵</span>
+                  <span>Select</span>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <span>Any problem?</span>
+                <button className="ml-1 text-primary hover:underline">Contact</button>
               </div>
             </div>
           </div>
         );
-
+        
       case 'profile':
         return (
-          <div className="flex flex-col items-center w-full">
-            <h3 className="text-lg font-semibold mb-2">Profile</h3>
-            <div className="h-px w-full bg-border mb-3"></div>
-            <div className="space-y-2 w-full max-w-[350px]">
-              <button className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors">
-                <User className="mr-2 h-4 w-4" />
-                <span>My Profile</span>
-              </button>
-              <button className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </button>
+          <div className="profile-menu">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-orange-600 flex items-center justify-center text-white font-medium">
+                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div>
+                <div className="font-medium">{profile?.full_name || 'User'}</div>
+                <div className="text-sm text-muted-foreground">{profile?.email || 'user@example.com'}</div>
+              </div>
+            </div>
 
-              {/* Approvals menu item - only for admins and managers */}
-              {(profile?.role === 'admin' || profile?.role === 'manager') && (
-                <button
-                  className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
-                  onClick={() => router.push('/dashboard/approvals')}
-                >
-                  <ClipboardCheck className="mr-2 h-4 w-4" />
-                  <span>Approvals</span>
-                </button>
-              )}
-
-              <div className="h-px w-full bg-border my-2"></div>
+            <div className="space-y-1">
               <button
-                className="flex items-center w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+                className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent rounded-md"
+                onClick={() => router.push('/dashboard/profile')}
+              >
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile Settings</span>
+              </button>
+              <button
+                className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent rounded-md"
+                onClick={() => router.push('/dashboard/settings')}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                <span>App Settings</span>
+              </button>
+              <button
+                className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent rounded-md"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
                 {theme === 'dark' ? (
-                  <Sun className="mr-2 h-4 w-4" />
+                  <>
+                    <Sun className="mr-2 h-4 w-4" />
+                    <span>Light Mode</span>
+                  </>
                 ) : (
-                  <Moon className="mr-2 h-4 w-4" />
+                  <>
+                    <Moon className="mr-2 h-4 w-4" />
+                    <span>Dark Mode</span>
+                  </>
                 )}
-                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
-              <div className="h-px w-full bg-border my-2"></div>
-              <LogoutButton
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start px-2 py-1.5 text-sm rounded-md hover:bg-muted text-destructive transition-colors"
-                showIcon={true}
-                text="Logout"
-              />
+              <LogoutButton className="w-full mt-2 justify-start" />
             </div>
           </div>
         );
-
+        
       default:
-        return null;
+        return <div>Menu content not found</div>;
     }
   };
 

@@ -1,0 +1,118 @@
+/* A4 Preview Container Styles */
+
+/* Outer container for responsive scaling */
+.a4-preview-outer {
+  width: 100%;
+  max-width: 794px; /* A4 width at 96 DPI */
+  margin: 0 auto;
+  position: relative;
+}
+
+/* A4 Preview Container - maintains perfect aspect ratio */
+.a4-preview-container {
+  width: 100%;
+  background: white;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Add border and shadow for visual distinction */
+.a4-preview-container.with-border {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+/* Content container with scrolling */
+.a4-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  background: white;
+  transition: transform 0.3s ease;
+}
+
+/* Hide scrollbars but maintain functionality */
+.a4-content.hide-scrollbars {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.a4-content.hide-scrollbars::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* The actual invoice template */
+.invoice-template {
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  background: white;
+  position: relative;
+  box-sizing: border-box;
+  /* No padding - design covers entire page */
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page indicators for multi-page documents */
+.page-indicator {
+  position: absolute;
+  bottom: 5mm;
+  right: 5mm;
+  font-size: 8pt;
+  color: #888;
+  font-family: Arial, sans-serif;
+}
+
+/* Responsive scaling for different screen sizes */
+@media (max-width: 768px) {
+  .a4-preview-outer {
+    max-width: 100%;
+  }
+}
+
+/* Print-specific styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .a4-preview-outer,
+  .a4-preview-container,
+  .a4-content,
+  .invoice-template,
+  .invoice-template * {
+    visibility: visible;
+    overflow: visible;
+  }
+
+  .a4-preview-container {
+    width: 210mm !important;
+    height: 297mm !important;
+    padding-top: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-height: none !important;
+  }
+
+  .a4-content {
+    overflow: visible;
+    position: relative;
+    transform: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}

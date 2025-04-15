@@ -194,14 +194,14 @@ function FooterNavComponent({ className }: FooterNavProps) {
       <div
         ref={footerNavRef}
         className={cn(
-        "fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 footer-nav",
+        "fixed bottom-2 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 footer-nav",
         isScrollingDown && !navVisible ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100",
         className
       )}>
         <ExpandableTabs
           tabs={navigationItems}
           activeColor="text-orange-500"
-          className="border-border bg-popover backdrop-blur-md shadow-lg px-2 py-2"
+          className="border-border bg-popover backdrop-blur-md shadow-lg px-2 py-1.5"
           onChange={handleTabChangeWithContext}
           initialSelectedIndex={activeTabIndex !== -1 ? activeTabIndex : initialTab}
           activeContextMenuIndex={activeContextMenuTab || null}

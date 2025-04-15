@@ -28,17 +28,17 @@ export default function useInvoiceGeneration(
     try {
       const supabase = createClient();
       const { data: { user }, error } = await supabase.auth.getUser();
-      
+
       if (error) {
         console.error('Error getting user:', error);
         return 'anonymous';
       }
-      
+
       if (!user) {
         console.warn('No user found in auth context');
         return 'anonymous';
       }
-      
+
       return user.id;
     } catch (err) {
       console.error('Error in getUserId:', err);
@@ -63,44 +63,44 @@ export default function useInvoiceGeneration(
       unit: "mm",
       format: customSettings.format || "a4",
     });
-    
+
     // Set up colors
     const primaryColor = "#ff5500"; // Orange color
     const textColor = "#333333";
     const lightGray = "#f5f5f5";
-    
+
     // Add company header with logo space
     if (customSettings.includeHeader) {
       doc.setFillColor(primaryColor);
       doc.rect(0, 0, 210, 40, "F");
-      
+
       // Company name
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(24);
       doc.text(customSettings.companyName || "IVAN PRINTS", 15, 20);
-      
+
       // Company tagline
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text(customSettings.customHeader || "PRINTING | DESIGNING | BRANDING", 15, 28);
-      
+
       // Contact information
       doc.setFontSize(9);
       doc.text(`Email: ${customSettings.companyEmail || "sherilex256@gmail.com"}`, 15, 35);
       doc.text(`Phone: ${customSettings.companyPhone || "0755 541 373"}`, 90, 35);
       doc.text(`TIN: ${customSettings.tinNumber || "1028570150"}`, 165, 35);
     }
-    
+
     // Invoice header
     doc.setFillColor(245, 245, 245);
     doc.rect(0, 45, 210, 15, "F");
-    
+
     doc.setTextColor(textColor);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text("INVOICE", 15, 55);
-    
+
     // Invoice information
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -108,37 +108,37 @@ export default function useInvoiceGeneration(
     doc.text(`Invoice Number:`, 120, 52);
     doc.setFont("helvetica", "bold");
     doc.text(invoiceNumber, 160, 52);
-    
+
     doc.setFont("helvetica", "normal");
     doc.text(`Date:`, 120, 58);
     doc.setFont("helvetica", "bold");
     doc.text(formatDate(new Date().toISOString()), 160, 58);
-    
+
     // Client information
     doc.setFillColor(255, 255, 255);
     doc.rect(15, 70, 80, 40, "F");
-    
+
     doc.setTextColor(textColor);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text("Bill To:", 15, 75);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(order?.client_name || "N/A", 15, 82);
-    
+
     // Order summary
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.text("Order Summary", 120, 75);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     const created_at = order?.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString();
     doc.text(`Order Date: ${formatDate(created_at)}`, 120, 82);
     doc.text(`Payment Terms: ${customSettings.paymentTerms || "Due on receipt"}`, 120, 88);
     doc.text(`Order Status: ${order?.status || "In Progress"}`, 120, 94);
-    
+
     // Line items table
     const tableHeaders = [["Item", "Quantity", "Price", "Total"]];
     const tableData = order?.items?.map((item: OrderItem) => [
@@ -147,7 +147,7 @@ export default function useInvoiceGeneration(
       formatCurrency(item.unit_price),
       formatCurrency(item.total_amount)
     ]) || [];
-    
+
     autoTable(doc, {
       head: tableHeaders,
       body: tableData,
@@ -170,27 +170,27 @@ export default function useInvoiceGeneration(
       },
       margin: { left: 15, right: 15 }
     });
-    
+
     // Calculate final Y position after table
     const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
+
     // Totals section
     doc.setFillColor(lightGray);
     doc.rect(120, finalY, 75, 40, "F");
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text("Subtotal:", 125, finalY + 10);
     doc.text("Tax:", 125, finalY + 20);
     doc.setFont("helvetica", "bold");
     doc.text("Total:", 125, finalY + 30);
-    
+
     // Calculate totals
     const subtotal = order?.total_amount || 0;
     const taxRate = 0; // No tax for now
     const taxAmount = subtotal * (taxRate / 100);
     const total = subtotal + taxAmount;
-    
+
     // Display totals
     doc.setFont("helvetica", "normal");
     doc.setTextColor(textColor);
@@ -198,13 +198,13 @@ export default function useInvoiceGeneration(
     doc.text(`${formatCurrency(taxAmount)} (${taxRate}%)`, 175, finalY + 20, { align: "right" });
     doc.setFont("helvetica", "bold");
     doc.text(formatCurrency(total), 175, finalY + 30, { align: "right" });
-    
+
     // Payment information section - using details from the image
     const paymentDetailsY = finalY + 10;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.text("Payment Details", 15, paymentDetailsY);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
 
@@ -212,7 +212,7 @@ export default function useInvoiceGeneration(
     const bankName = customSettings.bankName || "ABSA BANK";
     const accountName = customSettings.accountName || "IVAN PRINTS";
     const accountNumber = customSettings.accountNumber || "6008084570";
-    
+
     // Mobile money details from the image
     const mobileProvider = customSettings.mobileProvider || "Airtel";
     const mobileNumber = customSettings.mobilePhone || "0755 541 373";
@@ -223,25 +223,25 @@ export default function useInvoiceGeneration(
     doc.text(`Account Name: ${accountName}`, 15, paymentDetailsY + 17);
     doc.text(`Bank / Branch: ${bankName}`, 15, paymentDetailsY + 24);
     doc.text(`ACCOUNT Number: ${accountNumber}`, 15, paymentDetailsY + 31);
-    
+
     // Mobile money section
     doc.text("Mobile money", 15, paymentDetailsY + 41);
     doc.text(`${mobileProvider}`, 15, paymentDetailsY + 48);
     doc.text(`${mobileNumber}`, 15, paymentDetailsY + 55);
     doc.text(`${mobileContact}`, 15, paymentDetailsY + 62);
-    
+
     // Footer
     if (customSettings.includeFooter) {
       doc.setFillColor(primaryColor);
       doc.rect(0, 270, 210, 27, "F");
-      
+
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       const footerText = "M a k i n g   Y o u   V i s i b l e .";
       doc.text(footerText, 105, 286, { align: "center" });
     }
-    
+
     // Return the generated PDF
     const pdfBlob = doc.output("blob");
     return pdfBlob;
@@ -255,54 +255,39 @@ export default function useInvoiceGeneration(
       try {
         const userId = await getUserId();
         if (!userId || (!order?.id && !orderId)) throw new Error("Missing required data");
-        
-        const orderIdToUse = order?.id || orderId;
 
+        const orderIdToUse = order?.id || orderId;
         const supabase = createClient();
         const bucketName = "invoices";
-        
+
         try {
           // Check if bucket exists
           const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-          
-          if (bucketError) {
-            console.error("Error listing buckets:", bucketError);
-            // Continue anyway, we'll try to create or use the bucket
-          }
-          
-          const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-          
+
           // Create bucket if it doesn't exist
+          const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
           if (!bucketExists) {
-            const { error: createBucketError } = await supabase.storage.createBucket(bucketName, {
-              public: true, // Makes the bucket publicly accessible
+            await supabase.storage.createBucket(bucketName, {
+              public: true,
               fileSizeLimit: 5 * 1024 * 1024, // 5MB limit
             });
-            
-            if (createBucketError) {
-              console.error("Failed to create bucket:", createBucketError);
-              // If we can't create the bucket, try using it anyway
-              // It might exist but the current user doesn't have permission to see it
-            }
           }
         } catch (bucketSetupError) {
-          console.error("Error during bucket setup:", bucketSetupError);
           // Continue with the upload anyway
         }
 
         const filename = `invoice_${orderIdToUse}_${Date.now()}.pdf`;
         const storagePath = `${userId}/invoices/${filename}`;
 
-        // Try the upload
+        // Upload the PDF
         const { data, error } = await supabase.storage
           .from(bucketName)
           .upload(storagePath, pdfBlob, {
             contentType: "application/pdf",
-            upsert: true, // Use upsert to overwrite if file exists
+            upsert: true,
           });
 
         if (error) {
-          console.error("Upload error:", error);
           throw new Error(error.message);
         }
 
@@ -317,12 +302,56 @@ export default function useInvoiceGeneration(
           publicUrl: publicUrl,
         };
       } catch (error) {
-        console.error("Error uploading invoice:", error);
         throw new Error(
           `Failed to upload invoice: ${
             error instanceof Error ? error.message : "Unknown error"
           }`
         );
+      }
+    },
+    [getUserId, order, orderId]
+  );
+
+  /**
+   * Creates an invoice record in the database
+   */
+  const createInvoiceRecord = useCallback(
+    async (fileUrl: string, storagePath: string, settings: InvoiceSettings): Promise<void> => {
+      try {
+        const userId = await getUserId();
+        const orderIdToUse = order?.id || orderId;
+
+        if (!userId || !orderIdToUse) {
+          throw new Error("Missing required data");
+        }
+
+        const apiUrl = `/api/orders/${orderIdToUse}/invoice`;
+
+        // Call the API to create an invoice record
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl,
+            storagePath,
+            settings,
+            isProforma: false,
+            createdBy: userId,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          // Don't throw an error, just return to continue with invoice generation
+          return;
+        }
+
+        // Success - the invoice record has been created
+        await response.json();
+      } catch (error) {
+        // Don't throw an error, just continue with invoice generation
       }
     },
     [getUserId, order, orderId]
@@ -347,15 +376,29 @@ export default function useInvoiceGeneration(
       }
 
       // Upload the PDF to Supabase
-      const { publicUrl } = await uploadInvoice(pdfBlob);
+      const uploadResult = await uploadInvoice(pdfBlob);
+      const { publicUrl, storagePath } = uploadResult;
+
+      // Set the invoice URL immediately after upload succeeds
+      // This ensures the UI updates even if the database record creation fails
       setInvoiceUrl(publicUrl);
 
-      toast({
-        title: "Invoice generated",
-        description: "The invoice has been successfully generated.",
-      });
+      // Try to create the invoice record in the database, but don't block on it
+      try {
+        await createInvoiceRecord(publicUrl, storagePath, customSettings);
+
+        toast({
+          title: "Invoice generated",
+          description: "The invoice has been successfully generated and saved.",
+        });
+      } catch (recordError) {
+        // Still show success toast since the PDF was generated and uploaded
+        toast({
+          title: "Invoice generated",
+          description: "The invoice has been generated, but there was an issue saving the record.",
+        });
+      }
     } catch (err) {
-      console.error("Error generating invoice:", err);
       setError(
         err instanceof Error ? err.message : "Failed to generate invoice"
       );
@@ -370,7 +413,7 @@ export default function useInvoiceGeneration(
     } finally {
       setIsGenerating(false);
     }
-  }, [order, orderId, generatePdf, uploadInvoice, toast]);
+  }, [order, orderId, generatePdf, uploadInvoice, createInvoiceRecord, toast]);
 
   return {
     invoiceUrl,

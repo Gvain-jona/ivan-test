@@ -11,6 +11,7 @@ const BUCKETS = {
   PROFILES: 'profiles',
   RECEIPTS: 'receipts',
   MATERIALS: 'materials',
+  INVOICES: 'invoices',
 };
 
 /**
@@ -20,19 +21,19 @@ const BUCKETS = {
 export async function initializeStorageBuckets() {
   try {
     console.log('Initializing Supabase storage buckets...');
-    
+
     // Check and create buckets if they don't exist
     for (const bucketName of Object.values(BUCKETS)) {
       const { data: buckets } = await supabase.storage.listBuckets();
-      
+
       const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
-      
+
       if (!bucketExists) {
         const { error } = await supabase.storage.createBucket(bucketName, {
           public: false, // Private by default
           fileSizeLimit: 10485760, // 10MB
         });
-        
+
         if (error) {
           console.error(`Error creating bucket ${bucketName}:`, error);
         } else {
@@ -42,12 +43,12 @@ export async function initializeStorageBuckets() {
         console.log(`✓ Storage bucket exists: ${bucketName}`);
       }
     }
-    
+
     return { success: true };
   } catch (error) {
     console.error('Failed to initialize storage buckets:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
@@ -65,11 +66,11 @@ export async function uploadFile(
   const { data, error } = await supabase.storage
     .from(bucketName)
     .upload(path, file, options);
-  
+
   if (error) {
     throw error;
   }
-  
+
   return data;
 }
 
@@ -86,12 +87,12 @@ export function getPublicUrl(bucketName: string, path: string) {
  */
 export async function deleteFile(bucketName: string, path: string) {
   const { error } = await supabase.storage.from(bucketName).remove([path]);
-  
+
   if (error) {
     throw error;
   }
-  
+
   return true;
 }
 
-export { BUCKETS }; 
+export { BUCKETS };
