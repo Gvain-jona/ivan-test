@@ -6,6 +6,8 @@ import { cn } from '../../lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useAuth } from '@/app/context/auth-context';
 import { ThemeSwitcher } from '../theme/theme-switcher';
+import { Announcement, AnnouncementTag, AnnouncementTitle } from '../ui/announcement';
+import { Bell, ArrowUpRightIcon, ExternalLink } from 'lucide-react';
 
 /**
  * Get initials from a name
@@ -61,6 +63,13 @@ type TopHeaderProps = {
   userInitials?: string;
   userAvatarUrl?: string;
   logoUrl?: string;
+  announcement?: {
+    show?: boolean;
+    tag?: string;
+    message?: string;
+    link?: string;
+    variant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info';
+  };
 };
 
 export default function TopHeader({
@@ -70,7 +79,14 @@ export default function TopHeader({
   userName,
   userInitials,
   userAvatarUrl = '',
-  logoUrl = ''
+  logoUrl = '',
+  announcement = {
+    show: true,
+    tag: 'Updated',
+    message: 'Order system updated',
+    link: '/dashboard/orders',
+    variant: 'info'
+  }
 }: TopHeaderProps) {
   // Get user profile information from auth context
   const { user, profile, isLoading } = useAuth();
@@ -113,7 +129,7 @@ export default function TopHeader({
       !scrolled && "bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]/40",
       className
     )}>
-      <div className="flex items-center">
+      <div className="flex items-center justify-between w-full">
         {/* Logo and Business Name */}
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 relative">
@@ -136,19 +152,53 @@ export default function TopHeader({
             <p className="text-xs text-muted-foreground">{appTitle}</p>
           </div>
         </div>
+        
+        {/* Center Announcement Badge */}
+        {announcement.show && (
+          <div className="hidden md:flex justify-center items-center absolute left-1/2 transform -translate-x-1/2">
+            <a 
+              href={announcement.link} 
+              className="cursor-pointer transition-transform hover:scale-105 active:scale-95 min-w-[240px] max-w-[320px]"
+              onClick={(e) => {
+                if (announcement.link?.startsWith('http')) {
+                  e.preventDefault();
+                  window.open(announcement.link, '_blank');
+                }
+              }}
+            >
+              <Announcement 
+                themed 
+                variant="outline"
+                className={cn(
+                  'animate-pulse-attention hover:animate-none border-black/10 bg-white shadow-md',
+                  'hover:bg-white hover:border-black/20',
+                  'w-full text-black'
+                )}
+              >
+                <AnnouncementTag className="bg-black text-white">
+                  {announcement.tag || 'New'}
+                </AnnouncementTag>
+                <AnnouncementTitle className="text-black">
+                  {announcement.message || 'Announcement'}
+                  <ExternalLink size={14} className="shrink-0 opacity-70" />
+                </AnnouncementTitle>
+              </Announcement>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* User Info */}
-      <div className="ml-auto flex items-center">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8 border-2 border-border/40">
+      <div className="flex items-center min-w-[180px] justify-end">
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          <Avatar className="h-8 w-8 border-2 border-border/40 flex-shrink-0">
             {userAvatarUrl ? (
               <AvatarImage src={userAvatarUrl} alt={displayName} />
             ) : null}
             <AvatarFallback className="bg-gradient-to-r from-primary to-orange-600 text-white">{displayInitials}</AvatarFallback>
           </Avatar>
-          <div className="hidden md:block text-left">
-            <p className="text-sm font-medium">{displayName}</p>
+          <div className="hidden md:block text-left flex-shrink-0">
+            <p className="text-sm font-medium truncate max-w-[150px]">{displayName}</p>
             <p className="text-xs text-muted-foreground">
               {greeting}
             </p>

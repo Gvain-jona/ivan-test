@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Order, OrderItem } from '@/types/orders';
 import { formatCurrency } from '@/utils/formatting.utils';
@@ -17,6 +17,12 @@ interface OrderItemsFormProps {
   categories?: ComboboxOption[];
   items?: (ComboboxOption & { categoryId?: string })[];
   errors?: Record<string, string[]>;
+  // New props for form state management
+  formState?: number[];
+  partialData?: Record<number, any>;
+  onAddForm?: () => void;
+  onRemoveForm?: (index: number) => void;
+  onUpdatePartialData?: (index: number, data: any) => void;
 }
 
 /**
@@ -31,9 +37,20 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
   categories = [],
   items: itemOptions = [],
   errors = {},
+  // New props with defaults
+  formState = [0],
+  partialData = {},
+  onAddForm,
+  onRemoveForm,
+  onUpdatePartialData,
 }) => {
-  const [itemForms, setItemForms] = useState([0]); // Start with one form
-  const [formIdCounter, setFormIdCounter] = useState(1); // Counter for generating unique form IDs
+  // Use provided form state or local state as fallback
+  const [localItemForms, setLocalItemForms] = useState([0]); // Local fallback
+  const [localFormIdCounter, setLocalFormIdCounter] = useState(1); // Local fallback
+
+  // Use either provided form state or local state
+  // No need for useEffect to sync - just use the prop directly
+  const itemForms = formState || localItemForms;
   // Use our custom hook for items management
   const { items } = useOrderItems({
     items: order.items || [],
@@ -45,13 +62,23 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
 
   // Add another item form
   const handleAddItem = () => {
-    setItemForms([...itemForms, formIdCounter]);
-    setFormIdCounter(formIdCounter + 1);
+    if (onAddForm) {
+      onAddForm();
+    } else {
+      // Fallback to local state
+      setLocalItemForms([...localItemForms, localFormIdCounter]);
+      setLocalFormIdCounter(localFormIdCounter + 1);
+    }
   };
 
   // Remove a form
   const handleRemoveForm = (index: number) => {
-    setItemForms(itemForms.filter(formId => formId !== index));
+    if (onRemoveForm) {
+      onRemoveForm(index);
+    } else {
+      // Fallback to local state
+      setLocalItemForms(localItemForms.filter(formId => formId !== index));
+    }
   };
 
   // Handle adding a new item from the form
@@ -70,6 +97,9 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
 
     updateOrderFields({ items: newItems });
     recalculateOrder();
+
+    // Don't remove the form after adding an item - this allows users to continue editing
+    // or add more items without losing their work
   };
 
   return (
@@ -98,6 +128,10 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
           items={itemOptions}
           formIndex={formIndex}
           isOpen={active}
+          initialData={partialData[formIndex]}
+          onUpdatePartialData={onUpdatePartialData ?
+            (data) => onUpdatePartialData(formIndex, data) :
+            undefined}
         />
       ))}
 

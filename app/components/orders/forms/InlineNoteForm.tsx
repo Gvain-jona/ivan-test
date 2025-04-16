@@ -1,13 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { OrderNoteFormValues, orderNoteSchema } from '@/schemas/order-schema';
 import { OrderNote, NoteType } from '@/types/orders';
-import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { X, Info, AlertTriangle, UserRound, FileText } from 'lucide-react';
 import {
   Form,
@@ -29,37 +28,66 @@ interface InlineNoteFormProps {
   onAddNote: (note: OrderNote) => void;
   onRemoveForm: (index: number) => void;
   formIndex: number;
+  // New props for form state persistence
+  initialData?: Partial<OrderNoteFormValues>;
+  onUpdatePartialData?: (data: Partial<OrderNoteFormValues>) => void;
 }
 
 export function InlineNoteForm({
   onAddNote,
   onRemoveForm,
   formIndex,
+  initialData,
+  onUpdatePartialData,
 }: InlineNoteFormProps) {
+  // Load initial data from props or use defaults
+  const getInitialValues = () => {
+    if (initialData) {
+      return {
+        type: initialData.type || 'info',
+        text: initialData.text || '',
+      };
+    }
+
+    // Default values
+    return {
+      type: 'info' as NoteType,
+      text: '',
+    };
+  };
+
   const form = useForm<OrderNoteFormValues>({
     mode: 'onChange',
     resolver: zodResolver(orderNoteSchema),
-    defaultValues: {
-      type: 'info',
-      text: '',
-    },
+    defaultValues: getInitialValues(),
   });
 
 
-  const [savedNoteId, setSavedNoteId] = useState<string | null>(null);
-  const noteType = form.watch('type');
-  const noteText = form.watch('text');
+  // Generate a unique ID for this note if it doesn't have one yet
+  const [noteId] = useState(() => initialData?.id || `note-${Date.now()}-${formIndex}`);
+  
+  // Refs to track form state and prevent issues
+  const hasValidData = useRef(false);
+  const isAutoSaving = useRef(false);
+  const lastAutoSaveAttempt = useRef<number>(0);
 
-  // Create a save function
-  const saveNote = useCallback((formData: OrderNoteFormValues) => {
-    // Only save if we have the minimum required fields
-    if (
+  // Watch all form values to persist partial data when switching tabs
+  const formValues = form.watch();
+  
+  // Function to check if all required fields are filled
+  const checkFormCompleteness = useCallback(() => {
+    const formData = form.getValues();
+    return (
       formData.type &&
       formData.text &&
       formData.text.trim().length > 0
-    ) {
-      const noteId = savedNoteId || `note-${Date.now()}-${formIndex}`;
+    );
+  }, [form]);
 
+  // Function to save the note
+  const saveNote = useCallback((formData: OrderNoteFormValues) => {
+    // Only create/update the note if we have valid data
+    if (checkFormCompleteness()) {
       const newNote: OrderNote = {
         id: noteId,
         ...formData,
@@ -70,27 +98,97 @@ export function InlineNoteForm({
         updated_at: new Date().toISOString(),
       };
 
-      // If we haven't saved a note yet, store the ID
-      if (!savedNoteId) {
-        setSavedNoteId(noteId);
-      }
-
+      // Send the note to the parent component
       onAddNote(newNote);
+      hasValidData.current = true;
+      return true;
     }
-  }, [onAddNote, savedNoteId, formIndex, setSavedNoteId]);
+    return false;
+  }, [noteId, onAddNote, checkFormCompleteness]);
 
-  const debouncedSave = useDebouncedCallback(saveNote, 800); // 800ms debounce time
+  // Auto-save handler
+  const handleAutoSave = useCallback(() => {
+    // Don't auto-save if we're already in the process of saving
+    if (isAutoSaving.current) return;
+    
+    // Throttle auto-save attempts (no more than once every 2 seconds)
+    const now = Date.now();
+    if (now - lastAutoSaveAttempt.current < 2000) return;
+    lastAutoSaveAttempt.current = now;
+    
+    const formData = form.getValues();
 
-  // Watch for form changes and trigger the debounced save
+    // Only auto-save if all required fields are filled
+    if (checkFormCompleteness()) {
+      // Set flag to prevent duplicate auto-saves
+      isAutoSaving.current = true;
+      console.log('Auto-saving note with valid data:', formData);
+      saveNote(formData);
+      
+      // Reset auto-save flag after a delay
+      setTimeout(() => {
+        isAutoSaving.current = false;
+      }, 1000);
+    }
+  }, [form, saveNote, checkFormCompleteness]);
+  
+  // Update partial data whenever form values change
   useEffect(() => {
-    if (noteType || (noteText && noteText.trim().length > 0)) {
-      const formData = form.getValues();
-      debouncedSave(formData);
+    if (onUpdatePartialData) {
+      // Save current form state to parent component regardless of visibility
+      // This ensures data is always persisted even when tab is not active
+      onUpdatePartialData(formValues);
     }
-  }, [noteType, noteText, form, debouncedSave]);
+  }, [formValues, onUpdatePartialData]);
+  
+  // When the form becomes visible again, ensure we have the latest data
+  useEffect(() => {
+    if (initialData) {
+      // Update form with any saved data when tab becomes active
+      Object.entries(initialData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          form.setValue(key as any, value);
+        }
+      });
+    }
+  }, [initialData, form]);
+  
+  // Watch form values for auto-save
+  useEffect(() => {
+    // Only attempt auto-save if form is complete
+    if (checkFormCompleteness()) {
+      // Debounce the auto-save to prevent too many saves while typing
+      const timer = setTimeout(() => {
+        handleAutoSave();
+      }, 1500); // Wait 1.5 seconds after last change before auto-saving
+      
+      return () => clearTimeout(timer);
+    }
+  }, [formValues, handleAutoSave, checkFormCompleteness]);
+  
+  // Manual save handler - called when Save button is clicked
+  const handleManualSave = useCallback(() => {
+    const formData = form.getValues();
+    saveNote(formData);
+  }, [form, saveNote]);
+
+  // Add a button to manually save the note
+  const saveButton = (
+    <Button
+      type="button"
+      variant="default"
+      size="sm"
+      className="bg-primary hover:bg-primary/90"
+      onClick={handleManualSave}
+    >
+      Save Note
+    </Button>
+  );
 
   // Handle removing this form
   const handleRemoveForm = () => {
+    // Clear form errors when removing
+    form.clearErrors();
     onRemoveForm(formIndex);
   };
 
@@ -162,6 +260,18 @@ export function InlineNoteForm({
             )}
           />
 
+          <div className="mt-6 p-4 bg-muted/20 rounded-md border border-border/30">
+            <div className="flex justify-between items-center">
+              <div>
+                {checkFormCompleteness() && (
+                  <span className="text-xs text-muted-foreground italic">
+                    Auto-saving enabled
+                  </span>
+                )}
+              </div>
+              {saveButton}
+            </div>
+          </div>
         </div>
       </Form>
     </div>

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { clearAllOrderFormData } from '@/utils/form-storage';
 import { Button } from '@/components/ui/button';
 import { Order, OrderPayment, ClientType } from '@/types/orders';
-import { Ban, Save, FileText, Box, CreditCard, StickyNote, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Ban, Save, FileText, Box, CreditCard, StickyNote, AlertCircle, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useModalState } from '@/hooks/ui/useModalState';
 import { useOrderForm } from '@/hooks/orders/useOrderForm';
@@ -15,6 +15,18 @@ import { orderSchema } from '@/schemas/order-schema';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ComboboxOption } from '@/components/ui/combobox';
 import ValidationSummary from '@/components/ui/form/ValidationSummary';
+import useSWR from 'swr';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+// Simple fetcher for SWR
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 // Import sub-components
 import OrderGeneralInfoForm from './OrderFormModal/OrderGeneralInfoForm';
@@ -45,30 +57,45 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Mock data for clients, categories, and items
-  // In a real app, these would come from API calls or props
-  const mockClients = useMemo<ComboboxOption[]>(() => [
-    { value: 'client1', label: 'Acme Corp' },
-    { value: 'client2', label: 'TechStart Inc' },
-    { value: 'client3', label: 'Local Restaurant' },
-  ], []);
-
-  const mockCategories = useMemo<ComboboxOption[]>(() => [
-    { value: 'cat1', label: 'Printing' },
-    { value: 'cat2', label: 'Design' },
-    { value: 'cat3', label: 'Marketing' },
-  ], []);
-
-  const mockItems = useMemo<(ComboboxOption & { categoryId?: string })[]>(() => [
-    { value: 'item1', label: 'Business Cards', categoryId: 'cat1' },
-    { value: 'item2', label: 'Flyers', categoryId: 'cat1' },
-    { value: 'item3', label: 'Logo Design', categoryId: 'cat2' },
-    { value: 'item4', label: 'Website Design', categoryId: 'cat2' },
-    { value: 'item5', label: 'Social Media Campaign', categoryId: 'cat3' },
-  ], []);
+  // Fetch data from API or context with SWR cache configuration to prevent excessive requests
+  const { data: clientsData = [], isLoading: isClientsLoading } = useSWR<ComboboxOption[]>(
+    '/api/clients', 
+    fetcher,
+    { 
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // 1 minute
+      focusThrottleInterval: 60000 // 1 minute
+    }
+  );
+  
+  const { data: categoriesData = [], isLoading: isCategoriesLoading } = useSWR<ComboboxOption[]>(
+    '/api/categories', 
+    fetcher,
+    { 
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+      focusThrottleInterval: 60000
+    }
+  );
+  
+  const { data: itemsData = [], isLoading: isItemsLoading } = useSWR<(ComboboxOption & { categoryId?: string })[]>(
+    '/api/items', 
+    fetcher,
+    { 
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+      focusThrottleInterval: 60000
+    }
+  );
+  
+  // Use memoized data to prevent unnecessary re-renders
+  const clients = useMemo<ComboboxOption[]>(() => clientsData, [clientsData]);
+  const categories = useMemo<ComboboxOption[]>(() => categoriesData, [categoriesData]);
+  const items = useMemo<(ComboboxOption & { categoryId?: string })[]>(() => itemsData, [itemsData]);
 
   // Use our custom hooks for modal and form state
   const deleteDialog = useModalState();
+  const confirmDialog = useModalState();
   const { order, updateOrderField, updateOrderFields, recalculateOrder, resetOrder, isDirty } = useOrderForm({
     initialOrder
   });
@@ -90,17 +117,37 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
   const isMountedRef = useRef(true);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track form state for each tab to prevent data loss when switching tabs
-  const [formState, setFormState] = useState({
-    itemForms: [] as number[],
-    paymentForms: [] as number[],
-    noteForms: [] as number[],
-    formIdCounters: {
-      items: 1,
-      payments: 1,
-      notes: 1
-    }
+  // Enhanced form state management for all tabs
+  // Using separate state objects for different parts of the form state to prevent maximum depth issues
+  const [formIds, setFormIds] = useState({
+    itemForms: [0], // Start with one form
+    noteForms: [0], // Start with one form
+    paymentForms: [0] // Start with one form
   });
+  
+  const [formIdCounters, setFormIdCounters] = useState({
+    items: 1,
+    payments: 1,
+    notes: 1
+  });
+  
+  // Use useRef for partial data to prevent excessive re-renders
+  // This is especially important for complex nested objects
+  const partialDataRef = useRef({
+    items: {}, // Keyed by formIndex
+    payments: {},
+    notes: {}
+  });
+  
+  // Create a memoized formState object that combines the separate state pieces
+  // This prevents the need to update multiple components when only one part changes
+  const formState = useMemo(() => ({
+    itemForms: formIds.itemForms,
+    noteForms: formIds.noteForms,
+    paymentForms: formIds.paymentForms,
+    formIdCounters,
+    partialData: partialDataRef.current
+  }), [formIds, formIdCounters]);
 
   // Clear any pending timeouts when component unmounts
   useEffect(() => {
@@ -116,50 +163,10 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
   // Initialize form state based on existing order data
   useEffect(() => {
     if (open) {
-      // Initialize with empty forms if no data exists
-      if ((order.items?.length || 0) === 0 && formState.itemForms.length === 0) {
-        // Use a unique ID for the form to prevent duplicates
-        const uniqueFormId = Date.now();
-        setFormState(prev => ({
-          ...prev,
-          itemForms: [uniqueFormId],
-          formIdCounters: {
-            ...prev.formIdCounters,
-            items: uniqueFormId + 1
-          }
-        }));
-      }
-
-      if ((order.payments?.length || 0) === 0 && formState.paymentForms.length === 0) {
-        // Use a unique ID for the form to prevent duplicates
-        const uniqueFormId = Date.now() + 1;
-        setFormState(prev => ({
-          ...prev,
-          paymentForms: [uniqueFormId],
-          formIdCounters: {
-            ...prev.formIdCounters,
-            payments: uniqueFormId + 1
-          }
-        }));
-      }
-
-      if ((order.notes?.length || 0) === 0 && formState.noteForms.length === 0) {
-        // Use a unique ID for the form to prevent duplicates
-        const uniqueFormId = Date.now() + 2;
-        setFormState(prev => ({
-          ...prev,
-          noteForms: [uniqueFormId],
-          formIdCounters: {
-            ...prev.formIdCounters,
-            notes: uniqueFormId + 1
-          }
-        }));
-      }
-
       // Ensure calculations are up-to-date when the form opens
       recalculateOrder();
     }
-  }, [open, order.items?.length, order.payments?.length, order.notes?.length, formState.itemForms.length, formState.paymentForms.length, formState.noteForms.length, recalculateOrder]);
+  }, [open, recalculateOrder]);
 
   // Safe state update functions that check if component is still mounted
   const safeSetFormStatus = useCallback((status: 'idle' | 'validating' | 'saving' | 'success' | 'error') => {
@@ -180,80 +187,10 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
     }
   }, []);
 
-  // Functions to manage form state for each tab
-  const addItemForm = useCallback(() => {
-    setFormState(prev => {
-      const newFormId = prev.formIdCounters.items;
-      return {
-        ...prev,
-        itemForms: [...prev.itemForms, newFormId],
-        formIdCounters: {
-          ...prev.formIdCounters,
-          items: newFormId + 1
-        }
-      };
-    });
-  }, []);
-
-  const removeItemForm = useCallback((formId: number) => {
-    setFormState(prev => ({
-      ...prev,
-      itemForms: prev.itemForms.filter(id => id !== formId)
-    }));
-    // Clean up localStorage
-    localStorage.removeItem(`item-form-${formId}`);
-  }, []);
-
-  const addPaymentForm = useCallback(() => {
-    setFormState(prev => {
-      const newFormId = prev.formIdCounters.payments;
-      return {
-        ...prev,
-        paymentForms: [...prev.paymentForms, newFormId],
-        formIdCounters: {
-          ...prev.formIdCounters,
-          payments: newFormId + 1
-        }
-      };
-    });
-  }, []);
-
-  const removePaymentForm = useCallback((formId: number) => {
-    setFormState(prev => ({
-      ...prev,
-      paymentForms: prev.paymentForms.filter(id => id !== formId)
-    }));
-    // Clean up localStorage
-    localStorage.removeItem(`payment-form-${formId}`);
-  }, []);
-
-  const addNoteForm = useCallback(() => {
-    setFormState(prev => {
-      const newFormId = prev.formIdCounters.notes;
-      return {
-        ...prev,
-        noteForms: [...prev.noteForms, newFormId],
-        formIdCounters: {
-          ...prev.formIdCounters,
-          notes: newFormId + 1
-        }
-      };
-    });
-  }, []);
-
-  const removeNoteForm = useCallback((formId: number) => {
-    setFormState(prev => ({
-      ...prev,
-      noteForms: prev.noteForms.filter(id => id !== formId)
-    }));
-    // Clean up localStorage
-    localStorage.removeItem(`note-form-${formId}`);
-  }, []);
+  // Simplified form state management - no longer needed
 
   const safeSetActiveTab = useCallback((tab: string) => {
-    if (isMountedRef.current) {
-      // Store the current tab's form data in localStorage before switching
-      // This ensures data is preserved when switching back
+    if (isMountedRef.current && tab !== activeTab) { // Only update if tab is different
       console.log('Switching from tab', activeTab, 'to', tab);
 
       // Set the new active tab
@@ -265,13 +202,10 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
         recalculateOrder();
       }
 
-      // When switching to the notes tab, ensure we have at least one empty form
-      if (tab === 'notes' && formState.noteForms.length === 0 && (order.notes?.length || 0) === 0) {
-        console.log('Adding empty note form when switching to notes tab');
-        addNoteForm();
-      }
+      // We don't reset any form state when switching tabs
+      // This ensures that user data is preserved across tab switches
     }
-  }, [activeTab, recalculateOrder, formState.noteForms.length, order.notes?.length, addNoteForm]);
+  }, [activeTab, recalculateOrder, isMountedRef]);
 
 
 
@@ -601,54 +535,30 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
     setItemToDelete(null);
   };
 
+  // Handle sheet close with unsaved changes
+  const handleSheetClose = useCallback((isOpen: boolean) => {
+    if (!isOpen && isDirty) {
+      // Show a custom confirmation dialog instead of browser alert
+      confirmDialog.setOpen(true);
+    } else if (!isOpen) {
+      // If not dirty, just close the sheet
+      onOpenChange(false);
+    } else {
+      // If opening the sheet, just pass through
+      onOpenChange(true);
+    }
+  }, [isDirty, onOpenChange, confirmDialog]);
+
   const openDeleteDialog = (id: string, index: number, name: string, type: DeletionType) => {
     setItemToDelete({ id, index, name, type });
-    deleteDialog.open();
+    deleteDialog.setOpen(true);
   };
 
   return (
     <>
       <OrderSheet
         open={open}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            try {
-              // Ask for confirmation if the form has unsaved changes
-              // Use the isDirty function from the hook to check if there are actual changes
-              if (isDirty()) {
-                const confirmClose = window.confirm('You have unsaved changes. Are you sure you want to close this form?');
-                if (!confirmClose) {
-                  return;
-                }
-
-                // Clear all form data from localStorage only when explicitly closing
-                clearAllOrderFormData();
-
-                // Reset form state
-                setFormState({
-                  itemForms: [],
-                  paymentForms: [],
-                  noteForms: [],
-                  formIdCounters: {
-                    items: 1,
-                    payments: 1,
-                    notes: 1
-                  }
-                });
-              }
-
-              // Reset form state if component is still mounted
-              if (isMountedRef.current) {
-                safeSetValidationErrors({});
-                safeSetFormStatus('idle');
-                resetOrder();
-              }
-            } catch (error) {
-              console.error('Error during form close:', error);
-            }
-          }
-          onOpenChange(isOpen);
-        }}
+        onOpenChange={handleSheetClose}
         title={title}
         size="lg"
         showCloseButton={false} // Remove the close button in the header
@@ -721,7 +631,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 order={order}
                 updateOrderField={updateOrderField}
                 isEditing={isEditing}
-                clients={mockClients}
+                clients={clients}
                 errors={validationErrors}
               />
             </TabsContent>
@@ -733,12 +643,41 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 updateOrderFields={updateOrderFields}
                 openDeleteDialog={openDeleteDialog}
                 recalculateOrder={recalculateOrder}
-                categories={mockCategories}
-                items={mockItems}
+                categories={categories}
+                items={items}
                 errors={validationErrors}
-                emptyForms={formState.itemForms}
-                onAddForm={addItemForm}
-                onRemoveForm={removeItemForm}
+                formState={formState.itemForms}
+                partialData={formState.partialData.items}
+                onAddForm={() => {
+                  // Update form IDs separately to prevent maximum depth issues
+                  const counter = formIdCounters.items;
+                  setFormIds(prev => ({
+                    ...prev,
+                    itemForms: [...prev.itemForms, counter]
+                  }));
+                  
+                  // Update counter separately
+                  setFormIdCounters(prev => ({
+                    ...prev,
+                    items: prev.items + 1
+                  }));
+                }}
+                onRemoveForm={(index) => {
+                  // Update form IDs separately
+                  setFormIds(prev => ({
+                    ...prev,
+                    itemForms: prev.itemForms.filter(formId => formId !== index)
+                  }));
+                  
+                  // Update partial data using ref to prevent re-renders
+                  if (partialDataRef.current.items[index]) {
+                    delete partialDataRef.current.items[index];
+                  }
+                }}
+                onUpdatePartialData={(index, data) => {
+                  // Update partial data directly in the ref to prevent re-renders
+                  partialDataRef.current.items[index] = data;
+                }}
               />
             </TabsContent>
 
@@ -751,9 +690,38 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 recalculateOrder={recalculateOrder}
                 toast={toast}
                 errors={validationErrors}
-                emptyForms={formState.paymentForms}
-                onAddForm={addPaymentForm}
-                onRemoveForm={removePaymentForm}
+                formState={formState.paymentForms}
+                partialData={formState.partialData.payments}
+                onAddForm={() => {
+                  // Update form IDs separately to prevent maximum depth issues
+                  const counter = formIdCounters.payments;
+                  setFormIds(prev => ({
+                    ...prev,
+                    paymentForms: [...prev.paymentForms, counter]
+                  }));
+                  
+                  // Update counter separately
+                  setFormIdCounters(prev => ({
+                    ...prev,
+                    payments: prev.payments + 1
+                  }));
+                }}
+                onRemoveForm={(index) => {
+                  // Update form IDs separately
+                  setFormIds(prev => ({
+                    ...prev,
+                    paymentForms: prev.paymentForms.filter(formId => formId !== index)
+                  }));
+                  
+                  // Update partial data using ref to prevent re-renders
+                  if (partialDataRef.current.payments[index]) {
+                    delete partialDataRef.current.payments[index];
+                  }
+                }}
+                onUpdatePartialData={(index, data) => {
+                  // Update partial data directly in the ref to prevent re-renders
+                  partialDataRef.current.payments[index] = data;
+                }}
               />
             </TabsContent>
 
@@ -764,9 +732,38 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 updateOrderFields={updateOrderFields}
                 openDeleteDialog={openDeleteDialog}
                 errors={validationErrors}
-                emptyForms={formState.noteForms}
-                onAddForm={addNoteForm}
-                onRemoveForm={removeNoteForm}
+                formState={formState.noteForms}
+                partialData={formState.partialData.notes}
+                onAddForm={() => {
+                  // Update form IDs separately to prevent maximum depth issues
+                  const counter = formIdCounters.notes;
+                  setFormIds(prev => ({
+                    ...prev,
+                    noteForms: [...prev.noteForms, counter]
+                  }));
+                  
+                  // Update counter separately
+                  setFormIdCounters(prev => ({
+                    ...prev,
+                    notes: prev.notes + 1
+                  }));
+                }}
+                onRemoveForm={(index) => {
+                  // Update form IDs separately
+                  setFormIds(prev => ({
+                    ...prev,
+                    noteForms: prev.noteForms.filter(formId => formId !== index)
+                  }));
+                  
+                  // Update partial data using ref to prevent re-renders
+                  if (partialDataRef.current.notes[index]) {
+                    delete partialDataRef.current.notes[index];
+                  }
+                }}
+                onUpdatePartialData={(index, data) => {
+                  // Update partial data directly in the ref to prevent re-renders
+                  partialDataRef.current.notes[index] = data;
+                }}
               />
             </TabsContent>
           </Tabs>
@@ -782,17 +779,25 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                   // Clear form data from localStorage
                   clearAllOrderFormData();
 
-                  // Reset form state
-                  setFormState({
-                    itemForms: [],
-                    paymentForms: [],
-                    noteForms: [],
-                    formIdCounters: {
-                      items: 1,
-                      payments: 1,
-                      notes: 1
-                    }
+                  // Reset form state - split into separate updates to prevent maximum depth issues
+                  setFormIds({
+                    itemForms: [0],
+                    noteForms: [0],
+                    paymentForms: [0]
                   });
+                  
+                  setFormIdCounters({
+                    items: 1,
+                    payments: 1,
+                    notes: 1
+                  });
+                  
+                  // Reset partial data ref
+                  partialDataRef.current = {
+                    items: {},
+                    payments: {},
+                    notes: {}
+                  };
 
                   if (isEditing) {
                     // Close the form
@@ -861,6 +866,39 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
           approvalNote="This action cannot be undone."
         />
       )}
+      
+      {/* Unsaved Changes Confirmation Dialog */}
+      <Dialog open={confirmDialog.isOpen} onOpenChange={confirmDialog.setOpen}>
+        <DialogContent className="sm:max-w-md bg-card border border-border/40 text-foreground">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Unsaved Changes
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              You have unsaved changes that will be lost if you close this form.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-between mt-4">
+            <Button
+              variant="outline"
+              className="border-border/40 bg-transparent hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+              onClick={() => confirmDialog.setOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                confirmDialog.setOpen(false);
+                onOpenChange(false);
+              }}
+            >
+              Discard Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

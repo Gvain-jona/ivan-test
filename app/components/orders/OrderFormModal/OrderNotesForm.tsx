@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Order, OrderNote, NoteType } from '@/types/orders';
 import { Plus, Trash2 } from 'lucide-react';
@@ -11,6 +11,12 @@ interface OrderNotesFormProps {
   updateOrderFields: (fields: Partial<Order>) => void;
   openDeleteDialog: (id: string, index: number, name: string, type: DeletionType) => void;
   errors?: Record<string, string[]>;
+  // New props for form state management
+  formState?: number[];
+  partialData?: Record<number, any>;
+  onAddForm?: () => void;
+  onRemoveForm?: (index: number) => void;
+  onUpdatePartialData?: (index: number, data: any) => void;
 }
 
 /**
@@ -22,18 +28,41 @@ const OrderNotesForm: React.FC<OrderNotesFormProps> = ({
   updateOrderFields,
   openDeleteDialog,
   errors = {},
+  // New props with defaults
+  formState = [0],
+  partialData = {},
+  onAddForm,
+  onRemoveForm,
+  onUpdatePartialData,
 }) => {
-  const [noteForms, setNoteForms] = useState([0]); // Start with one form
-  const [formIdCounter, setFormIdCounter] = useState(1); // Counter for generating unique form IDs
+  // Use provided form state or local state as fallback
+  const [localNoteForms, setLocalNoteForms] = useState([0]); // Local fallback
+  const [localFormIdCounter, setLocalFormIdCounter] = useState(1); // Local fallback
+
+  // Use either provided form state or local state
+  const noteForms = formState || localNoteForms;
+
+  // We've removed the useEffect that syncs local state with provided form state
+  // to prevent infinite update loops
   // Add another note form
   const handleAddNote = () => {
-    setNoteForms([...noteForms, formIdCounter]);
-    setFormIdCounter(formIdCounter + 1);
+    if (onAddForm) {
+      onAddForm();
+    } else {
+      // Fallback to local state
+      setLocalNoteForms([...localNoteForms, localFormIdCounter]);
+      setLocalFormIdCounter(localFormIdCounter + 1);
+    }
   };
 
   // Remove a form
   const handleRemoveForm = (index: number) => {
-    setNoteForms(noteForms.filter(formId => formId !== index));
+    if (onRemoveForm) {
+      onRemoveForm(index);
+    } else {
+      // Fallback to local state
+      setLocalNoteForms(localNoteForms.filter(formId => formId !== index));
+    }
   };
 
   // Handle adding a new note from the form
@@ -79,6 +108,10 @@ const OrderNotesForm: React.FC<OrderNotesFormProps> = ({
           onAddNote={handleAddNoteFromForm}
           onRemoveForm={handleRemoveForm}
           formIndex={formIndex}
+          initialData={partialData[formIndex]}
+          onUpdatePartialData={onUpdatePartialData ?
+            (data) => onUpdatePartialData(formIndex, data) :
+            undefined}
         />
       ))}
 

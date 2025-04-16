@@ -11,10 +11,16 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { formatCurrency, formatNumber } from '../../../lib/utils';
-import { METRICS_DATA } from '../_data/metrics-data';
+// Define the metrics data interface
+interface MetricsData {
+  totalOrders: number;
+  revenue: number;
+  activeClients: number;
+  pendingOrders: number;
+}
 
 interface OrderMetricsCardsProps {
-  stats?: typeof METRICS_DATA;
+  stats?: MetricsData;
   isLoading?: boolean;
   onFilterByStatus?: (status?: string[]) => void;
 }
@@ -23,7 +29,12 @@ interface OrderMetricsCardsProps {
  * Grid of metric cards displaying order statistics
  */
 const OrderMetricsCards: React.FC<OrderMetricsCardsProps> = ({
-  stats = METRICS_DATA,
+  stats = {
+    totalOrders: 0,
+    revenue: 0,
+    activeClients: 0,
+    pendingOrders: 0
+  },
   isLoading = false,
   onFilterByStatus
 }) => {

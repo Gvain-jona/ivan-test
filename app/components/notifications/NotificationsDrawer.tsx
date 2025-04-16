@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 
 import { NotificationStatus } from '@/types/notifications';
+import { useOnceEffect } from '@/lib/useOnceEffect';
 
 export function NotificationsDrawer() {
   const {
@@ -53,13 +54,15 @@ export function NotificationsDrawer() {
     });
   };
 
-  // Refresh notifications when drawer is opened
-  useEffect(() => {
-    if (isDrawerOpen) {
+  // Refresh notifications when drawer is opened - using useOnceEffect to prevent infinite loops
+  useOnceEffect(
+    () => {
       console.log('Drawer opened, refreshing notifications');
       fetchNotifications();
-    }
-  }, [isDrawerOpen, fetchNotifications]);
+    },
+    isDrawerOpen,
+    [fetchNotifications]
+  );
 
   return (
     <SideDrawer

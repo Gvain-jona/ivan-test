@@ -45,13 +45,12 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>((
             <InvoiceTemplatePreview order={order} settings={settings} />
           </A4PreviewContainer>
 
-          {/* Loading indicator when generating PDF - Overlay on the preview */}
+          {/* Loading indicator when generating PDF */}
           {isGenerating && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-md z-10">
-              <div className="bg-white p-4 rounded-lg shadow-lg text-center max-w-xs w-full">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-orange-500" />
-                <p className="font-medium text-gray-800">Generating PDF...</p>
-                <p className="text-sm text-gray-600 mt-1">This may take a few seconds</p>
+            <div className="mt-4 flex justify-center">
+              <div className="flex items-center gap-2 bg-orange-500/10 text-orange-500 px-4 py-2 rounded-md">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating PDF...</span>
               </div>
             </div>
           )}

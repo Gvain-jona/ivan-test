@@ -231,7 +231,12 @@ const InvoiceTemplatePreview: React.FC<InvoiceTemplatePreviewProps> = ({
                         </div>
                       </div>
                     ))}
-                    {/* Space for additional bank details */}
+                    {/* Space for 2 more bank details */}
+                    {settings.bankDetails.length < 3 && (
+                      <div className="text-gray-400 text-xs italic">
+                        {settings.bankDetails.length === 0 ? "" : "Additional bank details can be added here"}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -253,7 +258,12 @@ const InvoiceTemplatePreview: React.FC<InvoiceTemplatePreviewProps> = ({
                         </div>
                       </div>
                     ))}
-                    {/* Space for additional mobile money details */}
+                    {/* Space for 2 more mobile money details */}
+                    {settings.mobileMoneyDetails.length < 3 && (
+                      <div className="text-gray-400 text-xs italic">
+                        {settings.mobileMoneyDetails.length === 0 ? "" : "Additional mobile money details can be added here"}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : null}

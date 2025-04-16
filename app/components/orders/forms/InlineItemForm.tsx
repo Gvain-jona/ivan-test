@@ -1,18 +1,14 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Combobox, ComboboxOption } from '@/components/ui/combobox';
-import { SmartCombobox, SmartComboboxOption } from '@/components/ui/smart-combobox';
-import { useSmartDropdown } from '@/hooks/useSmartDropdown';
-import { useSmartSizes } from '@/hooks/useSmartSizes';
+import { GlobalSmartCombobox } from '@/components/ui/global-smart-combobox';
 import { OrderItemFormValues, orderItemSchema } from '@/schemas/order-schema';
 import { OrderItem } from '@/types/orders';
 import { formatCurrency } from '@/utils/formatting.utils';
-import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { X } from 'lucide-react';
 import {
   Form,
@@ -31,6 +27,9 @@ interface InlineItemFormProps {
   formIndex: number;
   sizes?: ComboboxOption[];
   isOpen?: boolean;
+  // New props for form state persistence
+  initialData?: Partial<OrderItemFormValues>;
+  onUpdatePartialData?: (data: Partial<OrderItemFormValues>) => void;
 }
 
 export function InlineItemForm({
@@ -41,10 +40,26 @@ export function InlineItemForm({
   formIndex,
   sizes = [], // We'll use the useSmartSizes hook instead
   isOpen = true,
+  initialData,
+  onUpdatePartialData,
 }: InlineItemFormProps) {
-  const form = useForm<OrderItemFormValues>({
-    resolver: zodResolver(orderItemSchema),
-    defaultValues: {
+  // Load initial data from props or use defaults
+  const getInitialValues = () => {
+    // Use initialData if provided
+    if (initialData) {
+      return {
+        category_id: initialData.category_id || '',
+        category_name: initialData.category_name || '',
+        item_id: initialData.item_id || '',
+        item_name: initialData.item_name || '',
+        size: initialData.size || '',
+        quantity: initialData.quantity || 1,
+        unit_price: initialData.unit_price || 0,
+      };
+    }
+
+    // Default values
+    return {
       category_id: '',
       category_name: '',
       item_id: '',
@@ -52,92 +67,25 @@ export function InlineItemForm({
       size: '',
       quantity: 1,
       unit_price: 0,
-    },
+    };
+  };
+
+  const form = useForm<OrderItemFormValues>({
+    resolver: zodResolver(orderItemSchema),
+    defaultValues: getInitialValues(),
   });
 
-  const [savedItemId, setSavedItemId] = useState<string | null>(null);
-  const selectedCategoryId = form.watch('category_id');
+  // Generate a unique ID for this item if it doesn't have one yet
+  const [itemId] = useState(() => initialData?.id || `item-${Date.now()}-${formIndex}`);
+  
+  // Refs to track form state and prevent issues
+  const hasValidData = useRef(false);
+  const isAutoSaving = useRef(false);
+  const lastAutoSaveAttempt = useRef<number>(0);
+
+  // Watch form values
   const quantity = form.watch('quantity');
   const unitPrice = form.watch('unit_price');
-  const categoryName = form.watch('category_name');
-  const itemName = form.watch('item_name');
-
-  // Use our smart dropdown hooks
-  const {
-    options: categoryOptions,
-    isLoading: categoriesLoading,
-    setSearchQuery: setCategorySearch,
-    createOption: createCategory,
-    refreshOptions: refreshCategories
-  } = useSmartDropdown({
-    entityType: 'categories',
-    // Don't use hardcoded initialOptions
-    initialOptions: [],
-  });
-
-  const {
-    options: itemOptions,
-    isLoading: itemsLoading,
-    setSearchQuery: setItemSearch,
-    createOption: createItem,
-    refreshOptions: refreshItems
-  } = useSmartDropdown({
-    entityType: 'items',
-    parentId: selectedCategoryId,
-    // Don't use hardcoded initialOptions
-    initialOptions: [],
-  });
-
-  // Use our smart sizes hook
-  const {
-    sizes: sizeOptions,
-    recentSizes,
-    isLoading: sizesLoading,
-    createSize,
-    refreshSizes
-  } = useSmartSizes();
-
-  // Update category name when category is selected
-  useEffect(() => {
-    if (selectedCategoryId) {
-      const category = categoryOptions.find(c => c.value === selectedCategoryId);
-      if (category) {
-        form.setValue('category_name', category.label);
-      }
-    }
-  }, [selectedCategoryId, categoryOptions, form]);
-
-  // Update item name when item is selected
-  const handleItemChange = (value: string) => {
-    form.setValue('item_id', value);
-    const selectedItem = itemOptions.find(item => item.value === value);
-    if (selectedItem) {
-      form.setValue('item_name', selectedItem.label);
-    }
-  };
-
-  // Handle creating a new category
-  const handleCreateCategory = async (value: string) => {
-    const newCategory = await createCategory(value);
-    if (newCategory) {
-      form.setValue('category_id', newCategory.value);
-      form.setValue('category_name', newCategory.label);
-      return newCategory;
-    }
-    return null;
-  };
-
-  // Handle creating a new item
-  const handleCreateItem = async (value: string) => {
-    // We no longer require a category to be selected first
-    const newItem = await createItem(value);
-    if (newItem) {
-      form.setValue('item_id', newItem.value);
-      form.setValue('item_name', newItem.label);
-      return newItem;
-    }
-    return null;
-  };
 
   // Calculate total amount when quantity or unit price changes
   useEffect(() => {
@@ -146,20 +94,29 @@ export function InlineItemForm({
     }
   }, [quantity, unitPrice, form]);
 
-  // Create a debounced save function
-  const saveItem = useCallback((formData: OrderItemFormValues) => {
-    // Only save if we have the minimum required fields
-    if (
+
+
+  // Watch all form values to persist partial data when switching tabs
+  const formValues = form.watch();
+  
+  // Function to check if all required fields are filled
+  const checkFormCompleteness = useCallback(() => {
+    const formData = form.getValues();
+    return (
       formData.category_name &&
       formData.item_name &&
       formData.quantity &&
       formData.quantity > 0 &&
       formData.unit_price !== undefined &&
       formData.unit_price >= 0 &&
-      formData.size // Size is now required
-    ) {
-      const itemId = savedItemId || `item-${Date.now()}-${formIndex}`;
+      formData.size
+    );
+  }, [form]);
 
+  // Function to save the item
+  const saveItem = useCallback((formData: OrderItemFormValues) => {
+    // Only create/update the item if we have valid data
+    if (checkFormCompleteness()) {
       const newItem: OrderItem = {
         id: itemId,
         order_id: '',
@@ -169,38 +126,97 @@ export function InlineItemForm({
         updated_at: new Date().toISOString(),
       };
 
-      // If we haven't saved an item yet, store the ID
-      if (!savedItemId) {
-        setSavedItemId(itemId);
-      }
-
+      // Send the item to the parent component
       onAddItem(newItem);
+      hasValidData.current = true;
+      return true;
     }
-  }, [onAddItem, savedItemId, formIndex, setSavedItemId]);
+    return false;
+  }, [itemId, onAddItem, checkFormCompleteness]);
 
-  const debouncedSave = useDebouncedCallback(saveItem, 800); // 800ms debounce time
+  // Auto-save handler
+  const handleAutoSave = useCallback(() => {
+    // Don't auto-save if we're already in the process of saving
+    if (isAutoSaving.current) return;
+    
+    // Throttle auto-save attempts (no more than once every 2 seconds)
+    const now = Date.now();
+    if (now - lastAutoSaveAttempt.current < 2000) return;
+    lastAutoSaveAttempt.current = now;
+    
+    const formData = form.getValues();
 
-  // Watch for form changes and trigger the debounced save
+    // Only auto-save if all required fields are filled
+    if (checkFormCompleteness()) {
+      // Set flag to prevent duplicate auto-saves
+      isAutoSaving.current = true;
+      console.log('Auto-saving item with valid data:', formData);
+      saveItem(formData);
+      
+      // Reset auto-save flag after a delay
+      setTimeout(() => {
+        isAutoSaving.current = false;
+      }, 1000);
+    }
+  }, [form, saveItem, checkFormCompleteness]);
+  
+  // Update partial data whenever form values change
   useEffect(() => {
-    if (categoryName || itemName || quantity || unitPrice || form.watch('size')) {
-      const formData = form.getValues();
-      debouncedSave(formData);
+    if (onUpdatePartialData) {
+      // Save current form state to parent component regardless of isOpen
+      // This ensures data is always persisted even when tab is not active
+      onUpdatePartialData(formValues);
     }
-  }, [categoryName, itemName, quantity, unitPrice, form, debouncedSave]);
-
-  // Refresh data when the form is opened
+  }, [formValues, onUpdatePartialData]);
+  
+  // When the form becomes visible again, ensure we have the latest data
   useEffect(() => {
-    if (isOpen) {
-      refreshCategories();
-      refreshSizes();
-      if (selectedCategoryId) {
-        refreshItems();
-      }
+    if (isOpen && initialData) {
+      // Update form with any saved data when tab becomes active
+      Object.entries(initialData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          form.setValue(key as any, value);
+        }
+      });
     }
-  }, [isOpen, refreshCategories, refreshItems, refreshSizes, selectedCategoryId]);
+  }, [isOpen, initialData, form]);
+  
+  // Watch form values for auto-save
+  useEffect(() => {
+    // Only attempt auto-save if the form is open/visible
+    if (isOpen && checkFormCompleteness()) {
+      // Debounce the auto-save to prevent too many saves while typing
+      const timer = setTimeout(() => {
+        handleAutoSave();
+      }, 1500); // Wait 1.5 seconds after last change before auto-saving
+      
+      return () => clearTimeout(timer);
+    }
+  }, [formValues, isOpen, handleAutoSave, checkFormCompleteness]);
+  
+  // Manual save handler - called when Save button is clicked
+  const handleManualSave = useCallback(() => {
+    const formData = form.getValues();
+    saveItem(formData);
+  }, [form, saveItem]);
+
+  // Add a button to manually save the item
+  const saveButton = (
+    <Button
+      type="button"
+      variant="default"
+      size="sm"
+      className="bg-primary hover:bg-primary/90"
+      onClick={handleManualSave}
+    >
+      Save Item
+    </Button>
+  );
 
   // Handle removing this form
   const handleRemoveForm = () => {
+    // Clear form errors when removing
+    form.clearErrors();
     onRemoveForm(formIndex);
   };
 
@@ -223,23 +239,12 @@ export function InlineItemForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
-              name="category_id"
+              name="category_name"
               render={({ field }) => (
                 <FormItem className="space-y-2">
                   <FormLabel className="text-sm font-medium">Category</FormLabel>
                   <FormControl>
-                    <SmartCombobox
-                      options={categoryOptions}
-                      value={field.value}
-                      onChange={field.onChange}
-                      onSearch={setCategorySearch}
-                      isLoading={categoriesLoading}
-                      placeholder="Select category"
-                      allowCreate={true}
-                      onCreateOption={handleCreateCategory}
-                      entityName="Category"
-                      emptyMessage="No categories found. Create one?"
-                    />
+                    <Input placeholder="Enter category name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -248,24 +253,12 @@ export function InlineItemForm({
 
             <FormField
               control={form.control}
-              name="item_id"
+              name="item_name"
               render={({ field }) => (
                 <FormItem className="space-y-2">
                   <FormLabel className="text-sm font-medium">Item</FormLabel>
                   <FormControl>
-                    <SmartCombobox
-                      options={itemOptions}
-                      value={field.value}
-                      onChange={handleItemChange}
-                      onSearch={setItemSearch}
-                      isLoading={itemsLoading}
-                      placeholder="Select item"
-                      disabled={false} // Always allow selection
-                      allowCreate={true} // Always allow creation
-                      onCreateOption={handleCreateItem}
-                      entityName="Item"
-                      emptyMessage="No items found. Create one?"
-                    />
+                    <Input placeholder="Enter item name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -281,25 +274,7 @@ export function InlineItemForm({
                 <FormItem className="space-y-2">
                   <FormLabel className="text-sm font-medium">Size</FormLabel>
                   <FormControl>
-                    <SmartCombobox
-                      options={sizeOptions}
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Select size"
-                      allowCreate={true}
-                      onCreateOption={async (value) => {
-                        const newSize = await createSize(value);
-                        if (newSize) {
-                          form.setValue('size', newSize.value);
-                          return newSize;
-                        }
-                        return null;
-                      }}
-                      entityName="Size"
-                      emptyMessage="Select a size or create a custom one"
-                      recentOptions={recentSizes}
-                      isLoading={sizesLoading}
-                    />
+                    <Input placeholder="Enter size" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -355,6 +330,14 @@ export function InlineItemForm({
                 <span className="text-lg font-semibold">
                   {formatCurrency(form.watch('quantity') * form.watch('unit_price') || 0)}
                 </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {checkFormCompleteness() && (
+                  <span className="text-xs text-muted-foreground italic">
+                    Auto-saving enabled
+                  </span>
+                )}
+                {saveButton}
               </div>
             </div>
           </div>

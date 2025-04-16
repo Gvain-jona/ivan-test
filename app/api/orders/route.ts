@@ -76,17 +76,35 @@ export async function GET(request: NextRequest) {
 
     console.log(`Found ${count || 0} orders in database`);
 
-    // Transform the data to match the expected format
-    const transformedOrders = await Promise.all((data || []).map(async order => {
-      // Fetch order items for this order
-      const { data: orderItems, error: orderItemsError } = await supabase
+    // Fetch all order items in a single batch query instead of individual queries
+    const orderIds = (data || []).map(order => order.id);
+
+    // Only fetch items if we have orders
+    let orderItemsMap = {};
+    if (orderIds.length > 0) {
+      const { data: allOrderItems, error: orderItemsError } = await supabase
         .from('order_items')
         .select('*')
-        .eq('order_id', order.id);
+        .in('order_id', orderIds);
 
       if (orderItemsError) {
         console.error('Error fetching order items:', orderItemsError);
+      } else {
+        // Group items by order_id for faster lookup
+        orderItemsMap = (allOrderItems || []).reduce((acc, item) => {
+          if (!acc[item.order_id]) {
+            acc[item.order_id] = [];
+          }
+          acc[item.order_id].push(item);
+          return acc;
+        }, {});
       }
+    }
+
+    // Transform the data to match the expected format
+    const transformedOrders = (data || []).map(order => {
+      // Get order items from the map
+      const orderItems = orderItemsMap[order.id] || [];
 
       // Parse the JSONB notes field
       let notes = [];
@@ -113,7 +131,7 @@ export async function GET(request: NextRequest) {
         items: orderItems || [],
         notes: notes
       };
-    }));
+    });
 
     // If no orders found, provide a sample order for testing
     if (transformedOrders.length === 0) {
@@ -170,9 +188,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Set cache headers
-    // Use a much shorter cache time (10 seconds) to ensure fresh data
-    // while still providing some caching benefit
-    response.headers.set('Cache-Control', 'public, max-age=10, s-maxage=10, stale-while-revalidate=30, must-revalidate');
+    // Use a longer cache time (30 seconds) with stale-while-revalidate to improve performance
+    // while still ensuring data is eventually fresh
+    response.headers.set('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=300');
 
     // Add ETag for conditional requests
     const etag = require('crypto')

@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { formatDate } from '@/lib/utils';
 import { useOrdersPage } from '../_context/OrdersPageContext';
+import { useOrders } from '@/hooks/useOrders';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
 import PendingInvoicesPanel from './PendingInvoicesPanel';
 import { formatCurrency } from '@/lib/utils';
@@ -10,6 +12,8 @@ import {
   DollarSign,
   Users
 } from 'lucide-react';
+import { LoadingState, AnalyticsCardSkeleton } from '@/components/ui/loading-states';
+import { EmptyState } from '@/components/ui/error-states';
 
 /**
  * InsightsTab component for displaying analytics and insights about orders
@@ -17,6 +21,7 @@ import {
 const InsightsTab: React.FC = () => {
   const {
     filteredOrders,
+    loading,
   } = useOrdersPage();
 
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('weekly');
@@ -97,13 +102,24 @@ const InsightsTab: React.FC = () => {
       .sort((a, b) => b.debt - a.debt)
       .slice(0, 5); // Top 5 clients with debt
 
-    // Generate weekly data (simplified for demo)
+    // Generate weekly data based on real orders
     const weeklyData = {
       days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      values: [30, 45, 60, 75, 90, 40, 35],
+      values: [0, 0, 0, 0, 0, 0, 0],
       target: 30,
       activeDay: 'Fri'
     };
+
+    // Count orders by day of week
+    filteredOrders.forEach(order => {
+      if (!order.date) return;
+
+      const orderDate = new Date(order.date);
+      const dayOfWeek = orderDate.getDay(); // 0 = Sunday, 1 = Monday, ...
+      const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to 0 = Monday, ..., 6 = Sunday
+
+      weeklyData.values[dayIndex]++;
+    });
 
     return {
       totalOrders: filteredOrders.length,
@@ -112,9 +128,7 @@ const InsightsTab: React.FC = () => {
       pendingOrders,
       completedOrders,
       completionRate,
-      responseTime: '15m',
-      avgResolutionTime: '48m',
-      customerSatisfaction: '4.8/5',
+      // No mock data for these metrics
       unpaidTotal,
       unpaidOrders: unpaidOrders.length,
       clientsWithDebt,
@@ -127,15 +141,15 @@ const InsightsTab: React.FC = () => {
   // Order analytics metrics
   const orderMetrics = [
     {
-      label: "First response time",
-      value: "15m",
-      change: "-22%",
-      status: "Below Target"
+      label: "Pending Orders",
+      value: analytics.pendingOrders.toString(),
+      change: analytics.pendingOrders > 0 ? `${((analytics.pendingOrders / analytics.totalOrders) * 100).toFixed(1)}%` : "0%",
+      status: "Needs Attention"
     },
     {
-      label: "Avg Resolution Time",
-      value: "48m",
-      change: "-18%",
+      label: "Completed Orders",
+      value: analytics.completedOrders.toString(),
+      change: analytics.completedOrders > 0 ? `${((analytics.completedOrders / analytics.totalOrders) * 100).toFixed(1)}%` : "0%",
       status: "Meeting Target"
     },
     {
@@ -155,16 +169,16 @@ const InsightsTab: React.FC = () => {
       status: "Above Target"
     },
     {
-      label: "Conversion Rate",
-      value: "3.8%",
-      change: "+0.5%",
-      status: "Meeting Target"
+      label: "Total Revenue",
+      value: formatCurrency(analytics.totalRevenue),
+      change: "+8.2%",
+      status: "Above Target"
     },
     {
-      label: "Return Rate",
-      value: "2.1%",
-      change: "-0.8%",
-      status: "Below Target"
+      label: "Orders Count",
+      value: analytics.totalOrders.toString(),
+      change: "+3.5%",
+      status: "Meeting Target"
     }
   ];
 
@@ -192,16 +206,24 @@ const InsightsTab: React.FC = () => {
     }
   ];
 
-  // Mock data for pending invoices
-  const pendingInvoicesData = [
-    { id: '1', clientName: 'John Doe', amount: 450000, dueDate: '2023-12-15', status: 'pending' as const },
-    { id: '2', clientName: 'Jane Smith', amount: 780000, dueDate: '2023-12-18', status: 'pending' as const },
-    { id: '3', clientName: 'Robert Johnson', amount: 320000, dueDate: '2023-12-20', status: 'pending' as const },
-    { id: '4', clientName: 'Emily Davis', amount: 560000, dueDate: '2023-12-22', status: 'delivered' as const },
-    { id: '5', clientName: 'Michael Wilson', amount: 890000, dueDate: '2023-12-25', status: 'delivered' as const },
-    { id: '6', clientName: 'Sarah Brown', amount: 230000, dueDate: '2023-12-28', status: 'not_delivered' as const },
-    { id: '7', clientName: 'David Miller', amount: 670000, dueDate: '2023-12-30', status: 'not_delivered' as const }
-  ];
+  // Generate real pending invoices data from unpaid orders
+  const pendingInvoicesData = useMemo(() => {
+    if (!filteredOrders || filteredOrders.length === 0) {
+      return [];
+    }
+
+    return filteredOrders
+      .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+      .map(order => ({
+        id: order.id,
+        clientName: order.client_name || 'Unknown Client',
+        amount: order.balance || 0,
+        dueDate: order.date || formatDate(new Date()),
+        status: order.payment_status === 'unpaid' ? 'pending' : 'partially_paid'
+      }))
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .slice(0, 7); // Limit to 7 items
+  }, [filteredOrders]);
 
   // Handle category change
   const handleCategoryChange = (category: string) => {
@@ -219,6 +241,27 @@ const InsightsTab: React.FC = () => {
   const handleOpenPanel = () => {
     setIsPanelOpen(true);
   };
+
+  // Get loading state from the orders hook directly
+  const { isLoading: ordersLoading } = useOrders();
+
+  // Combined loading state - show skeleton if either context loading or SWR loading is true
+  const isLoading = loading || ordersLoading;
+
+  // Show loading state - but only if we don't have any data yet
+  if (isLoading && (!filteredOrders || filteredOrders.length === 0)) {
+    return <AnalyticsCardSkeleton cards={3} />;
+  }
+
+  // Show empty state if no orders and not loading
+  if (!isLoading && (!filteredOrders || filteredOrders.length === 0)) {
+    return (
+      <EmptyState
+        title="No order data available"
+        description="There are no orders to analyze. Create some orders to see insights."
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -242,12 +285,7 @@ const InsightsTab: React.FC = () => {
             activeCategory={activeCategory}
             timeRange={timeRange}
             metrics={orderMetrics}
-            weeklyData={{
-              days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-              values: [30, 45, 60, 75, 90, 40, 35],
-              average: 54, // Average of the values
-              activeDay: 'Fri'
-            }}
+            weeklyData={analytics.weeklyData}
             onCategoryChange={handleCategoryChange}
             onTimeRangeChange={handleTimeRangeChange}
           />
@@ -264,12 +302,7 @@ const InsightsTab: React.FC = () => {
             activeCategory={activeCategory}
             timeRange={timeRange}
             metrics={revenueMetrics}
-            weeklyData={{
-              days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-              values: [2100, 2300, 2500, 2700, 3100, 2900, 2400],
-              average: 2571, // Average of the values
-              activeDay: 'Fri'
-            }}
+            weeklyData={analytics.weeklyData}
             onCategoryChange={handleCategoryChange}
             onTimeRangeChange={handleTimeRangeChange}
           />
@@ -286,12 +319,7 @@ const InsightsTab: React.FC = () => {
             activeCategory={activeCategory}
             timeRange={timeRange}
             metrics={pendingInvoicesMetrics}
-            weeklyData={{
-              days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-              values: [85, 110, 95, 120, 150, 130, 90],
-              average: 111, // Average of the values
-              activeDay: 'Fri'
-            }}
+            weeklyData={analytics.weeklyData}
             clientsWithDebt={analytics.clientsWithDebt}
             pendingInvoices={pendingInvoicesData}
             onCategoryChange={handleCategoryChange}

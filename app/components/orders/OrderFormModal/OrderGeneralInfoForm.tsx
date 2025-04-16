@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -9,11 +9,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatCurrency } from '@/utils/formatting.utils';
-import { Order, OrderStatus, ClientType, PaymentMethod } from '@/types/orders';
+import { Order, OrderStatus, ClientType } from '@/types/orders';
 import { FormSection } from '@/components/ui/form/FormSection';
-import { Combobox, ComboboxOption } from '@/components/ui/combobox';
-import { SmartCombobox } from '@/components/ui/smart-combobox';
-import { useSmartDropdown } from '@/hooks/useSmartDropdown';
+import { ComboboxOption } from '@/components/ui/combobox';
 import FieldError from '@/components/ui/form/FieldError';
 
 interface OrderGeneralInfoFormProps {
@@ -36,26 +34,7 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
   clients = [],
   errors = {},
 }) => {
-  // Use our smart dropdown hook for clients
-  const {
-    options: clientOptions,
-    isLoading: clientsLoading,
-    setSearchQuery: setClientSearch,
-    createOption: createClient
-  } = useSmartDropdown({
-    entityType: 'clients',
-    initialOptions: clients.map(c => ({ value: c.value, label: c.label })),
-  });
-
-  // Handle creating a new client
-  const handleCreateClient = async (value: string) => {
-    const newClient = await createClient(value);
-    if (newClient) {
-      updateOrderField('client_id', newClient.value);
-      return newClient;
-    }
-    return null;
-  };
+  // We're using a regular input for client name instead of a smart dropdown
   // Set default values for new orders
   React.useEffect(() => {
     if (!active) return;
@@ -107,24 +86,18 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="client" className="text-sm font-medium">
-                Client
-                {errors['client_id'] && <span className="text-destructive ml-1">*</span>}
+              <Label htmlFor="client_name" className="text-sm font-medium">
+                Client Name
+                {errors['client_name'] && <span className="text-destructive ml-1">*</span>}
               </Label>
-              <SmartCombobox
-                options={clientOptions}
-                value={order.client_id || ''}
-                onChange={(value) => updateOrderField('client_id', value)}
-                onSearch={setClientSearch}
-                isLoading={clientsLoading}
-                placeholder="Select client"
-                allowCreate={true}
-                onCreateOption={handleCreateClient}
-                entityName="Client"
-                className={errors['client_id'] ? 'border-destructive bg-background border-input' : 'bg-background border-input'}
-                emptyMessage="No clients found. Create one?"
+              <Input
+                id="client_name"
+                value={order.client_name || ''}
+                onChange={(e) => updateOrderField('client_name', e.target.value)}
+                placeholder="Enter client name"
+                className={errors['client_name'] ? 'border-destructive bg-background border-input h-10' : 'bg-background border-input h-10'}
               />
-              <FieldError errors={errors['client_id']} fieldName="client_id" />
+              <FieldError errors={errors['client_name']} fieldName="client_name" />
             </div>
           </div>
 

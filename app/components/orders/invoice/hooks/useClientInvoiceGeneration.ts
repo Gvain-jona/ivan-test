@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Order } from '@/types/orders';
 import { downloadInvoicePdf } from '../utils/clientPdfGenerator';
-import { PDF_QUALITY } from '../utils/constants';
+import { PDF_SCALE_FACTOR } from '../utils/constants';
 
 interface UseClientInvoiceGenerationProps {
   order: Order | null;
@@ -13,7 +13,7 @@ interface UseClientInvoiceGenerationReturn {
   progress: number;
   error: string | null;
   previewRef: React.RefObject<HTMLDivElement>;
-  generateAndDownloadPdf: (quality?: number) => Promise<void>;
+  generateAndDownloadPdf: () => Promise<void>;
 }
 
 /**
@@ -31,9 +31,8 @@ export default function useClientInvoiceGeneration({
 
   /**
    * Generates and downloads a PDF from the preview
-   * @param quality - The quality level for PDF generation (1 for digital, 2 for print)
    */
-  const generateAndDownloadPdf = useCallback(async (quality: number = PDF_QUALITY.PRINT): Promise<void> => {
+  const generateAndDownloadPdf = useCallback(async (): Promise<void> => {
     if (!order || !previewRef.current) {
       toast({
         title: "Error",
@@ -55,7 +54,7 @@ export default function useClientInvoiceGeneration({
       toast({
         id: toastId,
         title: "Generating PDF",
-        description: `Please wait while we prepare your invoice... This may take a few seconds at ${quality}x quality.`,
+        description: `Please wait while we prepare your invoice... This may take a few seconds at ${PDF_SCALE_FACTOR}x quality.`,
       });
 
       // Reset progress
@@ -79,8 +78,7 @@ export default function useClientInvoiceGeneration({
               description: "Your invoice will download shortly... The PDF will match exactly what you see in the preview.",
             });
           }
-        },
-        quality
+        }
       );
 
       // Update the same toast with success message

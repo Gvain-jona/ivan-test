@@ -33,6 +33,9 @@ interface InlinePaymentFormProps {
   formIndex: number;
   displayNumber?: number; // Add prop for display numbering
   existingPayment?: OrderPayment; // Add prop for existing payment
+  initialData?: Partial<OrderPaymentFormValues>; // Add prop for partial data from parent
+  onUpdatePartialData?: (index: number, data: Partial<OrderPaymentFormValues>) => void; // Add callback for updating partial data
+  isOpen?: boolean; // Add prop to track if the tab is active
 }
 
 export function InlinePaymentForm({
@@ -41,26 +44,28 @@ export function InlinePaymentForm({
   formIndex,
   displayNumber,
   existingPayment,
+  initialData,
+  onUpdatePartialData,
+  isOpen = true,
 }: InlinePaymentFormProps) {
-  // Try to load saved form data from localStorage or use existing payment
+  // Try to load saved form data from props, existing payment, or use defaults
   const loadSavedFormData = () => {
-    // If we have an existing payment, use that as the default values
+    // First priority: use initialData from parent component if available
+    if (initialData) {
+      return {
+        amount: initialData.amount ?? 0,
+        payment_date: initialData.payment_date || new Date().toISOString().split('T')[0],
+        payment_method: initialData.payment_method || 'cash',
+      };
+    }
+    
+    // Second priority: use existing payment if available
     if (existingPayment) {
       return {
         amount: existingPayment.amount || 0,
         payment_date: existingPayment.payment_date || new Date().toISOString().split('T')[0],
         payment_method: existingPayment.payment_method || 'cash',
       };
-    }
-
-    // Otherwise try to load from localStorage
-    try {
-      const savedData = localStorage.getItem(`payment-form-${formIndex}`);
-      if (savedData) {
-        return JSON.parse(savedData);
-      }
-    } catch (error) {
-      console.error('Error loading saved payment form data:', error);
     }
 
     // Default values if nothing is found
@@ -88,8 +93,24 @@ export function InlinePaymentForm({
   const paymentDate = form.watch('payment_date');
   const paymentMethod = form.watch('payment_method');
 
-  // Ref to track if we have valid data to prevent duplicate saves
+  // Refs to track form state and prevent issues
   const hasValidData = useRef(false);
+  const isAutoSaving = useRef(false);
+  const lastAutoSaveAttempt = useRef<number>(0);
+  
+  // Watch all form values to persist partial data when switching tabs
+  const formValues = form.watch();
+  
+  // Check if form has all required fields filled
+  const checkFormCompleteness = useCallback(() => {
+    const formData = form.getValues();
+    return (
+      formData.amount &&
+      formData.amount > 0 &&
+      formData.payment_date &&
+      formData.payment_method
+    );
+  }, [form]);
 
   // Create a save function
   const savePayment = useCallback((formData: OrderPaymentFormValues) => {
@@ -147,30 +168,32 @@ export function InlinePaymentForm({
     return false;
   }, [formIndex, onAddPayment, savedPaymentId, existingPayment]);
 
-  // Create a debounced version of the save function
-  const debouncedSave = useDebouncedCallback(savePayment, 500);
-
-  // Manual save handler
-  const handleManualSave = useCallback(() => {
+  // Auto-save handler - called when form values change
+  const handleAutoSave = useCallback(() => {
+    // Don't auto-save if we're already in the process of saving
+    if (isAutoSaving.current) return;
+    
+    // Throttle auto-save attempts (no more than once every 2 seconds)
+    const now = Date.now();
+    if (now - lastAutoSaveAttempt.current < 2000) return;
+    lastAutoSaveAttempt.current = now;
+    
     const formData = form.getValues();
 
     // Always store in localStorage to preserve data between section collapses
     localStorage.setItem(`payment-form-${formIndex}`, JSON.stringify(formData));
 
-    // Auto-save the payment when all required fields are filled
-    const hasRequiredFields =
-      formData.amount &&
-      formData.amount > 0 &&
-      formData.payment_date &&
-      formData.payment_method;
+    // Only auto-save if all required fields are filled
+    const hasRequiredFields = checkFormCompleteness();
 
     if (hasRequiredFields) {
-      // For new payments (no saved ID yet), only save once when all data is valid
-      // and only when the amount is substantial
-      if (!hasValidData.current && !savedPaymentId && formData.amount >= 100) {
+      // Set flag to prevent duplicate auto-saves
+      isAutoSaving.current = true;
+      
+      // For new payments (no saved ID yet), only auto-save when all data is valid
+      if (!hasValidData.current && !savedPaymentId) {
         console.log('Auto-saving new payment with valid data:', formData);
-        debouncedSave(formData);
-        hasValidData.current = true;
+        savePayment(formData);
       }
       // For existing payments, only save if there are actual changes
       else if (existingPayment && (
@@ -179,15 +202,54 @@ export function InlinePaymentForm({
         existingPayment.payment_method !== formData.payment_method
       )) {
         console.log('Auto-saving updated payment with valid data:', formData);
-        debouncedSave(formData);
+        savePayment(formData);
       }
+      
+      // Reset auto-save flag after a delay
+      setTimeout(() => {
+        isAutoSaving.current = false;
+      }, 1000);
     }
-  }, [form, formIndex, existingPayment, debouncedSave, savedPaymentId]);
+  }, [form, formIndex, existingPayment, savePayment, savedPaymentId, checkFormCompleteness]);
+  
+  // Update partial data whenever form values change
+  useEffect(() => {
+    if (onUpdatePartialData) {
+      // Save current form state to parent component regardless of visibility
+      // This ensures data is always persisted even when tab is not active
+      onUpdatePartialData(formIndex, formValues);
+    }
+  }, [formValues, onUpdatePartialData, formIndex]);
+  
+  // When the form becomes visible again, ensure we have the latest data
+  useEffect(() => {
+    if (isOpen && initialData) {
+      // Update form with any saved data when tab becomes active
+      Object.entries(initialData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          form.setValue(key as any, value);
+        }
+      });
+    }
+  }, [isOpen, initialData, form]);
+
+
+
+  // Create a debounced version of the save function
+  const debouncedSave = useDebouncedCallback(savePayment, 500);
+  
+  // Manual save handler - called when Save button is clicked
+  const handleManualSave = useCallback(() => {
+    const formData = form.getValues();
+    savePayment(formData);
+  }, [form, savePayment]);
 
   // We're using the handleManualSave function defined above with useCallback
 
   // Handle removing this form
   const handleRemoveForm = () => {
+    // Clear form errors when removing
+    form.clearErrors();
     onRemoveForm(formIndex);
   };
 
@@ -199,20 +261,40 @@ export function InlinePaymentForm({
     { value: 'mobile_payment', label: 'Mobile Payment' },
   ];
 
-  // Auto-save form data when values change
+  // Watch form values for auto-save
   useEffect(() => {
-    // Only save if we have valid data
-    const dependencies = [amount, paymentDate, paymentMethod, form, formIndex, existingPayment, debouncedSave, savedPaymentId];
-    const hasValidData = amount > 0 && paymentDate && paymentMethod;
-    if (hasValidData) {
-      console.log('Auto-saving payment form data...');
-      debouncedSave({
-        amount,
-        payment_date: paymentDate,
-        payment_method: paymentMethod
-      });
+    // Only attempt auto-save if the form is open/visible
+    if (isOpen && checkFormCompleteness()) {
+      // Debounce the auto-save to prevent too many saves while typing
+      const timer = setTimeout(() => {
+        handleAutoSave();
+      }, 1500); // Wait 1.5 seconds after last change before auto-saving
+      
+      return () => clearTimeout(timer);
     }
-  }, [amount, paymentDate, paymentMethod, form, formIndex, existingPayment, debouncedSave, savedPaymentId]);
+  }, [formValues, isOpen, handleAutoSave, checkFormCompleteness]);
+  
+  // Button click handler for manual save
+  const handleSavePayment = useCallback(() => {
+    // Get current form values
+    const formData = form.getValues();
+    
+    // Always attempt to save when manual save is clicked, regardless of validation
+    savePayment(formData);
+  }, [form, savePayment]);
+
+  // Add a button to manually save the payment
+  const saveButton = (
+    <Button
+      type="button"
+      variant="default"
+      size="sm"
+      className="bg-primary hover:bg-primary/90"
+      onClick={handleSavePayment}
+    >
+      Save Payment
+    </Button>
+  );
 
   return (
     <div className="bg-[hsl(var(--card))]/30 border border-[hsl(var(--border))]/50 rounded-md p-6 mb-6">
@@ -324,15 +406,14 @@ export function InlinePaymentForm({
                   {formatCurrency(form.watch('amount') || 0)}
                 </span>
               </div>
-              <Button
-                type="button"
-                onClick={handleManualSave}
-                variant="default"
-                size="sm"
-                className="bg-primary text-white hover:bg-primary/90"
-              >
-                Save Payment
-              </Button>
+              <div className="flex items-center gap-2">
+                {checkFormCompleteness() && (
+                  <span className="text-xs text-muted-foreground italic">
+                    Auto-saving enabled
+                  </span>
+                )}
+                {saveButton}
+              </div>
             </div>
           </div>
         </div>

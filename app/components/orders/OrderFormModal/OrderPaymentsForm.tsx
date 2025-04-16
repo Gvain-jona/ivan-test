@@ -14,10 +14,12 @@ interface OrderPaymentsFormProps {
   recalculateOrder: () => void;
   toast: any; // Using any for simplicity, but ideally should use a proper type
   errors?: Record<string, string[]>;
-  // New props for centralized form state management
-  emptyForms?: number[];
+  // Updated props for enhanced form state management
+  formState?: number[];
+  partialData?: Record<number, any>;
   onAddForm?: () => void;
-  onRemoveForm?: (formId: number) => void;
+  onRemoveForm?: (index: number) => void;
+  onUpdatePartialData?: (index: number, data: any) => void;
 }
 
 /**
@@ -31,58 +33,54 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
   recalculateOrder,
   toast,
   errors = {},
-  // Use the new props with defaults
-  emptyForms: externalEmptyForms = [],
+  // Updated props with defaults
+  formState = [0],
+  partialData = {},
   onAddForm,
   onRemoveForm,
+  onUpdatePartialData,
 }) => {
   // Get payments from order, handling potentially missing field in type
   const payments = (order as any).payments || [];
 
-  // Use external form state if provided, otherwise use local state
-  const [localEmptyForms, setLocalEmptyForms] = useState<number[]>([]);
-  const [formIdCounter, setFormIdCounter] = useState(1); // Counter for generating unique form IDs
+  // Use provided form state or local state as fallback
+  const [localPaymentForms, setLocalPaymentForms] = useState([0]); // Local fallback
+  const [localFormIdCounter, setLocalFormIdCounter] = useState(1); // Local fallback
 
-  // Use external or local empty forms based on what's provided
-  const emptyForms = externalEmptyForms.length > 0 ? externalEmptyForms : localEmptyForms;
+  // Use either provided form state or local state
+  const paymentForms = formState || localPaymentForms;
 
   // Initialize with an empty form if no payments and none are being added
   // Only use this if we're using local state
   useEffect(() => {
-    if (externalEmptyForms.length === 0 && localEmptyForms.length === 0 && payments.length === 0) {
+    if (paymentForms.length === 0 && payments.length === 0) {
       // Use a unique ID for the form to prevent duplicates
       const uniqueFormId = Date.now();
-      setLocalEmptyForms([uniqueFormId]);
-      setFormIdCounter(uniqueFormId + 1); // Update the counter to be higher than our unique ID
+      setLocalPaymentForms([uniqueFormId]);
+      setLocalFormIdCounter(uniqueFormId + 1); // Update the counter to be higher than our unique ID
     }
-  }, [externalEmptyForms.length, localEmptyForms.length, payments.length]); // Depend on actual data to prevent re-running unnecessarily
+  }, [paymentForms.length, payments.length]); // Depend on actual data to prevent re-running unnecessarily
 
   // Add another payment form
-  const handleAddPayment = () => {
-    // Check if we already have empty forms
-    if (emptyForms.length > 0) {
-      console.log('Already have empty payment forms, not adding another one');
-      return; // Don't add another form if we already have empty forms
-    }
-
-    console.log('Adding new payment form');
+  const handleAddPaymentForm = () => {
     if (onAddForm) {
+      // Use the external add form function if provided
       onAddForm();
     } else {
-      setLocalEmptyForms([...localEmptyForms, formIdCounter]);
-      setFormIdCounter(formIdCounter + 1);
+      // Otherwise use local state
+      setLocalPaymentForms([...localPaymentForms, localFormIdCounter]);
+      setLocalFormIdCounter(localFormIdCounter + 1);
     }
   };
 
-  // Remove an empty form
+  // Remove a form
   const handleRemoveForm = (index: number) => {
     if (onRemoveForm) {
+      // Use the external remove form function if provided
       onRemoveForm(index);
     } else {
-      setLocalEmptyForms(localEmptyForms.filter(formId => formId !== index));
-
-      // Clean up localStorage
-      localStorage.removeItem(`payment-form-${index}`);
+      // Otherwise use local state
+      setLocalPaymentForms(localPaymentForms.filter(formId => formId !== index));
     }
   };
 
@@ -186,12 +184,12 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
     // If we added a new payment (not updating), remove the form to prevent duplicates
     if (existingPaymentIndex < 0) {
       console.log('Added new payment, attempting to remove form:', newPayment);
-      console.log('Available empty forms:', emptyForms);
+      console.log('Available empty forms:', paymentForms);
 
       // Remove the most recently added form
-      if (emptyForms.length > 0) {
+      if (paymentForms.length > 0) {
         // Get the last form ID (most recently added)
-        const lastFormId = emptyForms[emptyForms.length - 1];
+        const lastFormId = paymentForms[paymentForms.length - 1];
         console.log('Removing payment form with ID:', lastFormId);
         handleRemoveForm(lastFormId);
       }
@@ -208,7 +206,7 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
           variant="outline"
           size="sm"
           className="border-primary/70 text-primary hover:bg-primary/10"
-          onClick={handleAddPayment}
+          onClick={handleAddPaymentForm}
         >
           <Plus className="h-4 w-4 mr-1" />
           Add Another Payment
@@ -228,17 +226,22 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
       ))}
 
       {/* Render empty forms for new payments with proper numbering */}
-      {emptyForms.map((formIndex, index) => (
+      {paymentForms.map((formIndex) => (
         <InlinePaymentForm
-          key={`empty-${formIndex}`}
-          onAddPayment={handleAddPaymentFromForm}
-          onRemoveForm={() => handleRemoveForm(formIndex)}
+          key={formIndex}
           formIndex={formIndex}
-          displayNumber={payments.length + index + 1} // Continue numbering after existing payments
+          displayNumber={payments.length + paymentForms.indexOf(formIndex) + 1}
+          onAddPayment={handleAddPaymentFromForm}
+          onRemoveForm={handleRemoveForm}
+          initialData={partialData[formIndex]}
+          onUpdatePartialData={onUpdatePartialData ? 
+            (index, data) => onUpdatePartialData(index, data) : 
+            undefined}
+          isOpen={active}
         />
       ))}
 
-      {emptyForms.length === 0 && payments.length === 0 && (
+      {paymentForms.length === 0 && payments.length === 0 && (
         <div className="text-center py-8 bg-card/30 rounded-md border border-border/50 shadow-sm">
           <p className="text-muted-foreground">No payments recorded yet</p>
           <p className="text-muted-foreground/70 text-sm mt-1">Click "Add Another Payment" to record payments</p>

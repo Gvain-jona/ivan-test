@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -43,14 +43,82 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   isEditing,
 }) => {
   const [activeTab, setActiveTab] = useState('general');
+
+  // Unified form state management for all tabs
+  const [formState, setFormState] = useState({
+    itemForms: [0], // Start with one form
+    noteForms: [0], // Start with one form
+    paymentForms: [0], // Start with one form
+    formIdCounters: {
+      items: 1,
+      payments: 1,
+      notes: 1
+    },
+    // Store partial form data for each form
+    partialData: {
+      items: {}, // Keyed by formIndex
+      payments: {},
+      notes: {}
+    }
+  });
   const { toast } = useToast();
-  
+
   // Use our custom hooks for modal and form state
   const deleteDialog = useModalState();
-  const { order, updateOrderField, updateOrderFields, recalculateOrder } = useOrderForm({ 
-    initialOrder 
+  const { order, updateOrderField, updateOrderFields, recalculateOrder } = useOrderForm({
+    initialOrder
   });
-  
+
+  // Form state management functions
+  const addForm = useCallback((formType: 'items' | 'payments' | 'notes') => {
+    setFormState(prev => {
+      const counter = prev.formIdCounters[formType];
+      const formKey = `${formType}Forms` as 'itemForms' | 'paymentForms' | 'noteForms';
+
+      return {
+        ...prev,
+        [formKey]: [...prev[formKey], counter],
+        formIdCounters: {
+          ...prev.formIdCounters,
+          [formType]: counter + 1
+        }
+      };
+    });
+  }, []);
+
+  const removeForm = useCallback((formType: 'items' | 'payments' | 'notes', index: number) => {
+    setFormState(prev => {
+      const formKey = `${formType}Forms` as 'itemForms' | 'paymentForms' | 'noteForms';
+
+      // Remove the form from the array
+      return {
+        ...prev,
+        [formKey]: prev[formKey].filter(formId => formId !== index),
+        // Also clean up any partial data
+        partialData: {
+          ...prev.partialData,
+          [formType]: {
+            ...prev.partialData[formType],
+            [index]: undefined
+          }
+        }
+      };
+    });
+  }, []);
+
+  const updatePartialData = useCallback((formType: 'items' | 'payments' | 'notes', index: number, data: any) => {
+    setFormState(prev => ({
+      ...prev,
+      partialData: {
+        ...prev.partialData,
+        [formType]: {
+          ...prev.partialData[formType],
+          [index]: data
+        }
+      }
+    }));
+  }, []);
+
   // State for item to delete
   const [itemToDelete, setItemToDelete] = useState<{
     id: string;
@@ -58,17 +126,17 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
     name: string;
     type: DeletionType;
   } | null>(null);
-  
+
   const handleSave = () => {
     // Here you would validate the form before saving
     console.log('Saving order:', order);
     onSave(order as Order);
     onOpenChange(false);
   };
-  
+
   const handleDeleteRequest = (request: Omit<DeletionRequest, 'id' | 'requestedAt' | 'status'>) => {
     if (!itemToDelete) return;
-    
+
     // For now, we just remove the item from the UI
     if (request.type === 'item') {
       const newItems = [...(order.items || [])];
@@ -88,16 +156,16 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
       newNotes.splice(itemToDelete.index, 1);
       updateOrderFields({ notes: newNotes });
     }
-    
+
     // Reset state
     setItemToDelete(null);
   };
-  
+
   const openDeleteDialog = (id: string, index: number, name: string, type: DeletionType) => {
     setItemToDelete({ id, index, name, type });
     deleteDialog.open();
   };
-  
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,71 +173,86 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
           </DialogHeader>
-          
+
           <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList className="bg-gray-900 border-b border-gray-800">
-              <TabsTrigger 
-                value="general" 
+              <TabsTrigger
+                value="general"
                 className="data-[state=active]:bg-gray-800 data-[state=active]:text-white"
               >
                 General Info
               </TabsTrigger>
-              <TabsTrigger 
-                value="items" 
+              <TabsTrigger
+                value="items"
                 className="data-[state=active]:bg-gray-800 data-[state=active]:text-white"
               >
                 Items
               </TabsTrigger>
-              <TabsTrigger 
-                value="payments" 
+              <TabsTrigger
+                value="payments"
                 className="data-[state=active]:bg-gray-800 data-[state=active]:text-white"
               >
                 Payments
               </TabsTrigger>
-              <TabsTrigger 
-                value="notes" 
+              <TabsTrigger
+                value="notes"
                 className="data-[state=active]:bg-gray-800 data-[state=active]:text-white"
               >
                 Notes
               </TabsTrigger>
             </TabsList>
-            
+
             {/* General Info Tab */}
-            <OrderGeneralInfoForm 
-              active={activeTab === 'general'} 
-              order={order} 
+            <OrderGeneralInfoForm
+              active={activeTab === 'general'}
+              order={order}
               updateOrderField={updateOrderField}
               isEditing={isEditing}
             />
-            
+
             {/* Items Tab */}
-            <OrderItemsForm 
-              active={activeTab === 'items'} 
-              order={order} 
+            <OrderItemsForm
+              active={activeTab === 'items'}
+              order={order}
               updateOrderFields={updateOrderFields}
               openDeleteDialog={openDeleteDialog}
               recalculateOrder={recalculateOrder}
+              formState={formState.itemForms}
+              partialData={formState.partialData.items}
+              onAddForm={() => addForm('items')}
+              onRemoveForm={(index) => removeForm('items', index)}
+              onUpdatePartialData={(index, data) => updatePartialData('items', index, data)}
             />
-            
+
             {/* Payments Tab */}
-            <OrderPaymentsForm 
-              active={activeTab === 'payments'} 
-              order={order} 
+            <OrderPaymentsForm
+              active={activeTab === 'payments'}
+              order={order}
               updateOrderFields={updateOrderFields}
               openDeleteDialog={openDeleteDialog}
               recalculateOrder={recalculateOrder}
               toast={toast}
+              formState={formState.paymentForms}
+              partialData={formState.partialData.payments}
+              onAddForm={() => addForm('payments')}
+              onRemoveForm={(index) => removeForm('payments', index)}
+              onUpdatePartialData={(index, data) => updatePartialData('payments', index, data)}
             />
-            
+
             {/* Notes Tab */}
-            <OrderNotesForm 
-              active={activeTab === 'notes'} 
-              order={order} 
+            <OrderNotesForm
+              active={activeTab === 'notes'}
+              order={order}
               updateOrderFields={updateOrderFields}
               openDeleteDialog={openDeleteDialog}
+              formState={formState.noteForms}
+              partialData={formState.partialData.notes}
+              onAddForm={() => addForm('notes')}
+              onRemoveForm={(index) => removeForm('notes', index)}
+              onUpdatePartialData={(index, data) => updatePartialData('notes', index, data)}
             />
           </Tabs>
-          
+
           <DialogFooter className="sm:justify-between">
             <Button
               variant="outline"
@@ -189,7 +272,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Approval Dialog */}
       {itemToDelete && (
         <ApprovalDialog
@@ -208,4 +291,4 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   );
 };
 
-export default OrderFormModal; 
+export default OrderFormModal;

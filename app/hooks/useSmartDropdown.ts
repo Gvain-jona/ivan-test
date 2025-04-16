@@ -1,20 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { SmartComboboxOption } from '@/components/ui/smart-combobox'
 import { toast } from '@/components/ui/use-toast'
-
-type EntityType = 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes'
+import { fetchDropdownOptions, createDropdownOption, EntityType } from '../actions/options'
 
 interface UseSmartDropdownProps {
   entityType: EntityType
   parentId?: string // For related entities (e.g., items need category_id)
   initialOptions?: SmartComboboxOption[]
   limit?: number
-  cacheKey?: string
-  filterField?: string
-  filterValue?: string
+  skipLoading?: boolean // Skip initial loading - useful for components that are not visible
 }
 
 interface UseSmartDropdownReturn {
@@ -32,40 +28,41 @@ const getRecentOptionsKey = (entityType: EntityType, parentId?: string) => {
   return `recent-${entityType}${parentId ? `-${parentId}` : ''}`
 }
 
-// Helper function to transform data to options
-const transformDataToOptions = (data: any[], requestId?: number) => {
-  return data.map(item => {
-    // Ensure value is a string
-    const value = item.id ? String(item.id) : ''
-    const label = item.name ? String(item.name) : ''
+// Overload for string entityType
+export function useSmartDropdown(
+  entityType: EntityType,
+  options?: Partial<Omit<UseSmartDropdownProps, 'entityType'>>
+): UseSmartDropdownReturn;
 
-    return {
-      value,
-      label,
-      ...item // Include all original data
-    }
-  })
-}
+// Overload for object props
+export function useSmartDropdown(props: UseSmartDropdownProps): UseSmartDropdownReturn;
 
-export function useSmartDropdown({
-  entityType,
-  parentId,
-  initialOptions = [],
-  limit = 20,
-  cacheKey,
-  filterField,
-  filterValue,
-}: UseSmartDropdownProps): UseSmartDropdownReturn {
+// Implementation that handles both overloads
+export function useSmartDropdown(
+  entityTypeOrProps: EntityType | UseSmartDropdownProps,
+  optionsObj?: Partial<Omit<UseSmartDropdownProps, 'entityType'>>
+): UseSmartDropdownReturn {
+  // Normalize arguments to extract props
+  const {
+    entityType,
+    parentId,
+    initialOptions = [],
+    limit = 20,
+    skipLoading = false,
+  } = typeof entityTypeOrProps === 'string'
+    ? { entityType: entityTypeOrProps, ...optionsObj }
+    : entityTypeOrProps;
+
   const [options, setOptions] = useState<SmartComboboxOption[]>(initialOptions)
   const [recentOptions, setRecentOptions] = useState<SmartComboboxOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Create a ref to track the current request ID at the component level
+  const currentRequestIdRef = useRef<number>(0)
+
   // Create a unique instance ID for this hook instance to isolate state
   const instanceId = useMemo(() => `${entityType}-${Math.random().toString(36).substring(2, 9)}`, [entityType])
-
-  // Create a new supabase client for each instance to prevent state sharing
-  const supabase = useMemo(() => createClient(), [])
 
   // Load recent options from localStorage
   useEffect(() => {
@@ -115,363 +112,216 @@ export function useSmartDropdown({
     }
   }, [entityType, parentId])
 
-  // Fetch options from the database
+  // Fetch options using the server action
   const fetchOptions = useCallback(async (search?: string) => {
-    // Always fetch items, even without a parent category
-    // This removes the constraint between categories and items
+    // Always fetch items regardless of parent category
+    // No need to skip empty searches for items without a parent category
 
     // Use a local variable to track if this request is the most recent one
     // This helps prevent race conditions with multiple concurrent requests
     const requestId = Date.now()
-    const currentRequestId = requestId
+    currentRequestIdRef.current = requestId
 
-    console.log(`Fetching ${entityType}...`, { search, entityType, parentId, requestId })
+    console.log(`[Client] Fetching ${entityType}...`, { search, entityType, parentId, requestId })
     setIsLoading(true)
 
     // Set a timeout to prevent infinite loading state
     const timeoutId = setTimeout(() => {
-      console.log(`Request timeout for ${entityType} (${requestId})...`)
+      console.warn(`[Client] Fetch timeout for ${entityType}`, { requestId })
       setIsLoading(false)
     }, 10000) // 10 second timeout
 
     try {
-      let query = supabase
-        .from(entityType)
-        .select('*')
-        .order('name')
-        .limit(limit)
-
-      // Add status filter if the table has a status column
-      if (['clients', 'categories', 'items', 'sizes'].includes(entityType)) {
-        query = query.eq('status', 'active')
-      }
-
-      // We're no longer filtering items by category_id
-      // This allows users to select any item regardless of category
-
-      // Add custom filter if provided
-      if (filterField && filterValue) {
-        query = query.eq(filterField, filterValue)
-      }
-
-      // Add search filter if provided
-      if (search && search.trim() !== '') {
-        const trimmedSearch = search.trim()
-
-        // Always use contains for more comprehensive results
-        query = query.ilike('name', `%${trimmedSearch}%`)
-      }
-
-      console.log(`Executing query for ${entityType}...`, { search, requestId })
-      const { data, error } = await query
-
-      // Clear the timeout since we got a response
-      clearTimeout(timeoutId)
-
-      // Check if this request is still relevant (not superseded by a newer request)
-      if (requestId !== currentRequestId) {
-        console.log(`Ignoring stale response for ${entityType} (${requestId})...`)
-        return
-      }
-
-      console.log(`Query result for ${entityType}:`, { data, error, search, requestId })
-
-      if (error) {
-        // Check if the error is due to missing status column or table doesn't exist
-        if (error.message.includes('column "status" does not exist') ||
-            error.message.includes('relation') ||
-            error.message.includes('does not exist')) {
-
-          // For table doesn't exist error, just set empty options
-          if (error.message.includes('relation') || error.message.includes('does not exist')) {
-            console.warn(`Table ${entityType} might not exist. Please run the migration script.`);
-            setOptions([]);
-            setIsLoading(false); // Ensure loading state is reset
-            clearTimeout(timeoutId); // Clear the timeout
-            return;
-          }
-
-          // Retry without status filter for missing status column
-          let retryQuery = supabase
-            .from(entityType)
-            .select('*')
-            .order('name')
-            .limit(limit)
-
-          // We're no longer filtering items by category_id in the retry query either
-
-          if (filterField && filterValue) {
-            retryQuery = retryQuery.eq(filterField, filterValue)
-          }
-
-          if (search && search.trim() !== '') {
-            const trimmedSearch = search.trim()
-
-            // Always use contains for more comprehensive results
-            retryQuery = retryQuery.ilike('name', `%${trimmedSearch}%`)
-          }
-
-          console.log(`Retrying query for ${entityType} without status filter...`, { requestId })
-          const retryResult = await retryQuery
-
-          if (retryResult.error) {
-            // If retry also fails, just set empty options
-            console.warn(`Retry failed for ${entityType}:`, retryResult.error);
-            setOptions([]);
-            setIsLoading(false); // Ensure loading state is reset
-            clearTimeout(timeoutId); // Clear the timeout
-            return;
-          }
-
-          // Check if this request is still relevant (not superseded by a newer request)
-          if (requestId !== currentRequestId) {
-            console.log(`Ignoring stale retry response for ${entityType} (${requestId})...`)
-            clearTimeout(timeoutId); // Clear the timeout
-            return;
-          }
-
-          const transformedOptions = transformDataToOptions(retryResult.data || [], requestId);
-
-          // Always use the database results, even if empty
-          console.log(`Setting options for ${entityType} (retry):`, { count: transformedOptions.length, requestId, instanceId })
-          setOptions(transformedOptions);
-
-          setIsLoading(false); // Ensure loading state is reset
-          clearTimeout(timeoutId); // Clear the timeout
-          return;
-        } else {
-          throw error
-        }
-      }
-
-      // Transform data to combobox options using the helper function
-      const transformedOptions = transformDataToOptions(data || [], requestId);
-      console.log(`Transformed options for ${entityType}:`, { count: transformedOptions.length, requestId, instanceId })
-
-      // Always use the database results, even if empty
-      console.log(`Setting options for ${entityType}:`, { count: transformedOptions.length, requestId, instanceId })
-      setOptions(transformedOptions);
-
-      setIsLoading(false); // Ensure loading state is reset
-    } catch (error: any) {
-      console.error(`Error fetching ${entityType}:`, error)
-      toast({
-        title: 'Error',
-        description: `Failed to load ${entityType}. ${error?.message || ''}`,
-        variant: 'destructive',
+      // Call the server action to fetch options with only the necessary parameters
+      const { options: newOptions, error } = await fetchDropdownOptions({
+        entityType,
+        search: search || '',
+        parentId,
+        limit
       })
-      // Set empty options to prevent infinite loading state
-      console.log(`Error fetching ${entityType}, setting empty options`, { instanceId })
-      setOptions([])
-      // Ensure loading state is reset
-      setIsLoading(false)
-      // Clear the timeout
-      clearTimeout(timeoutId)
-    }
-  }, [supabase, entityType, parentId, limit, filterField, filterValue, instanceId])
 
-  // Create a new option
-  const createOption = useCallback(async (label: string): Promise<SmartComboboxOption | null> => {
-    // Generate a unique request ID for this creation operation
-    const requestId = Date.now()
-    console.log(`Creating new ${entityType} with label: ${label}`, { requestId })
+      // Only update state if this is still the most recent request
+      if (currentRequestIdRef.current === requestId) {
+        if (error) {
+          console.error(`[Client] Error fetching ${entityType}:`, error, { requestId })
+          toast({
+            title: 'Error',
+            description: error,
+            variant: 'destructive',
+          })
+          setOptions(initialOptions)
+        } else {
+          console.log(`[Client] Fetched ${newOptions.length} ${entityType}`, { requestId })
 
-    // We're no longer requiring a parent category for items
-    // Users can create items without selecting a category first
+          // Convert server options to SmartComboboxOption format if needed
+          const formattedOptions: SmartComboboxOption[] = newOptions.map(option => ({
+            value: option.value,
+            label: option.label,
+          }))
 
-    try {
-      // Trim the label to remove any leading/trailing whitespace
-      const trimmedLabel = label.trim()
-
-      // Validate the label
-      if (!trimmedLabel) {
+          setOptions(formattedOptions)
+        }
+        setIsLoading(false)
+      }
+    } catch (error: any) {
+      // Only update state if this is still the most recent request
+      if (currentRequestIdRef.current === requestId) {
+        console.error(`[Client] Error fetching ${entityType}:`, error, { requestId })
         toast({
           title: 'Error',
-          description: `${entityType.slice(0, -1)} name cannot be empty.`,
+          description: `Failed to fetch ${entityType}. ${error.message}`,
+          variant: 'destructive',
+        })
+        setOptions(initialOptions)
+        setIsLoading(false)
+      }
+    } finally {
+      clearTimeout(timeoutId) // Clear the timeout
+    }
+  }, [entityType, parentId, limit, initialOptions])
+
+  // Create a new option using the server action
+  const createOption = useCallback(async (label: string): Promise<SmartComboboxOption | null> => {
+    if (!label || label.trim() === '') {
+      console.error('Cannot create option with empty label')
+      return null
+    }
+
+    // Use a local variable to track this specific request
+    const requestId = Date.now()
+    console.log(`[Client] Creating new ${entityType} with label: ${label}`, { requestId })
+
+    try {
+      // Call the server action to create a new option
+      const { option: newOption, error } = await createDropdownOption({
+        entityType,
+        label: label.trim(),
+        parentId
+      })
+
+      if (error) {
+        console.error(`[Client] Error creating ${entityType}:`, error, { requestId })
+        toast({
+          title: 'Error',
+          description: error,
           variant: 'destructive',
         })
         return null
       }
 
-      // Check if an option with this label already exists
-      const existingOption = options.find(opt =>
-        opt.label.toLowerCase() === trimmedLabel.toLowerCase()
-      )
-
-      if (existingOption) {
-        console.log(`Option with label "${trimmedLabel}" already exists:`, existingOption)
-        // Add to recent options
-        addToRecentOptions(existingOption)
-        return existingOption
+      if (!newOption) {
+        console.error(`[Client] No option returned after creating ${entityType}`, { requestId })
+        return null
       }
 
-      // Prepare the data to insert
-      const newData: Record<string, any> = {
-        name: trimmedLabel,
+      console.log('[Client] Created new option:', newOption, { requestId })
+
+      // Convert to SmartComboboxOption format if needed
+      const formattedOption: SmartComboboxOption = {
+        value: newOption.value,
+        label: newOption.label,
       }
-
-      // We still add the parent ID if it's provided, but it's now optional
-      if (parentId && entityType === 'items') {
-        newData.category_id = parentId
-      }
-
-      // Try to add status field, but handle if it doesn't exist
-      if (['categories', 'items', 'clients', 'sizes'].includes(entityType)) {
-        newData.status = 'active'
-      }
-
-      console.log(`Inserting new ${entityType}:`, newData, { requestId })
-
-      // Insert the new record
-      let insertResult = await supabase
-        .from(entityType)
-        .insert(newData)
-        .select()
-        .single()
-
-      // Handle various error cases
-      if (insertResult.error) {
-        console.log(`Error inserting ${entityType}:`, insertResult.error, { requestId })
-
-        // If error is due to missing status column, retry without it
-        if (insertResult.error.message.includes('column "status" does not exist')) {
-          console.log(`Retrying without status field for ${entityType}`, { requestId })
-          delete newData.status
-          insertResult = await supabase
-            .from(entityType)
-            .insert(newData)
-            .select()
-            .single()
-        }
-        // If table doesn't exist, show error and return null
-        else if (insertResult.error.message.includes('relation') ||
-                 insertResult.error.message.includes('does not exist')) {
-          toast({
-            title: 'Error',
-            description: `Table ${entityType} does not exist. Please run the migration script.`,
-            variant: 'destructive',
-          })
-          return null
-        }
-      }
-
-      if (insertResult.error) {
-        throw insertResult.error
-      }
-
-      console.log(`Successfully created new ${entityType}:`, insertResult.data, { requestId })
-
-      // Create the option object using our helper function
-      const newOption = transformDataToOptions([insertResult.data], requestId)[0]
-
-      console.log('Created new option:', newOption, { requestId })
 
       // Update options list - add to existing options, don't replace them
       setOptions(prev => {
         // Check if option already exists to avoid duplicates
-        const exists = prev.some(opt => opt.value === newOption.value)
+        const exists = prev.some(opt => opt.value === formattedOption.value)
         if (exists) {
-          console.log(`Option already exists in state, not adding duplicate:`, newOption, { requestId })
+          console.log(`[Client] Option already exists in state, not adding duplicate:`, formattedOption, { requestId })
           return prev
         }
-        console.log(`Adding new option to state:`, newOption, { requestId })
-        return [newOption, ...prev]
+        console.log(`[Client] Adding new option to state:`, formattedOption, { requestId })
+        return [formattedOption, ...prev]
       })
 
       // Add to recent options
-      addToRecentOptions(newOption)
+      addToRecentOptions(formattedOption)
 
       // Refresh the options to ensure consistency
       setTimeout(() => {
-        console.log(`Refreshing options after creating new ${entityType}`, { requestId })
+        console.log(`[Client] Refreshing options after creating new ${entityType}`, { requestId })
         fetchOptions()
       }, 500)
 
-      return newOption
+      return formattedOption
     } catch (error: any) {
-      console.error(`Error creating ${entityType}:`, error, { requestId })
-
-      // Provide more specific error messages based on the error type
-      let errorMessage = `Failed to create new ${entityType.slice(0, -1)}.`
-
-      if (error?.message) {
-        if (error.message.includes('duplicate key')) {
-          errorMessage = `A ${entityType.slice(0, -1)} with this name already exists.`
-        } else if (error.message.includes('violates foreign key constraint')) {
-          errorMessage = `Invalid reference to another record. Please check your selection.`
-        } else if (error.message.includes('permission denied')) {
-          errorMessage = `You don't have permission to create a new ${entityType.slice(0, -1)}.`
-        } else {
-          errorMessage += ` ${error.message}`
-        }
-      }
+      console.error(`[Client] Error creating ${entityType}:`, error, { requestId })
 
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: `Failed to create new ${entityType.slice(0, -1)}. ${error.message}`,
         variant: 'destructive',
       })
 
       return null
     }
-  }, [supabase, entityType, parentId, addToRecentOptions, options, fetchOptions])
+  }, [entityType, parentId, addToRecentOptions, fetchOptions])
 
-  // Initial fetch
+  // Initial fetch - only if we don't have initialOptions and skipLoading is false
   useEffect(() => {
-    // Always fetch options, even for items without a parent category
-    // The fetchOptions function will handle the special case for items without a parent
-    console.log(`Initial fetch for ${entityType}...`, { instanceId })
-    fetchOptions()
-
-    // Clear any initialOptions to ensure we're only using database values
-    if (initialOptions.length > 0) {
-      console.log(`Clearing initialOptions for ${entityType}...`, { instanceId })
+    // Skip loading if skipLoading is true
+    if (skipLoading) {
+      console.log(`[Client] Skipping initial fetch for ${entityType} (skipLoading=true)`, { instanceId })
+      return;
     }
-  }, [fetchOptions, entityType, instanceId, initialOptions.length])
 
-  // We still want to re-fetch when parentId changes, but we don't need special handling
-  useEffect(() => {
-    if (entityType === 'items' && parentId) {
-      // If parentId changes to a valid value, we might want to refresh the options
-      // This is optional now, but can help show relevant items first
-      fetchOptions()
+    // Only fetch if we don't have initialOptions or if it's a required fetch
+    if (initialOptions.length === 0 || entityType === 'clients' || entityType === 'categories') {
+      console.log(`[Client] Initial fetch for ${entityType}...`, { instanceId })
+      fetchOptions('')
+    } else {
+      console.log(`[Client] Using initialOptions for ${entityType}...`, { count: initialOptions.length })
     }
-  }, [entityType, parentId, fetchOptions])
+  }, [fetchOptions, entityType, instanceId, initialOptions.length, skipLoading])
 
-  // Handle search query changes
+  // No need to re-fetch when parentId changes for items
+  // All dropdowns are independent
+
+  // Handle search query changes, but respect skipLoading
   useEffect(() => {
+    if (skipLoading) {
+      return; // Skip search if skipLoading is true
+    }
+
     if (searchQuery !== undefined) {
-      console.log(`Search query changed for ${entityType}:`, searchQuery)
+      console.log(`[Client] Search query changed for ${entityType}:`, searchQuery)
       fetchOptions(searchQuery)
     }
-  }, [searchQuery, fetchOptions, entityType])
+  }, [searchQuery, fetchOptions, entityType, skipLoading])
 
   // Add a cleanup effect to prevent memory leaks
   useEffect(() => {
     return () => {
-      console.log(`Cleaning up useSmartDropdown for ${entityType}`)
+      console.log(`[Client] Cleaning up useSmartDropdown for ${entityType}`)
     }
   }, [entityType])
 
-  // Refresh options
+  // Refresh options, but respect skipLoading
   const refreshOptions = useCallback(async () => {
+    if (skipLoading) {
+      console.log(`[Client] Skipping refresh for ${entityType} (skipLoading=true)`)
+      return;
+    }
     await fetchOptions(searchQuery)
-  }, [fetchOptions, searchQuery])
+  }, [fetchOptions, searchQuery, skipLoading, entityType])
 
-  // Handle search query with instance isolation
+  // Handle search query with instance isolation, but respect skipLoading
   const handleSearchQuery = useCallback((query: string) => {
-    console.log(`Setting search query for ${entityType}:`, { query, instanceId })
+    if (skipLoading) {
+      console.log(`[Client] Skipping search for ${entityType} (skipLoading=true)`)
+      return;
+    }
+    console.log(`[Client] Setting search query for ${entityType}:`, { query, instanceId })
     setSearchQuery(query)
-  }, [entityType, instanceId])
+  }, [entityType, instanceId, skipLoading])
 
   return {
     options,
     recentOptions,
     isLoading,
     searchQuery,
-    setSearchQuery: handleSearchQuery, // Use our isolated search function
+    setSearchQuery: handleSearchQuery,
     createOption,
-    refreshOptions,
-    instanceId, // Expose the instance ID for debugging
+    refreshOptions
   }
 }

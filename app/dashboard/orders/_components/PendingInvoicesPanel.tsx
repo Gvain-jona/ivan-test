@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { formatDate } from '@/lib/utils';
-import { Search, User, DollarSign, Calendar, Filter } from 'lucide-react';
+import { Search, User, DollarSign, Calendar, Filter, AlertTriangle, Clock } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface PendingInvoice {
   id: string;
@@ -69,14 +70,41 @@ const PendingInvoicesPanel: React.FC<PendingInvoicesPanelProps> = ({
     }
   };
 
-  // Get status color
+  // Get status color - matching OrdersTable styling
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'delivered': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'not_delivered': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+      case 'pending': return 'bg-amber-500/15 text-amber-400 border border-amber-500/30';
+      case 'delivered': return 'bg-purple-500/15 text-purple-400 border border-purple-500/30';
+      case 'not_delivered': return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
+      default: return 'bg-slate-500/15 text-slate-400 border border-slate-500/30';
     }
+  };
+
+  // Generate initials from client name
+  const getInitials = (name: string): string => {
+    if (!name) return '--';
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Get avatar background color based on client name
+  const getAvatarColor = (name: string): string => {
+    if (!name) return 'bg-primary/20 text-primary';
+    const colors = [
+      'bg-orange-500/20 text-orange-500',
+      'bg-blue-500/20 text-blue-500',
+      'bg-green-500/20 text-green-500',
+      'bg-purple-500/20 text-purple-500',
+      'bg-red-500/20 text-red-500',
+      'bg-teal-500/20 text-teal-500',
+      'bg-indigo-500/20 text-indigo-500',
+    ];
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[index % colors.length];
   };
 
   return (
@@ -158,65 +186,90 @@ const PendingInvoicesPanel: React.FC<PendingInvoicesPanelProps> = ({
         </div>
 
         {/* Invoices list */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredInvoices.length > 0 ? (
             filteredInvoices.map((invoice) => (
-              <div key={invoice.id} className="border border-border rounded-md p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full
-                      ${invoice.status === 'delivered' ? 'bg-green-100 dark:bg-green-900/20' :
-                        invoice.status === 'not_delivered' ? 'bg-purple-100 dark:bg-purple-900/20' :
-                        'bg-primary/10'}`}>
-                      <User className={`h-5 w-5
-                        ${invoice.status === 'delivered' ? 'text-green-600 dark:text-green-400' :
-                          invoice.status === 'not_delivered' ? 'text-purple-600 dark:text-purple-400' :
-                          'text-primary'}`} />
+              <div 
+                key={invoice.id} 
+                className="relative border border-border rounded-lg shadow-sm group hover:translate-y-[-4px] transition-all duration-300 bg-card dark:bg-card/90"
+              >
+                {/* Ghost card effect on hover */}
+                <div className="absolute inset-0 -bottom-2 -right-2 rounded-lg border border-border bg-card/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+                <div className="p-4">
+                  {/* Header with client info and status */}
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className={`h-10 w-10 ${getAvatarColor(invoice.clientName)}`}>
+                        <AvatarFallback className="text-sm font-medium">
+                          {getInitials(invoice.clientName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold text-base">{invoice.clientName}</div>
+                        <div className="text-xs text-muted-foreground">Regular Client</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium">{invoice.clientName}</div>
-                      <div className="text-xs text-muted-foreground">Order ID: {invoice.id}</div>
-                    </div>
-                  </div>
-                  <div className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(invoice.status)}`}>
-                    {getStatusLabel(invoice.status)}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
-                      <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Amount</div>
-                      <div className="font-medium">{formatCurrency(invoice.amount)}</div>
+                    <div className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-md shadow-sm ${getStatusColor(invoice.status)}`}>
+                      {getStatusLabel(invoice.status)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted">
-                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  
+                  {/* Divider */}
+                  <div className="h-px bg-border/60 my-3"></div>
+                  
+                  {/* Invoice details */}
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Amount Due</div>
+                        <div className="font-medium text-base">{formatCurrency(invoice.amount)}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground">Due Date</div>
-                      <div className="font-medium">{new Date(invoice.dueDate).toLocaleDateString()}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Due Date</div>
+                        <div className="font-medium">
+                          {formatDate(invoice.dueDate)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => window.location.href = `/dashboard/orders/${invoice.id}`}
-                  >
-                    View Order
-                  </Button>
+                  
+                  {/* Action buttons */}
+                  <div className="flex justify-end items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => window.location.href = `/dashboard/orders/${invoice.id}/invoice`}
+                    >
+                      View Invoice
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => window.location.href = `/dashboard/orders/${invoice.id}`}
+                    >
+                      View Order
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No invoices found matching your filters
+            <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
+              <div className="flex flex-col items-center justify-center gap-2">
+                <Search className="h-10 w-10 text-muted-foreground/50" />
+                <h3 className="font-medium text-white">No invoices found</h3>
+                <p className="text-sm text-muted-foreground/70">Try adjusting your filters or search term</p>
+              </div>
             </div>
           )}
         </div>

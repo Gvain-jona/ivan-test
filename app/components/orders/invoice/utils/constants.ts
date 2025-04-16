@@ -37,14 +37,8 @@ export const CONVERSION = {
   POINTS_TO_PIXELS: 1.33333, // 1pt = 1.33333px at 96 DPI
 };
 
-// Scale factors for PDF generation
-export const PDF_QUALITY = {
-  DIGITAL: 1, // Lower quality for digital viewing (smaller file size, faster generation)
-  PRINT: 2,   // Higher quality for printing (larger file size, slower generation)
-};
-
-// Default scale factor
-export const PDF_SCALE_FACTOR = PDF_QUALITY.PRINT;
+// Scale factor for PDF generation (higher = better quality)
+export const PDF_SCALE_FACTOR = 2;
 
 // Filename format for downloaded invoices
 export const FILENAME_FORMAT = 'INVOICE-{orderNumber}-{clientName}-{date}';

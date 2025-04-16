@@ -8,6 +8,7 @@ import { AuthProvider } from './context/auth-context';
 import { NotificationsProvider } from './context/NotificationsContext';
 import { Toaster } from '@/components/ui/toaster';
 import { SWRProvider } from './providers/SWRProvider';
+import { GlobalDropdownCacheProvider } from './context/GlobalDropdownCache';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Initialize global error handlers
@@ -28,8 +29,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           <NavigationProvider>
             <NotificationsProvider>
-              {children}
-              <Toaster />
+              <GlobalDropdownCacheProvider>
+                {children}
+                <Toaster />
+              </GlobalDropdownCacheProvider>
             </NotificationsProvider>
           </NavigationProvider>
         </AuthProvider>

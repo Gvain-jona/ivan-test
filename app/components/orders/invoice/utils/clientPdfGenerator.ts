@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import { Order } from '@/types/orders';
 import { InvoiceSettings } from '../types';
 import { formatInvoiceFilename } from '@/lib/utils/downloadUtils';
-import { A4_DIMENSIONS, PDF_QUALITY } from './constants';
+import { A4_DIMENSIONS, PDF_SCALE_FACTOR } from './constants';
 
 /**
  * Generates a PDF from the invoice preview HTML element
@@ -15,8 +15,7 @@ import { A4_DIMENSIONS, PDF_QUALITY } from './constants';
  */
 export const generatePdfFromPreview = async (
   previewElement: HTMLElement,
-  order: Order,
-  quality: number = PDF_QUALITY.PRINT
+  order: Order
 ): Promise<Blob> => {
   if (!previewElement) {
     throw new Error('Preview element not found');
@@ -105,7 +104,7 @@ export const generatePdfFromPreview = async (
 
     // Use html2canvas to capture the template clone
     const canvas = await html2canvas(templateClone, {
-      scale: quality, // Use provided quality factor
+      scale: PDF_SCALE_FACTOR, // Use constant for scale factor
       useCORS: true, // Allow cross-origin images
       allowTaint: true,
       backgroundColor: '#ffffff',
@@ -209,15 +208,14 @@ export const generatePdfFromPreview = async (
 export const downloadInvoicePdf = async (
   previewElement: HTMLElement,
   order: Order,
-  onProgress?: (status: string, progress?: number) => void,
-  quality: number = PDF_QUALITY.PRINT
+  onProgress?: (status: string, progress?: number) => void
 ): Promise<void> => {
   try {
     // Update progress - start at 10%
     onProgress?.('Generating PDF...', 10);
 
     // Generate the PDF
-    const pdfBlob = await generatePdfFromPreview(previewElement, order, quality);
+    const pdfBlob = await generatePdfFromPreview(previewElement, order);
 
     // Update progress - 80% complete after PDF generation
     onProgress?.('Preparing download...', 80);

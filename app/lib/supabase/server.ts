@@ -31,8 +31,9 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        async getAll() {
+          // Use async version to avoid the warning
+          return await cookieStore.getAll()
         },
         set(name, value, options) {
           try {

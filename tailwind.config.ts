@@ -133,13 +133,35 @@ const config: Config = {
   				to: {
   					opacity: '0.2'
   				}
-  			}
+  			},
+        'pulse-slow': {
+          '0%, 100%': {
+            opacity: '1'
+          },
+          '50%': {
+            opacity: '0.8'
+          }
+        },
+        'pulse-attention': {
+          '0%, 100%': {
+            transform: 'scale(1)',
+            opacity: '1',
+            boxShadow: '0 0 0 0 rgba(0, 0, 0, 0.1)'
+          },
+          '50%': {
+            transform: 'scale(1.02)',
+            opacity: '0.95',
+            boxShadow: '0 0 0 4px rgba(0, 0, 0, 0.05)'
+          }
+        }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
   			'in': 'slide-in-from-top-full 0.3s ease-out',
-  			'out': 'slide-out-to-right-full 0.3s ease-out, fade-out-80 0.3s ease-out'
+  			'out': 'slide-out-to-right-full 0.3s ease-out, fade-out-80 0.3s ease-out',
+        'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'pulse-attention': 'pulse-attention 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
   		}
   	}
   },

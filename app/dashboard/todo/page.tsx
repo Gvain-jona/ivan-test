@@ -8,54 +8,87 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Define types for our data
+// Import order types
+import { Order, OrderStatus, ClientType, OrderItem, OrderNote, TaskPriority, TaskStatus } from '@/app/types/orders';
+
+// Define types for our task card data
 interface Task {
   id: string;
-  title: string;
-  description: string;
+  orderNumber: string;
+  clientName: string;
+  clientType: ClientType;
   dueDate: string;
-  priority: 'High' | 'Medium' | 'Low';
-  status: 'Pending' | 'In Progress' | 'Completed';
-  project?: string;
+  productionStatus: OrderStatus;
+  priority: TaskPriority;
+  status: TaskStatus;
+  items: {
+    itemName: string; // Combination of item type, size, and category
+    quantity: number;
+  }[];
+  notes?: string;
 }
 
 // Sample task data for development
 const SAMPLE_TASKS: Task[] = [
   {
     id: 'TSK-001',
-    title: 'Order business cards for new employee',
-    description: 'Design and order business cards for John Smith',
+    orderNumber: 'ORD-2024-001',
+    clientName: 'Acme Corporation',
+    clientType: 'contract',
     dueDate: '2024-04-05',
-    priority: 'Medium',
-    status: 'Pending',
-    project: 'Admin Tasks'
+    productionStatus: 'in_progress',
+    priority: 'medium',
+    status: 'in_progress',
+    items: [
+      { itemName: 'Business Cards - A5 - Premium', quantity: 500 },
+      { itemName: 'Letterheads - A4 - Standard', quantity: 100 }
+    ],
+    notes: 'Client requested rush delivery. Needs to be ready by Thursday.'
   },
   {
     id: 'TSK-002',
-    title: 'Call client about brochure changes',
-    description: 'Follow up with TechStart Inc about requested brochure revisions',
+    orderNumber: 'ORD-2024-015',
+    clientName: 'TechStart Inc',
+    clientType: 'regular',
     dueDate: '2024-04-02',
-    priority: 'High',
-    status: 'In Progress',
-    project: 'Client Relations'
+    productionStatus: 'paused',
+    priority: 'high',
+    status: 'in_progress',
+    items: [
+      { itemName: 'Brochures - A4 - Glossy', quantity: 250 },
+      { itemName: 'Flyers - A5 - Matte', quantity: 1000 }
+    ],
+    notes: 'Waiting for client approval on final design. Follow up required.'
   },
   {
     id: 'TSK-003',
-    title: 'Order more printer ink',
-    description: 'Purchase cyan and magenta ink cartridges for the main printer',
+    orderNumber: 'ORD-2024-022',
+    clientName: 'Local Retail Shop',
+    clientType: 'regular',
     dueDate: '2024-04-10',
-    priority: 'Low',
-    status: 'Pending',
-    project: 'Supplies'
+    productionStatus: 'pending',
+    priority: 'low',
+    status: 'pending',
+    items: [
+      { itemName: 'Posters - A2 - Glossy', quantity: 50 },
+      { itemName: 'Price Tags - Small - Standard', quantity: 200 }
+    ],
+    notes: 'New client. First order needs special attention.'
   },
   {
     id: 'TSK-004',
-    title: 'Schedule equipment maintenance',
-    description: 'Book the quarterly maintenance for the printing press',
+    orderNumber: 'ORD-2024-030',
+    clientName: 'Global Enterprises',
+    clientType: 'contract',
     dueDate: '2024-04-15',
-    priority: 'Medium',
-    status: 'Pending',
-    project: 'Maintenance'
+    productionStatus: 'printed',
+    priority: 'medium',
+    status: 'pending',
+    items: [
+      { itemName: 'Annual Reports - A4 - Premium', quantity: 100 },
+      { itemName: 'Presentation Folders - Standard - Glossy', quantity: 75 }
+    ],
+    notes: 'Ready for delivery. Schedule pickup with client.'
   },
 ];
 
@@ -65,37 +98,44 @@ export default function TodoPage() {
 
   // Calculate metrics
   const totalTasks = SAMPLE_TASKS.length;
-  const pendingTasks = SAMPLE_TASKS.filter(task => task.status === 'Pending').length;
-  const inProgressTasks = SAMPLE_TASKS.filter(task => task.status === 'In Progress').length;
-  const completedTasks = SAMPLE_TASKS.filter(task => task.status === 'Completed').length;
+  const pendingTasks = SAMPLE_TASKS.filter(task => task.status === 'pending').length;
+  const inProgressTasks = SAMPLE_TASKS.filter(task => task.status === 'in_progress').length;
+  const completedTasks = SAMPLE_TASKS.filter(task => task.status === 'completed').length;
 
   // Filter tasks based on status and search query
   const filteredTasks = SAMPLE_TASKS.filter(task => {
     const matchesFilter =
       filter === 'all' ||
-      (filter === 'pending' && task.status === 'Pending') ||
-      (filter === 'in-progress' && task.status === 'In Progress') ||
-      (filter === 'completed' && task.status === 'Completed');
+      (filter === 'pending' && task.status === 'pending') ||
+      (filter === 'in-progress' && task.status === 'in_progress') ||
+      (filter === 'completed' && task.status === 'completed');
 
     const matchesSearch =
       searchQuery === '' ||
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase());
+      task.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.notes?.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesFilter && matchesSearch;
   });
+  
+  // Function to handle task card click - would update the right sidebar with order details
+  const handleTaskClick = (task: Task) => {
+    console.log('Task clicked:', task);
+    // Here you would implement the logic to update the right sidebar with order details
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Personal To-Do</h1>
-          <p className="text-muted-foreground mt-1">Manage your personal tasks and projects</p>
+          <h1 className="text-3xl font-bold tracking-tight">Production Tasks</h1>
+          <p className="text-muted-foreground mt-1">Manage and track order production tasks</p>
         </div>
 
         <Button size="sm" className="h-9">
           <PlusCircle className="h-4 w-4 mr-2" />
-          New Task
+          New Order Task
         </Button>
       </div>
 
@@ -103,7 +143,7 @@ export default function TodoPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Tasks</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
             <div className="w-8 h-8 bg-muted/10 rounded-lg flex items-center justify-center">
               <CheckSquare className="h-4 w-4 text-orange-500" />
             </div>
@@ -226,68 +266,93 @@ export default function TodoPage() {
           </Card>
         ) : (
           filteredTasks.map(task => (
-            <Card key={task.id} className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200">
+            <Card 
+              key={task.id} 
+              className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer"
+              onClick={() => handleTaskClick(task)}
+            >
               <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`mt-1 rounded-full p-0.5 h-6 w-6 ${
-                        task.status === 'Completed'
-                          ? 'text-green-500 bg-green-500/10'
-                          : 'text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10'
-                      }`}
-                    >
-                      <CheckCircle2 size={16} />
-                      <span className="sr-only">Mark as complete</span>
-                    </Button>
-
-                    <div>
-                      <h3 className={`font-medium ${
-                        task.status === 'Completed' ? 'text-muted-foreground line-through' : 'text-foreground'
-                      }`}>
-                        {task.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Calendar size={14} className="mr-1" />
-                          <span>Due: {task.dueDate}</span>
-                        </div>
-
-                        <Badge variant="outline" className={task.priority === 'High'
-                          ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                          : task.priority === 'Medium'
-                            ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
-                            : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                        }>
-                          {task.priority}
-                        </Badge>
-
-                        {task.project && (
-                          <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/20">
-                            {task.project}
-                          </Badge>
-                        )}
-
-                        <Badge variant="outline" className={task.status === 'Completed'
-                          ? 'bg-green-500/10 text-green-500 border-green-500/20'
-                          : task.status === 'In Progress'
-                            ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                            : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
-                        }>
-                          {task.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                {/* Production Status Badge at the top */}
+                <div className="flex justify-between items-center mb-3">
+                  <Badge variant="outline" className={`
+                    ${task.productionStatus === 'completed' ? 'bg-green-500/10 text-green-500 border-green-500/20' : ''}
+                    ${task.productionStatus === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : ''}
+                    ${task.productionStatus === 'pending' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : ''}
+                    ${task.productionStatus === 'paused' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : ''}
+                    ${task.productionStatus === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' : ''}
+                    ${task.productionStatus === 'printed' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' : ''}
+                    ${task.productionStatus === 'delivered' ? 'bg-teal-500/10 text-teal-500 border-teal-500/20' : ''}
+                  `}>
+                    {task.productionStatus.replace('_', ' ').charAt(0).toUpperCase() + task.productionStatus.replace('_', ' ').slice(1)}
+                  </Badge>
+                  
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); }}>
                     <MoreHorizontal className="h-4 w-4" />
                     <span className="sr-only">Task options</span>
                   </Button>
+                </div>
+
+                {/* Client Information */}
+                <div className="mb-3">
+                  <h3 className="font-medium text-foreground">{task.clientName}</h3>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <span className="capitalize">{task.clientType.replace('_', ' ')} Client</span>
+                  </div>
+                </div>
+
+                {/* Order Number and Due Date */}
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <span className="font-medium">{task.orderNumber}</span>
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Calendar size={14} className="mr-1" />
+                    <span>Due: {task.dueDate}</span>
+                  </div>
+                </div>
+
+                {/* Item Breakdown */}
+                <div className="mb-3 space-y-2">
+                  <h4 className="text-xs font-medium text-muted-foreground">Items:</h4>
+                  {task.items.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{item.itemName}</span>
+                      <span className="font-medium">Qty: {item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Notes Section */}
+                {task.notes && (
+                  <div className="mt-3 pt-3 border-t border-border/40">
+                    <h4 className="text-xs font-medium text-muted-foreground mb-1">Notes:</h4>
+                    <p className="text-sm text-muted-foreground">{task.notes}</p>
+                  </div>
+                )}
+
+                {/* Task Status and Priority */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Badge variant="outline" className={task.priority === 'high'
+                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                    : task.priority === 'medium'
+                      ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                      : task.priority === 'low'
+                        ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                        : 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+                  }>
+                    Priority: {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                  </Badge>
+
+                  <Badge variant="outline" className={task.status === 'completed'
+                    ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                    : task.status === 'in_progress'
+                      ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                      : task.status === 'pending'
+                        ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                        : 'bg-red-500/10 text-red-500 border-red-500/20'
+                  }>
+                    Status: {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.replace('_', ' ').slice(1)}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileText, FilePlus, Download, Printer, Loader2, FileDown, FileUp } from 'lucide-react';
+import { FileText, FilePlus, Download, Printer, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { InvoiceSheetProps, InvoiceSettings as InvoiceSettingsType } from './types';
@@ -88,12 +88,12 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   });
 
   // Event handlers
-  const handleGenerate = async (quality: number = 2) => {
+  const handleGenerate = async () => {
     // Switch to preview tab first
     setActiveTab('preview');
 
-    // Generate and download the PDF with specified quality
-    await generateAndDownloadPdf(quality);
+    // Generate and download the PDF
+    await generateAndDownloadPdf();
   };
 
   // If no order is provided, don't render anything
@@ -158,45 +158,21 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
 
       <div className="border-t border-[#2B2B40] p-6 flex flex-wrap gap-3 justify-between sticky bottom-0 bg-background z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex gap-3">
-          {/* Digital Quality (1x) - Faster, smaller file */}
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              onClick={() => handleGenerate(1)}
+              onClick={handleGenerate}
               className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
               disabled={isGenerating}
-              title="Faster generation, smaller file size"
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  Generating PDF...
                 </>
               ) : (
                 <>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Digital PDF (1x)
-                </>
-              )}
-            </Button>
-          </motion.div>
-
-          {/* Print Quality (2x) - Higher quality for printing */}
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              onClick={() => handleGenerate(2)}
-              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
-              disabled={isGenerating}
-              title="Higher quality for printing"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <FileUp className="mr-2 h-4 w-4" />
-                  Print PDF (2x)
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF
                 </>
               )}
             </Button>

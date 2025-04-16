@@ -40,16 +40,54 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
       const supabase = createClient();
 
       // Validate required fields
-      if (!order.client_id) {
+      if (!order.client_id && !order.client_name) {
         throw new Error('Client is required');
+      }
+
+      // If we have client_name but no client_id, find or create the client
+      if (!order.client_id && order.client_name) {
+        console.log('Finding or creating client by name:', order.client_name);
+
+        // First, try to find an existing client with this name
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('id')
+          .ilike('name', order.client_name.trim())
+          .limit(1)
+          .single();
+
+        if (existingClient) {
+          console.log('Found existing client:', existingClient);
+          order.client_id = existingClient.id;
+        } else {
+          // If not found, create a new client
+          const { data: newClient, error } = await supabase
+            .from('clients')
+            .insert({ name: order.client_name.trim() })
+            .select('id')
+            .single();
+
+          if (error) {
+            console.error('Error creating client:', error);
+            throw new Error(`Failed to create client: ${error.message}`);
+          }
+
+          console.log('Created new client:', newClient);
+          order.client_id = newClient.id;
+        }
       }
 
       if (!order.items || order.items.length === 0) {
         throw new Error('At least one item is required');
       }
 
-      // Validate each item has the required fields
-      order.items.forEach((item, index) => {
+      // Process each item to ensure it has the required fields
+      // and find or create items/categories as needed
+      for (let i = 0; i < order.items.length; i++) {
+        const item = order.items[i];
+        const index = i;
+
+        // Validate required fields
         if (!item.item_name) {
           throw new Error(`Item #${index + 1} is missing a name`);
         }
@@ -62,7 +100,77 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
         if (item.unit_price === undefined || item.unit_price === null) {
           throw new Error(`Item #${index + 1} must have a unit price`);
         }
-      });
+
+        // If we have category_name but no category_id, find or create the category
+        if (!item.category_id && item.category_name) {
+          console.log(`Finding or creating category for item #${index + 1}:`, item.category_name);
+
+          // First, try to find an existing category with this name
+          const { data: existingCategory } = await supabase
+            .from('categories')
+            .select('id')
+            .ilike('name', item.category_name.trim())
+            .limit(1)
+            .single();
+
+          if (existingCategory) {
+            console.log('Found existing category:', existingCategory);
+            item.category_id = existingCategory.id;
+          } else {
+            // If not found, create a new category
+            const { data: newCategory, error } = await supabase
+              .from('categories')
+              .insert({ name: item.category_name.trim() })
+              .select('id')
+              .single();
+
+            if (error) {
+              console.error('Error creating category:', error);
+              throw new Error(`Failed to create category: ${error.message}`);
+            }
+
+            console.log('Created new category:', newCategory);
+            item.category_id = newCategory.id;
+          }
+        }
+
+        // If we have item_name but no item_id, find or create the item
+        if (!item.item_id && item.item_name && item.category_id) {
+          console.log(`Finding or creating item #${index + 1}:`, item.item_name);
+
+          // First, try to find an existing item with this name and category
+          const { data: existingItem } = await supabase
+            .from('items')
+            .select('id')
+            .ilike('name', item.item_name.trim())
+            .eq('category_id', item.category_id)
+            .limit(1)
+            .single();
+
+          if (existingItem) {
+            console.log('Found existing item:', existingItem);
+            item.item_id = existingItem.id;
+          } else {
+            // If not found, create a new item
+            const { data: newItem, error } = await supabase
+              .from('items')
+              .insert({
+                name: item.item_name.trim(),
+                category_id: item.category_id
+              })
+              .select('id')
+              .single();
+
+            if (error) {
+              console.error('Error creating item:', error);
+              throw new Error(`Failed to create item: ${error.message}`);
+            }
+
+            console.log('Created new item:', newItem);
+            item.item_id = newItem.id;
+          }
+        }
+      }
 
       // Prepare items for the function
       const items = (order.items || []).map((item: OrderItem) => {
