@@ -7,7 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useAuth } from '@/app/context/auth-context';
 import { ThemeSwitcher } from '../theme/theme-switcher';
 import { Announcement, AnnouncementTag, AnnouncementTitle } from '../ui/announcement';
-import { Bell, ArrowUpRightIcon, ExternalLink } from 'lucide-react';
+import { Bell, ArrowUpRightIcon, ExternalLink, RefreshCw } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Alert, AlertDescription } from '../ui/alert';
 
 /**
  * Get initials from a name
@@ -89,16 +91,28 @@ export default function TopHeader({
   }
 }: TopHeaderProps) {
   // Get user profile information from auth context
-  const { user, profile, isLoading } = useAuth();
+  const { user, profile, isLoading, profileError, refreshProfile } = useAuth();
 
   // Use provided values or fallback to profile data
   const displayName = userName || profile?.full_name || user?.email?.split('@')[0] || 'User';
   const displayInitials = userInitials || getInitials(displayName);
 
+  // State for profile refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Handle profile refresh
+  const handleProfileRefresh = async () => {
+    if (refreshProfile) {
+      setIsRefreshing(true);
+      await refreshProfile();
+      setTimeout(() => setIsRefreshing(false), 1000); // Show spinner for at least 1 second
+    }
+  };
+
   // Log auth state for debugging
   useEffect(() => {
-    console.log('Auth state in TopHeader:', { user, profile, isLoading });
-  }, [user, profile, isLoading]);
+    console.log('Auth state in TopHeader:', { user, profile, isLoading, profileError });
+  }, [user, profile, isLoading, profileError]);
 
   // Get time-based greeting
   const [greeting, setGreeting] = useState(getTimeBasedGreeting());
@@ -123,12 +137,41 @@ export default function TopHeader({
   }, []);
 
   return (
-    <header className={cn(
-      "top-header px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
-      scrolled && "shadow-md backdrop-blur-md bg-[hsl(var(--card))]/90 border-b border-[hsl(var(--border))]/60",
-      !scrolled && "bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]/40",
-      className
-    )}>
+    <>
+      {/* Profile Error Alert */}
+      {profileError && (
+        <Alert variant="destructive" className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between">
+          <AlertDescription>
+            Unable to load your profile data. This may affect some features.
+          </AlertDescription>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleProfileRefresh}
+            disabled={isRefreshing}
+            className="ml-2 bg-background"
+          >
+            {isRefreshing ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh Profile
+              </>
+            )}
+          </Button>
+        </Alert>
+      )}
+      <header className={cn(
+        "top-header px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
+        scrolled && "shadow-md backdrop-blur-md bg-[hsl(var(--card))]/90 border-b border-[hsl(var(--border))]/60",
+        !scrolled && "bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]/40",
+        profileError && "mt-12", // Add margin when error is shown
+        className
+      )}>
       <div className="flex items-center justify-between w-full">
         {/* Logo and Business Name */}
         <div className="flex items-center gap-3">
@@ -206,5 +249,6 @@ export default function TopHeader({
         </div>
       </div>
     </header>
+    </>
   );
 }

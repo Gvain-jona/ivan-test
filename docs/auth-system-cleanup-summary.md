@@ -4,9 +4,9 @@ This document summarizes the changes made to clean up the old authentication sys
 
 ## 1. Database Changes
 
-### 1.1 Migration File Created
+### 1.1 Migration File
 
-Created a new migration file `supabase/migrations/20250920000000_remove_pin_verification.sql` that:
+Used the existing migration file `supabase/migrations/20250920000000_remove_pin_verification.sql` that:
 
 - Creates a backup of the current profiles table
 - Removes PIN-related columns from the profiles table:
@@ -26,9 +26,9 @@ Created a new migration file `supabase/migrations/20250920000000_remove_pin_veri
 
 ### 2.1 PIN Verification Pages
 
-- `app/auth/setup-pin/page.tsx`
-- `app/auth/verify-pin/page.tsx`
-- `app/auth/forgot-pin/page.tsx`
+- `app/auth/setup-pin/` directory
+- `app/auth/verify-pin/` directory
+- `app/auth/forgot-pin/` directory
 
 ### 2.2 Auth Services
 
@@ -84,20 +84,27 @@ Updated `app/auth/signin/page.tsx` to:
 - Update text to mention OTP instead of magic link
 - Improve error handling
 
-### 3.6 Database Schema
+### 3.6 Verify Email Page
+
+Updated `app/auth/verify-email/page.tsx` to:
+
+- Redirect to the dashboard instead of the setup-pin page after verification
+- Simplify the verification flow
+
+### 3.7 Database Schema
 
 Updated `app/lib/validation/database-schemas.ts` to:
 
 - Remove PIN-related fields from the profile schema
 
-### 3.7 Cookies Utility
+### 3.8 Cookies Utility
 
 Updated `app/lib/utils/cookies.ts` to:
 
 - Remove PIN-related cookie functions
 - Rename PIN-related cookie names
 
-### 3.8 Admin Utility
+### 3.9 Admin Utility
 
 Updated `app/lib/supabase/admin.ts` to:
 

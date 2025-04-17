@@ -29,11 +29,14 @@ export async function GET(request: NextRequest) {
     // Create Supabase client
     const supabase = await createClient();
 
-    // Start building the query
+    // Start building the query with optimized select
+    // Only select the fields we actually need to reduce data transfer
     let query = supabase
       .from('orders')
       .select(`
-        *,
+        id, order_number, client_id, client_type, date, status, payment_status,
+        payment_method, total_amount, amount_paid, balance, notes, created_by,
+        created_at, updated_at,
         clients:client_id (id, name)
       `, { count: 'exact' });
 
@@ -55,16 +58,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // Search in order ID or client name
-      query = query.or(`id.ilike.%${search}%,clients.name.ilike.%${search}%`);
+      // Search in order number or client name - more efficient than searching by ID
+      query = query.or(`order_number.ilike.%${search}%,clients.name.ilike.%${search}%`);
     }
+
+    // Order by created_at desc for most recent orders first
+    query = query.order('created_at', { ascending: false });
 
     // Apply pagination
     query = query.range(offset, offset + limit - 1);
 
-    // Execute the query
+    // Execute the query with a timeout
     console.log('Executing Supabase query for orders');
-    const { data, error, count } = await query;
+    const { data, error, count } = await query.abortSignal(AbortSignal.timeout(20000)); // 20 second timeout
 
     if (error) {
       console.error('Error fetching orders:', error);
@@ -79,25 +85,42 @@ export async function GET(request: NextRequest) {
     // Fetch all order items in a single batch query instead of individual queries
     const orderIds = (data || []).map(order => order.id);
 
-    // Only fetch items if we have orders
+    // Only fetch items if we have orders and limit the number of items per order
     let orderItemsMap = {};
     if (orderIds.length > 0) {
-      const { data: allOrderItems, error: orderItemsError } = await supabase
-        .from('order_items')
-        .select('*')
-        .in('order_id', orderIds);
+      try {
+        // Use a separate AbortController for this query
+        const itemsController = new AbortController();
+        const itemsTimeoutId = setTimeout(() => itemsController.abort(), 10000); // 10 second timeout
 
-      if (orderItemsError) {
-        console.error('Error fetching order items:', orderItemsError);
-      } else {
-        // Group items by order_id for faster lookup
-        orderItemsMap = (allOrderItems || []).reduce((acc, item) => {
-          if (!acc[item.order_id]) {
-            acc[item.order_id] = [];
-          }
-          acc[item.order_id].push(item);
-          return acc;
-        }, {});
+        // Only select the fields we need
+        const { data: allOrderItems, error: orderItemsError } = await supabase
+          .from('order_items')
+          .select('id, order_id, item_id, category_id, quantity, unit_price, total_amount, created_at, updated_at')
+          .in('order_id', orderIds)
+          .abortSignal(itemsController.signal);
+
+        clearTimeout(itemsTimeoutId);
+
+        if (orderItemsError) {
+          console.error('Error fetching order items:', orderItemsError);
+        } else {
+          // Group items by order_id for faster lookup
+          orderItemsMap = (allOrderItems || []).reduce((acc, item) => {
+            if (!acc[item.order_id]) {
+              acc[item.order_id] = [];
+            }
+            acc[item.order_id].push(item);
+            return acc;
+          }, {});
+        }
+      } catch (itemsError) {
+        // If fetching items times out, log the error but continue with the orders
+        console.error('Error or timeout fetching order items:', itemsError);
+        // Return empty items for all orders
+        orderIds.forEach(id => {
+          orderItemsMap[id] = [];
+        });
       }
     }
 
@@ -133,51 +156,9 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // If no orders found, provide a sample order for testing
+    // Return empty array if no orders found - don't generate sample data
     if (transformedOrders.length === 0) {
-      console.log('No orders found in database, adding a sample order for testing');
-      transformedOrders.push({
-        id: 'sample-order-1',
-        order_number: 'ORD-2025-00000',
-        client_id: 'sample-client-1',
-        client_name: 'Sample Client',
-        client_type: 'regular',
-        date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        payment_status: 'unpaid',
-        payment_method: 'cash',
-        total_amount: 1000,
-        amount_paid: 0,
-        balance: 1000,
-        created_by: 'system',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        items: [
-          {
-            id: 'sample-item-1',
-            order_id: 'sample-order-1',
-            item_id: 'sample-item-type-1',
-            item_name: 'Sample Item',
-            category_id: 'sample-category-1',
-            category_name: 'Sample Category',
-            quantity: 2,
-            unit_price: 500,
-            total_amount: 1000,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ],
-        notes: [
-          {
-            id: 'sample-note-1',
-            text: 'This is a sample note',
-            type: 'general',
-            created_at: new Date().toISOString(),
-            created_by: 'system',
-            updated_at: new Date().toISOString()
-          }
-        ]
-      });
+      console.log('No orders found in database');
     }
 
     // Create response with proper cache headers
@@ -187,13 +168,17 @@ export async function GET(request: NextRequest) {
       pageCount: Math.ceil((count || transformedOrders.length) / limit)
     });
 
-    // Set cache headers
-    // Use a longer cache time (30 seconds) with stale-while-revalidate to improve performance
+    // Set aggressive cache headers to improve performance
+    // Use a longer cache time (60 seconds) with stale-while-revalidate to improve performance
     // while still ensuring data is eventually fresh
-    response.headers.set('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=300');
+    response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=120, stale-while-revalidate=600');
+
+    // Add Vary header to ensure proper caching based on query parameters
+    response.headers.set('Vary', 'Accept, Accept-Encoding, Cookie');
 
     // Add ETag for conditional requests
-    const etag = require('crypto')
+    const crypto = require('crypto');
+    const etag = crypto
       .createHash('md5')
       .update(JSON.stringify(transformedOrders))
       .digest('hex');

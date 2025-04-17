@@ -4,9 +4,11 @@ import { Order, OrdersTableFilters, OrderItem, OrderNote } from '@/types/orders'
 /**
  * Custom hook to manage order filtering functionality
  */
-export const useOrderFiltering = (initialOrders: Order[]) => {
+export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => {
+  // Ensure initialOrders is always an array
+  const safeInitialOrders = Array.isArray(initialOrders) ? initialOrders : [];
   const [filters, setFilters] = useState<OrdersTableFilters>({});
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>(initialOrders);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>(safeInitialOrders);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -78,32 +80,48 @@ export const useOrderFiltering = (initialOrders: Order[]) => {
   const isFirstRenderRef = React.useRef(true);
 
   useEffect(() => {
+    // Debug logging
+    console.log('useOrderFiltering - Effect triggered:', {
+      initialOrdersCount: initialOrders?.length || 0,
+      isFirstRender: isFirstRenderRef.current,
+      filtersApplied: Object.keys(filters).length > 0
+    });
+
     // On first render, just set the refs and filtered orders
     if (isFirstRenderRef.current) {
-      prevInitialOrdersRef.current = initialOrders;
+      prevInitialOrdersRef.current = safeInitialOrders;
       prevFiltersRef.current = filters;
-      const filtered = applyFilters(initialOrders, filters);
+      const filtered = applyFilters(safeInitialOrders, filters);
       setFilteredOrders(filtered);
+      console.log('useOrderFiltering - First render, setting filtered orders:', filtered.length);
       isFirstRenderRef.current = false;
       return;
     }
 
     // Skip if nothing has changed - use deep comparison
-    const initialOrdersChanged = JSON.stringify(initialOrders) !== JSON.stringify(prevInitialOrdersRef.current);
+    const initialOrdersChanged = JSON.stringify(safeInitialOrders) !== JSON.stringify(prevInitialOrdersRef.current);
     const filtersChanged = JSON.stringify(filters) !== JSON.stringify(prevFiltersRef.current);
+
+    console.log('useOrderFiltering - Change detection:', {
+      initialOrdersChanged,
+      filtersChanged,
+      initialOrdersCount: safeInitialOrders.length,
+      prevInitialOrdersCount: prevInitialOrdersRef.current?.length || 0
+    });
 
     if (!initialOrdersChanged && !filtersChanged) {
       return;
     }
 
     // Update refs
-    prevInitialOrdersRef.current = initialOrders;
+    prevInitialOrdersRef.current = safeInitialOrders;
     prevFiltersRef.current = filters;
 
     // Apply current filters to new initialOrders
-    const filtered = applyFilters(initialOrders, filters);
+    const filtered = applyFilters(safeInitialOrders, filters);
+    console.log('useOrderFiltering - Applying filters, result:', filtered.length);
     setFilteredOrders(filtered);
-  }, [initialOrders, applyFilters, filters]);
+  }, [safeInitialOrders, applyFilters, filters]);
 
 
 
@@ -119,11 +137,11 @@ export const useOrderFiltering = (initialOrders: Order[]) => {
     setFilters(newFilters);
 
     // Apply filters to orders
-    const filtered = applyFilters(initialOrders, newFilters);
+    const filtered = applyFilters(safeInitialOrders, newFilters);
     setFilteredOrders(filtered);
 
     return filtered.length; // Return count for pagination calculations
-  }, [initialOrders, applyFilters, filters, filteredOrders]);
+  }, [safeInitialOrders, applyFilters, filters, filteredOrders]);
 
   /**
    * Handle search for orders
@@ -142,9 +160,9 @@ export const useOrderFiltering = (initialOrders: Order[]) => {
 
     // Apply filtering immediately
     setFilters(newFilters);
-    const filtered = applyFilters(initialOrders, newFilters);
+    const filtered = applyFilters(safeInitialOrders, newFilters);
     setFilteredOrders(filtered);
-  }, [filters, initialOrders, applyFilters, searchTerm]);
+  }, [filters, safeInitialOrders, applyFilters, searchTerm]);
 
   /**
    * Reset filters
@@ -152,9 +170,9 @@ export const useOrderFiltering = (initialOrders: Order[]) => {
   const resetFilters = useCallback(() => {
     setFilters({});
     setSearchTerm('');
-    setFilteredOrders(initialOrders);
+    setFilteredOrders(safeInitialOrders);
     setShowFilters(false);
-  }, [initialOrders]);
+  }, [safeInitialOrders]);
 
   /**
    * Toggle filter visibility
@@ -188,9 +206,9 @@ export const useOrderFiltering = (initialOrders: Order[]) => {
 
     // Apply the new filters
     setFilters(newFilters);
-    const filtered = applyFilters(initialOrders, newFilters);
+    const filtered = applyFilters(safeInitialOrders, newFilters);
     setFilteredOrders(filtered);
-  }, [filters, initialOrders, applyFilters]);
+  }, [filters, safeInitialOrders, applyFilters]);
 
   return {
     filteredOrders,

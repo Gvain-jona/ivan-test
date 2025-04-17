@@ -42,6 +42,8 @@ interface SmartComboboxProps {
   onSearch?: (value: string) => void
   recentOptions?: SmartComboboxOption[]
   entityName?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function SmartCombobox({
@@ -60,10 +62,24 @@ export function SmartCombobox({
   onSearch,
   recentOptions = [],
   entityName = "option",
+  open: controlledOpen,
+  onOpenChange: controlledOpenChange,
 }: SmartComboboxProps) {
   // Ensure value is a string
   const safeValue = value || '';
-  const [open, setOpen] = React.useState(false)
+
+  // Handle controlled/uncontrolled open state
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  const setOpen = React.useCallback((newOpen: boolean) => {
+    if (!isControlled) {
+      setUncontrolledOpen(newOpen);
+    }
+    controlledOpenChange?.(newOpen);
+  }, [isControlled, controlledOpenChange]);
+
   const [searchValue, setSearchValue] = React.useState("")
   const [isCreating, setIsCreating] = React.useState(false)
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)

@@ -1,10 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback, useMemo } from 'react';
-import { useGlobalDropdownCache } from '@/context/GlobalDropdownCache';
 import { Order, Task, TasksFilters, OrderStatus, PaymentStatus } from '../../../types/orders';
 import { useToast } from '../../../components/ui/use-toast';
-import { useOrdersData } from '@/hooks/useOrdersData';
+import { useLoading } from '@/components/loading';
+import { useOrders, OrdersFilters, PaginationParams } from '@/hooks/useData';
 
 // Import sample data for tasks and metrics
 // Import custom hooks
@@ -89,10 +89,10 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   const [initialLoading, setInitialLoading] = useState(false); // Changed to false to avoid double loading state
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('insights'); // 'insights', 'orders' or 'tasks'
+  const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now()); // Track last refresh time
 
-  // Get the global dropdown cache
-  const { prefetchAll, isInitialized } = useGlobalDropdownCache();
-  const [userRole] = useState<'admin' | 'manager' | 'employee'>('admin'); // Placeholder, would come from auth
+  // User role state - in development mode, default to admin
+  const [userRole] = useState<'admin' | 'manager' | 'employee'>('admin'); // Default to admin in development
   const [stats, setStats] = useState({
     totalOrders: 0,
     revenue: 0,
@@ -125,14 +125,25 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   const memoizedFilters = useMemo(() => currentFilters, [JSON.stringify(currentFilters)]);
   const memoizedPagination = useMemo(() => currentPagination, [currentPagination.page, currentPagination.pageSize]);
 
+  // Use the loading provider for component-specific loading states
+  const { startLoading, stopLoading } = useLoading();
+
   const {
     orders,
     totalCount,
     pageCount,
     isLoading: ordersLoading,
-    refreshOrders,
+    mutate: refreshOrders,
+    isEmpty,
     updateOrderStatus: apiUpdateOrderStatus
-  } = useOrdersData(memoizedFilters, memoizedPagination);
+  } = useOrders(memoizedFilters, memoizedPagination, {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
+    keepPreviousData: true
+  });
+
+  // Determine if we have data loaded
+  const ordersDataLoaded = !isEmpty && !ordersLoading;
 
   // Function to fetch orders with optional filters
   const fetchOrders = useCallback(async (filters?: any) => {
@@ -156,6 +167,17 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, [toast, refreshOrders, setCurrentFilters]);
 
+  // Make sure we have a valid array of orders for filtering
+  const ordersArray = useMemo(() => {
+    // Ensure orders is always an array
+    if (!orders) return [];
+    if (!Array.isArray(orders)) {
+      console.warn('Orders is not an array:', orders);
+      return [];
+    }
+    return orders;
+  }, [orders]);
+
   // Initialize custom hooks
   const {
     filters,
@@ -167,7 +189,7 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     resetFilters: localResetFilters,
     toggleFilters,
     filterByStatus: localFilterByStatus
-  } = useOrderFiltering(orders || []);
+  } = useOrderFiltering(ordersArray);
 
   // Enhanced filter handlers that update SWR filters
   const handleFilterChange = useCallback((newFilters: any) => {
@@ -283,7 +305,7 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   // We use useRef to ensure the dependency doesn't change between renders
   const initialFetchRef = React.useRef(false);
 
-  // Effect to handle initial data loading
+  // Effect to handle initial data loading - optimized for faster loading
   useEffect(() => {
     // Only run this effect once
     if (!initialFetchRef.current) {
@@ -292,26 +314,151 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
         // Reset any filters to ensure all data is shown
         resetFilters();
 
-        // Prefetch dropdown data
-        if (!isInitialized) {
-          console.log('Prefetching dropdown data...');
-          await prefetchAll();
-        }
+        // Only fetch orders data, no dropdown prefetching
+        await refreshOrders({
+          revalidate: true,
+          populateCache: true
+        });
+
+        // Set initial loading to false after data is loaded
+        setInitialLoading(false);
       };
 
       loadOrders();
       initialFetchRef.current = true;
     }
-  }, [resetFilters, prefetchAll, isInitialized]); // Stable dependency array
+  }, [resetFilters, refreshOrders]); // Removed prefetchAll and isInitialized from dependency array
 
-  // Effect to update dataLoaded state when orders are loaded
-  useEffect(() => {
-    if (orders && orders.length > 0 && !dataLoaded) {
+  // Handle loading more items with debounce to prevent multiple calls
+  const loadingRef = React.useRef(false);
+  const loadingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Define a function to refresh data that can be used by both manual refresh and auto-refresh
+  // Optimized for better performance and reduced loading states
+  const refreshData = useCallback(async (showToast: boolean = true) => {
+    // Prevent multiple simultaneous calls
+    if (loadingRef.current) return;
+
+    // Set loading state but don't show skeleton for quick refreshes
+    loadingRef.current = true;
+    setLoading(true);
+    startLoading('orders-refresh');
+
+    // Clear any existing timeout
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+    }
+
+    try {
+      // Update refresh timestamp to force cache invalidation
+      const timestamp = Date.now();
+      setRefreshTimestamp(timestamp);
+
+      // Force revalidation
+      await refreshOrders();
+
+      // Only show toast if this was triggered by a manual refresh button click
+      // and not by an automatic refresh after order creation
+      if (showToast) {
+        toast({
+          title: "Data refreshed",
+          description: "The latest order data has been loaded",
+        });
+      }
+
+      // Mark data as loaded immediately
       setDataLoaded(true);
       setInitialLoading(false);
-      console.log('Orders data loaded successfully');
+    } catch (error) {
+      console.error('Error refreshing orders:', error);
+      if (showToast) {
+        toast({
+          title: "Error",
+          description: "Failed to refresh orders",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      // Clear loading state immediately
+      setLoading(false);
+      setInitialLoading(false);
+      stopLoading('orders-refresh');
+
+      // Reset the loading flag immediately to allow quick successive refreshes if needed
+      loadingRef.current = false;
     }
-  }, [orders, dataLoaded]);
+  }, [refreshOrders, toast, startLoading, stopLoading]);
+
+  // Alias handleLoadMore to refreshData for API compatibility
+  const handleLoadMore = refreshData;
+
+  // Effect to update dataLoaded state when orders are loaded
+  // Use the hasData flag from useOrdersData to determine if data is loaded
+  useEffect(() => {
+    console.log('OrdersPageContext - Data loading state changed:', {
+      ordersDataLoaded,
+      ordersCount: orders?.length || 0,
+      filteredOrdersCount: filteredOrders?.length || 0,
+      paginatedOrdersCount: paginatedOrders?.length || 0
+    });
+
+    if (ordersDataLoaded || (orders && orders.length > 0)) {
+      // Data is loaded (even if it's an empty array)
+      setDataLoaded(true);
+      setInitialLoading(false);
+      setLoading(false);
+      console.log('Orders data loaded successfully:', orders ? orders.length : 0, 'orders');
+
+      // Force update filtered orders when data is loaded
+      if (orders && orders.length > 0) {
+        // Use localHandleFilterChange to apply current filters
+        localHandleFilterChange(filters);
+        console.log('Forced update of filtered orders using localHandleFilterChange');
+      }
+    } else {
+      // Data is still loading
+      setDataLoaded(false);
+      setInitialLoading(true);
+      console.log('Still waiting for orders data...');
+    }
+  }, [orders, ordersDataLoaded, filters, localHandleFilterChange]);
+
+  // Auto-refresh data periodically when tab is visible
+  useEffect(() => {
+    // Only set up auto-refresh if we've already loaded data once
+    if (!dataLoaded) return;
+
+    // Function to check if tab is visible and refresh if needed
+    const checkAndRefresh = () => {
+      if (document.visibilityState === 'visible') {
+        // Check if it's been more than 2 minutes since last refresh
+        const now = Date.now();
+        const timeSinceLastRefresh = now - refreshTimestamp;
+
+        if (timeSinceLastRefresh > 2 * 60 * 1000) { // 2 minutes
+          console.log('Auto-refreshing orders data');
+          refreshData(false); // Don't show toast for auto-refresh
+        }
+      }
+    };
+
+    // Set up interval to check every minute
+    const intervalId = setInterval(checkAndRefresh, 60 * 1000); // 1 minute
+
+    // Also refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndRefresh();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [dataLoaded, refreshTimestamp, refreshData]);
 
   // Calculate metrics separately to avoid infinite loops
   useEffect(() => {
@@ -340,59 +487,6 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   useEffect(() => {
     updateTotalPages(filteredOrders.length);
   }, [filteredOrders.length, updateTotalPages]);
-
-  // Handle loading more items with debounce to prevent multiple calls
-  const loadingRef = React.useRef(false);
-  const loadingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const handleLoadMore = useCallback(async (showToast: boolean = true) => {
-    // Prevent multiple simultaneous calls
-    if (loadingRef.current) return;
-
-    // Set loading state
-    loadingRef.current = true;
-    setLoading(true);
-
-    // Clear any existing timeout
-    if (loadingTimeoutRef.current) {
-      clearTimeout(loadingTimeoutRef.current);
-    }
-
-    try {
-      // Use a cache-busting approach that doesn't modify the URL
-      const timestamp = Date.now();
-
-      // Force revalidation with a unique key
-      await refreshOrders({
-        revalidate: true,
-        populateCache: true,
-        rollbackOnError: true
-      });
-
-      // Only show toast if this was triggered by a manual refresh button click
-      // and not by an automatic refresh after order creation
-      if (showToast) {
-        toast({
-          title: "Data refreshed",
-          description: "The latest order data has been loaded",
-        });
-      }
-    } catch (error) {
-      console.error('Error refreshing orders:', error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh orders",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-
-      // Reset the loading flag after a short delay to prevent rapid successive calls
-      loadingTimeoutRef.current = setTimeout(() => {
-        loadingRef.current = false;
-      }, 1000);
-    }
-  }, [refreshOrders, toast]);
 
   // Tasks handlers
   const handleTaskFilterChange = (newFilters: TasksFilters) => {

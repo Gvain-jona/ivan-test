@@ -3,7 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import { formatDate } from '@/lib/utils';
 import { useOrdersPage } from '../_context/OrdersPageContext';
-import { useOrders } from '@/hooks/useOrders';
+import { useLoading } from '@/components/loading';
+import { useOrders } from '@/hooks/useData';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
 import PendingInvoicesPanel from './PendingInvoicesPanel';
 import { formatCurrency } from '@/lib/utils';
@@ -242,19 +243,39 @@ const InsightsTab: React.FC = () => {
     setIsPanelOpen(true);
   };
 
-  // Get loading state from the orders hook directly
-  const { isLoading: ordersLoading } = useOrders();
+  // Get loading state and data from the orders hook directly
+  const { isLoading: ordersLoading, orders: directOrders } = useOrders();
+
+  // Use the loading provider for component-specific loading states
+  const { loadingIds } = useLoading();
 
   // Combined loading state - show skeleton if either context loading or SWR loading is true
-  const isLoading = loading || ordersLoading;
+  const isLoading = loading || ordersLoading || loadingIds.has('orders');
 
-  // Show loading state - but only if we don't have any data yet
-  if (isLoading && (!filteredOrders || filteredOrders.length === 0)) {
+  // Track if we have any data at all (either from context or direct hook)
+  const hasAnyData =
+    (filteredOrders && filteredOrders.length > 0) ||
+    (directOrders && directOrders.length > 0);
+
+  // Track if we've attempted to load data
+  const [dataAttempted, setDataAttempted] = useState(false);
+
+  // Set dataAttempted to true once loading completes
+  React.useEffect(() => {
+    if (!isLoading && !dataAttempted) {
+      setDataAttempted(true);
+    }
+  }, [isLoading, dataAttempted]);
+
+  // Show loading state - but only if we're loading and haven't attempted to load data yet
+  if (isLoading && !hasAnyData && !dataAttempted) {
+    console.log('Showing analytics loading skeleton');
     return <AnalyticsCardSkeleton cards={3} />;
   }
 
-  // Show empty state if no orders and not loading
-  if (!isLoading && (!filteredOrders || filteredOrders.length === 0)) {
+  // Show empty state if we've attempted to load data but have no orders
+  if ((!isLoading || dataAttempted) && !hasAnyData) {
+    console.log('Showing analytics empty state');
     return (
       <EmptyState
         title="No order data available"

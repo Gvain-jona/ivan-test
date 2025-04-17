@@ -55,11 +55,21 @@ interface GlobalDropdownCacheContextValue {
 // Create the context
 const GlobalDropdownCacheContext = createContext<GlobalDropdownCacheContextValue | undefined>(undefined);
 
-// Cache TTL in milliseconds (30 minutes)
-const CACHE_TTL = 30 * 60 * 1000;
+// Cache TTL in milliseconds (increased for better performance)
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-// Prefetch TTL in milliseconds (15 minutes)
-const PREFETCH_INTERVAL = 15 * 60 * 1000;
+// Prefetch TTL in milliseconds (increased for better performance)
+const PREFETCH_INTERVAL = 15 * 60 * 1000; // 15 minutes
+
+// Debug mode flag
+const DEBUG = process.env.NODE_ENV !== 'production';
+
+// Log only in debug mode
+const debugLog = (...args: any[]) => {
+  if (DEBUG) {
+    console.log('[GlobalCache]', ...args);
+  }
+};
 
 // Initial cache state
 const initialCacheState: GlobalCache = {
@@ -68,6 +78,15 @@ const initialCacheState: GlobalCache = {
   items: {}, // Empty record for items (keyed by parentId)
   sizes: { data: [], timestamp: 0, isLoading: false, error: null },
   suppliers: { data: [], timestamp: 0, isLoading: false, error: null },
+};
+
+// Cache keys for localStorage persistence
+const CACHE_STORAGE_KEYS = {
+  CLIENTS: 'dropdown_cache_clients',
+  CATEGORIES: 'dropdown_cache_categories',
+  SIZES: 'dropdown_cache_sizes',
+  SUPPLIERS: 'dropdown_cache_suppliers',
+  // Items are stored with dynamic keys based on parentId
 };
 
 // Provider component
@@ -169,7 +188,7 @@ export function GlobalDropdownCacheProvider({ children }: { children: React.Reac
       });
     }
 
-    // Set a timeout to prevent infinite loading
+    // Set a timeout to prevent infinite loading - reduced to 3 seconds for better UX
     fetchTimeouts.current[cacheKey] = setTimeout(() => {
       console.warn(`[GlobalCache] Fetch timeout for ${cacheKey} (request ${requestId})`);
 
@@ -182,12 +201,16 @@ export function GlobalDropdownCacheProvider({ children }: { children: React.Reac
               // Make sure items exists
               const items = prev.items || {};
 
+              // For timeouts, use any existing data we might have, even if stale
+              const existingData = items[parentId]?.data || [];
+
               return {
                 ...prev,
                 items: {
                   ...items,
                   [parentId]: {
-                    ...(items[parentId] || { data: [], timestamp: 0 }),
+                    data: existingData,
+                    timestamp: existingData.length > 0 ? Date.now() : 0,
                     isLoading: false,
                     error: 'Request timed out'
                   }
@@ -200,10 +223,15 @@ export function GlobalDropdownCacheProvider({ children }: { children: React.Reac
               const entityKey = entityType as keyof Omit<GlobalCache, 'items'>;
               const currentEntityCache = prev[entityKey] || { data: [], timestamp: 0, isLoading: false, error: null };
 
+              // For timeouts, use any existing data we might have, even if stale
+              const existingData = currentEntityCache.data || [];
+
               return {
                 ...prev,
                 [entityType]: {
                   ...currentEntityCache,
+                  data: existingData,
+                  timestamp: existingData.length > 0 ? Date.now() : 0,
                   isLoading: false,
                   error: 'Request timed out'
                 }
@@ -219,7 +247,7 @@ export function GlobalDropdownCacheProvider({ children }: { children: React.Reac
       } else {
         console.log(`[GlobalCache] Ignoring timeout for stale request ${requestId} (current: ${pendingFetches.current[cacheKey]})`);
       }
-    }, 15000); // 15 second timeout
+    }, 3000); // 3 second timeout for better user experience
 
     try {
       // Fetch options from server
@@ -559,58 +587,289 @@ export function GlobalDropdownCacheProvider({ children }: { children: React.Reac
     }
   }, []);
 
-  // Prefetch all common data - simplified to avoid circular dependencies
-  const prefetchAll = useCallback((): void => {
-    console.log('[GlobalCache] Prefetching all common data...');
+  // Prefetch all common data - now optional and only called explicitly
+  const prefetchAll = useCallback((entityTypes?: EntityType[]): void => {
+    console.log('[GlobalCache] Prefetching selected data on demand...');
 
-    // Fetch each entity type separately to avoid race conditions
-    setTimeout(() => refreshOptions('clients'), 0);
-    setTimeout(() => refreshOptions('categories'), 200);
-    setTimeout(() => refreshOptions('sizes'), 400);
-    setTimeout(() => refreshOptions('suppliers'), 600);
-
-    // Mark as initialized
+    // Mark as initialized immediately to prevent loading state delays
     setIsInitialized(true);
+
+    // If specific entity types are provided, only fetch those
+    if (entityTypes && entityTypes.length > 0) {
+      console.log(`[GlobalCache] Prefetching specific entity types: ${entityTypes.join(', ')}`);
+      entityTypes.forEach((entityType, index) => {
+        // Stagger requests to prevent overwhelming the server
+        setTimeout(() => {
+          refreshOptions(entityType);
+        }, index * 100);
+      });
+      return;
+    }
+
+    // Otherwise, don't fetch anything by default
+    console.log('[GlobalCache] No entity types specified for prefetching');
   }, [refreshOptions]);
 
-  // Initialize cache on mount - simplified to avoid circular dependencies
+  // Initialize cache on mount with localStorage persistence
   useEffect(() => {
-    console.log('[GlobalCache] Initializing cache...');
+    debugLog('Initializing cache...');
 
-    // Initialize the cache with empty data
-    setCache({
-      clients: { data: [], timestamp: 0, isLoading: false, error: null },
-      categories: { data: [], timestamp: 0, isLoading: false, error: null },
-      items: {}, // Empty record for items (keyed by parentId)
-      sizes: { data: [], timestamp: 0, isLoading: false, error: null },
-      suppliers: { data: [], timestamp: 0, isLoading: false, error: null },
-    });
+    try {
+      // Load cached data from localStorage
+      const loadedCache: GlobalCache = {
+        clients: { data: [], timestamp: 0, isLoading: false, error: null },
+        categories: { data: [], timestamp: 0, isLoading: false, error: null },
+        items: {}, // Empty record for items (keyed by parentId)
+        sizes: { data: [], timestamp: 0, isLoading: false, error: null },
+        suppliers: { data: [], timestamp: 0, isLoading: false, error: null },
+      };
 
-    // Mark as initialized
+      // Load each entity type from localStorage
+      if (typeof window !== 'undefined') {
+        // Load clients
+        const clientsData = localStorage.getItem(CACHE_STORAGE_KEYS.CLIENTS);
+        if (clientsData) {
+          try {
+            const parsed = JSON.parse(clientsData);
+            if (parsed && parsed.data && Array.isArray(parsed.data) && parsed.timestamp) {
+              // Check if cache is still valid
+              if (Date.now() - parsed.timestamp < CACHE_TTL) {
+                loadedCache.clients = {
+                  data: parsed.data,
+                  timestamp: parsed.timestamp,
+                  isLoading: false,
+                  error: null
+                };
+                debugLog(`Loaded ${parsed.data.length} clients from localStorage cache`);
+              } else {
+                debugLog('Clients cache expired, will fetch fresh data');
+              }
+            }
+          } catch (e) {
+            console.warn('Error parsing clients cache:', e);
+          }
+        }
+
+        // Load categories
+        const categoriesData = localStorage.getItem(CACHE_STORAGE_KEYS.CATEGORIES);
+        if (categoriesData) {
+          try {
+            const parsed = JSON.parse(categoriesData);
+            if (parsed && parsed.data && Array.isArray(parsed.data) && parsed.timestamp) {
+              // Check if cache is still valid
+              if (Date.now() - parsed.timestamp < CACHE_TTL) {
+                loadedCache.categories = {
+                  data: parsed.data,
+                  timestamp: parsed.timestamp,
+                  isLoading: false,
+                  error: null
+                };
+                debugLog(`Loaded ${parsed.data.length} categories from localStorage cache`);
+              } else {
+                debugLog('Categories cache expired, will fetch fresh data');
+              }
+            }
+          } catch (e) {
+            console.warn('Error parsing categories cache:', e);
+          }
+        }
+
+        // Load sizes
+        const sizesData = localStorage.getItem(CACHE_STORAGE_KEYS.SIZES);
+        if (sizesData) {
+          try {
+            const parsed = JSON.parse(sizesData);
+            if (parsed && parsed.data && Array.isArray(parsed.data) && parsed.timestamp) {
+              // Check if cache is still valid
+              if (Date.now() - parsed.timestamp < CACHE_TTL) {
+                loadedCache.sizes = {
+                  data: parsed.data,
+                  timestamp: parsed.timestamp,
+                  isLoading: false,
+                  error: null
+                };
+                debugLog(`Loaded ${parsed.data.length} sizes from localStorage cache`);
+              } else {
+                debugLog('Sizes cache expired, will fetch fresh data');
+              }
+            }
+          } catch (e) {
+            console.warn('Error parsing sizes cache:', e);
+          }
+        }
+
+        // Load suppliers
+        const suppliersData = localStorage.getItem(CACHE_STORAGE_KEYS.SUPPLIERS);
+        if (suppliersData) {
+          try {
+            const parsed = JSON.parse(suppliersData);
+            if (parsed && parsed.data && Array.isArray(parsed.data) && parsed.timestamp) {
+              // Check if cache is still valid
+              if (Date.now() - parsed.timestamp < CACHE_TTL) {
+                loadedCache.suppliers = {
+                  data: parsed.data,
+                  timestamp: parsed.timestamp,
+                  isLoading: false,
+                  error: null
+                };
+                debugLog(`Loaded ${parsed.data.length} suppliers from localStorage cache`);
+              } else {
+                debugLog('Suppliers cache expired, will fetch fresh data');
+              }
+            }
+          } catch (e) {
+            console.warn('Error parsing suppliers cache:', e);
+          }
+        }
+
+        // Load items (look for any keys that start with 'dropdown_cache_items_')
+        const itemsPrefix = 'dropdown_cache_items_';
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(itemsPrefix)) {
+            try {
+              const parentId = key.replace(itemsPrefix, '');
+              const itemsData = localStorage.getItem(key);
+              if (itemsData) {
+                const parsed = JSON.parse(itemsData);
+                if (parsed && parsed.data && Array.isArray(parsed.data) && parsed.timestamp) {
+                  // Check if cache is still valid
+                  if (Date.now() - parsed.timestamp < CACHE_TTL) {
+                    loadedCache.items[parentId] = {
+                      data: parsed.data,
+                      timestamp: parsed.timestamp,
+                      isLoading: false,
+                      error: null
+                    };
+                    debugLog(`Loaded ${parsed.data.length} items for category ${parentId} from localStorage cache`);
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn(`Error parsing items cache for key ${key}:`, e);
+            }
+          }
+        }
+      }
+
+      // Update cache with loaded data
+      setCache(loadedCache);
+    } catch (error) {
+      console.error('Error loading cache from localStorage:', error);
+      // Initialize with empty cache on error
+      setCache(initialCacheState);
+    }
+
+    // Mark as initialized immediately to prevent loading state delays
     setIsInitialized(true);
+    debugLog('Cache initialized - using localStorage persistence');
 
-    // Prefetch common data with a delay to avoid render loops
-    const initialFetchTimer = setTimeout(() => {
-      console.log('[GlobalCache] Starting initial data fetch...');
-      // Fetch each entity type separately to avoid race conditions
-      refreshOptions('clients');
-      refreshOptions('categories');
-      refreshOptions('sizes');
-      refreshOptions('suppliers');
-    }, 1000); // Longer delay for initial load
+    // Listen for prefetch event from auth context but don't automatically fetch
+    const handlePrefetchEvent = () => {
+      debugLog('Received prefetch event, but not automatically fetching data');
+      // No longer automatically fetch data here
+      // Data will be fetched on-demand when components need it
+    };
+
+    // Add event listener for prefetch event
+    if (typeof window !== 'undefined') {
+      window.addEventListener('prefetch-app-data', handlePrefetchEvent);
+    }
 
     return () => {
-      // Clean up timer
-      clearTimeout(initialFetchTimer);
+      // Remove event listener
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('prefetch-app-data', handlePrefetchEvent);
+      }
 
       // Clear all pending fetch timeouts
       Object.values(fetchTimeouts.current).forEach(timeout => {
         clearTimeout(timeout);
       });
 
-      console.log('[GlobalCache] Cleanup complete');
+      debugLog('Cleanup complete');
     };
   }, []); // Empty dependency array - only run on mount
+
+  // Save cache to localStorage
+  const saveToLocalStorage = useCallback((entityType: EntityType, data: CacheEntry, parentId?: string) => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Skip saving if there's no data or if it's loading
+      if (!data || data.isLoading || !data.data || data.data.length === 0) return;
+
+      // For items, we need to use the parentId
+      if (entityType === 'items' && parentId) {
+        const key = `dropdown_cache_items_${parentId}`;
+        localStorage.setItem(key, JSON.stringify({
+          data: data.data,
+          timestamp: data.timestamp
+        }));
+        debugLog(`Saved ${data.data.length} items for category ${parentId} to localStorage`);
+        return;
+      }
+
+      // For other entity types
+      let storageKey: string;
+      switch (entityType) {
+        case 'clients':
+          storageKey = CACHE_STORAGE_KEYS.CLIENTS;
+          break;
+        case 'categories':
+          storageKey = CACHE_STORAGE_KEYS.CATEGORIES;
+          break;
+        case 'sizes':
+          storageKey = CACHE_STORAGE_KEYS.SIZES;
+          break;
+        case 'suppliers':
+          storageKey = CACHE_STORAGE_KEYS.SUPPLIERS;
+          break;
+        default:
+          return; // Unknown entity type
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify({
+        data: data.data,
+        timestamp: data.timestamp
+      }));
+      debugLog(`Saved ${data.data.length} ${entityType} to localStorage`);
+    } catch (error) {
+      console.error(`Error saving ${entityType} cache to localStorage:`, error);
+    }
+  }, []);
+
+  // Watch for cache changes and save to localStorage
+  useEffect(() => {
+    // Save clients
+    if (cache.clients && cache.clients.data && cache.clients.data.length > 0 && !cache.clients.isLoading) {
+      saveToLocalStorage('clients', cache.clients);
+    }
+
+    // Save categories
+    if (cache.categories && cache.categories.data && cache.categories.data.length > 0 && !cache.categories.isLoading) {
+      saveToLocalStorage('categories', cache.categories);
+    }
+
+    // Save sizes
+    if (cache.sizes && cache.sizes.data && cache.sizes.data.length > 0 && !cache.sizes.isLoading) {
+      saveToLocalStorage('sizes', cache.sizes);
+    }
+
+    // Save suppliers
+    if (cache.suppliers && cache.suppliers.data && cache.suppliers.data.length > 0 && !cache.suppliers.isLoading) {
+      saveToLocalStorage('suppliers', cache.suppliers);
+    }
+
+    // Save items
+    if (cache.items) {
+      Object.entries(cache.items).forEach(([parentId, itemCache]) => {
+        if (itemCache && itemCache.data && itemCache.data.length > 0 && !itemCache.isLoading) {
+          saveToLocalStorage('items', itemCache, parentId);
+        }
+      });
+    }
+  }, [cache, saveToLocalStorage]);
 
   // Context value
   const contextValue: GlobalDropdownCacheContextValue = {

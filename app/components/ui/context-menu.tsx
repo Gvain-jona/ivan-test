@@ -52,8 +52,6 @@ function ContextMenu({
 
       // Check if the click was outside the menu
       if (menuRef.current && !menuRef.current.contains(targetElement)) {
-        console.log('Click outside detected');
-
         // If clicked on a footer nav item that's not a context menu, let the nav handle it
         // Otherwise, close the menu
         if (!isFooterNavNonContextItem) {
@@ -89,9 +87,9 @@ function ContextMenu({
     };
   }, [open, onOpenChange]);
 
-  // For debugging positioning issues
+  // For debugging positioning issues - only log when state actually changes
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' && open && false) { // Disable logging completely
       console.log('ContextMenu state changed:', {
         open,
         activeSection,
@@ -128,7 +126,7 @@ function ContextMenu({
     switch (menuType) {
       case 'notifications':
         return <NotificationsMenu />;
-        
+
       case 'search':
         return (
           <div className="search-context-menu">
@@ -146,7 +144,7 @@ function ContextMenu({
                 </kbd>
               </div>
             </div>
-            
+
             {/* Recent section */}
             <div className="mb-4">
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Recent</h3>
@@ -161,7 +159,7 @@ function ContextMenu({
                 ))}
               </div>
             </div>
-            
+
             {/* Categories grid */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Tools & Apps */}
@@ -187,7 +185,7 @@ function ContextMenu({
                   </div>
                 </div>
               </div>
-              
+
               {/* Employees */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -214,7 +212,7 @@ function ContextMenu({
                   </div>
                 </div>
               </div>
-              
+
               {/* Teams */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -238,7 +236,7 @@ function ContextMenu({
                   </div>
                 </div>
               </div>
-              
+
               {/* Locations */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -263,7 +261,7 @@ function ContextMenu({
                 </div>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="flex items-center justify-between pt-2 border-t border-border text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -284,7 +282,7 @@ function ContextMenu({
             </div>
           </div>
         );
-        
+
       case 'profile':
         return (
           <div className="profile-menu">
@@ -333,7 +331,7 @@ function ContextMenu({
             </div>
           </div>
         );
-        
+
       default:
         return <div>Menu content not found</div>;
     }
@@ -398,7 +396,6 @@ function ContextMenu({
                           menuType !== prevMenuTypeRef.current;
 
     if (isMenuSwitching) {
-      console.log('Switching menus from', prevMenuTypeRef.current, 'to', menuType);
       // For menu switching, we want to immediately show the new menu without exit animation
       setIsExiting(false);
     } else if (open) {
@@ -406,12 +403,10 @@ function ContextMenu({
       setIsExiting(false);
     } else if (!isExiting && prevMenuTypeRef.current !== null) {
       // Only start exit animation when actually closing (not switching)
-      console.log('Starting exit animation');
       setIsExiting(true);
 
       // Reset exiting state after animation completes
       const timeout = setTimeout(() => {
-        console.log('Exit animation complete, resetting state');
         setIsExiting(false);
       }, 200); // Match animation duration
 
@@ -423,7 +418,7 @@ function ContextMenu({
   }, [open, isExiting, menuType]);
 
   if (!open && !isExiting) {
-    console.log('ContextMenu not showing: open is false');
+    // Removed console log to reduce console spam
     return null;
   }
 

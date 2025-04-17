@@ -25,8 +25,32 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-// Simple fetcher for SWR
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+// Enhanced fetcher for SWR with error handling
+const fetcher = async (url: string) => {
+  try {
+    const res = await fetch(url);
+
+    // Handle HTTP errors
+    if (!res.ok) {
+      // For 404 errors, return an empty array instead of throwing
+      if (res.status === 404) {
+        console.warn(`Resource not found: ${url}, returning empty array`);
+        return [];
+      }
+
+      // For other errors, throw
+      const errorText = await res.text();
+      throw new Error(`API error: ${res.status} ${errorText}`);
+    }
+
+    // Parse JSON response
+    return res.json();
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error);
+    // Return empty array as fallback
+    return [];
+  }
+};
 
 // Import sub-components
 import OrderGeneralInfoForm from './OrderFormModal/OrderGeneralInfoForm';
@@ -59,35 +83,35 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
 
   // Fetch data from API or context with SWR cache configuration to prevent excessive requests
   const { data: clientsData = [], isLoading: isClientsLoading } = useSWR<ComboboxOption[]>(
-    '/api/clients', 
+    '/api/clients',
     fetcher,
-    { 
+    {
       revalidateOnFocus: false,
       dedupingInterval: 60000, // 1 minute
       focusThrottleInterval: 60000 // 1 minute
     }
   );
-  
+
   const { data: categoriesData = [], isLoading: isCategoriesLoading } = useSWR<ComboboxOption[]>(
-    '/api/categories', 
+    '/api/categories',
     fetcher,
-    { 
+    {
       revalidateOnFocus: false,
       dedupingInterval: 60000,
       focusThrottleInterval: 60000
     }
   );
-  
+
   const { data: itemsData = [], isLoading: isItemsLoading } = useSWR<(ComboboxOption & { categoryId?: string })[]>(
-    '/api/items', 
+    '/api/items',
     fetcher,
-    { 
+    {
       revalidateOnFocus: false,
       dedupingInterval: 60000,
       focusThrottleInterval: 60000
     }
   );
-  
+
   // Use memoized data to prevent unnecessary re-renders
   const clients = useMemo<ComboboxOption[]>(() => clientsData, [clientsData]);
   const categories = useMemo<ComboboxOption[]>(() => categoriesData, [categoriesData]);
@@ -124,13 +148,13 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
     noteForms: [0], // Start with one form
     paymentForms: [0] // Start with one form
   });
-  
+
   const [formIdCounters, setFormIdCounters] = useState({
     items: 1,
     payments: 1,
     notes: 1
   });
-  
+
   // Use useRef for partial data to prevent excessive re-renders
   // This is especially important for complex nested objects
   const partialDataRef = useRef({
@@ -138,7 +162,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
     payments: {},
     notes: {}
   });
-  
+
   // Create a memoized formState object that combines the separate state pieces
   // This prevents the need to update multiple components when only one part changes
   const formState = useMemo(() => ({
@@ -655,7 +679,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     ...prev,
                     itemForms: [...prev.itemForms, counter]
                   }));
-                  
+
                   // Update counter separately
                   setFormIdCounters(prev => ({
                     ...prev,
@@ -668,7 +692,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     ...prev,
                     itemForms: prev.itemForms.filter(formId => formId !== index)
                   }));
-                  
+
                   // Update partial data using ref to prevent re-renders
                   if (partialDataRef.current.items[index]) {
                     delete partialDataRef.current.items[index];
@@ -699,7 +723,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     ...prev,
                     paymentForms: [...prev.paymentForms, counter]
                   }));
-                  
+
                   // Update counter separately
                   setFormIdCounters(prev => ({
                     ...prev,
@@ -712,7 +736,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     ...prev,
                     paymentForms: prev.paymentForms.filter(formId => formId !== index)
                   }));
-                  
+
                   // Update partial data using ref to prevent re-renders
                   if (partialDataRef.current.payments[index]) {
                     delete partialDataRef.current.payments[index];
@@ -741,7 +765,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     ...prev,
                     noteForms: [...prev.noteForms, counter]
                   }));
-                  
+
                   // Update counter separately
                   setFormIdCounters(prev => ({
                     ...prev,
@@ -754,7 +778,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     ...prev,
                     noteForms: prev.noteForms.filter(formId => formId !== index)
                   }));
-                  
+
                   // Update partial data using ref to prevent re-renders
                   if (partialDataRef.current.notes[index]) {
                     delete partialDataRef.current.notes[index];
@@ -785,13 +809,13 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     noteForms: [0],
                     paymentForms: [0]
                   });
-                  
+
                   setFormIdCounters({
                     items: 1,
                     payments: 1,
                     notes: 1
                   });
-                  
+
                   // Reset partial data ref
                   partialDataRef.current = {
                     items: {},
@@ -866,7 +890,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
           approvalNote="This action cannot be undone."
         />
       )}
-      
+
       {/* Unsaved Changes Confirmation Dialog */}
       <Dialog open={confirmDialog.isOpen} onOpenChange={confirmDialog.setOpen}>
         <DialogContent className="sm:max-w-md bg-card border border-border/40 text-foreground">

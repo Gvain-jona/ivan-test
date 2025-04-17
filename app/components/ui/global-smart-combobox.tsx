@@ -19,6 +19,9 @@ interface GlobalSmartComboboxProps {
   searchDebounce?: number
 }
 
+/**
+ * @deprecated Use SWRSmartCombobox instead
+ */
 export function GlobalSmartCombobox({
   entityType,
   parentId,

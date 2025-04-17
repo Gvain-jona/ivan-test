@@ -11,11 +11,12 @@ interface LoadingStateProps {
 }
 
 /**
+ * @deprecated Use components from loading.tsx instead
  * Generic loading state component
  */
-export function LoadingState({ 
-  message = "Loading data...", 
-  className 
+export function LoadingState({
+  message = "Loading data...",
+  className
 }: LoadingStateProps) {
   return (
     <div className={cn("flex flex-col items-center justify-center p-8", className)}>
@@ -38,7 +39,7 @@ export function OrdersTableSkeleton({ rows = 5 }: { rows?: number }) {
         </div>
         <Skeleton className="h-8 w-[100px]" />
       </div>
-      
+
       <div className="border-t pt-4">
         <div className="grid grid-cols-7 gap-4 py-2 font-medium">
           <Skeleton className="h-4 w-[80px]" />
@@ -49,7 +50,7 @@ export function OrdersTableSkeleton({ rows = 5 }: { rows?: number }) {
           <Skeleton className="h-4 w-[80px]" />
           <Skeleton className="h-4 w-[60px]" />
         </div>
-        
+
         {Array(rows).fill(0).map((_, i) => (
           <div key={i} className="grid grid-cols-7 gap-4 py-4 border-t">
             <Skeleton className="h-4 w-[80px]" />
@@ -105,13 +106,13 @@ export function AnalyticsCardSkeleton({ cards = 3 }: { cards?: number }) {
             </div>
             <Skeleton className="h-10 w-10 rounded-full" />
           </div>
-          
+
           <div className="space-y-2">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
           </div>
-          
+
           <div className="pt-2">
             <Skeleton className="h-[100px] w-full rounded-md" />
           </div>

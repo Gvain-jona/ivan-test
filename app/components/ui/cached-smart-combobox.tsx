@@ -20,6 +20,9 @@ interface CachedSmartComboboxProps {
   entityName?: string
 }
 
+/**
+ * @deprecated Use SWRSmartCombobox instead
+ */
 export function CachedSmartCombobox({
   entityType,
   parentId,

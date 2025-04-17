@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
 import { initializeSupabaseSchema } from '../../lib/supabase/init';
 
-// This API route is used to initialize the Supabase database
-// It should only be called during development or initial setup
+/**
+ * This API route is used to initialize the Supabase database
+ * It should only be called during development or initial setup
+ *
+ * DEVELOPMENT USE ONLY
+ */
+
+// Define a GET handler that returns a 405 Method Not Allowed
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method not allowed' },
+    { status: 405 }
+  );
+}
+
+// Define the POST handler
 export async function POST() {
   try {
     // Only allow in development to prevent accidental initialization in production
@@ -28,4 +42,4 @@ export async function POST() {
     console.error('Error initializing database:', errorMessage);
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-} 
+}

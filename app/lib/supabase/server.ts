@@ -10,54 +10,75 @@ import { cookies } from 'next/headers'
 // Cache the client to avoid creating a new one for every request
 // This helps reduce the number of connections and improves performance
 let cachedClient: ReturnType<typeof createServerClient> | null = null;
+let lastClientCreationTime = 0;
+
+// Refresh the client every 30 minutes to prevent stale connections
+const CLIENT_REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
 export async function createClient() {
-  // If we already have a cached client, return it
-  // This is safe because the client is stateless and only uses cookies for auth
-  if (cachedClient) {
+  const now = Date.now();
+
+  // If we have a cached client and it's not too old, return it
+  if (cachedClient && (now - lastClientCreationTime) < CLIENT_REFRESH_INTERVAL) {
     return cachedClient;
   }
 
-  // Log the Supabase URL and key to verify they're being loaded correctly
-  // Only log this when creating a new client to reduce console noise
-  console.log('Server Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log('Server Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Loaded' : 'Not loaded')
+  // Only log in development to reduce noise in production
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Creating new server Supabase client')
+  }
 
   const cookieStore = cookies()
 
-  // Create a server client that properly handles cookies
-  cachedClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        async getAll() {
-          // Use async version to avoid the warning
-          return await cookieStore.getAll()
+  try {
+    // Create a server client that properly handles cookies
+    cachedClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          async get(name) {
+            const cookie = await cookieStore.get(name)
+            return cookie?.value
+          },
+          set(name, value, options) {
+            try {
+              cookieStore.set(name, value, options)
+            } catch (error) {
+              // The `set` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+              console.error('Error setting cookie:', error)
+            }
+          },
+          remove(name, options) {
+            try {
+              cookieStore.delete(name, options)
+            } catch (error) {
+              // The `remove` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+              console.error('Error removing cookie:', error)
+            }
+          },
         },
-        set(name, value, options) {
-          try {
-            cookieStore.set(name, value, options)
-          } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-            console.error('Error setting cookie:', error)
-          }
-        },
-        remove(name, options) {
-          try {
-            cookieStore.delete(name, options)
-          } catch (error) {
-            // The `remove` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-            console.error('Error removing cookie:', error)
-          }
-        },
-      },
-    }
-  )
+      }
+    )
 
-  return cachedClient;
+    // Update the last creation time
+    lastClientCreationTime = now;
+
+    return cachedClient;
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+
+    // If we have a cached client, return it as a fallback
+    if (cachedClient) {
+      console.log('Using cached client as fallback');
+      return cachedClient;
+    }
+
+    // Otherwise, rethrow the error
+    throw error;
+  }
 }

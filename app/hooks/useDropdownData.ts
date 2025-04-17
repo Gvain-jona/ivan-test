@@ -15,14 +15,20 @@ interface DropdownResponse {
 }
 
 /**
- * Fetches dropdown options directly from Supabase
+ * Fetches dropdown options directly from Supabase with improved error handling and timeout
  */
 async function fetchDropdownOptionsFromSupabase(
   entityType: EntityType,
   parentId?: string,
   search?: string
 ): Promise<DropdownResponse> {
+  // Create an AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
   try {
+    console.log(`[DropdownData] Fetching ${entityType} options`, { parentId, search });
+
     // Create Supabase client
     const supabase = createClient();
 
@@ -98,8 +104,11 @@ async function fetchDropdownOptionsFromSupabase(
         throw new Error(`Unsupported entity type: ${entityType}`);
     }
 
-    // Execute the query
-    const { data, error } = await query;
+    // Execute the query with the abort signal
+    const { data, error } = await query.abortSignal(controller.signal);
+
+    // Clear the timeout since the request completed
+    clearTimeout(timeoutId);
 
     if (error) {
       console.error(`Error fetching ${entityType}:`, error);
@@ -112,8 +121,21 @@ async function fetchDropdownOptionsFromSupabase(
       value: item.id
     }));
 
+    console.log(`[DropdownData] Successfully fetched ${options.length} ${entityType} options`);
     return { options };
   } catch (error) {
+    // Clear the timeout
+    clearTimeout(timeoutId);
+
+    // Handle abort errors specially
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Request timeout fetching ${entityType} options`);
+      return {
+        options: [],
+        error: `Request timeout fetching ${entityType}`
+      };
+    }
+
     console.error(`Error in fetchDropdownOptionsFromSupabase for ${entityType}:`, error);
     return {
       options: [],
@@ -223,7 +245,7 @@ function generateCacheKey(
 
 /**
  * Hook for fetching and managing dropdown options
- * Uses SWR for caching and revalidation
+ * Uses SWR for caching and revalidation with improved error handling and lazy loading
  */
 export function useDropdownData(
   entityType: EntityType,
@@ -231,32 +253,47 @@ export function useDropdownData(
   initialSearch: string = ''
 ) {
   const [search, setSearch] = useState(initialSearch);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Generate a stable cache key
   const cacheKey = generateCacheKey(entityType, parentId, search);
 
   // Use SWR for data fetching with optimized settings
   const { data, error, isLoading, mutate } = useSWR<DropdownResponse>(
-    cacheKey,
+    // Only fetch data when needed (not on initial load)
+    isInitialLoad ? null : cacheKey,
     () => fetchDropdownOptionsFromSupabase(entityType, parentId, search),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 120000, // 2 minutes - increased to reduce requests
       keepPreviousData: true,
-      refreshInterval: 300000, // Only refresh every 5 minutes
-      errorRetryCount: 2, // Limit retries
+      refreshInterval: 0, // Don't automatically refresh
+      errorRetryCount: 3, // Increased retry count
+      errorRetryInterval: 3000, // 3 seconds between retries
       suspense: false, // Don't use suspense
-      revalidateIfStale: false // Don't revalidate stale data automatically
+      revalidateIfStale: false, // Don't revalidate stale data automatically
+      onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+        // Only retry up to 3 times
+        if (retryCount >= 3) return;
+
+        // Retry after 3 seconds
+        setTimeout(() => revalidate({ retryCount }), 3000);
+      }
     }
   );
 
   /**
-   * Handle search input
+   * Handle search input and trigger data loading
    */
   const handleSearch = useCallback((term: string) => {
     setSearch(term);
-  }, []);
+
+    // If this is the first search, mark that we're no longer in initial load
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+    }
+  }, [isInitialLoad]);
 
   /**
    * Create a new option
@@ -265,6 +302,11 @@ export function useDropdownData(
     name: string
   ): Promise<SmartComboboxOption | null> => {
     try {
+      // If we're still in initial load, mark that we're no longer in initial load
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
+
       const { option, error } = await createDropdownOptionInSupabase(
         entityType,
         name,
@@ -294,34 +336,40 @@ export function useDropdownData(
       console.error(`Error in createOption for ${entityType}:`, error);
       return null;
     }
-  }, [entityType, parentId, mutate]);
+  }, [entityType, parentId, mutate, isInitialLoad]);
 
   /**
    * Refresh the options
    */
   const refreshOptions = useCallback(async () => {
     try {
+      // If we're still in initial load, mark that we're no longer in initial load
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
+
       await mutate();
       return true;
     } catch (error) {
       console.error(`Error refreshing ${entityType} options:`, error);
       return false;
     }
-  }, [entityType, mutate]);
+  }, [entityType, mutate, isInitialLoad]);
 
-  // Prefetch options on mount
-  useEffect(() => {
-    if (!search) {
-      refreshOptions();
-    }
-  }, [entityType, parentId, refreshOptions]);
+  // No longer prefetch options on mount - we'll load them on demand
 
   return {
     options: data?.options || [],
-    isLoading,
+    isLoading: !isInitialLoad && isLoading, // Only show loading if we're actually fetching
     isError: !!error,
     handleSearch,
     createOption,
-    refreshOptions
+    refreshOptions,
+    // Add a method to explicitly load data when needed (e.g., when dropdown is opened)
+    loadOptions: () => {
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
+    }
   };
 }

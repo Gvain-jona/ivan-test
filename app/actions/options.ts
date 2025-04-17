@@ -28,6 +28,19 @@ interface FetchOptionsParams {
 const optionsCache = new Map<string, { options: DropdownOption[], timestamp: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes in milliseconds
 
+// Request timeout for Supabase queries to prevent hanging requests
+const REQUEST_TIMEOUT = 3000; // 3 seconds
+
+// Helper function to add timeout to promises
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    })
+  ]);
+}
+
 export async function fetchDropdownOptions({
   entityType,
   search,
@@ -46,14 +59,17 @@ export async function fetchDropdownOptions({
     return { options: cachedResult.options, error: null };
   }
 
-  // Skip logging undefined parameters to reduce console noise
-  const logParams = {
-    search: search || '',
-    parentId: parentId || undefined,
-    filterField: filterField || undefined,
-    filterValue: filterValue || undefined
+  // Only log in development to reduce noise in production
+  if (process.env.NODE_ENV === 'development') {
+    // Skip logging undefined parameters to reduce console noise
+    const logParams = {
+      search: search || '',
+      parentId: parentId || undefined,
+      filterField: filterField || undefined,
+      filterValue: filterValue || undefined
+    }
+    console.log(`[Server] Fetching ${entityType} options`, logParams)
   }
-  console.log(`[Server] Fetching ${entityType} options`, logParams)
 
   try {
     const supabase = await createClient()
@@ -112,8 +128,12 @@ export async function fetchDropdownOptions({
       query = query.eq(filterField, filterValue)
     }
 
-    // Execute the query
-    const { data, error } = await query
+    // Execute the query with timeout
+    const { data, error } = await withTimeout(
+      query,
+      REQUEST_TIMEOUT,
+      `Request timeout fetching ${entityType}`
+    )
 
     if (error) {
       console.error(`[Server] Error fetching ${entityType}:`, error)
@@ -136,7 +156,10 @@ export async function fetchDropdownOptions({
       timestamp: Date.now()
     });
 
-    console.log(`[Server] Fetched ${options.length} ${entityType} options - cache key: ${cacheKey}`)
+    // Only log in development to reduce noise in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Server] Fetched ${options.length} ${entityType} options - cache key: ${cacheKey}`)
+    }
 
     return { options, error: null }
   } catch (error: any) {

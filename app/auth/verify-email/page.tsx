@@ -37,9 +37,9 @@ function VerifyEmailContent() {
       if (verificationCode.length === 6) {
         setSuccess('Email verification successful. You will be redirected shortly.')
 
-        // Redirect to setup PIN page after a short delay
+        // Redirect to dashboard after a short delay
         setTimeout(() => {
-          router.push(`/auth/setup-pin?redirect=${encodeURIComponent(redirect)}`)
+          router.push(redirect)
         }, 2000)
       } else {
         setError('Invalid verification code. Please try again.')

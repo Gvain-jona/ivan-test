@@ -78,34 +78,76 @@ async function fetchOrders(
   }
 
   try {
-    // Make the request with a timeout
+    // Make the request with a longer timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout (increased from 15s)
 
-    const response = await fetch(`/api/orders?${queryParams.toString()}`, {
-      signal: controller.signal,
-      // Add cache control headers
-      headers: {
-        'Cache-Control': 'max-age=60' // Cache for 60 seconds
+    // Add retry logic
+    let retries = 0;
+    const maxRetries = 2;
+    let response;
+
+    while (retries <= maxRetries) {
+      try {
+        response = await fetch(`/api/orders?${queryParams.toString()}`, {
+          signal: controller.signal,
+          // Add cache control headers
+          headers: {
+            'Cache-Control': 'max-age=120', // Cache for 2 minutes (increased from 60s)
+            'Pragma': 'no-cache', // Force revalidation
+            'If-None-Match': '' // Bypass ETag caching during retries
+          }
+        });
+
+        // If successful, break out of retry loop
+        if (response.ok) break;
+
+        // If we get a 5xx error, retry
+        if (response.status >= 500 && retries < maxRetries) {
+          retries++;
+          // Exponential backoff: 1s, 2s
+          await new Promise(resolve => setTimeout(resolve, retries * 1000));
+          continue;
+        }
+
+        // For other errors, throw immediately
+        throw new Error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
+      } catch (fetchError) {
+        // If it's not a timeout and we have retries left, retry
+        if (fetchError instanceof Error &&
+            fetchError.name !== 'AbortError' &&
+            retries < maxRetries) {
+          retries++;
+          await new Promise(resolve => setTimeout(resolve, retries * 1000));
+          continue;
+        }
+        // Otherwise rethrow
+        throw fetchError;
       }
-    });
+    }
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
+    // At this point, response should be defined and ok
+    if (!response || !response.ok) {
+      throw new Error('Failed to fetch orders after retries');
     }
 
     return response.json();
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again.');
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        console.error('Request timed out after 30 seconds');
+        throw new Error('Request timed out. Please try again.');
+      }
+      console.error('Error fetching orders:', error);
     }
     throw error;
   }
 }
 
 /**
+ * @deprecated Use useOrders from useData.ts instead
  * Hook for fetching orders with filtering and pagination
  */
 export function useOrders(
@@ -127,26 +169,34 @@ export function useOrders(
     {
       revalidateOnFocus: false, // Don't revalidate on focus to reduce requests
       revalidateOnReconnect: true,
-      dedupingInterval: 30000, // 30 seconds - increased to reduce requests
+      dedupingInterval: 60000, // 60 seconds - increased to reduce requests
       keepPreviousData: true, // Keep previous data while fetching new data
-      errorRetryCount: 2, // Limit retries
-      errorRetryInterval: 5000, // 5 seconds between retries
-      loadingTimeout: 15000, // 15 seconds timeout
-      focusThrottleInterval: 30000, // Throttle focus events
+      errorRetryCount: 3, // Increased retry count
+      errorRetryInterval: 3000, // 3 seconds between retries
+      loadingTimeout: 30000, // 30 seconds timeout (increased from 15s)
+      focusThrottleInterval: 60000, // Throttle focus events (increased from 30s)
       revalidateIfStale: true, // Revalidate if data is stale
       revalidateOnMount: true, // Always revalidate on mount
       suspense: false, // Don't use suspense
+      shouldRetryOnError: true, // Always retry on error
+      onLoadingSlow: () => {
+        console.log('Orders data loading is taking longer than expected');
+        // Don't show toast to avoid UI noise
+      },
       onSuccess: (data) => {
         // Log success but don't show toast to avoid UI noise
         console.log(`Successfully fetched ${data?.orders?.length || 0} orders`);
       },
       onError: (err) => {
         console.error('Error fetching orders:', err);
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch orders. Please try again later.',
-          variant: 'destructive',
-        });
+        // Only show toast for non-timeout errors to reduce UI noise
+        if (!(err instanceof Error) || !err.message.includes('timeout')) {
+          toast({
+            title: 'Error',
+            description: 'Failed to fetch orders. Please try again later.',
+            variant: 'destructive',
+          });
+        }
       }
     }
   );
@@ -243,6 +293,7 @@ export function useOrders(
 }
 
 /**
+ * @deprecated Use useOrder from useData.ts instead
  * Hook for fetching a single order by ID
  */
 export function useOrder(id?: string) {

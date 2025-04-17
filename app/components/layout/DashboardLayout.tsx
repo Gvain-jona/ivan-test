@@ -10,6 +10,7 @@ import ErrorBoundary from '../error/ErrorBoundary';
 import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { NotificationsWrapper } from '../notifications/NotificationsWrapper';
 import NotificationPermissionRequest from '../ui/NotificationPermissionRequest';
+import { SimpleLoadingCoordinator } from '../loading';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -37,25 +38,27 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
           isMobileMenuVisible={isMobileMenuOpen}
         />
 
-        {/* Page Content with Error Boundary and Suspense */}
+        {/* Page Content with Error Boundary, LoadingStateCoordinator, and Suspense */}
         <main className={cn(
           "flex-1 overflow-y-auto bg-[hsl(var(--background))] p-4 lg:p-6",
           className
         )}>
           <ErrorBoundary>
-            <Suspense fallback={
-              <div className="flex items-center justify-center h-[50vh]">
-                <div className="animate-pulse flex flex-col items-center gap-4">
-                  <div className="h-12 w-48 bg-muted/20 border border-border/10 rounded-md"></div>
-                  <div className="h-64 w-full max-w-3xl bg-muted/20 border border-border/10 rounded-lg"></div>
-                  <div className="h-32 w-full max-w-2xl bg-muted/20 border border-border/10 rounded-lg"></div>
+            <SimpleLoadingCoordinator>
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-[50vh]">
+                  <div className="animate-pulse flex flex-col items-center gap-4">
+                    <div className="h-12 w-48 bg-muted/20 border border-border/10 rounded-md"></div>
+                    <div className="h-64 w-full max-w-3xl bg-muted/20 border border-border/10 rounded-lg"></div>
+                    <div className="h-32 w-full max-w-2xl bg-muted/20 border border-border/10 rounded-lg"></div>
+                  </div>
                 </div>
-              </div>
-            }>
-              <div className="pb-16"> {/* Reduced padding to minimize wasted space */}
-                {children}
-              </div>
-            </Suspense>
+              }>
+                <div className="pb-16"> {/* Reduced padding to minimize wasted space */}
+                  {children}
+                </div>
+              </Suspense>
+            </SimpleLoadingCoordinator>
           </ErrorBoundary>
         </main>
 

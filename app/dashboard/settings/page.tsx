@@ -2,18 +2,20 @@
 
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
-import { 
-  CogIcon, 
-  Moon, 
-  Sun, 
-  Globe, 
-  Bell, 
-  Shield, 
+import {
+  CogIcon,
+  Moon,
+  Sun,
+  Globe,
+  Bell,
+  Shield,
   Database,
   LayoutGrid,
   Palette,
-  Save
+  Save,
+  Trash2
 } from 'lucide-react';
+import { CacheCleanupCard } from '@/components/settings/CacheCleanupCard';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -38,7 +40,7 @@ export default function SettingsPage() {
         <CogIcon className="h-8 w-8 mr-3 text-orange-500" />
         <h1 className="text-3xl font-bold">App Settings</h1>
       </div>
-      
+
       <Tabs defaultValue="appearance" className="w-full">
         <TabsList className="grid grid-cols-5 mb-8">
           <TabsTrigger value="appearance" className="flex items-center gap-2">
@@ -62,7 +64,7 @@ export default function SettingsPage() {
             <span>Layout</span>
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="appearance" className="space-y-6">
           <Card>
             <CardHeader>
@@ -94,7 +96,7 @@ export default function SettingsPage() {
                     </div>
                   </RadioGroup>
                 </div>
-                
+
                 <div>
                   <h3 className="text-lg font-medium mb-2">Accent Color</h3>
                   <Select value={accentColor} onValueChange={setAccentColor}>
@@ -113,15 +115,15 @@ export default function SettingsPage() {
                     <div className={`h-6 w-24 rounded ${accentColor === 'orange' ? 'bg-orange-500' : accentColor === 'blue' ? 'bg-blue-500' : accentColor === 'green' ? 'bg-green-500' : accentColor === 'purple' ? 'bg-purple-500' : 'bg-pink-500'}`}></div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium">High Contrast Mode</h3>
                     <p className="text-sm text-muted-foreground">Increase contrast for better visibility</p>
                   </div>
-                  <Switch 
-                    checked={highContrast} 
-                    onCheckedChange={setHighContrast} 
+                  <Switch
+                    checked={highContrast}
+                    onCheckedChange={setHighContrast}
                     aria-label="Toggle high contrast mode"
                   />
                 </div>
@@ -135,7 +137,7 @@ export default function SettingsPage() {
             </CardFooter>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
@@ -148,26 +150,26 @@ export default function SettingsPage() {
                   <h3 className="font-medium">Enable Notifications</h3>
                   <p className="text-sm text-muted-foreground">Receive notifications from the application</p>
                 </div>
-                <Switch 
-                  checked={notificationsEnabled} 
-                  onCheckedChange={setNotificationsEnabled} 
+                <Switch
+                  checked={notificationsEnabled}
+                  onCheckedChange={setNotificationsEnabled}
                   aria-label="Toggle notifications"
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium">Email Notifications</h3>
                   <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                 </div>
-                <Switch 
-                  checked={emailNotifications} 
-                  onCheckedChange={setEmailNotifications} 
+                <Switch
+                  checked={emailNotifications}
+                  onCheckedChange={setEmailNotifications}
                   disabled={!notificationsEnabled}
                   aria-label="Toggle email notifications"
                 />
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-2">Notification Types</h3>
                 <div className="space-y-2">
@@ -218,7 +220,7 @@ export default function SettingsPage() {
             </CardFooter>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="language" className="space-y-6">
           <Card>
             <CardHeader>
@@ -241,7 +243,7 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-medium mb-2">Date Format</h3>
                 <RadioGroup defaultValue="mdy" className="space-y-2">
@@ -259,7 +261,7 @@ export default function SettingsPage() {
                   </div>
                 </RadioGroup>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-medium mb-2">Time Format</h3>
                 <RadioGroup defaultValue="12h" className="space-y-2">
@@ -282,7 +284,7 @@ export default function SettingsPage() {
             </CardFooter>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="data" className="space-y-6">
           <Card>
             <CardHeader>
@@ -295,13 +297,13 @@ export default function SettingsPage() {
                   <h3 className="font-medium">Data Synchronization</h3>
                   <p className="text-sm text-muted-foreground">Sync your data across devices</p>
                 </div>
-                <Switch 
-                  checked={dataSync} 
-                  onCheckedChange={setDataSync} 
+                <Switch
+                  checked={dataSync}
+                  onCheckedChange={setDataSync}
                   aria-label="Toggle data sync"
                 />
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-2">Data Collection</h3>
                 <p className="text-sm text-muted-foreground mb-2">
@@ -319,7 +321,7 @@ export default function SettingsPage() {
                   </label>
                 </div>
               </div>
-              
+
               <div className="pt-4">
                 <h3 className="font-medium mb-2">Data Management</h3>
                 <div className="space-y-2">
@@ -332,6 +334,7 @@ export default function SettingsPage() {
                     Export My Data
                   </Button>
                   <Button variant="destructive" className="w-full justify-start">
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Delete My Account
                   </Button>
                 </div>
@@ -344,8 +347,11 @@ export default function SettingsPage() {
               </Button>
             </CardFooter>
           </Card>
+
+          {/* Cache Cleanup Card */}
+          <CacheCleanupCard />
         </TabsContent>
-        
+
         <TabsContent value="layout" className="space-y-6">
           <Card>
             <CardHeader>
@@ -358,13 +364,13 @@ export default function SettingsPage() {
                   <h3 className="font-medium">Compact Mode</h3>
                   <p className="text-sm text-muted-foreground">Use a more compact layout to fit more content on screen</p>
                 </div>
-                <Switch 
-                  checked={compactMode} 
-                  onCheckedChange={setCompactMode} 
+                <Switch
+                  checked={compactMode}
+                  onCheckedChange={setCompactMode}
                   aria-label="Toggle compact mode"
                 />
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-2">Default Dashboard View</h3>
                 <RadioGroup defaultValue="orders" className="space-y-2">
@@ -382,7 +388,7 @@ export default function SettingsPage() {
                   </div>
                 </RadioGroup>
               </div>
-              
+
               <div>
                 <h3 className="font-medium mb-2">Table Density</h3>
                 <RadioGroup defaultValue="medium" className="space-y-2">

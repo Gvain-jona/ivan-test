@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/app/context/auth-context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -16,7 +17,8 @@ import {
   HelpCircle,
   Home,
   ChevronRight,
-  Menu
+  Menu,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Separator } from '../ui/separator';
@@ -44,6 +46,7 @@ export default function SideNav({ className, onClose }: SideNavProps) {
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user, profile } = useAuth();
 
   // Handle responsive behavior
   useEffect(() => {
@@ -291,13 +294,36 @@ export default function SideNav({ className, onClose }: SideNavProps) {
           isCollapsed && "justify-center"
         )}>
           <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-            <AvatarImage src="/avatar.jpg" alt="User" />
-            <AvatarFallback className="bg-gradient-to-r from-primary to-orange-600 text-white">JB</AvatarFallback>
+            <AvatarImage src="/avatar.jpg" alt={profile?.full_name || 'User'} />
+            <AvatarFallback className="bg-gradient-to-r from-primary to-orange-600 text-white">
+              {profile?.full_name ? profile.full_name.substring(0, 2).toUpperCase() : 'U'}
+            </AvatarFallback>
           </Avatar>
           {!isCollapsed && (
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium text-foreground truncate">James Brown</p>
-              <p className="text-xs text-muted-foreground truncate">james@allgrid.com</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {profile?.full_name || 'Loading...'}
+                </p>
+                {/* Refresh button */}
+                {useAuth().refreshProfile && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 ml-1 hover:bg-secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      useAuth().refreshProfile?.();
+                    }}
+                    title="Refresh profile"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {profile?.email || user?.email || 'Loading...'}
+              </p>
             </div>
           )}
         </div>

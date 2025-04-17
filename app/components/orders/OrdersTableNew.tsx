@@ -5,6 +5,7 @@ import { Order, OrderStatus } from '@/types/orders';
 import OrderRow from './OrderRow';
 import { Button } from '@/app/components/ui/button';
 import { Search, Filter, Download, PlusCircle, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
+import { useLoading, LoadingButton } from '@/components/loading';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Input } from '@/app/components/ui/input';
 import TablePagination from '@/app/components/ui/table/TablePagination';
@@ -154,25 +155,28 @@ export default function OrdersTable(props: OrdersTableProps) {
             <Download className="h-4 w-4" />
           </Button>
 
-          <Button
+          <LoadingButton
             variant="outline"
             size="icon"
             onClick={onLoadMore}
             className="border-[hsl(var(--table-border))]"
-            disabled={loading}
+            isLoading={loading}
+            loadingText=""
             title="Refresh Orders"
           >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </Button>
+            <RefreshCw className="h-4 w-4" />
+          </LoadingButton>
 
           {userRole !== 'employee' && onCreateOrder && (
-            <Button
+            <LoadingButton
               onClick={onCreateOrder}
               className="gap-1 bg-orange-500 hover:bg-orange-600 text-white"
+              isLoading={false}
+              loadingText="Creating..."
             >
               <PlusCircle className="h-4 w-4" />
               <span className="hidden sm:inline">New Order</span>
-            </Button>
+            </LoadingButton>
           )}
         </div>
       </div>

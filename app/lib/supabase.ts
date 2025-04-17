@@ -1,108 +1,135 @@
-import { createClient } from '@supabase/supabase-js';
+// Import the createClient function from our centralized client file
+import { createClient as createSupabaseClient } from './supabase/client';
 
-// Initialize the Supabase client using environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Re-export the client creation function to maintain compatibility
+export const createClient = createSupabaseClient;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create a singleton instance for direct imports
+export const supabase = createSupabaseClient();
 
-// This is a placeholder until we have actual Supabase integration
-// For now, we'll simulate data fetching with delays
-const SIMULATED_DELAY = 800; // ms
+// API endpoints
+const API_ENDPOINTS = {
+  ORDERS: '/api/orders',
+  EXPENSES: '/api/expenses',
+  MATERIALS: '/api/materials',
+  TASKS: '/api/tasks',
+  DASHBOARD: '/api/dashboard',
+};
 
-// Simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper function to handle fetch errors
+async function fetchWithErrorHandling(url: string, options?: RequestInit) {
+  try {
+    console.log(`Fetching data from: ${url}`);
+    const response = await fetch(url, options);
 
-// Mock data
-const mockOrders = Array(20).fill(0).map((_, i) => ({
-  id: `ORD-${1000 + i}`,
-  customer: `Customer ${i + 1}`,
-  total: Math.floor(Math.random() * 10000) / 100,
-  status: ['Pending', 'Processing', 'Completed', 'Cancelled'][Math.floor(Math.random() * 4)],
-  date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-  items: Math.floor(Math.random() * 5) + 1
-}));
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error fetching from ${url}:`, errorText);
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
 
-const mockExpenses = Array(15).fill(0).map((_, i) => ({
-  id: `EXP-${1000 + i}`,
-  description: `Expense ${i + 1}`,
-  amount: Math.floor(Math.random() * 5000) / 100,
-  category: ['Materials', 'Utilities', 'Rent', 'Salaries', 'Other'][Math.floor(Math.random() * 5)],
-  date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
-}));
+    return await response.json();
+  } catch (error) {
+    console.error(`Failed to fetch from ${url}:`, error);
+    throw error;
+  }
+}
 
-const mockMaterials = Array(12).fill(0).map((_, i) => ({
-  id: `MAT-${1000 + i}`,
-  name: `Material ${i + 1}`,
-  quantity: Math.floor(Math.random() * 100) + 1,
-  price: Math.floor(Math.random() * 2000) / 100,
-  supplier: `Supplier ${Math.floor(Math.random() * 5) + 1}`,
-  lastPurchased: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000).toISOString()
-}));
-
-const mockTasks = Array(10).fill(0).map((_, i) => ({
-  id: `TASK-${1000 + i}`,
-  title: `Task ${i + 1}`,
-  description: `Description for task ${i + 1}`,
-  status: ['Todo', 'In Progress', 'Completed'][Math.floor(Math.random() * 3)],
-  priority: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
-  dueDate: new Date(Date.now() + Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString()
-}));
-
-// Data service
+// Real data service that fetches from API endpoints
 export const dataService = {
   // Orders
   getOrders: async () => {
-    await delay(SIMULATED_DELAY);
-    return mockOrders;
+    try {
+      const response = await fetchWithErrorHandling(API_ENDPOINTS.ORDERS);
+      console.log('Orders data received:', response);
+      return response.orders || [];
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
   },
 
   getOrderById: async (id: string) => {
-    await delay(SIMULATED_DELAY);
-    return mockOrders.find(order => order.id === id);
+    try {
+      return await fetchWithErrorHandling(`${API_ENDPOINTS.ORDERS}/${id}`);
+    } catch (error) {
+      console.error(`Error fetching order ${id}:`, error);
+      return null;
+    }
   },
 
   // Expenses
   getExpenses: async () => {
-    await delay(SIMULATED_DELAY);
-    return mockExpenses;
+    try {
+      const response = await fetchWithErrorHandling(API_ENDPOINTS.EXPENSES);
+      return response.expenses || [];
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      return [];
+    }
   },
 
   getExpenseById: async (id: string) => {
-    await delay(SIMULATED_DELAY);
-    return mockExpenses.find(expense => expense.id === id);
+    try {
+      return await fetchWithErrorHandling(`${API_ENDPOINTS.EXPENSES}/${id}`);
+    } catch (error) {
+      console.error(`Error fetching expense ${id}:`, error);
+      return null;
+    }
   },
 
   // Materials
   getMaterials: async () => {
-    await delay(SIMULATED_DELAY);
-    return mockMaterials;
+    try {
+      const response = await fetchWithErrorHandling(API_ENDPOINTS.MATERIALS);
+      return response.materials || [];
+    } catch (error) {
+      console.error('Error fetching materials:', error);
+      return [];
+    }
   },
 
   getMaterialById: async (id: string) => {
-    await delay(SIMULATED_DELAY);
-    return mockMaterials.find(material => material.id === id);
+    try {
+      return await fetchWithErrorHandling(`${API_ENDPOINTS.MATERIALS}/${id}`);
+    } catch (error) {
+      console.error(`Error fetching material ${id}:`, error);
+      return null;
+    }
   },
 
   // Tasks
   getTasks: async () => {
-    await delay(SIMULATED_DELAY);
-    return mockTasks;
+    try {
+      const response = await fetchWithErrorHandling(API_ENDPOINTS.TASKS);
+      return response.tasks || [];
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      return [];
+    }
   },
 
   getTaskById: async (id: string) => {
-    await delay(SIMULATED_DELAY);
-    return mockTasks.find(task => task.id === id);
+    try {
+      return await fetchWithErrorHandling(`${API_ENDPOINTS.TASKS}/${id}`);
+    } catch (error) {
+      console.error(`Error fetching task ${id}:`, error);
+      return null;
+    }
   },
 
   // Dashboard stats
   getDashboardStats: async () => {
-    await delay(SIMULATED_DELAY);
-    return {
-      totalOrders: mockOrders.length,
-      totalRevenue: mockOrders.reduce((sum, order) => sum + order.total, 0),
-      totalExpenses: mockExpenses.reduce((sum, expense) => sum + expense.amount, 0),
-      pendingTasks: mockTasks.filter(task => task.status !== 'Completed').length
-    };
+    try {
+      return await fetchWithErrorHandling(API_ENDPOINTS.DASHBOARD);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      return {
+        totalOrders: 0,
+        totalRevenue: 0,
+        totalExpenses: 0,
+        pendingTasks: 0
+      };
+    }
   }
 };
