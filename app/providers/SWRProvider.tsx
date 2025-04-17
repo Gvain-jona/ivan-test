@@ -164,24 +164,33 @@ const DEFAULT_SWR_CONFIG = {
     setTimeout(() => revalidate({ retryCount }), delay);
   },
   // Log errors and slow loading only in development
-  onLoadingSlow: process.env.NODE_ENV !== 'production' ?
-    (key) => console.log(`Slow loading: ${key}`) : undefined,
+  onLoadingSlow: function(key) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Slow loading: ${key}`);
+    }
+  },
   // Only log success for important data in development
-  onSuccess: process.env.NODE_ENV !== 'production' ?
-    (data, key) => {
+  onSuccess: function(data, key) {
+    if (process.env.NODE_ENV !== 'production') {
       // Only log success for important data to reduce console spam
       if (key.includes('/api/orders') || key.includes('/api/dashboard') || key.includes('/api/clients')) {
         console.log(`Successfully loaded data for ${key}`);
       }
-    } : undefined,
-  onError: (error, key) => console.error(`Error loading ${key}:`, error),
+    }
+  },
+  onError: function(error, key) {
+    console.error(`Error loading ${key}:`, error);
+  },
   // Use a comparison function that ignores undefined values
-  compare: (a, b) => {
+  compare: function(a, b) {
     if (a === b) return true;
     if (!a || !b) return false;
     if (Array.isArray(a) && Array.isArray(b)) {
       if (a.length !== b.length) return false;
-      return a.every((item, i) => item === b[i]);
+      return a.every(function(item, i) { return item === b[i]; });
+    }
+    if (typeof a === 'object' && typeof b === 'object') {
+      return JSON.stringify(a) === JSON.stringify(b);
     }
     return false;
   }

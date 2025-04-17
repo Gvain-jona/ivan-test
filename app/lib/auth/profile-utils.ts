@@ -67,6 +67,18 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
 
     const supabase = createClient();
 
+    // First check if profile already exists to avoid 409 conflicts
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      console.log('Profile already exists, returning existing profile:', existingProfile);
+      return { profile: existingProfile, error: null };
+    }
+
     // Default to staff role if allowed_emails check fails
     let userRole = 'staff';
 
@@ -115,6 +127,22 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
       if (error) {
         console.error('Error creating profile:', error);
 
+        // Check if this is a conflict error (409)
+        if (error.code === '23505' || error.message?.includes('duplicate key value')) {
+          console.log('Profile already exists (conflict error). Fetching existing profile...');
+
+          // Fetch the existing profile
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (existingProfile) {
+            return { profile: existingProfile, error: null };
+          }
+        }
+
         // Check if this is an RLS error
         if (error.code === 'PGRST301' || error.message?.includes('permission denied')) {
           console.error('This appears to be a Row Level Security (RLS) error. Trying fix-profile-rls route...');
@@ -152,6 +180,19 @@ async function createProfileWithServiceRole(user: User): Promise<{ profile: Prof
     if (typeof window === 'undefined') {
       console.error('createProfileWithServiceRole called in server context');
       return { profile: null, error: new Error('Cannot call from server context') };
+    }
+
+    // First check if profile already exists using the regular client
+    const supabase = createClient();
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      console.log('Profile already exists, returning existing profile:', existingProfile);
+      return { profile: existingProfile, error: null };
     }
 
     // Prepare the user data to send to the API
