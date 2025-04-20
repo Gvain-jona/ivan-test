@@ -65,7 +65,7 @@ export function InlineNoteForm({
 
   // Generate a unique ID for this note if it doesn't have one yet
   const [noteId] = useState(() => initialData?.id || `note-${Date.now()}-${formIndex}`);
-  
+
   // Refs to track form state and prevent issues
   const hasValidData = useRef(false);
   const isAutoSaving = useRef(false);
@@ -73,7 +73,7 @@ export function InlineNoteForm({
 
   // Watch all form values to persist partial data when switching tabs
   const formValues = form.watch();
-  
+
   // Function to check if all required fields are filled
   const checkFormCompleteness = useCallback(() => {
     const formData = form.getValues();
@@ -101,21 +101,25 @@ export function InlineNoteForm({
       // Send the note to the parent component
       onAddNote(newNote);
       hasValidData.current = true;
+
+      // Keep the form for editing until final submission
+      // This allows users to review and modify their entries
+
       return true;
     }
     return false;
-  }, [noteId, onAddNote, checkFormCompleteness]);
+  }, [noteId, onAddNote, checkFormCompleteness, onRemoveForm, formIndex]);
 
   // Auto-save handler
   const handleAutoSave = useCallback(() => {
     // Don't auto-save if we're already in the process of saving
     if (isAutoSaving.current) return;
-    
+
     // Throttle auto-save attempts (no more than once every 2 seconds)
     const now = Date.now();
     if (now - lastAutoSaveAttempt.current < 2000) return;
     lastAutoSaveAttempt.current = now;
-    
+
     const formData = form.getValues();
 
     // Only auto-save if all required fields are filled
@@ -124,14 +128,14 @@ export function InlineNoteForm({
       isAutoSaving.current = true;
       console.log('Auto-saving note with valid data:', formData);
       saveNote(formData);
-      
+
       // Reset auto-save flag after a delay
       setTimeout(() => {
         isAutoSaving.current = false;
       }, 1000);
     }
   }, [form, saveNote, checkFormCompleteness]);
-  
+
   // Update partial data whenever form values change
   useEffect(() => {
     if (onUpdatePartialData) {
@@ -140,7 +144,7 @@ export function InlineNoteForm({
       onUpdatePartialData(formValues);
     }
   }, [formValues, onUpdatePartialData]);
-  
+
   // When the form becomes visible again, ensure we have the latest data
   useEffect(() => {
     if (initialData) {
@@ -152,7 +156,7 @@ export function InlineNoteForm({
       });
     }
   }, [initialData, form]);
-  
+
   // Watch form values for auto-save
   useEffect(() => {
     // Only attempt auto-save if form is complete
@@ -161,11 +165,11 @@ export function InlineNoteForm({
       const timer = setTimeout(() => {
         handleAutoSave();
       }, 1500); // Wait 1.5 seconds after last change before auto-saving
-      
+
       return () => clearTimeout(timer);
     }
   }, [formValues, handleAutoSave, checkFormCompleteness]);
-  
+
   // Manual save handler - called when Save button is clicked
   const handleManualSave = useCallback(() => {
     const formData = form.getValues();

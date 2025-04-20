@@ -51,7 +51,8 @@ export interface OrderPayment {
   id: string;
   order_id: string;
   amount: number;
-  payment_date: string;
+  // Use date as the primary field to match the database schema
+  date: string;
   payment_method: PaymentMethod;
   created_at: string;
   updated_at: string;
@@ -85,11 +86,12 @@ export interface Order {
   id: string;
   order_number?: string; // Added order_number field
   client_id: string;
-  client_name?: string;
+  client_name: string; // Now required
   client_type: ClientType;
   date: string;
+  delivery_date?: string; // Added delivery_date field
+  is_delivered?: boolean; // Added is_delivered field
   status: OrderStatus;
-  payment_method?: PaymentMethod;
   payment_status?: PaymentStatus;
   total_amount: number;
   amount_paid: number;
@@ -97,12 +99,12 @@ export interface Order {
   created_by?: string;
   created_at: string;
   updated_at: string;
-  latest_invoice_id?: string;
   invoice_generated_at?: string;
   items: OrderItem[];
   notes?: OrderNote[];
   payments?: OrderPayment[];
   invoice?: Invoice;
+  // payment_method has been removed as it's no longer in the orders table
 }
 
 export interface Task {

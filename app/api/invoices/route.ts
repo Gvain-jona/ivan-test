@@ -20,14 +20,14 @@ export async function GET(request: NextRequest) {
     // Create Supabase client
     const supabase = await createClient();
 
-    // Start building the query
+    // Start building the query - don't use joins with clients since we've denormalized the data
     let query = supabase
       .from('invoices')
       .select(`
         *,
         orders:order_id (
           id,
-          clients:client_id (id, name)
+          client_name
         ),
         profiles:created_by (id, full_name, email)
       `, { count: 'exact' });

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Order, OrderStatus } from '@/types/orders';
 import StatusDropdown from './StatusDropdown';
 import OrderActions from './OrderActions';
-import { ChevronDown, ChevronRight, FileText, ShoppingBag, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronRight, ShoppingBag, MessageSquare, Eye } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -151,7 +151,7 @@ function OrderRow(props: OrderRowProps) {
               <div className="text-xs text-muted-foreground flex items-center gap-1 max-w-[220px]">
                 <span className="capitalize truncate">{order.client_type || 'Regular'}</span>
                 <span className="text-muted-foreground/50 flex-shrink-0">•</span>
-                <span className="font-medium text-primary truncate">{order.order_number || `#${order.id.substring(0, 8)}`}</span>
+                <span className="font-medium text-primary truncate">{order.order_number || (order.id ? `#${order.id.substring(0, 8)}` : 'Unknown')}</span>
               </div>
             </div>
           </div>
@@ -191,20 +191,15 @@ function OrderRow(props: OrderRowProps) {
 
                 // Add a small delay to ensure the action completes properly
                 setTimeout(() => {
-                  onInvoice(order);
+                  onView(order);
                 }, 50);
               }}
-              className={cn(
-                "inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-md interactive-element relative z-10 shadow-sm",
-                order.latest_invoice_id || order.invoice_generated_at
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-brand hover:bg-brand/80 text-white"
-              )}
-              aria-label={order.latest_invoice_id ? "View Invoice" : "Generate Invoice"}
-              title={order.latest_invoice_id ? "View Invoice" : "Generate Invoice"}
+              className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-md interactive-element relative z-10 shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+              aria-label="View Order"
+              title="View Order"
             >
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              {order.latest_invoice_id || order.invoice_generated_at ? "View" : "Invoice"}
+              <Eye className="h-3.5 w-3.5 mr-1.5" />
+              View
             </button>
             <OrderActions
               order={order}

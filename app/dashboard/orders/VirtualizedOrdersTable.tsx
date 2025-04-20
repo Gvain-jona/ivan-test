@@ -14,25 +14,22 @@ interface VirtualizedOrdersTableProps {
 export function VirtualizedOrdersTable({ initialData }: VirtualizedOrdersTableProps) {
   // Use SWR for client-side data fetching, with initialData from the server
   const { orders, isLoading, isError } = useOrders();
-  
+
   // Use the initialData if provided, otherwise use the data from SWR
   const displayOrders = orders || initialData || [];
-  
+
   // Handle view order
   const handleViewOrder = (order: any) => {
     console.log('View order:', order);
   };
-  
-  // Handle edit order
-  const handleEditOrder = (order: any) => {
-    console.log('Edit order:', order);
-  };
-  
+
+  // Edit functionality has been consolidated to use only inline editing in the OrderViewSheet
+
   // Handle delete order
   const handleDeleteOrder = (order: any) => {
     console.log('Delete order:', order);
   };
-  
+
   // Get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -48,7 +45,7 @@ export function VirtualizedOrdersTable({ initialData }: VirtualizedOrdersTablePr
         return 'bg-gray-500/10 text-gray-500 hover:bg-gray-500/20';
     }
   };
-  
+
   // Define columns for the virtualized table
   const columns = [
     {
@@ -99,11 +96,11 @@ export function VirtualizedOrdersTable({ initialData }: VirtualizedOrdersTablePr
             size="icon"
             onClick={(e) => {
               e.stopPropagation();
-              handleEditOrder(order);
+              handleViewOrder(order); // Use view handler instead of edit handler
             }}
           >
             <Edit className="h-4 w-4" />
-            <span className="sr-only">Edit</span>
+            <span className="sr-only">View/Edit</span>
           </Button>
           <Button
             variant="ghost"
@@ -120,7 +117,7 @@ export function VirtualizedOrdersTable({ initialData }: VirtualizedOrdersTablePr
       ),
     },
   ];
-  
+
   return (
     <div className="space-y-4">
       <VirtualizedTable

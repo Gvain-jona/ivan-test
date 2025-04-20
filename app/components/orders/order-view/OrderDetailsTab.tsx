@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarIcon, CheckCircle, Clock, User, Tag, FileText } from 'lucide-react';
+import { CalendarIcon, CheckCircle, Clock, User, Tag, FileText, Truck, Calendar } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { PaymentStatusBadge } from '@/components/ui/payment-status-badge';
@@ -23,47 +23,49 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({
           </div>
         </div>
 
-        <div className="flex items-start gap-3 mb-4">
-          <div className="p-2 bg-[#1E1E2D] rounded-md">
-            <FileText className="h-5 w-5 text-orange-500" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-sm font-medium text-white">Order {order.order_number || `#${order.id.substring(0, 8)}`}</h4>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#1E1E2D] text-[#6D6D80]">{order.date}</span>
-            </div>
-            <div className="flex items-center mt-1">
-              <CalendarIcon className="h-3 w-3 text-[#6D6D80] mr-1" />
-              <span className="text-xs text-[#6D6D80]">{new Date(order.created_at).toLocaleDateString()}</span>
-            </div>
-          </div>
-        </div>
+        {/* Order header information moved to the sheet header */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <div className="flex items-start gap-2">
             <User className="h-4 w-4 text-[#6D6D80] mt-0.5" />
             <div>
-              <p className="text-xs text-[#6D6D80]">Client</p>
-              <p className="text-sm text-white">{order.client_name}</p>
-              <p className="text-xs text-[#6D6D80] mt-1">{order.client_type || 'Regular'} Client</p>
+              <p className="text-xs text-[#6D6D80]">Client Type</p>
+              <p className="text-sm text-white capitalize">{order.client_type || 'Regular'} Client</p>
             </div>
           </div>
 
           <div className="flex items-start gap-2">
             <Tag className="h-4 w-4 text-[#6D6D80] mt-0.5" />
             <div>
-              <p className="text-xs text-[#6D6D80]">Details</p>
+              <p className="text-xs text-[#6D6D80]">Order Items</p>
               <p className="text-sm text-white">{order.items?.length || 0} Items</p>
-              <p className="text-xs text-[#6D6D80] mt-1">Delivery: {order.delivery_method || 'Pickup'}</p>
+            </div>
+          </div>
+
+          {/* Delivery Method - Made more prominent for future inline editing */}
+          <div className="flex items-start gap-2">
+            <Truck className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+            <div>
+              <p className="text-xs text-[#6D6D80]">Delivery Method</p>
+              <p className="text-sm text-white font-medium">{order.delivery_method || 'Pickup'}</p>
+            </div>
+          </div>
+
+          {/* Delivery Date - Made more prominent for future inline editing */}
+          <div className="flex items-start gap-2">
+            <Calendar className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+            <div>
+              <p className="text-xs text-[#6D6D80]">Delivery Date</p>
+              <p className="text-sm text-white font-medium">{order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : 'Not scheduled'}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Payment Information Section */}
+      {/* Financial Summary Section */}
       <div className="border border-[#2B2B40] rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-[#6D6D80]">Payment Information</h3>
+          <h3 className="text-sm font-medium text-[#6D6D80]">Financial Summary</h3>
           <PaymentStatusBadge status={order.payment_status} />
         </div>
 

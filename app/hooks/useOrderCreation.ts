@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useNotifications } from '@/components/ui/notification';
 import { Order, OrderItem, OrderPayment } from '@/types/orders';
 import { createClient } from '@/lib/supabase/client';
 import { useOrdersPage } from '@/app/dashboard/orders/_context/OrdersPageContext';
 import { showNotification, requestNotificationPermission } from '@/utils/push-notifications';
+import { mutate } from 'swr';
 
 interface UseOrderCreationProps {
   onSuccess?: (orderId: string) => void;
@@ -13,7 +14,7 @@ interface UseOrderCreationProps {
 
 export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { success: showSuccess, error: showError } = useNotifications();
 
   // Get the handleLoadMore function from the OrdersPage context to refresh the orders list
   // We use a try-catch because this hook might be used outside the OrdersPage context
@@ -30,7 +31,8 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
   }
 
   /**
-   * Create a new order using the create_complete_order database function
+   * Create a new order using the optimized create_complete_order database function
+   * This version prioritizes performance by not checking for existing items/categories
    */
   const createOrder = useCallback(async (order: Partial<Order>) => {
     try {
@@ -40,49 +42,18 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
       const supabase = createClient();
 
       // Validate required fields
-      if (!order.client_id && !order.client_name) {
-        throw new Error('Client is required');
-      }
-
-      // If we have client_name but no client_id, find or create the client
-      if (!order.client_id && order.client_name) {
-        console.log('Finding or creating client by name:', order.client_name);
-
-        // First, try to find an existing client with this name
-        const { data: existingClient } = await supabase
-          .from('clients')
-          .select('id')
-          .ilike('name', order.client_name.trim())
-          .limit(1)
-          .single();
-
-        if (existingClient) {
-          console.log('Found existing client:', existingClient);
-          order.client_id = existingClient.id;
-        } else {
-          // If not found, create a new client
-          const { data: newClient, error } = await supabase
-            .from('clients')
-            .insert({ name: order.client_name.trim() })
-            .select('id')
-            .single();
-
-          if (error) {
-            console.error('Error creating client:', error);
-            throw new Error(`Failed to create client: ${error.message}`);
-          }
-
-          console.log('Created new client:', newClient);
-          order.client_id = newClient.id;
-        }
+      if (!order.client_name) {
+        throw new Error('Client name is required');
       }
 
       if (!order.items || order.items.length === 0) {
         throw new Error('At least one item is required');
       }
 
-      // Process each item to ensure it has the required fields
-      // and find or create items/categories as needed
+      // Generate a client ID if not provided
+      const clientId = order.client_id || crypto.randomUUID();
+
+      // Validate items
       for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
         const index = i;
@@ -101,78 +72,16 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
           throw new Error(`Item #${index + 1} must have a unit price`);
         }
 
-        // If we have category_name but no category_id, find or create the category
-        if (!item.category_id && item.category_name) {
-          console.log(`Finding or creating category for item #${index + 1}:`, item.category_name);
-
-          // First, try to find an existing category with this name
-          const { data: existingCategory } = await supabase
-            .from('categories')
-            .select('id')
-            .ilike('name', item.category_name.trim())
-            .limit(1)
-            .single();
-
-          if (existingCategory) {
-            console.log('Found existing category:', existingCategory);
-            item.category_id = existingCategory.id;
-          } else {
-            // If not found, create a new category
-            const { data: newCategory, error } = await supabase
-              .from('categories')
-              .insert({ name: item.category_name.trim() })
-              .select('id')
-              .single();
-
-            if (error) {
-              console.error('Error creating category:', error);
-              throw new Error(`Failed to create category: ${error.message}`);
-            }
-
-            console.log('Created new category:', newCategory);
-            item.category_id = newCategory.id;
-          }
+        // Generate UUIDs for item_id and category_id if not provided
+        if (!item.item_id) {
+          item.item_id = crypto.randomUUID();
         }
-
-        // If we have item_name but no item_id, find or create the item
-        if (!item.item_id && item.item_name && item.category_id) {
-          console.log(`Finding or creating item #${index + 1}:`, item.item_name);
-
-          // First, try to find an existing item with this name and category
-          const { data: existingItem } = await supabase
-            .from('items')
-            .select('id')
-            .ilike('name', item.item_name.trim())
-            .eq('category_id', item.category_id)
-            .limit(1)
-            .single();
-
-          if (existingItem) {
-            console.log('Found existing item:', existingItem);
-            item.item_id = existingItem.id;
-          } else {
-            // If not found, create a new item
-            const { data: newItem, error } = await supabase
-              .from('items')
-              .insert({
-                name: item.item_name.trim(),
-                category_id: item.category_id
-              })
-              .select('id')
-              .single();
-
-            if (error) {
-              console.error('Error creating item:', error);
-              throw new Error(`Failed to create item: ${error.message}`);
-            }
-
-            console.log('Created new item:', newItem);
-            item.item_id = newItem.id;
-          }
+        if (!item.category_id) {
+          item.category_id = crypto.randomUUID();
         }
       }
 
-      // Prepare items for the function
+      // Prepare items for the function - more efficient with less processing
       const items = (order.items || []).map((item: OrderItem) => {
         // Ensure size is a string
         let size = item.size;
@@ -184,8 +93,8 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
         }
 
         return {
-          item_id: item.item_id,
-          category_id: item.category_id,
+          item_id: item.item_id, // Already generated if missing
+          category_id: item.category_id, // Already generated if missing
           item_name: item.item_name,
           category_name: item.category_name,
           size: size,
@@ -197,27 +106,20 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
       // Prepare payments for the function
       const payments = ((order as any).payments || []).map((payment: any) => {
         // Ensure we have a payment_date for the database function
-        // The database function expects payment_date but our form might use different field names
         const payment_date = payment.payment_date || payment.date || new Date().toISOString().split('T')[0];
-
-        console.log('Processing payment for database:', {
-          original: payment,
-          mapped_date: payment_date
-        });
 
         // The database function expects payment_date in the JSON but inserts into the date column
         return {
           amount: payment.amount,
-          payment_date: payment_date, // This matches what the database function expects
+          payment_date: payment_date,
           payment_method: payment.payment_method
         };
       });
 
-      console.log('Final payments array for database function:', payments);
-
-      // Call the database function
+      // Call the optimized database function with client_name parameter
       const { data, error } = await supabase.rpc('create_complete_order', {
-        p_client_id: order.client_id,
+        p_client_id: clientId,
+        p_client_name: order.client_name, // Pass client name for reference
         p_date: order.date || new Date().toISOString().split('T')[0],
         p_status: order.status || 'pending',
         p_payment_status: order.payment_status || 'unpaid',
@@ -229,39 +131,25 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
 
       if (error) {
         console.error('Error creating order:', error);
-        toast({
-          title: 'Error',
-          description: `Failed to create order: ${error.message}`,
-          variant: 'destructive'
-        });
+        showError(`Failed to create order: ${error.message}`, 'Error');
         return null;
       }
 
       // Check if the function returned success
       if (!data.success) {
         console.error('Error creating order:', data.error);
-        toast({
-          title: 'Error',
-          description: data.error || 'Failed to create order',
-          variant: 'destructive'
-        });
+        showError(data.error || 'Failed to create order', 'Error');
         return null;
       }
 
-      // Create a notification for the new order
+      // Create a notification for the new order - simplified approach
       try {
         console.log('Creating notification for order:', data.order_id);
 
-        // Get client name for the notification
-        const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('name')
-          .eq('id', order.client_id)
-          .single();
+        // Use the client name we already have instead of fetching it again
+        const clientName = order.client_name;
 
-        console.log('Client data for notification:', clientData, 'Error:', clientError);
-
-        if (!clientError && clientData) {
+        if (clientName) {
           // Get the current user's ID
           const { data: { user } } = await supabase.auth.getUser();
 
@@ -278,8 +166,8 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
               user_id: user.id, // Add the required user_id field
               type: 'new_order',
               title: 'New Order Created',
-              message: `New order created for ${clientData.name} with ${items.length} item(s)`,
-              data: JSON.stringify({ order_id: data.order_id, client_name: clientData.name }), // Convert to string as required by schema
+              message: `New order created for ${clientName} with ${items.length} item(s)`,
+              data: JSON.stringify({ order_id: data.order_id, client_name: clientName }), // Convert to string as required by schema
               status: 'unread'
             })
             .select();
@@ -290,16 +178,16 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
             console.log('Notification created successfully:', notificationData);
 
             // Don't show a toast here - it will be shown by the OrderFormSheet component
-            console.log('Order created successfully for', clientData.name);
+            console.log('Order created successfully for', clientName);
 
             // Show a push notification if permission is granted
             if (Notification.permission === 'granted') {
               showNotification('New Order Created', {
-                body: `New order created for ${clientData.name} with ${items.length} item(s)`,
+                body: `New order created for ${clientName} with ${items.length} item(s)`,
                 data: {
                   url: `/dashboard/orders?id=${data.order_id}`,
                   orderId: data.order_id,
-                  clientName: clientData.name
+                  clientName: clientName
                 }
               });
             } else if (Notification.permission !== 'denied') {
@@ -307,11 +195,11 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
               requestNotificationPermission().then(permission => {
                 if (permission === 'granted') {
                   showNotification('New Order Created', {
-                    body: `New order created for ${clientData.name} with ${items.length} item(s)`,
+                    body: `New order created for ${clientName} with ${items.length} item(s)`,
                     data: {
                       url: `/dashboard/orders?id=${data.order_id}`,
                       orderId: data.order_id,
-                      clientName: clientData.name
+                      clientName: clientName
                     }
                   });
                 }
@@ -319,7 +207,7 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
             }
           }
         } else {
-          console.error('Could not get client data for notification:', clientError);
+          console.error('No client name available for notification');
 
           // Don't show a toast here - it will be shown by the OrderFormSheet component
           console.log('Order created successfully (generic)');
@@ -332,35 +220,49 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
         console.log('Order created successfully (fallback)');
       }
 
-      // Refresh the orders list if we have access to the handleLoadMore function
-      if (handleLoadMore) {
-        try {
-          console.log('Refreshing orders after creation');
-          // Add a small delay to ensure the database has time to process the new order
-          setTimeout(async () => {
-            try {
+      // Use SWR's mutate to update the cache with the new order
+      // This is more efficient than refetching all orders
+      mutate(
+        '/api/orders',
+        async (cachedData: any) => {
+          // If we don't have cached data, just refresh
+          if (!cachedData) {
+            if (handleLoadMore) {
               await handleLoadMore(false);
-              console.log('Orders refreshed successfully after creation');
-            } catch (refreshError) {
-              console.error('Error in delayed refresh:', refreshError);
             }
-          }, 500);
+            return cachedData;
+          }
 
-          // Also try an immediate refresh without showing a toast
-          await handleLoadMore(false);
-        } catch (error) {
-          console.error('Error refreshing orders after creation:', error);
-          // Try one more time after a delay
-          setTimeout(async () => {
-            try {
-              await handleLoadMore(false);
-              console.log('Orders refreshed successfully on retry');
-            } catch (retryError) {
-              console.error('Error in retry refresh:', retryError);
-            }
-          }, 1000);
-        }
-      }
+          // Create a new order object with the data we have
+          const newOrder = {
+            id: data.order_id,
+            order_number: data.order_number,
+            client_id: clientId,
+            client_name: order.client_name,
+            client_type: order.client_type || 'regular',
+            date: order.date,
+            status: order.status || 'pending',
+            payment_status: order.payment_status || 'unpaid',
+            total_amount: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
+            amount_paid: payments.reduce((sum, payment) => sum + payment.amount, 0),
+            balance: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0) -
+                     payments.reduce((sum, payment) => sum + payment.amount, 0),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            items: items,
+            notes: order.notes || []
+          };
+
+          // Add the new order to the cached data
+          return {
+            ...cachedData,
+            orders: [newOrder, ...(cachedData.orders || [])],
+            totalCount: (cachedData.totalCount || 0) + 1,
+            pageCount: Math.ceil((cachedData.totalCount + 1) / (cachedData.orders?.length || 10))
+          };
+        },
+        { revalidate: true } // Revalidate after updating the cache
+      );
 
       // Call the onSuccess callback if provided
       if (onSuccess && data.order_id) {
@@ -381,16 +283,12 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
         errorMessage = (error as any).message || (error as any).error || JSON.stringify(error);
       }
 
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive'
-      });
+      showError(errorMessage, 'Error');
       return null;
     } finally {
       setLoading(false);
     }
-  }, [toast, onSuccess, handleLoadMore]);
+  }, [showSuccess, showError, onSuccess, handleLoadMore]);
 
   return {
     createOrder,

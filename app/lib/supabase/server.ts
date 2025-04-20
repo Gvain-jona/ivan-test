@@ -28,7 +28,21 @@ export async function createClient() {
     console.log('Creating new server Supabase client')
   }
 
-  const cookieStore = cookies()
+  let cookieStore;
+  try {
+    // Use await with cookies() as it's now async in Next.js 15
+    cookieStore = await cookies();
+  } catch (error) {
+    console.error('Error accessing cookies:', error);
+    // If we can't access cookies, create a client without cookie handling
+    cachedClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: false }
+    );
+    lastClientCreationTime = now;
+    return cachedClient;
+  }
 
   try {
     // Create a server client that properly handles cookies
@@ -37,8 +51,9 @@ export async function createClient() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          async get(name) {
-            const cookie = await cookieStore.get(name)
+          get(name) {
+            // No need for async/await here since we already awaited cookies() above
+            const cookie = cookieStore.get(name)
             return cookie?.value
           },
           set(name, value, options) {

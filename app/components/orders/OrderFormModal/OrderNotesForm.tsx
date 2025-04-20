@@ -39,6 +39,10 @@ const OrderNotesForm: React.FC<OrderNotesFormProps> = ({
   const [localNoteForms, setLocalNoteForms] = useState([0]); // Local fallback
   const [localFormIdCounter, setLocalFormIdCounter] = useState(1); // Local fallback
 
+  // Debug order notes
+  console.log('OrderNotesForm received order:', order);
+  console.log('OrderNotesForm received order.notes:', order.notes);
+
   // Use either provided form state or local state
   const noteForms = formState || localNoteForms;
 
@@ -102,15 +106,44 @@ const OrderNotesForm: React.FC<OrderNotesFormProps> = ({
         </Button>
       </div>
 
-      {noteForms.map((formIndex) => (
+      {/* We're not displaying notes as cards anymore - they remain as editable forms */}
+
+      {/* Only show forms for new notes (not already in the notes array) */}
+      {noteForms.map((formIndex) => {
+        // Skip forms that correspond to existing notes to prevent duplication
+        if (formIndex < (order.notes?.length || 0)) {
+          return null;
+        }
+
+        return (
+          <InlineNoteForm
+            key={formIndex}
+            onAddNote={handleAddNoteFromForm}
+            onRemoveForm={handleRemoveForm}
+            formIndex={formIndex}
+            initialData={partialData[formIndex]}
+            onUpdatePartialData={onUpdatePartialData ?
+              (data) => onUpdatePartialData(formIndex, data) :
+              undefined}
+          />
+        );
+      })}
+
+      {/* Display existing notes as editable forms */}
+      {(order.notes || []).map((note, index) => (
         <InlineNoteForm
-          key={formIndex}
+          key={`existing-${note.id || index}`}
           onAddNote={handleAddNoteFromForm}
-          onRemoveForm={handleRemoveForm}
-          formIndex={formIndex}
-          initialData={partialData[formIndex]}
+          onRemoveForm={() => {
+            // When removing an existing note, we need to update the order
+            const newNotes = [...(order.notes || [])];
+            newNotes.splice(index, 1);
+            updateOrderFields({ notes: newNotes });
+          }}
+          formIndex={index}
+          initialData={note}
           onUpdatePartialData={onUpdatePartialData ?
-            (data) => onUpdatePartialData(formIndex, data) :
+            (data) => onUpdatePartialData(index, data) :
             undefined}
         />
       ))}

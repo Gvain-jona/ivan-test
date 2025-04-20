@@ -5,7 +5,7 @@ import { QueryOptimizer } from '@/lib/query-optimizer';
 /**
  * GET /api/orders/optimized
  * Optimized endpoint for fetching orders with better performance
- * 
+ *
  * Query parameters:
  * - page: Page number (default: 1)
  * - pageSize: Number of items per page (default: 20)
@@ -33,12 +33,25 @@ export async function GET(request: Request) {
     const sort = searchParams.get('sort') || 'date';
     const order = searchParams.get('order') || 'desc';
 
-    // Build the query using the optimizer
+    // Build the query using the optimizer - don't use join to avoid foreign key issues
     const queryOptimizer = new QueryOptimizer('orders')
       .count()
       .paginate(page, pageSize)
-      .sort(sort, order as 'asc' | 'desc')
-      .join('clients(id, name)');
+      .sort(sort, order as 'asc' | 'desc');
+    // We'll use client_name directly from orders table instead of joining
+
+    // Initialize the optimizer
+    try {
+      await queryOptimizer.init();
+    } catch (error) {
+      console.error('Failed to initialize query optimizer:', error);
+      // Return empty results instead of error to avoid UI issues
+      return NextResponse.json({
+        orders: [],
+        totalCount: 0,
+        pageCount: 0
+      });
+    }
 
     // Apply filters
     if (status.length > 0) {
@@ -62,80 +75,159 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      // Search in order number, client name, etc.
-      // This is handled differently because we need to use OR conditions
-      const supabase = createClient();
-      const { data, count, error } = await supabase
-        .from('orders')
-        .select('*, clients:client_id(id, name)', { count: 'exact' })
-        .or(`order_number.ilike.%${search}%,clients.name.ilike.%${search}%`)
-        .order(sort, { ascending: order === 'asc' })
-        .range((page - 1) * pageSize, page * pageSize - 1);
+      try {
+        // Search in order number, client name, etc.
+        // This is handled differently because we need to use OR conditions
+        const supabase = await createClient();
+        if (!supabase) {
+          throw new Error('Failed to create Supabase client');
+        }
 
-      if (error) {
-        console.error('Error searching orders:', error);
+        const { data, count, error } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact' })
+          .or(`order_number.ilike.%${search}%,client_name.ilike.%${search}%`)
+          .order(sort, { ascending: order === 'asc' })
+          .range((page - 1) * pageSize, page * pageSize - 1);
+
+        if (error) {
+          console.error('Error searching orders:', error);
+          return NextResponse.json(
+            { error: 'Failed to search orders' },
+            { status: 500 }
+          );
+        }
+
+        // If no data, return empty results
+        if (!data || data.length === 0) {
+          return NextResponse.json({
+            orders: [],
+            totalCount: 0,
+            pageCount: 0
+          });
+        }
+
+        // Get order IDs for related data
+        const orderIds = data.map(order => order.id);
+
+        // Batch fetch related data
+        // Only fetch related data if we have order IDs
+        let itemsData: any[] = [];
+        let notesData: any[] = [];
+
+        if (orderIds.length > 0) {
+          try {
+            const [itemsResult, notesResult] = await Promise.all([
+              supabase
+                .from('order_items')
+                .select('*')
+                .in('order_id', orderIds),
+              supabase
+                .from('notes')
+                .select('*')
+                .eq('linked_item_type', 'order')
+                .in('linked_item_id', orderIds)
+            ]);
+
+            itemsData = itemsResult.data || [];
+            notesData = notesResult.data || [];
+          } catch (relatedError) {
+            console.error('Error fetching related data for search:', relatedError);
+            // Continue with empty arrays for related data
+          }
+        }
+
+        // Process the data
+        const transformedOrders = processOrdersData(data, itemsData, notesData);
+
+        return NextResponse.json({
+          orders: transformedOrders,
+          totalCount: count || 0,
+          pageCount: Math.ceil((count || 0) / pageSize)
+        });
+      } catch (searchError) {
+        console.error('Error in search functionality:', searchError);
         return NextResponse.json(
-          { error: 'Failed to search orders' },
+          { error: 'An error occurred while searching orders' },
           { status: 500 }
         );
       }
-
-      // Get order IDs for related data
-      const orderIds = (data || []).map(order => order.id);
-
-      // Batch fetch related data
-      const [itemsResult, notesResult] = await Promise.all([
-        supabase
-          .from('order_items')
-          .select('*')
-          .in('order_id', orderIds),
-        supabase
-          .from('notes')
-          .select('*')
-          .eq('linked_item_type', 'order')
-          .in('linked_item_id', orderIds)
-      ]);
-
-      // Process the data
-      const transformedOrders = processOrdersData(data, itemsResult.data, notesResult.data);
-
-      return NextResponse.json({
-        orders: transformedOrders,
-        totalCount: count || 0,
-        pageCount: Math.ceil((count || 0) / pageSize)
-      });
     }
 
     // Execute the query
-    const { data, count, error } = await queryOptimizer.execute();
+    let data, count, error;
+    try {
+      const result = await queryOptimizer.execute();
+      data = result.data;
+      count = result.count;
+      error = result.error;
 
-    if (error) {
-      console.error('Error fetching orders:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch orders' },
-        { status: 500 }
-      );
+      if (error) {
+        console.error('Error fetching orders:', error);
+        // Return empty results instead of error to avoid UI issues
+        return NextResponse.json({
+          orders: [],
+          totalCount: 0,
+          pageCount: 0
+        });
+      }
+
+      // Check if data is empty or null
+      if (!data || data.length === 0) {
+        // Return empty results
+        return NextResponse.json({
+          orders: [],
+          totalCount: 0,
+          pageCount: 0
+        });
+      }
+    } catch (queryError) {
+      console.error('Error executing query:', queryError);
+      // Return empty results instead of error to avoid UI issues
+      return NextResponse.json({
+        orders: [],
+        totalCount: 0,
+        pageCount: 0
+      });
     }
 
     // Get order IDs for related data
     const orderIds = (data || []).map(order => order.id);
 
     // Batch fetch related data
-    const supabase = createClient();
-    const [itemsResult, notesResult] = await Promise.all([
-      supabase
-        .from('order_items')
-        .select('*')
-        .in('order_id', orderIds),
-      supabase
-        .from('notes')
-        .select('*')
-        .eq('linked_item_type', 'order')
-        .in('linked_item_id', orderIds)
-    ]);
+    let itemsData: any[] = [];
+    let notesData: any[] = [];
+
+    // Only fetch related data if we have order IDs
+    if (orderIds.length > 0) {
+      try {
+        const supabase = await createClient();
+        if (!supabase) {
+          throw new Error('Failed to create Supabase client');
+        }
+
+        const [itemsResult, notesResult] = await Promise.all([
+          supabase
+            .from('order_items')
+            .select('*')
+            .in('order_id', orderIds),
+          supabase
+            .from('notes')
+            .select('*')
+            .eq('linked_item_type', 'order')
+            .in('linked_item_id', orderIds)
+        ]);
+
+        itemsData = itemsResult.data || [];
+        notesData = notesResult.data || [];
+      } catch (error) {
+        console.error('Error fetching related data:', error);
+        // Continue with empty arrays for related data
+      }
+    }
 
     // Process the data
-    const transformedOrders = processOrdersData(data, itemsResult.data, notesResult.data);
+    const transformedOrders = processOrdersData(data || [], itemsData, notesData);
 
     return NextResponse.json({
       orders: transformedOrders,
@@ -177,12 +269,14 @@ function processOrdersData(orders: any[], items: any[] = [], notes: any[] = []) 
     id: order.id,
     order_number: order.order_number,
     client_id: order.client_id,
-    client_name: order.clients?.name || 'Unknown Client',
+    // Use the client_name directly from the order
+    client_name: order.client_name || 'Unknown Client',
     client_type: order.client_type || 'regular',
     date: order.date,
+    delivery_date: order.delivery_date,
+    is_delivered: order.is_delivered || false,
     status: order.status,
     payment_status: order.payment_status,
-    payment_method: order.payment_method,
     total_amount: order.total_amount || 0,
     amount_paid: order.amount_paid || 0,
     balance: order.balance || 0,

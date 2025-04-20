@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useOrdersPage } from '@/app/dashboard/orders/_context/OrdersPageContext';
 import { useForm } from 'react-hook-form';
+import { useInvoiceSettings } from './hooks/useInvoiceSettings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileText, FilePlus, Download, Printer, Loader2 } from 'lucide-react';
+import { FileText, FilePlus, Download, Printer, Loader2, Settings2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { InvoiceSheetProps, InvoiceSettings as InvoiceSettingsType } from './types';
 import InvoicePreview from './InvoicePreview';
 import InvoiceSettingsComponent from './InvoiceSettings';
-import useClientInvoiceGeneration from './hooks/useClientInvoiceGeneration';
+import useClientInvoiceGeneration, { PdfQuality } from './hooks/useClientInvoiceGeneration';
 import LoadingOverlay from './LoadingOverlay';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /**
  * Main container component for the invoice sheet
@@ -25,9 +28,18 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('preview');
 
+  // PDF quality state
+  const [pdfQuality, setPdfQuality] = useState<PdfQuality>('high');
+
+  // Get the active modal state from context
+  const { activeModal } = useOrdersPage();
+
+  // Load saved settings with caching
+  const { defaultSettings, isLoading: settingsLoading } = useInvoiceSettings();
+
   // Form setup
   const form = useForm<InvoiceSettingsType>({
-    defaultValues: {
+    defaultValues: defaultSettings?.settings || {
       // Display options
       includeHeader: true,
       includeFooter: true,
@@ -35,6 +47,12 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
       includeSignature: false,
       format: 'a4',
       template: 'standard',
+
+      // Item display options
+      showItemCategory: true,
+      showItemName: true,
+      showItemSize: true,
+      itemDisplayFormat: 'combined' as 'combined' | 'separate',
 
       // Tax and discount options
       includeTax: false,
@@ -49,12 +67,11 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
 
       // Company information
       tinNumber: '1028570150',
-      proformaNumber: order?.id.substring(0, 8) || '',
       companyName: 'IVAN PRINTS',
       companyEmail: 'sherilex256@gmail.com',
       companyPhone: '0755 541 373',
       companyAddress: 'Printing, Designing, Branding.',
-      companyLogo: '/images/logo.png',
+      companyLogo: '/images/default-logo.svg',
 
       // Payment details arrays
       bankDetails: [
@@ -76,6 +93,13 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
     },
   });
 
+  // Effect to update form when default settings change
+  useEffect(() => {
+    if (defaultSettings?.settings) {
+      form.reset(defaultSettings.settings);
+    }
+  }, [defaultSettings, form]);
+
   // Custom hooks for client-side PDF generation
   const {
     isGenerating,
@@ -88,13 +112,21 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   });
 
   // Event handlers
-  const handleGenerate = async () => {
+  const handleGenerate = async (quality: PdfQuality = pdfQuality) => {
     // Switch to preview tab first
     setActiveTab('preview');
 
-    // Generate and download the PDF
-    await generateAndDownloadPdf();
+    // Generate and download the PDF with the selected quality
+    await generateAndDownloadPdf(quality);
   };
+
+  // Handle close with cleanup
+  const handleClose = useCallback(() => {
+    // Call the original onClose handler
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose]);
 
   // If no order is provided, don't render anything
   if (!order) return null;
@@ -113,7 +145,7 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
         onOpenChange={onOpenChange}
         title={`Invoice for Order #${order.order_number || order.id.substring(0, 8)}`}
         size="xxl"
-        onClose={onClose}
+        onClose={handleClose}
       >
       <div className="p-0 flex-1 flex flex-col overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
@@ -158,25 +190,48 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
 
       <div className="border-t border-[#2B2B40] p-6 flex flex-wrap gap-3 justify-between sticky bottom-0 bg-background z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="flex gap-3">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              onClick={handleGenerate}
-              className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating PDF...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download PDF
-                </>
-              )}
-            </Button>
-          </motion.div>
+          <div className="flex gap-1">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    className="bg-orange-500 hover:bg-orange-600 text-white flex items-center"
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => {
+                    setPdfQuality('high');
+                    handleGenerate('high');
+                  }}>
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    High Quality (2x)
+                    {pdfQuality === 'high' && <span className="ml-2 text-xs text-green-500">✓</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setPdfQuality('standard');
+                    handleGenerate('standard');
+                  }}>
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Standard Quality (1x)
+                    {pdfQuality === 'standard' && <span className="ml-2 text-xs text-green-500">✓</span>}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </motion.div>
+          </div>
 
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button

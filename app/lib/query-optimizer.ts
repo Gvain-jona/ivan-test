@@ -1,13 +1,10 @@
-'use client';
-
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * Optimized query builder for Supabase
  * Helps create efficient queries with proper pagination and filtering
  */
 export class QueryOptimizer {
-  private supabase = createClient();
   private table: string;
   private selectFields: string;
   private countEnabled: boolean = false;
@@ -17,11 +14,35 @@ export class QueryOptimizer {
   private limitValue: number | null = null;
   private offsetValue: number | null = null;
   private joinRelations: string[] = [];
+  private supabase: any;
 
   constructor(table: string, selectFields: string = '*') {
     this.table = table;
     this.selectFields = selectFields;
   }
+
+  /**
+   * Initialize the Supabase client
+   * This needs to be called before executing the query
+   */
+  async init() {
+    try {
+      // Make sure we properly await the createClient function
+      const client = await createClient();
+      if (!client) {
+        throw new Error('Failed to initialize Supabase client');
+      }
+      this.supabase = client;
+      return this;
+    } catch (error) {
+      console.error('Error initializing QueryOptimizer:', error);
+      // Instead of throwing, return a failed state that can be handled gracefully
+      this.supabase = null;
+      return this;
+    }
+  }
+
+
 
   /**
    * Enable count to get total number of records
@@ -70,6 +91,22 @@ export class QueryOptimizer {
    */
   async execute() {
     try {
+      // Initialize Supabase client if not already initialized
+      if (!this.supabase) {
+        await this.init();
+      }
+
+      // Double-check that we have a valid Supabase client
+      if (!this.supabase) {
+        console.error('Supabase client initialization failed');
+        // Return empty result instead of throwing
+        return {
+          data: [],
+          count: 0,
+          error: new Error('Supabase client initialization failed')
+        };
+      }
+
       // Start building the query
       let query = this.supabase
         .from(this.table)
@@ -82,36 +119,52 @@ export class QueryOptimizer {
 
       // Apply filters
       Object.entries(this.filterConditions).forEach(([column, { operator, value }]) => {
-        switch (operator) {
-          case '=':
-            query = query.eq(column, value);
-            break;
-          case '!=':
-            query = query.neq(column, value);
-            break;
-          case '>':
-            query = query.gt(column, value);
-            break;
-          case '>=':
-            query = query.gte(column, value);
-            break;
-          case '<':
-            query = query.lt(column, value);
-            break;
-          case '<=':
-            query = query.lte(column, value);
-            break;
-          case 'in':
-            query = query.in(column, value);
-            break;
-          case 'like':
-            query = query.like(column, `%${value}%`);
-            break;
-          case 'ilike':
-            query = query.ilike(column, `%${value}%`);
-            break;
-          default:
-            query = query.eq(column, value);
+        // Skip null or undefined values to prevent errors
+        if (value === null || value === undefined) {
+          console.log(`Skipping filter for ${column} with null/undefined value`);
+          return;
+        }
+
+        try {
+          switch (operator) {
+            case '=':
+              query = query.eq(column, value);
+              break;
+            case '!=':
+              query = query.neq(column, value);
+              break;
+            case '>':
+              query = query.gt(column, value);
+              break;
+            case '>=':
+              query = query.gte(column, value);
+              break;
+            case '<':
+              query = query.lt(column, value);
+              break;
+            case '<=':
+              query = query.lte(column, value);
+              break;
+            case 'in':
+              // Ensure value is an array
+              if (Array.isArray(value) && value.length > 0) {
+                query = query.in(column, value);
+              } else {
+                console.log(`Skipping 'in' filter for ${column} with invalid array value`);
+              }
+              break;
+            case 'like':
+              query = query.like(column, `%${value}%`);
+              break;
+            case 'ilike':
+              query = query.ilike(column, `%${value}%`);
+              break;
+            default:
+              query = query.eq(column, value);
+          }
+        } catch (filterError) {
+          console.error(`Error applying filter for ${column}:`, filterError);
+          // Continue with other filters
         }
       });
 
@@ -129,22 +182,37 @@ export class QueryOptimizer {
         query = query.range(this.offsetValue, this.offsetValue + (this.limitValue || 10) - 1);
       }
 
-      // Execute the query
-      const { data, error, count } = await query;
+      // Execute the query without a timeout to avoid AbortError issues
+      try {
+        // Execute the query
+        const { data, error, count } = await query;
 
-      if (error) {
-        throw error;
+        if (error) {
+          console.error(`Query error for ${this.table}:`, error);
+          return {
+            data: [],
+            count: 0,
+            error
+          };
+        }
+
+        return {
+          data: data || [],
+          count: count || 0,
+          error: null
+        };
+      } catch (queryError) {
+        console.error(`Query error for ${this.table}:`, queryError);
+        return {
+          data: [],
+          count: 0,
+          error: queryError
+        };
       }
-
-      return {
-        data,
-        count,
-        error: null
-      };
     } catch (error) {
       console.error(`Error executing optimized query for ${this.table}:`, error);
       return {
-        data: null,
+        data: [],
         count: 0,
         error
       };
@@ -154,7 +222,7 @@ export class QueryOptimizer {
 
 /**
  * Example usage:
- * 
+ *
  * const result = await new QueryOptimizer('orders')
  *   .count()
  *   .filter('status', '=', 'pending')
@@ -162,6 +230,6 @@ export class QueryOptimizer {
  *   .paginate(1, 10)
  *   .join('clients(id, name)')
  *   .execute();
- * 
+ *
  * const { data, count, error } = result;
  */

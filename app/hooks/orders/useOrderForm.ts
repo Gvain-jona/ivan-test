@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { calculateOrderBalance, calculateOrderTotal, getPaymentStatus } from '@/utils/orders/order-form.utils';
 
@@ -30,8 +30,45 @@ export const useOrderForm = ({ initialOrder }: UseOrderFormProps = {}): UseOrder
     payments: [], // Add empty payments array to ensure it's always defined
   }), []);
 
-  const [order, setOrder] = useState<Partial<Order>>(initialOrder || defaultOrder);
-  const [initialFormState] = useState<Partial<Order>>(initialOrder || defaultOrder);
+  // Debug initialOrder in useOrderForm
+  console.log('useOrderForm received initialOrder:', initialOrder);
+  console.log('useOrderForm defaultOrder:', defaultOrder);
+
+  // Ensure nested arrays are properly initialized in the initial state
+  const initialState = useMemo(() => {
+    const baseState = initialOrder || defaultOrder;
+    return {
+      ...baseState,
+      items: baseState.items || [],
+      payments: baseState.payments || [],
+      notes: baseState.notes || []
+    };
+  }, [initialOrder, defaultOrder]);
+
+  const [order, setOrder] = useState<Partial<Order>>(initialState);
+  const [initialFormState] = useState<Partial<Order>>(initialState);
+
+  // Debug the initialized state
+  console.log('useOrderForm initialized order state:', order);
+
+  // Add an effect to update the form state when initialOrder changes
+  // This is important for when the form is opened with a different order
+  useEffect(() => {
+    if (initialOrder) {
+      console.log('useOrderForm initialOrder changed, updating state:', initialOrder);
+
+      // Ensure nested arrays are properly initialized
+      const updatedOrder = {
+        ...initialOrder,
+        items: initialOrder.items || [],
+        payments: initialOrder.payments || [],
+        notes: initialOrder.notes || []
+      };
+
+      console.log('useOrderForm setting order with nested data:', updatedOrder);
+      setOrder(updatedOrder);
+    }
+  }, [initialOrder]);
 
   // Update a single field in the order
   const updateOrderField = useCallback(<K extends keyof Order>(field: K, value: Order[K]) => {

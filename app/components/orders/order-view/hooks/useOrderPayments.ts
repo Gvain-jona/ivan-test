@@ -31,13 +31,15 @@ const useOrderPayments = ({
       return;
     }
 
-    // Create new payment object
+    // Create new payment object with both naming conventions for compatibility
     const newPayment: OrderPayment = {
       id: `payment-${Date.now()}`,
       order_id: order.id,
       payment_date: paymentDate,
+      date: paymentDate, // Add date field for compatibility
       amount: parseFloat(paymentAmount),
       payment_method: paymentMethod as any,
+      payment_type: paymentMethod as any, // Add payment_type field for compatibility
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

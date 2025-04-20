@@ -58,13 +58,10 @@ async function fetchOrdersFromSupabase(
     // Calculate offset
     const offset = (pagination.page - 1) * pagination.pageSize;
 
-    // Start building the query
+    // Start building the query - don't use joins since we've denormalized the data
     let query = supabase
       .from('orders')
-      .select(`
-        *,
-        clients:client_id (id, name)
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     // Apply filters
     if (filters?.status && filters.status.length > 0) {

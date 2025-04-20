@@ -2,12 +2,12 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  SimpleSelect,
+  SimpleSelectContent,
+  SimpleSelectItem,
+  SimpleSelectTrigger,
+  SimpleSelectValue,
+} from '@/components/ui/simple-select';
 import { formatCurrency } from '@/utils/formatting.utils';
 import { Order, OrderStatus, ClientType } from '@/types/orders';
 import { FormSection } from '@/components/ui/form/FormSection';
@@ -18,7 +18,6 @@ interface OrderGeneralInfoFormProps {
   active: boolean;
   order: Partial<Order>;
   updateOrderField: <K extends keyof Order>(field: K, value: Order[K]) => void;
-  isEditing: boolean;
   clients?: ComboboxOption[];
   errors?: Record<string, string[]>;
 }
@@ -30,44 +29,52 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
   active,
   order,
   updateOrderField,
-  isEditing,
   clients = [],
   errors = {},
 }) => {
+  // Debug order data received by the form
+  console.log('OrderGeneralInfoForm received order:', order);
   // We're using a regular input for client name instead of a smart dropdown
-  // Set default values for new orders
+  // Set default values for new orders - using a ref to prevent infinite loops
+  const defaultsSetRef = React.useRef(false);
+
   React.useEffect(() => {
-    if (!active) return;
+    if (!active || defaultsSetRef.current) return;
+
+    // Only set defaults once when the component becomes active
+    let needsUpdate = false;
+    let updates: Partial<Order> = {};
 
     // Set default client type if not already set
     if (!order.client_type) {
-      updateOrderField('client_type', 'regular' as ClientType);
+      updates.client_type = 'regular' as ClientType;
+      needsUpdate = true;
     }
 
     // Set default status if not already set
     if (!order.status) {
-      updateOrderField('status', 'pending' as OrderStatus);
+      updates.status = 'pending' as OrderStatus;
+      needsUpdate = true;
     }
-  }, [active, order.client_type, order.status, updateOrderField]);
+
+    // Only update if needed and only once
+    if (needsUpdate) {
+      // Use a timeout to prevent React update depth issues
+      setTimeout(() => {
+        Object.entries(updates).forEach(([key, value]) => {
+          updateOrderField(key as keyof Order, value);
+        });
+      }, 0);
+    }
+
+    defaultsSetRef.current = true;
+  }, [active]); // Only depend on active state
 
   return (
     <div className="space-y-6">
       <FormSection title="Order Details" titleClassName="text-lg font-semibold text-foreground mb-4">
         <div className="space-y-6">
-          {isEditing && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="order_id" className="text-sm font-medium">Order ID</Label>
-                <Input
-                  id="order_id"
-                  disabled
-                  value={order.id || ''}
-                  className="bg-background border-input h-10"
-                />
-              </div>
-              <div></div>
-            </div>
-          )}
+          {/* Order ID field removed as per user request */}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -104,19 +111,18 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="client_type" className="text-sm font-medium">Client Type</Label>
-              <Select
+              <SimpleSelect
                 value={order.client_type || 'regular'}
                 onValueChange={(value) => updateOrderField('client_type', value as ClientType)}
-                defaultValue="regular"
               >
-                <SelectTrigger id="client_type" className="bg-background border-input">
-                  <SelectValue placeholder="Select client type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="regular">Regular</SelectItem>
-                  <SelectItem value="contract">Contract</SelectItem>
-                </SelectContent>
-              </Select>
+                <SimpleSelectTrigger id="client_type" className="bg-background border-input">
+                  <SimpleSelectValue placeholder="Select client type" />
+                </SimpleSelectTrigger>
+                <SimpleSelectContent>
+                  <SimpleSelectItem value="regular">Regular</SimpleSelectItem>
+                  <SimpleSelectItem value="contract">Contract</SimpleSelectItem>
+                </SimpleSelectContent>
+              </SimpleSelect>
             </div>
 
             <div className="space-y-2">
@@ -124,26 +130,25 @@ const OrderGeneralInfoForm: React.FC<OrderGeneralInfoFormProps> = ({
                 Status
                 {errors['status'] && <span className="text-destructive ml-1">*</span>}
               </Label>
-              <Select
+              <SimpleSelect
                 value={order.status || 'pending'}
                 onValueChange={(value) => updateOrderField('status', value as OrderStatus)}
-                defaultValue="pending"
               >
-                <SelectTrigger
+                <SimpleSelectTrigger
                   id="status"
                   className={errors['status'] ? 'border-destructive bg-background border-input' : 'bg-background border-input'}
                 >
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paused">Paused</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+                  <SimpleSelectValue placeholder="Select status" />
+                </SimpleSelectTrigger>
+                <SimpleSelectContent>
+                  <SimpleSelectItem value="pending">Pending</SimpleSelectItem>
+                  <SimpleSelectItem value="paused">Paused</SimpleSelectItem>
+                  <SimpleSelectItem value="in_progress">In Progress</SimpleSelectItem>
+                  <SimpleSelectItem value="completed">Completed</SimpleSelectItem>
+                  <SimpleSelectItem value="delivered">Delivered</SimpleSelectItem>
+                  <SimpleSelectItem value="cancelled">Cancelled</SimpleSelectItem>
+                </SimpleSelectContent>
+              </SimpleSelect>
               <FieldError errors={errors['status']} fieldName="status" />
             </div>
           </div>

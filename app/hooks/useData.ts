@@ -1,12 +1,16 @@
 'use client';
 
+import React, { useCallback, useMemo } from 'react';
 import { useLoadingSWR, useFetch } from './useLoadingSWR';
 import { SWRConfiguration } from 'swr';
+import { createSWRConfig } from '@/lib/swr-config';
 import { dataService } from '@/lib/supabase';
 import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { useLoading } from '@/components/loading/LoadingProvider';
+import { API_ENDPOINTS } from '@/lib/api-endpoints';
+import { getOrdersListKey, getOrderKey } from '@/lib/cache-keys';
 
 /**
  * Consolidated data fetching module
@@ -14,27 +18,7 @@ import { useLoading } from '@/components/loading/LoadingProvider';
  * It uses SWR for caching and revalidation, and the loading provider for loading states
  */
 
-// API endpoints
-export const API_ENDPOINTS = {
-  ORDERS: '/api/orders',
-  ORDERS_OPTIMIZED: '/api/orders/optimized', // New optimized endpoint
-  EXPENSES: '/api/expenses',
-  MATERIALS: '/api/materials',
-  TASKS: '/api/tasks',
-  DASHBOARD: '/api/dashboard',
-  CLIENTS: '/api/clients',
-  CATEGORIES: '/api/categories',
-  ITEMS: '/api/items',
-  SIZES: '/api/sizes',
-  SUPPLIERS: '/api/suppliers',
-
-  // Dropdown endpoints
-  DROPDOWN_CLIENTS: '/api/dropdown/clients',
-  DROPDOWN_CATEGORIES: '/api/dropdown/categories',
-  DROPDOWN_ITEMS: '/api/dropdown/items',
-  DROPDOWN_SIZES: '/api/dropdown/sizes',
-  DROPDOWN_SUPPLIERS: '/api/dropdown/suppliers',
-};
+// API endpoints are now imported from lib/api-endpoints.ts
 
 /**
  * SWR Configuration
@@ -51,12 +35,12 @@ const DEFAULT_CONFIG: SWRConfiguration = {
   revalidateOnReconnect: true,
   // Keep previous data while fetching new data to prevent flashing
   keepPreviousData: true,
-  // Cache data for 60 seconds to reduce unnecessary requests
-  dedupingInterval: 60000, // 60 seconds
-  // Retry failed requests up to 3 times
-  errorRetryCount: 3,
-  // Set a 10 second timeout for loading states
-  loadingTimeout: 10000, // 10 seconds
+  // Cache data for 2 minutes to reduce unnecessary requests
+  dedupingInterval: 120000, // 2 minutes
+  // Retry failed requests up to 2 times
+  errorRetryCount: 2,
+  // Set a 5 second timeout for loading states
+  loadingTimeout: 5000, // 5 seconds
   // Throttle focus events to reduce unnecessary revalidations
   focusThrottleInterval: 60000, // 1 minute
 };
@@ -146,13 +130,11 @@ async function fetchOrdersFromSupabase(
     // Calculate offset
     const offset = (pagination.page - 1) * pagination.pageSize;
 
-    // Start building the query
+    // Start building the query - don't use join to avoid foreign key issues
     let query = supabase
       .from('orders')
-      .select(`
-        *,
-        clients:client_id (id, name)
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
+    // We'll use client_name directly from orders table
 
     // Apply filters
     if (filters?.status && filters.status.length > 0) {
@@ -218,23 +200,26 @@ async function fetchOrdersFromSupabase(
     let allNotes: any[] = [];
 
     try {
-      const [itemsResult, notesResult] = await Promise.all([
-        // Batch fetch items for all orders in a single query
-        supabase
-          .from('order_items')
-          .select('*')
-          .in('order_id', orderIds),
+      // Only fetch related data if we have order IDs
+      if (orderIds.length > 0) {
+        const [itemsResult, notesResult] = await Promise.all([
+          // Batch fetch items for all orders in a single query
+          supabase
+            .from('order_items')
+            .select('*')
+            .in('order_id', orderIds),
 
-        // Batch fetch notes for all orders in a single query
-        supabase
-          .from('notes')
-          .select('*')
-          .eq('linked_item_type', 'order')
-          .in('linked_item_id', orderIds)
-      ]);
+          // Batch fetch notes for all orders in a single query
+          supabase
+            .from('notes')
+            .select('*')
+            .eq('linked_item_type', 'order')
+            .in('linked_item_id', orderIds)
+        ]);
 
-      allItems = itemsResult.data || [];
-      allNotes = notesResult.data || [];
+        allItems = itemsResult.data || [];
+        allNotes = notesResult.data || [];
+      }
     } catch (error) {
       console.error('Error fetching related data:', error);
       // Continue with empty related data
@@ -260,14 +245,16 @@ async function fetchOrdersFromSupabase(
     // Map the orders with their related data
     const transformedOrders = data.map(order => ({
       id: order.id,
-      order_number: order.order_number || `ORD-${order.id.substring(0, 8)}`,
+      order_number: order.order_number || (order.id ? `ORD-${order.id.substring(0, 8)}` : 'Unknown'),
       client_id: order.client_id,
-      client_name: order.clients?.name || 'Unknown Client',
+      // Use the client_name directly from the order
+      client_name: order.client_name || 'Unknown Client',
       client_type: order.client_type || 'regular',
       date: order.date || new Date().toISOString().split('T')[0],
+      delivery_date: order.delivery_date,
+      is_delivered: order.is_delivered || false,
       status: order.status || 'pending',
       payment_status: order.payment_status || 'unpaid',
-      payment_method: order.payment_method || '',
       total_amount: order.total_amount || 0,
       amount_paid: order.amount_paid || 0,
       balance: order.balance || 0,
@@ -295,14 +282,10 @@ async function fetchOrdersFromSupabase(
 }
 
 /**
- * Generate a stable cache key for SWR
+ * Generate a stable cache key for SWR using our centralized cache key utility
  */
 function generateCacheKey(filters?: OrdersFilters, pagination?: PaginationParams): string {
-  return JSON.stringify({
-    endpoint: 'orders-optimized',
-    filters,
-    pagination
-  });
+  return getOrdersListKey(filters, pagination);
 }
 
 /**
@@ -316,7 +299,7 @@ function generateOrdersUrl(filters?: OrdersFilters, pagination: PaginationParams
   }
 
   try {
-    const url = new URL(API_ENDPOINTS.ORDERS_OPTIMIZED, window.location.origin);
+    const url = new URL(`${API_ENDPOINTS.ORDERS}/optimized`, window.location.origin);
 
     // Add pagination parameters
     url.searchParams.append('page', pagination.page.toString());
@@ -360,19 +343,123 @@ export function useOrders(filters?: OrdersFilters, pagination: PaginationParams 
   const { startLoading, stopLoading } = useLoading();
   const loadingId = 'orders-data';
 
+  // Track if we've already shown an error toast to prevent duplicates
+  const errorToastShownRef = React.useRef(false);
+  // Track the number of consecutive errors to prevent excessive retries
+  const errorCountRef = React.useRef(0);
+
   // Generate a stable cache key
   const cacheKey = generateCacheKey(filters, pagination);
 
-  // Temporarily use direct Supabase fetch until optimized API is implemented
+  // Use the optimized API endpoint
+  const url = generateOrdersUrl(filters, pagination);
+
+  // Create a standardized SWR config for list data
+  const swrConfig = createSWRConfig('list', {
+    ...config,
+    // Reduce retry count to avoid excessive retries
+    errorRetryCount: 1,
+    // Use a longer retry delay
+    errorRetryInterval: 5000, // 5 seconds
+    // Disable automatic revalidation to reduce API calls
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: 0,
+    // Keep previous data to avoid flashing
+    keepPreviousData: true,
+  });
+
+  // Only log in development
+  const logDebug = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(message, data);
+    }
+  };
+
   const { data, error, isLoading, isValidating, mutate } = useLoadingSWR<OrdersResponse>(
-    cacheKey,
-    async () => {
+    url || cacheKey,
+    async (url) => {
       try {
-        // Use direct Supabase fetch with robust error handling
-        const result = await fetchOrdersFromSupabase(filters, pagination);
-        return result;
+        // Increment error count if we're retrying
+        if (errorCountRef.current > 0) {
+          logDebug(`Retry attempt ${errorCountRef.current} for orders fetch`);
+        }
+
+        // If we've had too many errors, just return empty data
+        if (errorCountRef.current > 3) {
+          logDebug('Too many errors, returning empty data');
+          return {
+            orders: [],
+            totalCount: 0,
+            pageCount: 0
+          };
+        }
+
+        logDebug('Fetching orders with URL:', url);
+        // Use the optimized API endpoint if available
+        if (url && url.startsWith('http')) {
+          try {
+            // Use a simple fetch without AbortController to avoid AbortError issues
+            const response = await fetch(url);
+
+            if (!response.ok) {
+              console.error(`API error: ${response.status}`);
+              // Fallback to direct Supabase fetch on API error
+              logDebug('Falling back to direct Supabase fetch');
+              errorCountRef.current++;
+              try {
+                return await fetchOrdersFromSupabase(filters, pagination);
+              } catch (supabaseError) {
+                console.error('Error in Supabase fallback:', supabaseError);
+                // Return empty data if both methods fail
+                return {
+                  orders: [],
+                  totalCount: 0,
+                  pageCount: 0
+                };
+              }
+            }
+            const data = await response.json();
+            logDebug('API response received');
+            // Reset error count and toast flag on successful fetch
+            errorCountRef.current = 0;
+            errorToastShownRef.current = false;
+            return data;
+          } catch (fetchError) {
+            console.error('Error fetching from API:', fetchError);
+            // Fallback to direct Supabase fetch on fetch error
+            logDebug('Falling back to direct Supabase fetch');
+            errorCountRef.current++;
+            try {
+              return await fetchOrdersFromSupabase(filters, pagination);
+            } catch (supabaseError) {
+              console.error('Error in Supabase fallback:', supabaseError);
+              // Return empty data if both methods fail
+              return {
+                orders: [],
+                totalCount: 0,
+                pageCount: 0
+              };
+            }
+          }
+        } else {
+          // Fallback to direct Supabase fetch
+          logDebug('Using direct Supabase fetch');
+          try {
+            return await fetchOrdersFromSupabase(filters, pagination);
+          } catch (supabaseError) {
+            console.error('Error in direct Supabase fetch:', supabaseError);
+            // Return empty data if Supabase fetch fails
+            return {
+              orders: [],
+              totalCount: 0,
+              pageCount: 0
+            };
+          }
+        }
       } catch (error) {
         console.error('Error fetching orders:', error);
+        errorCountRef.current++;
         // Return empty data instead of throwing
         return {
           orders: [],
@@ -383,31 +470,26 @@ export function useOrders(filters?: OrdersFilters, pagination: PaginationParams 
     },
     loadingId,
     {
-      ...DEFAULT_CONFIG,
-      ...config,
-      // Increase retry count for better reliability
-      errorRetryCount: 3,
-      // Use a more aggressive retry delay
-      errorRetryInterval: 2000,
-      // Increase dedupingInterval to reduce requests
-      dedupingInterval: 120000, // 2 minutes
-      // Show toast only for non-network errors
+      ...swrConfig,
+      // Show toast only for non-network errors and only once
       onError: (err) => {
         // Check if it's a network error
         const isNetworkError = err instanceof Error &&
-          (err.message.includes('fetch') || err.message.includes('network'));
+          (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('abort') || err.message.includes('timeout'));
 
         // Log the error but don't spam the console
         if (!isNetworkError) {
           console.error('Error fetching orders:', err);
 
-          // Only show toast for non-network errors and only in production
-          if (process.env.NODE_ENV === 'production') {
+          // Only show toast for non-network errors when we have no data at all
+          // This prevents showing error toasts when data is actually loaded successfully
+          if (!data?.orders?.length && !errorToastShownRef.current) {
             toast({
               title: 'Error',
               description: 'Failed to fetch orders. Please try again.',
               variant: 'destructive',
             });
+            errorToastShownRef.current = true;
           }
         }
       }
@@ -502,64 +584,120 @@ export function useOrders(filters?: OrdersFilters, pagination: PaginationParams 
 }
 
 /**
- * Fetches a single order by ID
+ * Fetches a single order by ID with all related data in parallel
+ * @param id The order ID
  */
 async function fetchOrderById(id: string): Promise<Order> {
   try {
     // Create Supabase client
     const supabase = createClient();
 
-    // Get the order
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        clients:client_id (id, name)
-      `)
-      .eq('id', id)
-      .single();
+    // Fetch all data in parallel for better performance
+    const [
+      orderResult,
+      itemsResult,
+      paymentsResult,
+      notesResult
+    ] = await Promise.all([
+      // Get the order
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .single(),
 
-    if (error) {
-      console.error('Error fetching order:', error);
-      throw new Error(`Failed to fetch order: ${error.message}`);
+      // Get order items
+      supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', id),
+
+      // Get order payments
+      supabase
+        .from('order_payments')
+        .select('*')
+        .eq('order_id', id)
+        .order('date', { ascending: false }),
+
+      // Get order notes
+      supabase
+        .from('notes')
+        .select('*')
+        .eq('linked_item_type', 'order')
+        .eq('linked_item_id', id)
+    ]);
+
+    // Handle order data errors
+    if (orderResult.error) {
+      console.error('Error fetching order:', orderResult.error);
+      throw new Error(`Failed to fetch order: ${orderResult.error.message}`);
     }
 
-    if (!data) {
+    if (!orderResult.data) {
       throw new Error('Order not found');
     }
 
-    // Get order items
-    const { data: items } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', id);
+    // Log any errors for related data but don't fail the request
+    if (itemsResult.error) {
+      console.error('Error fetching order items:', itemsResult.error);
+    }
 
-    // Get order notes
-    const { data: notes } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('linked_item_type', 'order')
-      .eq('linked_item_id', id);
+    if (paymentsResult.error) {
+      console.error('Error fetching order payments:', paymentsResult.error);
+    }
+
+    if (notesResult.error) {
+      console.error('Error fetching order notes:', notesResult.error);
+    }
+
+    // Process payments data
+    const payments = (paymentsResult.data || []).map(payment => ({
+      id: payment.id,
+      order_id: payment.order_id,
+      amount: payment.amount,
+      // Map both naming conventions for compatibility
+      payment_date: payment.payment_date || payment.date,
+      date: payment.date || payment.payment_date,
+      payment_method: payment.payment_method || payment.payment_type,
+      payment_type: payment.payment_type || payment.payment_method,
+      created_at: payment.created_at,
+      updated_at: payment.updated_at
+    }));
+
+    // Process notes data
+    const notes = (notesResult.data || []).map(note => ({
+      id: note.id,
+      type: note.type || 'info',
+      text: note.text || '',
+      linked_item_type: note.linked_item_type || 'order',
+      linked_item_id: note.linked_item_id,
+      created_by: note.created_by,
+      created_by_name: 'User', // We don't have profiles data anymore
+      created_at: note.created_at,
+      updated_at: note.updated_at
+    }));
 
     // Transform the order
     const order: Order = {
-      id: data.id,
-      order_number: data.order_number,
-      client_id: data.client_id,
-      client_name: data.clients?.name || 'Unknown Client',
-      client_type: data.client_type || 'regular',
-      date: data.date,
-      status: data.status,
-      payment_status: data.payment_status,
-      payment_method: data.payment_method,
-      total_amount: data.total_amount || 0,
-      amount_paid: data.amount_paid || 0,
-      balance: data.balance || 0,
-      created_by: data.created_by,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      items: items || [],
-      notes: notes || []
+      id: orderResult.data.id,
+      order_number: orderResult.data.order_number,
+      client_id: orderResult.data.client_id,
+      client_name: orderResult.data.client_name || 'Unknown Client',
+      client_type: orderResult.data.client_type || 'regular',
+      date: orderResult.data.date,
+      status: orderResult.data.status,
+      payment_status: orderResult.data.payment_status,
+      delivery_date: orderResult.data.delivery_date,
+      is_delivered: orderResult.data.is_delivered || false,
+      total_amount: orderResult.data.total_amount || 0,
+      amount_paid: orderResult.data.amount_paid || 0,
+      balance: orderResult.data.balance || 0,
+      created_by: orderResult.data.created_by,
+      created_at: orderResult.data.created_at,
+      updated_at: orderResult.data.updated_at,
+      items: itemsResult.data || [],
+      payments: payments,
+      notes: notes
     };
 
     return order;
@@ -569,34 +707,95 @@ async function fetchOrderById(id: string): Promise<Order> {
   }
 }
 
-export function useOrder(id?: string, config?: SWRConfiguration) {
+export function useOrder(
+  keyOrId: string | null,
+  config?: SWRConfiguration & {
+    fallbackData?: Order
+  }
+) {
+  // Convert orderId to a consistent cache key if it's not already a full key
+  const key = useMemo(() => {
+    if (!keyOrId) return null;
+    // If it's already a full URL or API path, use it as is
+    if (keyOrId.includes('/api/') || keyOrId.includes('http')) {
+      return keyOrId;
+    }
+    // Otherwise, assume it's an order ID and generate a consistent key
+    return getOrderKey(keyOrId);
+  }, [keyOrId]);
   const { toast } = useToast();
+  // Extract the ID from the key if it exists
+  const id = key ? key.split('/').pop() : undefined;
   const loadingId = `order-${id}`;
 
+  // Extract fallbackData from config
+  const { fallbackData, ...restConfig } = config || {};
+
+  // Create a standardized SWR config for order details
+  const swrConfig = createSWRConfig('detail', restConfig);
+
+  // Use a stable fetcher function to avoid unnecessary rerenders
+  const fetcher = useCallback(async () => {
+    if (!id) return null;
+    return fetchOrderById(id);
+  }, [id]);
+
   const { data, error, isLoading, mutate } = useLoadingSWR<Order>(
-    id ? `${API_ENDPOINTS.ORDERS}/${id}` : null,
-    () => fetchOrderById(id!),
+    key,
+    fetcher,
     loadingId,
     {
-      ...DEFAULT_CONFIG,
-      ...config,
+      // Use our standardized config as the base
+      ...swrConfig,
+      // Use fallbackData if provided to avoid loading state
+      fallbackData,
       onError: (err) => {
-        console.error('Error fetching order:', err);
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch order details. Please try again.',
-          variant: 'destructive',
-        });
+        // Only log and show errors that aren't network-related
+        const isNetworkError = err instanceof Error &&
+          (err.message.includes('fetch') || err.message.includes('network'));
+
+        if (!isNetworkError) {
+          console.error('Error fetching order:', err);
+          toast({
+            title: 'Error',
+            description: 'Failed to fetch order details. Please try again.',
+            variant: 'destructive',
+          });
+        }
       }
     }
   );
+
+  // Enhanced mutate function that handles optimistic updates better
+  const refreshOrder = useCallback(async (optimisticData?: any, shouldRevalidate: boolean = true) => {
+    try {
+      // If optimistic data is provided, update the cache immediately
+      if (optimisticData) {
+        // Update the cache with the optimistic data
+        await mutate(optimisticData, false);
+
+        // If we should revalidate, do it after a short delay
+        if (shouldRevalidate) {
+          // Use a longer delay to allow multiple optimistic updates to batch
+          setTimeout(() => mutate(), 1000);
+        }
+      } else {
+        // Just do a normal revalidation
+        return mutate();
+      }
+    } catch (error) {
+      console.error('Error in refreshOrder:', error);
+      // Revalidate to ensure data consistency
+      return mutate();
+    }
+  }, [mutate]);
 
   return {
     order: data,
     isLoading,
     isError: !!error,
     isEmpty: !data,
-    mutate,
+    mutate: refreshOrder,
   };
 }
 
@@ -926,6 +1125,82 @@ export function useDropdownSuppliers(config?: SWRConfiguration) {
 
   return {
     options: data || [],
+    isLoading,
+    isError: !!error,
+    isEmpty: !data || data.length === 0,
+    mutate,
+  };
+}
+
+/**
+ * Hook to fetch only the payments for an order
+ * This is used to lazy-load payments data when viewing an order
+ */
+export function useOrderPayments(orderId?: string, config?: SWRConfiguration) {
+  const { toast } = useToast();
+  const loadingId = `order-payments-${orderId}`;
+
+  // Create the URL
+  const url = orderId ? `/api/orders/${orderId}/payments` : null;
+
+  // Only log in development
+  const logDebug = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[useOrderPayments] ${message}`, data);
+    }
+  };
+
+  logDebug('URL:', url);
+
+  // Create a standardized SWR config for detail data
+  const swrConfig = createSWRConfig('detail', {
+    ...config,
+  });
+
+  const { data, error, isLoading, mutate } = useLoadingSWR<OrderPayment[]>(
+    url,
+    async () => {
+      try {
+        // Fetch from the API endpoint
+        const response = await fetch(url!);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch payments: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        logDebug('API response received');
+
+        // The API returns { payments: [...] }
+        if (data && Array.isArray(data.payments)) {
+          return data.payments;
+        } else if (data && typeof data === 'object') {
+          // If the API returns the payments directly
+          return Array.isArray(data) ? data : [];
+        }
+
+        return [];
+      } catch (error) {
+        console.error('Error in fetchOrderPayments:', error);
+        throw error;
+      }
+    },
+    loadingId,
+    {
+      ...swrConfig,
+      onError: (err) => {
+        console.error('Error fetching order payments:', err);
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch payment details. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }
+  );
+
+  return {
+    payments: data || [],
     isLoading,
     isError: !!error,
     isEmpty: !data || data.length === 0,

@@ -162,12 +162,13 @@ function OrderActions(props: OrderActionsProps) {
           {canModify && (
             <CustomDropdownItem
               className="text-white focus:bg-table-hover focus:text-white"
-              onClick={(e) => handleSafeAction(onEdit, e)}
+              onClick={(e) => handleSafeAction(onView, e)}
             >
               <Edit className="mr-2 h-4 w-4" />
-              Edit Order
+              View/Edit Order
             </CustomDropdownItem>
           )}
+          {/* Invoice button temporarily hidden
           <CustomDropdownItem
             className={cn(
               "focus:bg-table-hover",
@@ -180,6 +181,7 @@ function OrderActions(props: OrderActionsProps) {
             <FileText className="mr-2 h-4 w-4" />
             {order.latest_invoice_id || order.invoice_generated_at ? "View Invoice" : "Generate Invoice"}
           </CustomDropdownItem>
+          */}
           <CustomDropdownItem
             className="text-white focus:bg-table-hover focus:text-white"
             onClick={(e) => handleSafeAction(onDuplicate, e)}

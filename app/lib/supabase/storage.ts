@@ -12,6 +12,7 @@ const BUCKETS = {
   RECEIPTS: 'receipts',
   MATERIALS: 'materials',
   INVOICES: 'invoices',
+  LOGOS: 'logos',
 };
 
 /**
@@ -29,8 +30,11 @@ export async function initializeStorageBuckets() {
       const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
 
       if (!bucketExists) {
+        // Make logos bucket public, others private by default
+        const isPublic = bucketName === BUCKETS.LOGOS || bucketName === BUCKETS.INVOICES;
+
         const { error } = await supabase.storage.createBucket(bucketName, {
-          public: false, // Private by default
+          public: isPublic,
           fileSizeLimit: 10485760, // 10MB
         });
 
@@ -55,6 +59,44 @@ export async function initializeStorageBuckets() {
 }
 
 /**
+ * Ensure a bucket exists before using it
+ */
+export async function ensureBucketExists(bucketName: string, isPublic = false) {
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
+
+    if (!bucketExists) {
+      const { error } = await supabase.storage.createBucket(bucketName, {
+        public: isPublic,
+        fileSizeLimit: 10485760, // 10MB
+      });
+
+      if (error) {
+        console.error(`Error creating bucket ${bucketName}:`, error);
+        return false;
+      }
+    }
+
+    // If the bucket exists but we need to update its public status
+    if (bucketExists) {
+      const { error } = await supabase.storage.updateBucket(bucketName, {
+        public: isPublic
+      });
+
+      if (error) {
+        console.error(`Error updating bucket ${bucketName}:`, error);
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`Error ensuring bucket ${bucketName} exists:`, error);
+    return false;
+  }
+}
+
+/**
  * Upload a file to Supabase Storage
  */
 export async function uploadFile(
@@ -63,6 +105,9 @@ export async function uploadFile(
   file: File,
   options = { upsert: true }
 ) {
+  // Ensure the bucket exists and is properly configured
+  await ensureBucketExists(bucketName, bucketName === BUCKETS.LOGOS || bucketName === BUCKETS.INVOICES);
+
   const { data, error } = await supabase.storage
     .from(bucketName)
     .upload(path, file, options);

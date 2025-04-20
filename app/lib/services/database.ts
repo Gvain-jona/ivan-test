@@ -512,7 +512,7 @@ export const ordersService = {
       pagination,
       'created_at',
       'desc',
-      { columns: '*, clients:client_id(name)', count: 'exact' },
+      { columns: '*', count: 'exact' },
       serverSide
     );
   },
@@ -521,36 +521,29 @@ export const ordersService = {
     const order = await db.getById<z.Order>(
       'orders',
       id,
-      { columns: '*, clients:client_id(name)' },
+      { columns: '*' },
       serverSide
     );
 
-    // Format the order to handle joined data
+    // No need to format the order since client_name is directly in the orders table
     const formattedOrder: z.Order = {
       ...order,
-      client_name: (order as any).clients?.name || 'Unknown Client',
-      clients: undefined
+      client_name: order.client_name || 'Unknown Client'
     };
 
-    // Fetch order items
+    // Fetch order items - no need to join with items and categories tables
     const { data: items } = await db.query<z.OrderItem>(
       'order_items',
       { order_id: id },
       { page: 1, pageSize: 100 },
       'created_at',
       'asc',
-      { columns: '*, items:item_id(name), categories:category_id(name)' },
+      { columns: '*' },
       serverSide
     );
 
-    // Format items to handle joined data
-    formattedOrder.items = items.map((item): z.OrderItem => ({
-      ...item,
-      item_name: (item as any).items?.name || 'Unknown Item',
-      category_name: (item as any).categories?.name || 'Unknown Category',
-      items: undefined,
-      categories: undefined
-    }));
+    // No need to format items since item_name and category_name are directly in the order_items table
+    formattedOrder.items = items;
 
     // Fetch order payments
     const { data: payments } = await db.query<z.OrderPayment>(

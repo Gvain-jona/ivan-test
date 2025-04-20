@@ -25,10 +25,10 @@ export function NotificationsIndicator({ onClick, className }: NotificationsIndi
     }, 60000); // 60 seconds
 
     return () => clearInterval(intervalId);
-  }, [fetchNotifications]);
+  }, [fetchNotifications]); // Include fetchNotifications in the dependency array
 
   return (
-    <div 
+    <div
       className={cn("relative", className)}
       onClick={onClick}
     >

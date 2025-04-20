@@ -4,10 +4,11 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const userId = params.userId;
+    // In Next.js 15, params is now async and needs to be awaited
+    const { userId } = await params;
 
     if (!userId) {
       return NextResponse.json(

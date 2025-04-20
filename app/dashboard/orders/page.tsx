@@ -3,7 +3,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
-import { Package, CheckSquare, BarChart3 } from "lucide-react";
+import { Package, DollarSign, BarChart3 } from "lucide-react";
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
 import OrderFormSheet from '../../components/orders/OrderFormSheet';
 import InvoiceSheet from '../../components/orders/InvoiceSheet';
@@ -12,7 +12,7 @@ import InvoiceSheet from '../../components/orders/InvoiceSheet';
 import OrdersPageHeader from './_components/OrdersPageHeader';
 import OrderMetricsCards from './_components/OrderMetricsCards';
 import OrdersTab from './_components/OrdersTab';
-import TasksTab from './_components/TasksTab';
+import InvoicesTab from './_components/InvoicesTab';
 import InsightsTab from './_components/InsightsTab';
 
 // Import context provider
@@ -31,17 +31,16 @@ const OrdersPageContent: React.FC = () => {
     // Modals
     selectedOrder,
     viewModalOpen,
-    editModalOpen,
     createModalOpen,
     invoiceModalOpen,
     setViewModalOpen,
-    setEditModalOpen,
     setCreateModalOpen,
     setInvoiceModalOpen,
-    handleEditOrder,
     handleGenerateInvoice,
     handleSaveOrder,
     handleCreateOrder,
+    handleInlineEdit,
+    activeModal,
 
     // User role
     userRole,
@@ -108,16 +107,16 @@ const OrdersPageContent: React.FC = () => {
               </Badge>
             </TabsTrigger>
             <TabsTrigger
-              value="tasks"
+              value="invoices"
               className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
             >
-              <CheckSquare
+              <DollarSign
                 className="-ms-0.5 me-1.5 opacity-60"
                 size={16}
                 strokeWidth={2}
                 aria-hidden="true"
               />
-              Tasks
+              Invoices
             </TabsTrigger>
           </TabsList>
         </div>
@@ -130,8 +129,8 @@ const OrdersPageContent: React.FC = () => {
           <OrdersTab />
         </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-5 animate-in fade-in-50 duration-300">
-          <TasksTab />
+        <TabsContent value="invoices" className="space-y-5 animate-in fade-in-50 duration-300">
+          <InvoicesTab />
         </TabsContent>
       </Tabs>
 
@@ -142,21 +141,13 @@ const OrdersPageContent: React.FC = () => {
           onOpenChange={setViewModalOpen}
           order={selectedOrder}
           onClose={() => setViewModalOpen(false)}
-          onEdit={handleEditOrder}
+          onEdit={handleInlineEdit}
           onGenerateInvoice={handleGenerateInvoice}
           userRole={userRole}
         />
       )}
 
-      {/* Order Edit Sheet */}
-      <OrderFormSheet
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        onSave={handleSaveOrder}
-        initialOrder={selectedOrder || undefined}
-        title="Edit Order"
-        isEditing={true}
-      />
+      {/* Edit functionality has been consolidated to use only inline editing in the OrderViewSheet */}
 
       {/* Order Create Sheet */}
       <OrderFormSheet
@@ -164,7 +155,6 @@ const OrdersPageContent: React.FC = () => {
         onOpenChange={setCreateModalOpen}
         onSave={handleSaveOrder}
         title="Create New Order"
-        isEditing={false}
       />
 
       {/* Invoice Sheet */}

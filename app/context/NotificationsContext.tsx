@@ -95,6 +95,12 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const fetchNotifications = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (loading) {
+      console.log('[NotificationsContext] Skipping fetch - already loading');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -139,7 +145,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, loading]);
 
   const markAsRead = useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -196,7 +202,19 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (error) {
         console.error('Error marking all notifications as read:', error);
         // Revert the local state change if the server update failed
-        await fetchNotifications();
+        // Use a manual fetch instead of calling fetchNotifications to avoid dependency cycles
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!fetchError && data) {
+            setNotifications(data);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching notifications after failed update:', fetchError);
+        }
         return false;
       }
 
@@ -205,7 +223,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       console.error('Error marking all notifications as read:', error);
       return false;
     }
-  }, [supabase, fetchNotifications]);
+  }, [supabase]); // Remove fetchNotifications from dependencies
 
   const archiveNotification = useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -226,7 +244,18 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (error) {
         console.error('Error archiving notification:', error);
         // Revert the local state change if the server update failed
-        await fetchNotifications();
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!fetchError && data) {
+            setNotifications(data);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching notifications after failed update:', fetchError);
+        }
         return false;
       }
 
@@ -235,7 +264,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       console.error('Error archiving notification:', error);
       return false;
     }
-  }, [supabase, fetchNotifications]);
+  }, [supabase]); // Remove fetchNotifications from dependencies
 
   const deleteNotification = useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -250,7 +279,18 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (error) {
         console.error('Error deleting notification:', error);
         // Revert the local state change if the server update failed
-        await fetchNotifications();
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!fetchError && data) {
+            setNotifications(data);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching notifications after failed delete:', fetchError);
+        }
         return false;
       }
 
@@ -259,7 +299,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       console.error('Error deleting notification:', error);
       return false;
     }
-  }, [supabase, fetchNotifications]);
+  }, [supabase]); // Remove fetchNotifications from dependencies
 
   const deleteAllArchived = useCallback(async (): Promise<boolean> => {
     try {
@@ -274,7 +314,18 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (error) {
         console.error('Error deleting all archived notifications:', error);
         // Revert the local state change if the server update failed
-        await fetchNotifications();
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!fetchError && data) {
+            setNotifications(data);
+          }
+        } catch (fetchError) {
+          console.error('Error fetching notifications after failed bulk delete:', fetchError);
+        }
         return false;
       }
 
@@ -283,7 +334,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       console.error('Error deleting all archived notifications:', error);
       return false;
     }
-  }, [supabase, fetchNotifications]);
+  }, [supabase]); // Remove fetchNotifications from dependencies
 
   // Subscribe to new notifications
   useEffect(() => {
@@ -294,6 +345,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         schema: 'public',
         table: 'notifications'
       }, () => {
+        // Use a function reference to avoid dependency issues
         fetchNotifications();
       })
       .subscribe();
@@ -304,7 +356,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchNotifications]);
+  }, [supabase]); // Remove fetchNotifications from dependencies
 
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
 

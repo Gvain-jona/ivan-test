@@ -9,6 +9,9 @@ export const orderItemSchema = z.object({
   category_id: z.string().optional(),
   category_name: z.string().min(1, "Category is required"),
   item_name: z.string().min(1, "Item name is required"),
+  // Store original values to detect changes
+  item_name_original: z.string().optional(),
+  category_name_original: z.string().optional(),
   size: z.string().min(1, "Size is required"),
   quantity: z.number().min(1, "Quantity must be at least 1"),
   unit_price: z.number().min(0, "Unit price cannot be negative"),
@@ -23,7 +26,7 @@ export const orderPaymentSchema = z.object({
   id: z.string().nullable().optional(),
   order_id: z.string().nullable().optional(),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
-  payment_date: z.string().min(1, "Date is required")
+  date: z.string().min(1, "Date is required")
     .default(() => new Date().toISOString().split('T')[0]), // Default to today's date
   payment_method: z.enum(["cash", "bank_transfer", "credit_card", "cheque", "mobile_payment"] as const, {
     errorMap: () => ({ message: "Select a payment method" }),
@@ -58,6 +61,8 @@ export const orderSchema = z.object({
     errorMap: () => ({ message: "Select a client type" }),
   }),
   date: z.string().min(1, "Order date is required"),
+  delivery_date: z.string().optional(), // Added delivery_date field
+  is_delivered: z.boolean().optional().default(false), // Added is_delivered field
   status: z.enum(["pending", "in_progress", "paused", "completed", "delivered", "cancelled"] as const, {
     errorMap: () => ({ message: "Select an order status" }),
   }),

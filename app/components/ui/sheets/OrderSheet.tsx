@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useCallback, memo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { motion } from 'framer-motion';
-import { slideInRight, sheetContent } from '@/utils/animation-variants';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -14,13 +13,14 @@ interface OrderSheetProps {
   description?: string;
   showCloseButton?: boolean;
   onClose?: () => void;
+  customHeader?: React.ReactNode;
 }
 
 /**
  * Base component for all order-related side sheets
  * Provides consistent styling and animations for side panel content
  */
-const OrderSheet: React.FC<OrderSheetProps> = ({
+const OrderSheet = memo(function OrderSheet({
   open,
   onOpenChange,
   title,
@@ -28,8 +28,9 @@ const OrderSheet: React.FC<OrderSheetProps> = ({
   size = 'default',
   description,
   showCloseButton = true,
-  onClose
-}) => {
+  onClose,
+  customHeader
+}) {
   // Map size to width class
   const getSizeClass = () => {
     switch (size) {
@@ -42,58 +43,72 @@ const OrderSheet: React.FC<OrderSheetProps> = ({
     }
   };
 
+  // Simple function to handle close button click
   const handleClose = () => {
+    // Call onClose if provided
     if (onClose) {
       onClose();
     }
+
+    // Just call onOpenChange with false
+    console.log('Close button clicked');
     onOpenChange(false);
   };
 
+  // Simple pass-through function for sheet state changes
+  const handleOpenChange = useCallback((value: boolean) => {
+    // Only call parent if the state is actually changing
+    if (value !== open) {
+      console.log(`Sheet state change requested: ${value}`);
+      onOpenChange(value);
+    }
+  }, [onOpenChange, open]);
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
         className={`p-0 bg-background border-border/40 text-foreground ${getSizeClass()}`}
         hideCloseButton={true}
       >
-        <motion.div
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          variants={slideInRight}
-          className="h-full flex flex-col"
-        >
-          <SheetHeader className="p-6 border-b border-[hsl(var(--border))]/40 flex flex-row justify-between items-center bg-[hsl(var(--card))]">
-            <div>
-              <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
-              {description && (
-                <p className="text-sm text-muted-foreground mt-1">{description}</p>
-              )}
-            </div>
-
-            {showCloseButton && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full"
-                aria-label="Close panel"
-              >
-                <X className="h-5 w-5" />
-              </Button>
+        <div className="h-full flex flex-col">
+          <SheetHeader className="p-6 border-b border-[hsl(var(--border))]/40 flex flex-row justify-between items-start bg-[hsl(var(--card))]">
+            {customHeader ? (
+              <div className="flex-1">
+                {/* Always include a SheetTitle for accessibility, but visually hide it if using customHeader */}
+                <VisuallyHidden>
+                  <SheetTitle>{title || 'Order Details'}</SheetTitle>
+                </VisuallyHidden>
+                {customHeader}
+              </div>
+            ) : (
+              <div>
+                <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
+                {description && (
+                  <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                )}
+              </div>
             )}
+
+            {/* Always show close button for better UX */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClose}
+              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full ml-2 flex-shrink-0"
+              aria-label="Close panel"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </SheetHeader>
 
-          <motion.div
-            className="flex-1 overflow-auto"
-            variants={sheetContent}
-          >
+          <div className="flex-1 overflow-auto">
             {children}
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );
-};
+});
 
 export default OrderSheet;

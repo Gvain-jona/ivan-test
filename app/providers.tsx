@@ -6,7 +6,7 @@ import { initGlobalErrorHandlers } from './lib/utils/error-handler';
 import { NavigationProvider } from './context/navigation-context';
 import { AuthProvider } from './context/auth-context';
 import { NotificationsProvider } from './context/NotificationsContext';
-import { Toaster } from '@/components/ui/toaster';
+import { NotificationProvider } from '@/components/ui/notification';
 import { SWRProvider } from './providers/SWRProvider';
 // GlobalDropdownCacheProvider removed - using SWR for data fetching
 import { CacheCleanupInitializer } from '@/components/CacheCleanupInitializer';
@@ -33,12 +33,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <NavigationProvider>
             <LoadingProvider>
               <NotificationsProvider>
-                {/* Initialize cache cleanup */}
-                <CacheCleanupInitializer />
-                {/* Temporarily disable data preloading until API endpoints are fixed */}
-                {/* <DataPreloader /> */}
-                {children}
-                <Toaster />
+                <NotificationProvider>
+                  {/* Initialize cache cleanup */}
+                  <CacheCleanupInitializer />
+                  {/* Temporarily disable data preloading until API endpoints are fixed */}
+                  {/* <DataPreloader /> */}
+                  {children}
+                </NotificationProvider>
               </NotificationsProvider>
             </LoadingProvider>
           </NavigationProvider>

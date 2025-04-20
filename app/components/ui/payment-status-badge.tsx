@@ -1,40 +1,72 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { CreditCard, DollarSign, Clock, Ban, AlertCircle } from 'lucide-react';
+import { CreditCard, DollarSign, Clock, Ban, AlertCircle, CheckCircle } from 'lucide-react';
 
-type PaymentStatus = 
+type PaymentStatus =
   | 'paid'
   | 'partially_paid'
   | 'unpaid'
   | 'overdue'
-  | 'refunded';
+  | 'refunded'
+  | string
+  | undefined;
 
 interface PaymentStatusBadgeProps {
   status: PaymentStatus;
+  percentage?: number;
   className?: string;
+  showIcon?: boolean;
+  showPercentage?: boolean;
 }
 
-export const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({ status, className }) => {
-  const getStatusConfig = (status: PaymentStatus) => {
+export const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({
+  status,
+  percentage = 0,
+  className,
+  showIcon = true,
+  showPercentage = true
+}) => {
+  const getStatusConfig = (status: PaymentStatus, percentage: number) => {
     switch (status) {
       case 'paid':
         return {
-          icon: <DollarSign className="h-3 w-3 mr-1" />,
+          icon: <CheckCircle className="h-3 w-3 mr-1" />,
           label: 'Paid',
-          className: 'bg-green-900 text-green-300 hover:bg-green-900/80',
+          className: 'bg-green-500/15 text-green-400 border-green-500/30',
         };
       case 'partially_paid':
-        return {
-          icon: <CreditCard className="h-3 w-3 mr-1" />,
-          label: 'Partially Paid',
-          className: 'bg-blue-900 text-blue-300 hover:bg-blue-900/80',
-        };
+        // Different styling based on percentage
+        if (percentage >= 75) {
+          return {
+            icon: <DollarSign className="h-3 w-3 mr-1" />,
+            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
+            className: 'bg-green-500/15 text-green-400 border-green-500/30',
+          };
+        } else if (percentage >= 50) {
+          return {
+            icon: <DollarSign className="h-3 w-3 mr-1" />,
+            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
+            className: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+          };
+        } else if (percentage >= 25) {
+          return {
+            icon: <DollarSign className="h-3 w-3 mr-1" />,
+            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
+            className: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+          };
+        } else {
+          return {
+            icon: <DollarSign className="h-3 w-3 mr-1" />,
+            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
+            className: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+          };
+        }
       case 'unpaid':
         return {
-          icon: <Clock className="h-3 w-3 mr-1" />,
-          label: 'Unpaid',
-          className: 'bg-yellow-900 text-yellow-300 hover:bg-yellow-900/80',
+          icon: <Ban className="h-3 w-3 mr-1" />,
+          label: 'Not Paid',
+          className: 'bg-red-500/15 text-red-400 border-red-500/30',
         };
       case 'overdue':
         return {
@@ -51,27 +83,27 @@ export const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({ status, 
       default:
         return {
           icon: <CreditCard className="h-3 w-3 mr-1" />,
-          label: status.replace(/_/g, ' '),
+          label: status ? status.replace(/_/g, ' ') : 'Unknown',
           className: 'bg-gray-800 text-gray-300 hover:bg-gray-800/80',
         };
     }
   };
 
-  const { icon, label, className: statusClassName } = getStatusConfig(status);
+  const { icon, label, className: statusClassName } = getStatusConfig(status, percentage);
 
   return (
-    <Badge 
-      variant="outline" 
+    <Badge
+      variant="outline"
       className={cn(
-        'flex items-center font-normal px-2 py-1 border-none', 
-        statusClassName, 
+        'flex items-center font-normal px-2 py-1 border-none',
+        statusClassName,
         className
       )}
     >
-      {icon}
-      <span className="capitalize">{label}</span>
+      {showIcon && icon}
+      <span>{label}</span>
     </Badge>
   );
 };
 
-export default PaymentStatusBadge; 
+export default PaymentStatusBadge;

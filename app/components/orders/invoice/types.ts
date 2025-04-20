@@ -17,6 +17,12 @@ export interface InvoiceSettings {
   format: 'a4' | 'letter';
   template: 'standard' | 'minimal' | 'detailed';
 
+  // Item display options
+  showItemCategory: boolean;
+  showItemName: boolean;
+  showItemSize: boolean;
+  itemDisplayFormat: 'combined' | 'separate';
+
   // Tax and discount options
   includeTax: boolean;
   taxRate: number;
@@ -30,7 +36,6 @@ export interface InvoiceSettings {
 
   // Company information
   tinNumber: string;
-  proformaNumber: string;
   companyName: string;
   companyEmail: string;
   companyPhone: string;

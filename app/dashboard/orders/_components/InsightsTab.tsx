@@ -6,8 +6,10 @@ import { useOrdersPage } from '../_context/OrdersPageContext';
 import { useLoading } from '@/components/loading';
 import { useOrders } from '@/hooks/useData';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
+import PendingInvoicesCard from './PendingInvoicesCard';
 import PendingInvoicesPanel from './PendingInvoicesPanel';
 import { formatCurrency } from '@/lib/utils';
+import { shouldShowLoading, shouldShowEmptyState } from '@/lib/utils/loading-utils';
 import {
   ShoppingBag,
   DollarSign,
@@ -249,13 +251,14 @@ const InsightsTab: React.FC = () => {
   // Use the loading provider for component-specific loading states
   const { loadingIds } = useLoading();
 
-  // Combined loading state - show skeleton if either context loading or SWR loading is true
-  const isLoading = loading || ordersLoading || loadingIds.has('orders');
-
   // Track if we have any data at all (either from context or direct hook)
   const hasAnyData =
     (filteredOrders && filteredOrders.length > 0) ||
     (directOrders && directOrders.length > 0);
+
+  // Combined loading state - show skeleton if either context loading or SWR loading is true
+  const isLoading = loading || ordersLoading || loadingIds.has('orders');
+  const isValidating = false; // We don't have isValidating from useOrders, so set to false
 
   // Track if we've attempted to load data
   const [dataAttempted, setDataAttempted] = useState(false);
@@ -267,14 +270,18 @@ const InsightsTab: React.FC = () => {
     }
   }, [isLoading, dataAttempted]);
 
+  // Use our utility functions to determine what to show
+  const showLoading = shouldShowLoading(isLoading, isValidating, hasAnyData ? [1] : [], dataAttempted);
+  const showEmpty = shouldShowEmptyState(isLoading, hasAnyData ? [1] : [], dataAttempted);
+
   // Show loading state - but only if we're loading and haven't attempted to load data yet
-  if (isLoading && !hasAnyData && !dataAttempted) {
+  if (showLoading) {
     console.log('Showing analytics loading skeleton');
     return <AnalyticsCardSkeleton cards={3} />;
   }
 
   // Show empty state if we've attempted to load data but have no orders
-  if ((!isLoading || dataAttempted) && !hasAnyData) {
+  if (showEmpty) {
     console.log('Showing analytics empty state');
     return (
       <EmptyState
@@ -294,6 +301,26 @@ const InsightsTab: React.FC = () => {
             onOpenChange={setIsPanelOpen}
             pendingInvoices={pendingInvoicesData}
           />
+
+          {/* Pending Invoices Card - Now first in the order */}
+          <PendingInvoicesCard
+            title="Pending Invoices"
+            icon={<Users size={20} className="text-green-500" />}
+            accentColor="green"
+            total={formatCurrency(analytics.unpaidTotal)}
+            change="+3.7%"
+            subtitle="unpaid balance"
+            categories={['All Clients', 'Delivered', 'Not Delivered']}
+            activeCategory={activeCategory}
+            timeRange={timeRange}
+            metrics={pendingInvoicesMetrics}
+            clientsWithDebt={analytics.clientsWithDebt}
+            pendingInvoices={pendingInvoicesData}
+            onCategoryChange={handleCategoryChange}
+            onTimeRangeChange={handleTimeRangeChange}
+            onViewMore={handleOpenPanel}
+          />
+
           {/* Order Analytics Card */}
           <OrderAnalyticsCard
             title="Order Analytics"
@@ -326,26 +353,6 @@ const InsightsTab: React.FC = () => {
             weeklyData={analytics.weeklyData}
             onCategoryChange={handleCategoryChange}
             onTimeRangeChange={handleTimeRangeChange}
-          />
-
-          {/* Pending Invoices Card */}
-          <OrderAnalyticsCard
-            title="Pending Invoices"
-            icon={<Users size={20} className="text-green-500" />}
-            accentColor="green"
-            total={formatCurrency(analytics.unpaidTotal)}
-            change="+3.7%"
-            subtitle="unpaid balance"
-            categories={['All Clients', 'Regular', 'Contract']}
-            activeCategory={activeCategory}
-            timeRange={timeRange}
-            metrics={pendingInvoicesMetrics}
-            weeklyData={analytics.weeklyData}
-            clientsWithDebt={analytics.clientsWithDebt}
-            pendingInvoices={pendingInvoicesData}
-            onCategoryChange={handleCategoryChange}
-            onTimeRangeChange={handleTimeRangeChange}
-            onViewMore={handleOpenPanel}
           />
         </div>
       </div>

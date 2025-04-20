@@ -5,6 +5,7 @@ import { Order, Task, TasksFilters, OrderStatus, PaymentStatus } from '../../../
 import { useToast } from '../../../components/ui/use-toast';
 import { useLoading } from '@/components/loading';
 import { useOrders, OrdersFilters, PaginationParams } from '@/hooks/useData';
+import { createSWRConfig } from '@/lib/swr-config';
 
 // Import sample data for tasks and metrics
 // Import custom hooks
@@ -22,6 +23,7 @@ interface OrdersPageContextType {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   userRole: 'admin' | 'manager' | 'employee';
+  activeModal: 'view' | 'create' | 'invoice' | null;
   stats: {
     totalOrders: number;
     revenue: number;
@@ -61,21 +63,19 @@ interface OrdersPageContextType {
   // Modals
   selectedOrder: ReturnType<typeof useOrderModals>['selectedOrder'];
   viewModalOpen: ReturnType<typeof useOrderModals>['viewModalOpen'];
-  editModalOpen: ReturnType<typeof useOrderModals>['editModalOpen'];
   createModalOpen: ReturnType<typeof useOrderModals>['createModalOpen'];
   invoiceModalOpen: ReturnType<typeof useOrderModals>['invoiceModalOpen'];
   setViewModalOpen: ReturnType<typeof useOrderModals>['setViewModalOpen'];
-  setEditModalOpen: ReturnType<typeof useOrderModals>['setEditModalOpen'];
   setCreateModalOpen: ReturnType<typeof useOrderModals>['setCreateModalOpen'];
   setInvoiceModalOpen: ReturnType<typeof useOrderModals>['setInvoiceModalOpen'];
   handleViewOrder: ReturnType<typeof useOrderModals>['handleViewOrder'];
-  handleEditOrder: ReturnType<typeof useOrderModals>['handleEditOrder'];
   handleCreateOrder: ReturnType<typeof useOrderModals>['handleCreateOrder'];
   handleDeleteOrder: ReturnType<typeof useOrderModals>['handleDeleteOrder'];
   handleDuplicateOrder: ReturnType<typeof useOrderModals>['handleDuplicateOrder'];
   handleGenerateInvoice: ReturnType<typeof useOrderModals>['handleGenerateInvoice'];
   handleOrderStatusChange: ReturnType<typeof useOrderModals>['handleOrderStatusChange'];
   handleSaveOrder: ReturnType<typeof useOrderModals>['handleSaveOrder'];
+  handleInlineEdit: ReturnType<typeof useOrderModals>['handleInlineEdit'];
 }
 
 // Create the context
@@ -88,8 +88,11 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   // Basic state
   const [initialLoading, setInitialLoading] = useState(false); // Changed to false to avoid double loading state
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('insights'); // 'insights', 'orders' or 'tasks'
+  const [activeTab, setActiveTab] = useState('insights'); // 'insights', 'orders' or 'invoices'
   const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now()); // Track last refresh time
+
+  // Track which modal is currently active to prevent conflicts
+  const [activeModal, setActiveModal] = useState<'view' | 'create' | 'invoice' | null>(null);
 
   // User role state - in development mode, default to admin
   const [userRole] = useState<'admin' | 'manager' | 'employee'>('admin'); // Default to admin in development
@@ -122,7 +125,14 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   });
 
   // Initialize consolidated orders hook with memoized dependencies
-  const memoizedFilters = useMemo(() => currentFilters, [JSON.stringify(currentFilters)]);
+  const memoizedFilters = useMemo(() => currentFilters, [
+    // Explicitly list all filter properties to avoid unnecessary re-renders
+    currentFilters.status?.join(','),
+    currentFilters.paymentStatus?.join(','),
+    currentFilters.startDate,
+    currentFilters.endDate,
+    currentFilters.search
+  ]);
   const memoizedPagination = useMemo(() => currentPagination, [currentPagination.page, currentPagination.pageSize]);
 
   // Use the loading provider for component-specific loading states
@@ -137,9 +147,12 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     isEmpty,
     updateOrderStatus: apiUpdateOrderStatus
   } = useOrders(memoizedFilters, memoizedPagination, {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-    keepPreviousData: true
+    ...createSWRConfig('list', {
+      // Enable revalidation on focus to catch updates
+      revalidateOnFocus: true,
+      // Always revalidate stale data
+      revalidateIfStale: true
+    })
   });
 
   // Determine if we have data loaded
@@ -158,11 +171,14 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
       setLoading(false);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch orders',
-        variant: 'destructive',
-      });
+      // Only show toast if we have no data at all
+      if (!orders || orders.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch orders',
+          variant: 'destructive',
+        });
+      }
       setLoading(false);
     }
   }, [toast, refreshOrders, setCurrentFilters]);
@@ -250,23 +266,53 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
   const {
     selectedOrder,
     viewModalOpen,
-    editModalOpen,
     createModalOpen,
     invoiceModalOpen,
-    setViewModalOpen,
-    setEditModalOpen,
-    setCreateModalOpen,
-    setInvoiceModalOpen,
-    handleViewOrder,
-    handleEditOrder,
-    handleCreateOrder,
+    setViewModalOpen: setViewModalOpenBase,
+    setCreateModalOpen: setCreateModalOpenBase,
+    setInvoiceModalOpen: setInvoiceModalOpenBase,
+    handleViewOrder: handleViewOrderBase,
+    handleCreateOrder: handleCreateOrderBase,
     handleDeleteOrder,
     handleDuplicateOrder,
-    handleGenerateInvoice,
+    handleGenerateInvoice: handleGenerateInvoiceBase,
     // We'll override this with our own implementation
     handleOrderStatusChange: _handleOrderStatusChange,
-    handleSaveOrder
+    handleSaveOrder,
+    handleInlineEdit
   } = useOrderModals();
+
+  // Override modal setters to track active modal
+  const setViewModalOpen = useCallback((open: boolean) => {
+    setViewModalOpenBase(open);
+    setActiveModal(open ? 'view' : null);
+  }, [setViewModalOpenBase]);
+
+  const setCreateModalOpen = useCallback((open: boolean) => {
+    setCreateModalOpenBase(open);
+    setActiveModal(open ? 'create' : null);
+  }, [setCreateModalOpenBase]);
+
+  const setInvoiceModalOpen = useCallback((open: boolean) => {
+    setInvoiceModalOpenBase(open);
+    setActiveModal(open ? 'invoice' : null);
+  }, [setInvoiceModalOpenBase]);
+
+  // Override handlers to use our custom setters
+  const handleViewOrder = useCallback((order: Order) => {
+    handleViewOrderBase(order);
+    setActiveModal('view');
+  }, [handleViewOrderBase]);
+
+  const handleCreateOrder = useCallback(() => {
+    handleCreateOrderBase();
+    setActiveModal('create');
+  }, [handleCreateOrderBase]);
+
+  const handleGenerateInvoice = useCallback((order: Order) => {
+    handleGenerateInvoiceBase(order);
+    setActiveModal('invoice');
+  }, [handleGenerateInvoiceBase]);
 
   // Override handleOrderStatusChange to use our consolidated hook
   const handleOrderStatusChange = useCallback(async (order: Order, status: OrderStatus) => {
@@ -314,20 +360,27 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
         // Reset any filters to ensure all data is shown
         resetFilters();
 
-        // Only fetch orders data, no dropdown prefetching
-        await refreshOrders({
-          revalidate: true,
-          populateCache: true
-        });
-
-        // Set initial loading to false after data is loaded
-        setInitialLoading(false);
+        try {
+          // Only fetch orders data, no dropdown prefetching
+          await refreshOrders({
+            revalidate: true,
+            populateCache: true
+          });
+        } catch (error) {
+          console.error('Error in initial orders fetch:', error);
+          // Don't show a toast here to avoid duplicate error messages
+        } finally {
+          // Set initial loading to false after data is loaded, even if there was an error
+          setInitialLoading(false);
+          setDataLoaded(true); // Mark data as loaded even if empty
+        }
       };
 
       loadOrders();
       initialFetchRef.current = true;
     }
-  }, [resetFilters, refreshOrders]); // Removed prefetchAll and isInitialized from dependency array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array since we only want this to run once
 
   // Handle loading more items with debounce to prevent multiple calls
   const loadingRef = React.useRef(false);
@@ -335,9 +388,12 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
 
   // Define a function to refresh data that can be used by both manual refresh and auto-refresh
   // Optimized for better performance and reduced loading states
-  const refreshData = useCallback(async (showToast: boolean = true) => {
+  const refreshData = useCallback(async (showToast: boolean = false) => { // Default to false to reduce toast noise
     // Prevent multiple simultaneous calls
-    if (loadingRef.current) return;
+    if (loadingRef.current) {
+      console.log('Skipping refresh - already loading');
+      return;
+    }
 
     // Set loading state but don't show skeleton for quick refreshes
     loadingRef.current = true;
@@ -354,8 +410,12 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
       const timestamp = Date.now();
       setRefreshTimestamp(timestamp);
 
-      // Force revalidation
-      await refreshOrders();
+      // Force revalidation with more aggressive options
+      await refreshOrders({
+        revalidate: true,
+        populateCache: true,
+        rollbackOnError: true
+      });
 
       // Only show toast if this was triggered by a manual refresh button click
       // and not by an automatic refresh after order creation
@@ -371,7 +431,8 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
       setInitialLoading(false);
     } catch (error) {
       console.error('Error refreshing orders:', error);
-      if (showToast) {
+      // Only show toast for manual refreshes and if we have no data at all
+      if (showToast && (!orders || orders.length === 0)) {
         toast({
           title: "Error",
           description: "Failed to refresh orders",
@@ -412,53 +473,68 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
       // Force update filtered orders when data is loaded
       if (orders && orders.length > 0) {
         // Use localHandleFilterChange to apply current filters
-        localHandleFilterChange(filters);
-        console.log('Forced update of filtered orders using localHandleFilterChange');
+        // Wrap in setTimeout to avoid potential circular updates
+        setTimeout(() => {
+          localHandleFilterChange(filters);
+          console.log('Forced update of filtered orders using localHandleFilterChange');
+        }, 0);
       }
-    } else {
-      // Data is still loading
-      setDataLoaded(false);
-      setInitialLoading(true);
+    } else if (ordersLoading) {
+      // Only set loading state if we're actually loading
       console.log('Still waiting for orders data...');
     }
-  }, [orders, ordersDataLoaded, filters, localHandleFilterChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, ordersDataLoaded, ordersLoading]);
 
   // Auto-refresh data periodically when tab is visible
+  // But only if we have actual data to refresh
   useEffect(() => {
-    // Only set up auto-refresh if we've already loaded data once
-    if (!dataLoaded) return;
-
     // Function to check if tab is visible and refresh if needed
     const checkAndRefresh = () => {
       if (document.visibilityState === 'visible') {
-        // Check if it's been more than 2 minutes since last refresh
+        // Check if it's been more than 5 minutes since last refresh
+        // Increased from 2 minutes to reduce unnecessary API calls
         const now = Date.now();
         const timeSinceLastRefresh = now - refreshTimestamp;
 
-        if (timeSinceLastRefresh > 2 * 60 * 1000) { // 2 minutes
+        if (timeSinceLastRefresh > 5 * 60 * 1000) { // 5 minutes
           console.log('Auto-refreshing orders data');
           refreshData(false); // Don't show toast for auto-refresh
         }
       }
     };
 
-    // Set up interval to check every minute
-    const intervalId = setInterval(checkAndRefresh, 60 * 1000); // 1 minute
+    // Only set up auto-refresh if we have data or are in the orders tab
+    // This prevents unnecessary API calls when there's no data to refresh
+    if (dataLoaded || activeTab === 'orders') {
+      // Set up interval to check every 2 minutes instead of every minute
+      // This reduces the number of checks and potential API calls
+      const intervalId = setInterval(checkAndRefresh, 2 * 60 * 1000); // 2 minutes
 
-    // Also refresh when tab becomes visible
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkAndRefresh();
-      }
-    };
+      // Also refresh when tab becomes visible, but only if it's been at least 5 minutes
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          const timeSinceLastRefresh = now - refreshTimestamp;
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+          if (timeSinceLastRefresh > 5 * 60 * 1000) { // 5 minutes
+            checkAndRefresh();
+          }
+        }
+      };
 
-    return () => {
-      clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [dataLoaded, refreshTimestamp, refreshData]);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      return () => {
+        clearInterval(intervalId);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }
+
+    // Return empty cleanup function if we're not setting up auto-refresh
+    return () => {};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTimestamp, refreshData, dataLoaded, activeTab]);
 
   // Calculate metrics separately to avoid infinite loops
   useEffect(() => {
@@ -474,6 +550,7 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
         order.status === 'draft'
       ).length;
 
+      // Use functional update to avoid dependency on previous state
       setStats({
         totalOrders,
         revenue,
@@ -481,12 +558,16 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
         pendingOrders
       });
     }
-  }, [orders]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders?.length]); // Only recalculate when the number of orders changes
 
   // Update total pages when filtered orders change
   useEffect(() => {
-    updateTotalPages(filteredOrders.length);
-  }, [filteredOrders.length, updateTotalPages]);
+    if (filteredOrders && Array.isArray(filteredOrders)) {
+      updateTotalPages(filteredOrders.length);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredOrders?.length]);
 
   // Tasks handlers
   const handleTaskFilterChange = (newFilters: TasksFilters) => {
@@ -531,6 +612,7 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     setActiveTab,
     userRole,
     stats,
+    activeModal,
 
     // Tasks
     filteredTasks,
@@ -564,21 +646,19 @@ export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children
     // Modals
     selectedOrder,
     viewModalOpen,
-    editModalOpen,
     createModalOpen,
     invoiceModalOpen,
     setViewModalOpen,
-    setEditModalOpen,
     setCreateModalOpen,
     setInvoiceModalOpen,
     handleViewOrder,
-    handleEditOrder,
     handleCreateOrder,
     handleDeleteOrder,
     handleDuplicateOrder,
     handleGenerateInvoice,
     handleOrderStatusChange,
-    handleSaveOrder
+    handleSaveOrder,
+    handleInlineEdit
   };
 
   return (

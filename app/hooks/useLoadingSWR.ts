@@ -3,6 +3,7 @@
 import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
 import { useLoading } from '@/components/loading/LoadingProvider';
 import { useEffect } from 'react';
+import { createSWRConfig, DataFetchType, getSWRConfigForKey } from '@/lib/swr-config';
 
 /**
  * Custom hook that combines SWR with the loading provider
@@ -19,22 +20,61 @@ export function useLoadingSWR<Data = any, Error = any>(
   config?: SWRConfiguration
 ): SWRResponse<Data, Error> {
   const { startLoading, stopLoading } = useLoading();
-  const response = useSWR<Data, Error>(key, fetcher, config);
-  
-  // Update loading state based on SWR state
+
+  // Wrap the fetcher to add better error handling
+  const wrappedFetcher = async (url: string): Promise<Data> => {
+    try {
+      return await fetcher(url);
+    } catch (error) {
+      console.error(`Error in useLoadingSWR fetcher for key ${key}:`, error);
+      // Re-throw the error for SWR to handle
+      throw error;
+    }
+  };
+
+  // Get the appropriate SWR config based on the key
+  const baseConfig = getSWRConfigForKey(key);
+
+  const response = useSWR<Data, Error>(key, wrappedFetcher, {
+    // Start with the appropriate base config for this type of data
+    ...baseConfig,
+    // Add custom config options
+    ...config,
+    // Add onError handler to log errors
+    onError: (err, key) => {
+      console.error(`SWR Error for key ${key}:`, err);
+      // Call the original onError handler if provided
+      if (config?.onError) {
+        config.onError(err, key, config);
+      } else if (baseConfig.onError) {
+        // Fall back to the base config's onError handler
+        baseConfig.onError(err, key, baseConfig);
+      }
+    },
+    // Provide a fallback empty object to prevent null errors if not provided
+    fallbackData: config?.fallbackData || baseConfig.fallbackData || {} as Data
+  });
+
+  // Update loading state based on SWR state with improved handling
   useEffect(() => {
-    if (response.isLoading || response.isValidating) {
+    // Only show loading state if we're loading for the first time (no data yet)
+    // or if we're validating and don't have any data
+    const shouldShowLoading =
+      (response.isLoading && !response.data) ||
+      (response.isValidating && !response.data);
+
+    if (shouldShowLoading) {
       startLoading(loadingId);
     } else {
       stopLoading(loadingId);
     }
-    
+
     // Cleanup on unmount
     return () => {
       stopLoading(loadingId);
     };
-  }, [response.isLoading, response.isValidating, startLoading, stopLoading, loadingId]);
-  
+  }, [response.isLoading, response.isValidating, response.data, startLoading, stopLoading, loadingId]);
+
   return response;
 }
 
@@ -53,14 +93,21 @@ export function useFetch<Data = any, Error = any>(
   return useLoadingSWR<Data, Error>(
     url,
     async (url) => {
-      const res = await fetch(url);
-      
-      if (!res.ok) {
-        const error = new Error('An error occurred while fetching the data.');
+      try {
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => 'Unknown error');
+          console.error(`Fetch error (${res.status}): ${errorText}`);
+          const error = new Error(`HTTP error ${res.status}: ${errorText}`);
+          throw error;
+        }
+
+        return await res.json();
+      } catch (error) {
+        console.error(`Error fetching ${url}:`, error);
         throw error;
       }
-      
-      return res.json();
     },
     loadingId,
     config

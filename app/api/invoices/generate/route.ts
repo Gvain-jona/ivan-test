@@ -234,7 +234,7 @@ async function generatePdf(order: any, settings: any): Promise<Uint8Array> {
   });
 
   // Invoice information
-  const invoiceNumber = `#${order.id.substring(0, 8).toUpperCase()}`;
+  const invoiceNumber = order.id ? `#${order.id.substring(0, 8).toUpperCase()}` : 'Unknown';
   page.drawText('Invoice Number:', {
     x: 340.2, // 120mm
     y: height - 147.3, // 52mm from top

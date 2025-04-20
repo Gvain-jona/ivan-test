@@ -17,20 +17,20 @@ import { redirect } from 'next/navigation'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    
+
     // Log all search parameters to debug what's coming in
     console.log('Auth confirm received with params:', Object.fromEntries(searchParams.entries()))
-    
+
     // Get token_hash and type from the URL (used in email confirmation)
     const token_hash = searchParams.get('token_hash')
     const type = searchParams.get('type') as EmailOtpType | null
-    
+
     // Get the redirect path
     const next = searchParams.get('next') || '/dashboard/orders'
-    
+
     // Create Supabase client
     const supabase = createClient()
-    
+
     // Validate required parameters
     if (!token_hash || !type) {
       console.error('Missing required parameters for auth confirmation')
@@ -38,41 +38,41 @@ export async function GET(request: NextRequest) {
         `${getBaseUrl()}/auth/error?error=${encodeURIComponent('Invalid confirmation link')}`
       )
     }
-    
+
     // Log all available auth cookies for debugging
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const allAuthCookies = getAllAuthCookieNames()
     const availableCookies = cookieStore.getAll().map((c: any) => c.name)
     console.log('All auth cookies:', allAuthCookies)
     console.log('Available cookies:', availableCookies)
-    
+
     // Verify the OTP
     const { error } = await supabase.auth.verifyOtp({
       type,
       token_hash,
     })
-    
+
     if (error) {
       console.error('Error verifying OTP:', error)
       return NextResponse.redirect(
         `${getBaseUrl()}/auth/error?error=${encodeURIComponent(error.message)}`
       )
     }
-    
+
     // If we get here, authentication was successful
-    
+
     // Ensure the next path is properly formatted
     const formattedNext = next.startsWith('/') ? next : `/${next}`
-    
+
     // Get the environment-specific base URL
     const baseUrl = getBaseUrl()
-    
+
     // Construct the full redirect URL
     const redirectUrl = `${baseUrl}${formattedNext}`
-    
+
     // Redirect to the requested page or default dashboard
     console.log('Auth confirmation successful, redirecting to:', redirectUrl)
-    
+
     // Use Next.js redirect for server components as recommended by Supabase
     return redirect(redirectUrl)
   } catch (error) {

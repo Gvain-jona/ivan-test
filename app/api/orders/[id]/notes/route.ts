@@ -1,6 +1,7 @@
 // Next.js API Route Handler for order notes
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/app/lib/supabase/server';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * GET /api/orders/[id]/notes
@@ -8,10 +9,11 @@ import { createClient } from '@/app/lib/supabase/server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    // Await params before accessing its properties
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -23,13 +25,10 @@ export async function GET(
     // Create Supabase client
     const supabase = await createClient();
 
-    // Get notes for the order
+    // Get notes for the order - don't use join to avoid potential issues
     const { data, error } = await supabase
       .from('notes')
-      .select(`
-        *,
-        users(name)
-      `)
+      .select('*')
       .eq('linked_item_type', 'order')
       .eq('linked_item_id', id)
       .order('created_at', { ascending: false });
@@ -45,8 +44,7 @@ export async function GET(
     // Format the response
     const formattedNotes = data.map(note => ({
       ...note,
-      created_by_name: note.users?.name || 'Unknown',
-      users: undefined
+      created_by_name: 'User' // We don't have users data anymore
     }));
 
     return NextResponse.json({ notes: formattedNotes });
@@ -65,12 +63,16 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    // Await params before accessing its properties
+    const { id } = await params;
     const body = await request.json();
-    const { type, text, createdBy } = body;
+    const { note } = body;
+
+    // Extract note details
+    const { type, text, created_by, createdBy } = note;
 
     if (!id) {
       return NextResponse.json(
@@ -79,34 +81,65 @@ export async function POST(
       );
     }
 
-    if (!type || !text || !createdBy) {
+    // Check for required fields using both naming conventions
+    if (!type || !text) {
       return NextResponse.json(
-        { error: 'Note type, text, and creator are required' },
+        { error: 'Note type and text are required' },
         { status: 400 }
       );
     }
 
+    // Use the appropriate fields for created_by, ensuring it's a valid UUID
+    const finalCreatedBy = created_by || createdBy || uuidv4();
+
     // Create Supabase client
     const supabase = await createClient();
 
-    // Call the database function to add note
-    const { data, error } = await supabase.rpc('add_order_note', {
-      p_order_id: id,
-      p_type: type,
-      p_text: text,
-      p_created_by: createdBy
-    });
+    // Prepare the note data
+    const noteData = {
+      type: type,
+      text: text,
+      linked_item_type: 'order',
+      linked_item_id: id,
+      created_by: finalCreatedBy,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Inserting note with data:', noteData);
+
+    // Insert directly into the notes table
+    const { data, error } = await supabase
+      .from('notes')
+      .insert(noteData)
+      .select('*') // Select all fields to return the complete note
+      .single();
 
     if (error) {
       console.error('Error adding order note:', error);
+
+      // Check if it's an RLS error
+      if (error.code === '42501') {
+        return NextResponse.json(
+          {
+            error: 'Row-level security policy violation. Please check the RLS policies for the notes table.',
+            details: error
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json(
-        { error: 'Failed to add order note' },
+        {
+          error: 'Failed to add order note',
+          details: error
+        },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
-      id: data,
+      note: data, // Return the complete note data
       message: 'Note added successfully'
     }, { status: 201 });
   } catch (error) {
@@ -124,10 +157,11 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    // Await params before accessing its properties
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const noteId = searchParams.get('noteId');
 

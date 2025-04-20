@@ -31,13 +31,13 @@ export async function GET(request: NextRequest) {
 
     // Start building the query with optimized select
     // Only select the fields we actually need to reduce data transfer
+    // Don't use joins since we've denormalized the data
     let query = supabase
       .from('orders')
       .select(`
-        id, order_number, client_id, client_type, date, status, payment_status,
-        payment_method, total_amount, amount_paid, balance, notes, created_by,
-        created_at, updated_at,
-        clients:client_id (id, name)
+        id, order_number, client_id, client_name, client_type, date, status, payment_status,
+        total_amount, amount_paid, balance, created_by, delivery_date, is_delivered,
+        created_at, updated_at
       `, { count: 'exact' });
 
     // Apply filters
@@ -196,15 +196,26 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/orders
- * Creates a new order with items
+ * Creates a new order with items using the optimized create_complete_order function
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { clientId, date, status, items, createdBy } = body;
+    const {
+      clientId,
+      clientName, // Added client name parameter
+      date,
+      deliveryDate, // Added delivery date parameter
+      isDelivered, // Added is_delivered parameter
+      status,
+      items,
+      payments,
+      notes,
+      clientType
+    } = body;
 
     // Validate required fields
-    if (!clientId || !date || !status || !items || !createdBy) {
+    if (!clientName || !date || !status || !items) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -214,27 +225,33 @@ export async function POST(request: NextRequest) {
     // Create Supabase client
     const supabase = await createClient();
 
-    // Call the database function to create order
-    const { data, error } = await supabase.rpc('create_order', {
-      p_client_id: clientId,
+    // Generate UUIDs for client_id if not provided
+    const finalClientId = clientId || crypto.randomUUID();
+
+    // Call the optimized database function with the updated signature
+    const { data, error } = await supabase.rpc('create_complete_order', {
+      p_client_id: finalClientId,
+      p_client_name: clientName,
       p_date: date,
       p_status: status,
+      p_payment_status: 'unpaid', // Default
+      p_client_type: clientType || 'regular',
       p_items: items,
-      p_created_by: createdBy
+      p_payments: payments || [],
+      p_notes: notes || [],
+      p_delivery_date: deliveryDate || null,
+      p_is_delivered: isDelivered || false
     });
 
     if (error) {
       console.error('Error creating order:', error);
       return NextResponse.json(
-        { error: 'Failed to create order' },
+        { error: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      id: data,
-      message: 'Order created successfully'
-    }, { status: 201 });
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error('Unexpected error in POST /api/orders:', error);
     return NextResponse.json(

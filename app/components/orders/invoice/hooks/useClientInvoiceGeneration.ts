@@ -3,6 +3,16 @@ import { useToast } from '@/components/ui/use-toast';
 import { Order } from '@/types/orders';
 import { downloadInvoicePdf } from '../utils/clientPdfGenerator';
 import { PDF_SCALE_FACTOR } from '../utils/constants';
+import { createSWRConfig } from '@/lib/swr-config';
+
+// Quality options for PDF generation
+export type PdfQuality = 'standard' | 'high';
+
+// Scale factors for different quality levels
+const QUALITY_SCALE_FACTORS = {
+  standard: 1,
+  high: 2
+};
 
 interface UseClientInvoiceGenerationProps {
   order: Order | null;
@@ -13,7 +23,7 @@ interface UseClientInvoiceGenerationReturn {
   progress: number;
   error: string | null;
   previewRef: React.RefObject<HTMLDivElement>;
-  generateAndDownloadPdf: () => Promise<void>;
+  generateAndDownloadPdf: (quality?: PdfQuality) => Promise<void>;
 }
 
 /**
@@ -31,8 +41,9 @@ export default function useClientInvoiceGeneration({
 
   /**
    * Generates and downloads a PDF from the preview
+   * @param quality - The quality of the PDF (standard or high)
    */
-  const generateAndDownloadPdf = useCallback(async (): Promise<void> => {
+  const generateAndDownloadPdf = useCallback(async (quality: PdfQuality = 'high'): Promise<void> => {
     if (!order || !previewRef.current) {
       toast({
         title: "Error",
@@ -42,6 +53,9 @@ export default function useClientInvoiceGeneration({
       return;
     }
 
+    // Get scale factor based on quality
+    const scaleFactor = QUALITY_SCALE_FACTORS[quality];
+
     setIsGenerating(true);
     setError(null);
 
@@ -49,16 +63,20 @@ export default function useClientInvoiceGeneration({
     const toastId = "invoice-generation";
 
     try {
-
-      // Show initial toast
+      // Show initial toast with quality information
       toast({
         id: toastId,
         title: "Generating PDF",
-        description: `Please wait while we prepare your invoice... This may take a few seconds at ${PDF_SCALE_FACTOR}x quality.`,
+        description: `Please wait while we prepare your invoice... This may take a few seconds at ${quality === 'high' ? 'high' : 'standard'} quality.`,
       });
 
       // Reset progress
       setProgress(0);
+
+      // Override the PDF_SCALE_FACTOR with our quality setting
+      // This is a bit of a hack, but it works without changing the core PDF generation logic
+      const originalScaleFactor = (window as any).__PDF_SCALE_FACTOR_OVERRIDE;
+      (window as any).__PDF_SCALE_FACTOR_OVERRIDE = scaleFactor;
 
       // Generate and download the PDF
       await downloadInvoicePdf(
@@ -81,11 +99,18 @@ export default function useClientInvoiceGeneration({
         }
       );
 
+      // Restore original scale factor
+      if (originalScaleFactor !== undefined) {
+        (window as any).__PDF_SCALE_FACTOR_OVERRIDE = originalScaleFactor;
+      } else {
+        delete (window as any).__PDF_SCALE_FACTOR_OVERRIDE;
+      }
+
       // Update the same toast with success message
       toast({
         id: toastId,
         title: "Download successful",
-        description: "Your invoice has been downloaded successfully with exact A4 dimensions.",
+        description: `Your invoice has been downloaded successfully at ${quality === 'high' ? 'high' : 'standard'} quality with exact A4 dimensions.`,
         variant: "success",
       });
     } catch (err) {

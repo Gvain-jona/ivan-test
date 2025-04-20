@@ -5,6 +5,7 @@ import { formatCurrency } from '@/utils/formatting.utils';
 import { Plus, Trash2 } from 'lucide-react';
 import { DeletionType } from '@/components/ui/approval-dialog';
 import { InlinePaymentForm } from '@/components/orders/forms/InlinePaymentForm';
+import { useNotifications } from '@/components/ui/notification';
 
 interface OrderPaymentsFormProps {
   active: boolean;
@@ -12,7 +13,7 @@ interface OrderPaymentsFormProps {
   updateOrderFields: (fields: Partial<Order>) => void;
   openDeleteDialog: (id: string, index: number, name: string, type: DeletionType) => void;
   recalculateOrder: () => void;
-  toast: any; // Using any for simplicity, but ideally should use a proper type
+
   errors?: Record<string, string[]>;
   // Updated props for enhanced form state management
   formState?: number[];
@@ -26,12 +27,13 @@ interface OrderPaymentsFormProps {
  * Component for the payments tab of the order form
  */
 const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
+  // Component props
   active,
   order,
   updateOrderFields,
   openDeleteDialog,
   recalculateOrder,
-  toast,
+
   errors = {},
   // Updated props with defaults
   formState = [0],
@@ -40,8 +42,17 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
   onRemoveForm,
   onUpdatePartialData,
 }) => {
+  // Use our notification system
+  const { success: showSuccess, error: showError } = useNotifications();
+  // Debug order payments
+  console.log('OrderPaymentsForm received order:', order);
+  console.log('OrderPaymentsForm received order.payments:', (order as any).payments);
+
   // Get payments from order, handling potentially missing field in type
   const payments = (order as any).payments || [];
+
+  // Debug payments after initialization
+  console.log('OrderPaymentsForm payments after initialization:', payments);
 
   // Use provided form state or local state as fallback
   const [localPaymentForms, setLocalPaymentForms] = useState([0]); // Local fallback
@@ -213,29 +224,49 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
         </Button>
       </div>
 
-      {/* Render existing payments with proper numbering */}
+      {/* We're not displaying payments as cards anymore - they remain as editable forms */}
+
+      {/* Only show forms for new payments (not already in the payments array) */}
+      {paymentForms.map((formIndex) => {
+        // Skip forms that correspond to existing payments to prevent duplication
+        if (formIndex < payments.length) {
+          return null;
+        }
+
+        return (
+          <InlinePaymentForm
+            key={formIndex}
+            formIndex={formIndex}
+            displayNumber={payments.length + (formIndex - payments.length) + 1}
+            onAddPayment={handleAddPaymentFromForm}
+            onRemoveForm={handleRemoveForm}
+            initialData={partialData[formIndex]}
+            onUpdatePartialData={onUpdatePartialData ?
+              (index, data) => onUpdatePartialData(index, data) :
+              undefined}
+            isOpen={active}
+          />
+        );
+      })}
+
+      {/* Display existing payments as editable forms */}
       {payments.map((payment, index) => (
         <InlinePaymentForm
-          key={`existing-${payment.id}`}
-          onAddPayment={handleAddPaymentFromForm}
-          onRemoveForm={() => handleRemovePayment(payment.id)}
+          key={`existing-${payment.id || index}`}
           formIndex={index}
-          displayNumber={index + 1} // Pass explicit display number
-          existingPayment={payment}
-        />
-      ))}
-
-      {/* Render empty forms for new payments with proper numbering */}
-      {paymentForms.map((formIndex) => (
-        <InlinePaymentForm
-          key={formIndex}
-          formIndex={formIndex}
-          displayNumber={payments.length + paymentForms.indexOf(formIndex) + 1}
+          displayNumber={index + 1}
           onAddPayment={handleAddPaymentFromForm}
-          onRemoveForm={handleRemoveForm}
-          initialData={partialData[formIndex]}
-          onUpdatePartialData={onUpdatePartialData ? 
-            (index, data) => onUpdatePartialData(index, data) : 
+          onRemoveForm={() => {
+            // When removing an existing payment, we need to update the order
+            const newPayments = [...payments];
+            newPayments.splice(index, 1);
+            updateOrderFields({ payments: newPayments });
+            recalculateOrder();
+          }}
+          initialData={payment}
+          existingPayment={payment}
+          onUpdatePartialData={onUpdatePartialData ?
+            (index, data) => onUpdatePartialData(index, data) :
             undefined}
           isOpen={active}
         />

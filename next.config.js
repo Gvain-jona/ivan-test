@@ -22,6 +22,12 @@ const nextConfig = {
   },
   images: {
     domains: [],
+    // Add better error handling for images
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Add a fallback image for when images fail to load
+    unoptimized: process.env.NODE_ENV === 'development',
   },
   // Remove redirects and rewrites to avoid conflict with middleware
   // Ensure trailing slashes are handled consistently

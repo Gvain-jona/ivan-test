@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, memo } from 'react';
 import { clearAllOrderFormData } from '@/utils/form-storage';
 import { Button } from '@/components/ui/button';
 import { Order, OrderPayment, ClientType } from '@/types/orders';
-import { Ban, Save, FileText, Box, CreditCard, StickyNote, AlertCircle, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { Ban, Save, FileText, Box, CreditCard, StickyNote, AlertCircle, CheckCircle, Loader2, AlertTriangle, X } from 'lucide-react';
+import { useNotifications } from '@/components/ui/notification';
 import { useModalState } from '@/hooks/ui/useModalState';
 import { useOrderForm } from '@/hooks/orders/useOrderForm';
 import { useOrderCreation } from '@/hooks/useOrderCreation';
@@ -15,7 +15,6 @@ import { orderSchema } from '@/schemas/order-schema';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ComboboxOption } from '@/components/ui/combobox';
 import ValidationSummary from '@/components/ui/form/ValidationSummary';
-import useSWR from 'swr';
 import {
   Dialog,
   DialogContent,
@@ -24,33 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-// Enhanced fetcher for SWR with error handling
-const fetcher = async (url: string) => {
-  try {
-    const res = await fetch(url);
-
-    // Handle HTTP errors
-    if (!res.ok) {
-      // For 404 errors, return an empty array instead of throwing
-      if (res.status === 404) {
-        console.warn(`Resource not found: ${url}, returning empty array`);
-        return [];
-      }
-
-      // For other errors, throw
-      const errorText = await res.text();
-      throw new Error(`API error: ${res.status} ${errorText}`);
-    }
-
-    // Parse JSON response
-    return res.json();
-  } catch (error) {
-    console.error(`Error fetching ${url}:`, error);
-    // Return empty array as fallback
-    return [];
-  }
-};
+import { useReferenceData } from '@/hooks/useReferenceData';
 
 // Import sub-components
 import OrderGeneralInfoForm from './OrderFormModal/OrderGeneralInfoForm';
@@ -64,65 +37,43 @@ interface OrderFormSheetProps {
   onSave: (order: Order) => void;
   initialOrder?: Order;
   title: string;
-  isEditing: boolean;
 }
 
 /**
  * Order form sheet component for creating and editing orders
  * Uses the side panel sheet layout instead of a modal
  */
-const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
+const OrderFormSheet = memo(function OrderFormSheet({
   open,
   onOpenChange,
   onSave,
   initialOrder,
   title,
-  isEditing,
-}) => {
-  const { toast } = useToast();
+}) {
+  // This component now only handles creating new orders, not editing
+  const { success: showSuccess, error: showError } = useNotifications();
 
-  // Fetch data from API or context with SWR cache configuration to prevent excessive requests
-  const { data: clientsData = [], isLoading: isClientsLoading } = useSWR<ComboboxOption[]>(
-    '/api/clients',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
-      focusThrottleInterval: 60000 // 1 minute
-    }
-  );
-
-  const { data: categoriesData = [], isLoading: isCategoriesLoading } = useSWR<ComboboxOption[]>(
-    '/api/categories',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000,
-      focusThrottleInterval: 60000
-    }
-  );
-
-  const { data: itemsData = [], isLoading: isItemsLoading } = useSWR<(ComboboxOption & { categoryId?: string })[]>(
-    '/api/items',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60000,
-      focusThrottleInterval: 60000
-    }
-  );
-
-  // Use memoized data to prevent unnecessary re-renders
-  const clients = useMemo<ComboboxOption[]>(() => clientsData, [clientsData]);
-  const categories = useMemo<ComboboxOption[]>(() => categoriesData, [categoriesData]);
-  const items = useMemo<(ComboboxOption & { categoryId?: string })[]>(() => itemsData, [itemsData]);
+  // Use our centralized reference data hook
+  const { clients, categories, items, isLoading: isReferenceDataLoading } = useReferenceData();
 
   // Use our custom hooks for modal and form state
   const deleteDialog = useModalState();
   const confirmDialog = useModalState();
+
+  // Debug initialOrder prop
+  console.log('OrderFormSheet received initialOrder:', initialOrder);
+
   const { order, updateOrderField, updateOrderFields, recalculateOrder, resetOrder, isDirty } = useOrderForm({
     initialOrder
   });
+
+  // Debug order state after initialization
+  console.log('OrderFormSheet order state after initialization:', order);
+
+  // Debug nested data structures
+  console.log('OrderFormSheet items:', order.items);
+  console.log('OrderFormSheet payments:', order.payments);
+  console.log('OrderFormSheet notes:', order.notes);
 
   // State for item to delete
   const [itemToDelete, setItemToDelete] = useState<{
@@ -185,12 +136,41 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
   }, []);
 
   // Initialize form state based on existing order data
+  // Use a ref to track whether we've already initialized to prevent infinite loops
+  const initializedRef = useRef(false);
+
   useEffect(() => {
-    if (open) {
+    if (open && !initializedRef.current) {
+      console.log('OrderFormSheet useEffect when form opens - initialOrder:', initialOrder);
+      console.log('OrderFormSheet useEffect when form opens - current order state:', order);
+
       // Ensure calculations are up-to-date when the form opens
-      recalculateOrder();
+      // Use setTimeout to prevent React update depth issues
+      setTimeout(() => {
+        recalculateOrder();
+      }, 0);
+
+      // Initialize form state with a single empty form for each section
+      // We'll handle existing items separately in the form components
+      setFormIds({
+        itemForms: [order.items?.length || 0], // Start with one form after existing items
+        noteForms: [order.notes?.length || 0], // Start with one form after existing notes
+        paymentForms: [order.payments?.length || 0] // Start with one form after existing payments
+      });
+
+      // Set counters to be higher than the number of existing items
+      setFormIdCounters({
+        items: (order.items?.length || 0) + 1,
+        payments: (order.payments?.length || 0) + 1,
+        notes: (order.notes?.length || 0) + 1
+      });
+
+      initializedRef.current = true;
+    } else if (!open) {
+      // Reset the initialization flag when the form closes
+      initializedRef.current = false;
     }
-  }, [open, recalculateOrder]);
+  }, [open, order.items, order.payments, order.notes]);
 
   // Safe state update functions that check if component is still mounted
   const safeSetFormStatus = useCallback((status: 'idle' | 'validating' | 'saving' | 'success' | 'error') => {
@@ -299,11 +279,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
               }
             });
 
-          toast({
-            title: "Validation Error",
-            description: `Please fix the highlighted errors in: ${errorSectionNames.join(', ')}`,
-            variant: "destructive",
-          });
+          showError(`Please fix the highlighted errors in: ${errorSectionNames.join(', ')}`, "Validation Error");
         }
 
         return false;
@@ -321,16 +297,12 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
       if (isMountedRef.current) {
         safeSetFormStatus('error');
 
-        toast({
-          title: "Validation Error",
-          description: "An unexpected error occurred during validation.",
-          variant: "destructive",
-        });
+        showError("An unexpected error occurred during validation.", "Validation Error");
       }
 
       return false;
     }
-  }, [order, safeSetFormStatus, safeSetValidationErrors, safeSetActiveTab, toast]);
+  }, [order, safeSetFormStatus, safeSetValidationErrors, safeSetActiveTab, showError]);
 
   // Use our custom hook for order creation
   const { createOrder, loading: isCreatingOrder } = useOrderCreation({
@@ -338,52 +310,44 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
       if (!isMountedRef.current) return;
 
       safeSetFormStatus('success');
-      toast({
-        title: "Success",
-        description: `Order ${isEditing ? 'updated' : 'created'} successfully.`,
-      });
+      showSuccess(`Order created successfully.`, "Success");
 
-      // Reset the form for a new order if not editing
-      if (!isEditing) {
-        try {
-          console.log('Resetting form for new entry');
-          // Clear all form data from localStorage
-          clearAllOrderFormData();
-          resetOrder();
-          // Reset form state
-          setFormState({
-            itemForms: [],
-            paymentForms: [],
-            noteForms: [],
-            formIdCounters: {
-              items: 1,
-              payments: 1,
-              notes: 1
-            }
-          });
-          // Reset form sections
-          if (isMountedRef.current) {
-            safeSetActiveTab('general-info');
-            safeSetValidationErrors({});
-            safeSetFormStatus('idle');
-            // Ensure calculations are up-to-date for the new form
-            recalculateOrder();
-          }
-        } catch (resetError) {
-          console.error('Error resetting form:', resetError);
-          // If reset fails, just close the form
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-          }
+      // Reset the form for a new order
+      try {
+        console.log('Resetting form for new entry');
+        // Clear all form data from localStorage
+        clearAllOrderFormData();
+        resetOrder();
+        // Reset form state - split into separate updates to prevent maximum depth issues
+        setFormIds({
+          itemForms: [0],
+          noteForms: [0],
+          paymentForms: [0]
+        });
 
-          timeoutRef.current = setTimeout(() => {
-            if (isMountedRef.current) {
-              onOpenChange(false);
-            }
-          }, 1000);
+        setFormIdCounters({
+          items: 1,
+          payments: 1,
+          notes: 1
+        });
+
+        // Reset partial data ref
+        partialDataRef.current = {
+          items: {},
+          payments: {},
+          notes: {}
+        };
+        // Reset form sections
+        if (isMountedRef.current) {
+          safeSetActiveTab('general-info');
+          safeSetValidationErrors({});
+          safeSetFormStatus('idle');
+          // Ensure calculations are up-to-date for the new form
+          recalculateOrder();
         }
-      } else {
-        // Close the form after a short delay if editing
+      } catch (resetError) {
+        console.error('Error resetting form:', resetError);
+        // If reset fails, just close the form
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
@@ -418,100 +382,69 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
         itemsData: order.items
       });
 
-      // If editing, use the original onSave function
-      if (isEditing) {
-        // Call the actual API through the onSave function and wait for the result
-        const result = await onSave(order as Order);
+      // Create a new order
+      // For new orders, use our new createOrder function
+      console.log('Creating new order with items:', order.items);
 
-        // Check if the save was successful
-        if (result && result.success) {
+      try {
+        // Format the order data correctly for the API
+        const formattedOrder = {
+          ...order,
+          clientId: order.client_id,
+          clientName: order.client_name,
+          clientType: order.client_type,
+          date: order.date,
+          status: order.status,
+          items: order.items?.map(item => ({
+            ...item,
+            item_id: item.item_id || crypto.randomUUID(),
+            category_id: item.category_id || crypto.randomUUID(),
+            item_name: item.name || item.item_name,
+            category_name: item.category || item.category_name,
+            size: item.size || 'Standard',
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 0
+          })),
+          payments: order.payments?.map(payment => ({
+            ...payment,
+            payment_date: payment.date || new Date().toISOString().split('T')[0],
+            payment_method: payment.payment_method || 'cash',
+            amount: payment.amount || 0
+          })),
+          notes: order.notes || []
+        };
+
+        console.log('Formatted order data:', formattedOrder);
+
+        const result = await createOrder(formattedOrder as Order);
+
+        console.log('Create order result:', result);
+
+        if (!result) {
+          throw new Error('Failed to create order');
+        }
+
+        // Show a single success toast
+        if (isMountedRef.current) {
           safeSetFormStatus('success');
 
-          if (isMountedRef.current) {
-            toast({
-              title: "Success",
-              description: `Order updated successfully.`,
-            });
+          showSuccess(`New order has been created successfully.`, "Order Created");
 
-            // If editing, close the form after a short delay
-            if (isEditing) {
-              // Clear any existing timeout
-              if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-              }
-
-              // Set new timeout and store the reference
-              timeoutRef.current = setTimeout(() => {
-                if (isMountedRef.current) {
-                  onOpenChange(false);
-                }
-              }, 1000);
-            } else {
-              // If creating a new order, reset the form for another entry
-              try {
-                console.log('Resetting form for new entry');
-                resetOrder();
-                // Reset form sections
-                safeSetActiveTab('general-info');
-                safeSetValidationErrors({});
-                safeSetFormStatus('idle');
-              } catch (resetError) {
-                console.error('Error resetting form:', resetError);
-                // If reset fails, just close the form
-                if (timeoutRef.current) {
-                  clearTimeout(timeoutRef.current);
-                }
-
-                timeoutRef.current = setTimeout(() => {
-                  if (isMountedRef.current) {
-                    onOpenChange(false);
-                  }
-                }, 1000);
-              }
-            }
+          // Reset the form for another entry
+          try {
+            console.log('Resetting form for new entry');
+            resetOrder();
+            // Reset form sections
+            safeSetActiveTab('general-info');
+            safeSetValidationErrors({});
+            safeSetFormStatus('idle');
+          } catch (resetError) {
+            console.error('Error resetting form:', resetError);
           }
-        } else {
-          throw new Error('Failed to update order');
         }
-      } else {
-        // For new orders, use our new createOrder function
-        console.log('Creating new order with items:', order.items);
-
-        try {
-          const result = await createOrder(order as Order);
-
-          console.log('Create order result:', result);
-
-          if (!result) {
-            throw new Error('Failed to create order');
-          }
-
-          // Show a single success toast
-          if (isMountedRef.current) {
-            safeSetFormStatus('success');
-
-            toast({
-              title: "Order Created",
-              description: `New order has been created successfully.`,
-              variant: "default",
-            });
-
-            // Reset the form for another entry
-            try {
-              console.log('Resetting form for new entry');
-              resetOrder();
-              // Reset form sections
-              safeSetActiveTab('general-info');
-              safeSetValidationErrors({});
-              safeSetFormStatus('idle');
-            } catch (resetError) {
-              console.error('Error resetting form:', resetError);
-            }
-          }
-        } catch (createError) {
-          console.error('Error in createOrder:', createError);
-          throw createError;
-        }
+      } catch (createError) {
+        console.error('Error in createOrder:', createError);
+        throw createError;
       }
     } catch (error) {
       console.error("Error saving order:", error);
@@ -519,18 +452,14 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
       if (isMountedRef.current) {
         safeSetFormStatus('error');
 
-        toast({
-          title: "Error",
-          description: `Failed to ${isEditing ? 'update' : 'create'} order. Please try again.`,
-          variant: "destructive",
-        });
+        showError(`Failed to create order. Please try again.`, "Error");
       }
     } finally {
       if (isMountedRef.current) {
         safeSetIsSaving(false);
       }
     }
-  }, [validateForm, order, isEditing, onSave, onOpenChange, createOrder, safeSetIsSaving, safeSetFormStatus, safeSetValidationErrors, safeSetActiveTab, toast, resetOrder]);
+  }, [validateForm, order, onSave, onOpenChange, createOrder, safeSetIsSaving, safeSetFormStatus, safeSetValidationErrors, safeSetActiveTab, showSuccess, showError, resetOrder]);
 
   const handleDeleteRequest = (request: Omit<DeletionRequest, 'id' | 'requestedAt' | 'status'>) => {
     if (!itemToDelete) return;
@@ -559,19 +488,91 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
     setItemToDelete(null);
   };
 
-  // Handle sheet close with unsaved changes
+  // Helper function to check if the form has any data that would be lost on close
+  const hasAnyFormData = useCallback(() => {
+    // Helper to check if a string field has value
+    const hasValue = (str?: string) => !!str && str.trim() !== '';
+
+    // Helper to check if an item has any data
+    const itemHasData = (item: any) => {
+      return item && (
+        hasValue(item.item_name) ||
+        item.quantity ||
+        item.unit_price ||
+        hasValue(item.description)
+      );
+    };
+
+    // Helper to check if a payment has any data
+    const paymentHasData = (payment: any) => {
+      return payment && (
+        payment.amount > 0 ||
+        hasValue(payment.payment_method) ||
+        hasValue(payment.payment_date)
+      );
+    };
+
+    // Helper to check if a note has any data
+    const noteHasData = (note: any) => {
+      return note && (
+        hasValue(note.text) ||
+        hasValue(note.type)
+      );
+    };
+
+    // Check all data sources
+    const checks = {
+      // 1. Check client name
+      hasClientName: hasValue(order.client_name),
+
+      // 2. Check for ANY data in items
+      hasItemData: order.items && order.items.some(itemHasData),
+
+      // 3. Check for ANY data in payments
+      hasPaymentData: order.payments && order.payments.some(paymentHasData),
+
+      // 4. Check for ANY data in notes
+      hasNoteData: order.notes && order.notes.some(noteHasData),
+
+      // 5. Check for ANY partial data in form inputs
+      hasPartialItemData: Object.values(partialDataRef.current.items).some(itemHasData),
+      hasPartialPaymentData: Object.values(partialDataRef.current.payments).some(paymentHasData),
+      hasPartialNoteData: Object.values(partialDataRef.current.notes).some(noteHasData)
+    };
+
+    // Log which checks passed for debugging
+    console.log('Form data checks:', checks);
+
+    // Return true if ANY check passed
+    return Object.values(checks).some(Boolean);
+  }, [order, partialDataRef]);
+
+  // Simple function to handle sheet close request
   const handleSheetClose = useCallback((isOpen: boolean) => {
-    if (!isOpen && isDirty) {
-      // Show a custom confirmation dialog instead of browser alert
-      confirmDialog.setOpen(true);
-    } else if (!isOpen) {
-      // If not dirty, just close the sheet
-      onOpenChange(false);
-    } else {
-      // If opening the sheet, just pass through
+    console.log(`Sheet close requested, current open state: ${open}, requested state: ${isOpen}`);
+
+    // If trying to open the sheet, just pass through
+    if (isOpen) {
+      console.log('Opening sheet');
       onOpenChange(true);
+      return;
     }
-  }, [isDirty, onOpenChange, confirmDialog]);
+
+    // If trying to close the sheet, check for data
+    console.log('Checking for form data before closing');
+    const hasData = hasAnyFormData();
+
+    if (hasData) {
+      // If there's data, show the confirmation dialog
+      console.log('Form has data, showing confirmation dialog');
+      confirmDialog.setOpen(true);
+      // Don't close the sheet yet - wait for dialog response
+    } else {
+      // If no data, close immediately
+      console.log('No form data, closing without confirmation');
+      onOpenChange(false);
+    }
+  }, [open, onOpenChange, confirmDialog, hasAnyFormData]);
 
   const openDeleteDialog = (id: string, index: number, name: string, type: DeletionType) => {
     setItemToDelete({ id, index, name, type });
@@ -585,7 +586,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
         onOpenChange={handleSheetClose}
         title={title}
         size="lg"
-        showCloseButton={false} // Remove the close button in the header
+        showCloseButton={true} // Show the close button in the header for better UX
       >
         <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden bg-background" style={{ maxHeight: 'calc(100vh - 140px)' }}>
           {/* Show validation summary when there are errors */}
@@ -654,7 +655,7 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 active={true} // Always set to true to ensure the form is interactive
                 order={order}
                 updateOrderField={updateOrderField}
-                isEditing={isEditing}
+                isEditing={false}
                 clients={clients}
                 errors={validationErrors}
               />
@@ -675,10 +676,15 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 onAddForm={() => {
                   // Update form IDs separately to prevent maximum depth issues
                   const counter = formIdCounters.items;
-                  setFormIds(prev => ({
-                    ...prev,
-                    itemForms: [...prev.itemForms, counter]
-                  }));
+
+                  // Only add a new form if it doesn't already exist
+                  // This prevents duplicate forms
+                  if (!formIds.itemForms.includes(counter)) {
+                    setFormIds(prev => ({
+                      ...prev,
+                      itemForms: [...prev.itemForms, counter]
+                    }));
+                  }
 
                   // Update counter separately
                   setFormIdCounters(prev => ({
@@ -712,17 +718,22 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 updateOrderFields={updateOrderFields}
                 openDeleteDialog={openDeleteDialog}
                 recalculateOrder={recalculateOrder}
-                toast={toast}
+
                 errors={validationErrors}
                 formState={formState.paymentForms}
                 partialData={formState.partialData.payments}
                 onAddForm={() => {
                   // Update form IDs separately to prevent maximum depth issues
                   const counter = formIdCounters.payments;
-                  setFormIds(prev => ({
-                    ...prev,
-                    paymentForms: [...prev.paymentForms, counter]
-                  }));
+
+                  // Only add a new form if it doesn't already exist
+                  // This prevents duplicate forms
+                  if (!formIds.paymentForms.includes(counter)) {
+                    setFormIds(prev => ({
+                      ...prev,
+                      paymentForms: [...prev.paymentForms, counter]
+                    }));
+                  }
 
                   // Update counter separately
                   setFormIdCounters(prev => ({
@@ -761,10 +772,15 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                 onAddForm={() => {
                   // Update form IDs separately to prevent maximum depth issues
                   const counter = formIdCounters.notes;
-                  setFormIds(prev => ({
-                    ...prev,
-                    noteForms: [...prev.noteForms, counter]
-                  }));
+
+                  // Only add a new form if it doesn't already exist
+                  // This prevents duplicate forms
+                  if (!formIds.noteForms.includes(counter)) {
+                    setFormIds(prev => ({
+                      ...prev,
+                      noteForms: [...prev.noteForms, counter]
+                    }));
+                  }
 
                   // Update counter separately
                   setFormIdCounters(prev => ({
@@ -823,31 +839,24 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
                     notes: {}
                   };
 
-                  if (isEditing) {
-                    // Close the form
-                    onOpenChange(false);
-                  } else {
-                    // Reset the form for a new entry
-                    resetOrder();
-                    if (isMountedRef.current) {
-                      safeSetActiveTab('general-info');
-                      safeSetValidationErrors({});
-                      // Ensure calculations are reset
-                      recalculateOrder();
-                    }
+                  // Reset the form for a new entry
+                  resetOrder();
+                  if (isMountedRef.current) {
+                    safeSetActiveTab('general-info');
+                    safeSetValidationErrors({});
+                    // Ensure calculations are reset
+                    recalculateOrder();
                   }
                 } catch (error) {
                   console.error('Error during form clear/cancel:', error);
-                  // Ensure we still close the form on error if in edit mode
-                  if (isEditing) {
-                    onOpenChange(false);
-                  }
+                  // Log the error but keep the form open
+                  console.error('Error during form reset:', error);
                 }
               }}
               disabled={isSaving}
             >
               <Ban className="mr-2 h-4 w-4" />
-              {isEditing ? 'Cancel' : 'Clear Form'}
+              Clear Form
             </Button>
           </motion.div>
 
@@ -865,12 +874,12 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
               ) : formStatus === 'success' ? (
                 <>
                   <CheckCircle className="mr-2 h-4 w-4" />
-                  {isEditing ? 'Updated' : 'Created'}
+                  Created
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  {isEditing ? 'Update Order' : 'Create Order'}
+                  Create Order
                 </>
               )}
             </Button>
@@ -892,7 +901,13 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
       )}
 
       {/* Unsaved Changes Confirmation Dialog */}
-      <Dialog open={confirmDialog.isOpen} onOpenChange={confirmDialog.setOpen}>
+      <Dialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(open) => {
+          console.log('Confirmation dialog state changing:', open);
+          confirmDialog.setOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-md bg-card border border-border/40 text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -900,22 +915,110 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
               Unsaved Changes
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You have unsaved changes that will be lost if you close this form.
+              You have unsaved changes. Your data will be lost if you close this form.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Show a summary of what will be lost */}
+          <div className="py-3 text-sm">
+            <p className="font-medium mb-2">The following information will be lost:</p>
+            <ul className="space-y-1 text-muted-foreground">
+              {/* Client information */}
+              {order.client_name && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Client: {order.client_name}
+                </li>
+              )}
+
+              {/* Order items */}
+              {order.items && order.items.some(item =>
+                item && (item.item_name || item.quantity || item.unit_price || (item.description && item.description.trim() !== ''))
+              ) && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Order items: {order.items.filter(item =>
+                    item && (item.item_name || item.quantity || item.unit_price || (item.description && item.description.trim() !== ''))
+                  ).length}
+                </li>
+              )}
+
+              {/* Payments */}
+              {order.payments && order.payments.some(payment =>
+                payment && (payment.amount > 0 || (payment.payment_method && payment.payment_method.trim() !== ''))
+              ) && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Payments: {order.payments.filter(payment =>
+                    payment && (payment.amount > 0 || (payment.payment_method && payment.payment_method.trim() !== ''))
+                  ).length}
+                </li>
+              )}
+
+              {/* Notes */}
+              {order.notes && order.notes.some(note =>
+                note && ((note.text && note.text.trim() !== '') || (note.type && note.type.trim() !== ''))
+              ) && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Notes: {order.notes.filter(note =>
+                    note && ((note.text && note.text.trim() !== '') || (note.type && note.type.trim() !== ''))
+                  ).length}
+                </li>
+              )}
+
+              {/* Partial data in forms */}
+              {Object.values(partialDataRef.current.items).some(data =>
+                data && ((data.item_name && data.item_name.trim() !== '') || data.quantity || data.unit_price)
+              ) && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Unsaved item data
+                </li>
+              )}
+
+              {Object.values(partialDataRef.current.payments).some(data =>
+                data && (data.amount > 0 || (data.payment_method && data.payment_method.trim() !== ''))
+              ) && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Unsaved payment data
+                </li>
+              )}
+
+              {Object.values(partialDataRef.current.notes).some(data =>
+                data && ((data.text && data.text.trim() !== '') || (data.type && data.type.trim() !== ''))
+              ) && (
+                <li className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                  Unsaved note data
+                </li>
+              )}
+            </ul>
+          </div>
+
           <DialogFooter className="sm:justify-between mt-4">
             <Button
               variant="outline"
               className="border-border/40 bg-transparent hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-              onClick={() => confirmDialog.setOpen(false)}
+              onClick={() => {
+                console.log('User chose to continue editing');
+                confirmDialog.setOpen(false);
+              }}
             >
-              Cancel
+              Continue Editing
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
+                console.log('User confirmed discarding changes');
+                // First close the dialog
                 confirmDialog.setOpen(false);
-                onOpenChange(false);
+                // Then close the sheet
+                setTimeout(() => {
+                  console.log('Now closing the sheet after dialog closed');
+                  onOpenChange(false);
+                }, 100);
               }}
             >
               Discard Changes
@@ -925,6 +1028,6 @@ const OrderFormSheet: React.FC<OrderFormSheetProps> = ({
       </Dialog>
     </>
   );
-};
+});
 
 export default OrderFormSheet;

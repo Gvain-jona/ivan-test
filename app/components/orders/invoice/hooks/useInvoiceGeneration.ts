@@ -141,12 +141,29 @@ export default function useInvoiceGeneration(
 
     // Line items table
     const tableHeaders = [["Item", "Quantity", "Price", "Total"]];
-    const tableData = order?.items?.map((item: OrderItem) => [
-      item.item_name,
-      item.quantity.toString(),
-      formatCurrency(item.unit_price),
-      formatCurrency(item.total_amount)
-    ]) || [];
+    const tableData = order?.items?.map((item: OrderItem) => {
+      // Format the item display based on settings
+      let itemDisplay = '';
+
+      if (customSettings.itemDisplayFormat === 'combined') {
+        // Combined format
+        const parts = [];
+        if (customSettings.showItemCategory && item.category_name) parts.push(item.category_name);
+        if (customSettings.showItemName && item.item_name) parts.push(item.item_name);
+        itemDisplay = parts.join(' - ');
+        if (customSettings.showItemSize && item.size) itemDisplay += ` (${item.size})`;
+      } else {
+        // Default to item name if nothing is selected
+        itemDisplay = customSettings.showItemName ? item.item_name : 'Item';
+      }
+
+      return [
+        itemDisplay,
+        item.quantity.toString(),
+        formatCurrency(item.unit_price),
+        formatCurrency(item.total_amount)
+      ];
+    }) || [];
 
     autoTable(doc, {
       head: tableHeaders,

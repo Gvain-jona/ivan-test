@@ -66,81 +66,128 @@ export const generatePdfFromPreview = async (
       throw new Error('Invoice template not found inside A4 content container');
     }
 
-    // Create a clone of the invoice template for rendering
-    const templateClone = invoiceTemplate.cloneNode(true) as HTMLElement;
+    // IMPROVED APPROACH: Instead of cloning and moving off-screen, we'll capture directly
+    // This ensures what you see is exactly what you get
 
-    // Create a temporary container with fixed A4 dimensions
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    tempContainer.style.top = '-9999px';
-    tempContainer.style.width = `${A4_DIMENSIONS.PIXELS.WIDTH}px`; // A4 width in pixels
-    tempContainer.style.height = `${A4_DIMENSIONS.PIXELS.HEIGHT}px`; // A4 height in pixels
-    tempContainer.style.overflow = 'hidden'; // Hide overflow
-    tempContainer.style.backgroundColor = 'white';
+    // First, let's make sure all styles are properly computed and applied
+    // This helps with icon positioning and table layouts
+    const allElements = invoiceTemplate.querySelectorAll('*');
+    allElements.forEach((el) => {
+      // Force a style recalculation to ensure all styles are applied
+      window.getComputedStyle(el).getPropertyValue('position');
+    });
 
-    // Style the template clone to exactly match the A4 dimensions
-    templateClone.style.width = '100%';
-    templateClone.style.height = '100%';
-    templateClone.style.margin = '0';
-    templateClone.style.padding = '0'; // No padding - design covers entire page
-    templateClone.style.boxSizing = 'border-box';
-    templateClone.style.borderRadius = '0'; // Remove rounded corners
-    templateClone.style.border = 'none'; // Remove border
-    templateClone.style.boxShadow = 'none'; // Remove shadow
-    templateClone.style.overflow = 'hidden'; // Hide overflow
-    templateClone.style.backgroundColor = 'white'; // Ensure white background
-    templateClone.style.display = 'flex';
-    templateClone.style.flexDirection = 'column';
+    // Ensure all images are loaded before capturing
+    const allImages = invoiceTemplate.querySelectorAll('img');
+    await Promise.all(
+      Array.from(allImages).map(
+        (img) =>
+          new Promise((resolve) => {
+            if (img.complete) {
+              resolve(null);
+            } else {
+              img.onload = () => resolve(null);
+              img.onerror = () => resolve(null);
+            }
+          })
+      )
+    );
 
-    // Append the clone to the temporary container
-    tempContainer.appendChild(templateClone);
+    // Use html2canvas with improved settings
+    // Check if we have a scale factor override
+    const scaleFactor = (window as any).__PDF_SCALE_FACTOR_OVERRIDE || PDF_SCALE_FACTOR;
 
-    // Append the temporary container to the document body
-    document.body.appendChild(tempContainer);
-
-    // Wait a moment for the DOM to update
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Use html2canvas to capture the template clone
-    const canvas = await html2canvas(templateClone, {
-      scale: PDF_SCALE_FACTOR, // Use constant for scale factor
+    const canvas = await html2canvas(invoiceTemplate as HTMLElement, {
+      scale: scaleFactor, // Use override or constant for scale factor
       useCORS: true, // Allow cross-origin images
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false, // Disable logging for production
-      removeContainer: false, // Don't remove the container automatically
-      windowWidth: A4_DIMENSIONS.PIXELS.WIDTH, // Exact A4 width
-      windowHeight: A4_DIMENSIONS.PIXELS.HEIGHT, // Exact A4 height
+      // Don't use windowWidth/windowHeight as they can cause scaling issues
+      // Instead, let html2canvas determine the size from the element
       scrollY: 0,
       scrollX: 0,
+      // Improved rendering options
+      letterRendering: true, // Better text rendering
+      foreignObjectRendering: false, // More reliable rendering
+      // Capture at exact A4 dimensions
+      width: A4_DIMENSIONS.PIXELS.WIDTH,
+      height: A4_DIMENSIONS.PIXELS.HEIGHT,
+      // Improved onclone function with more precise styling
       onclone: (clonedDoc) => {
-        // Additional styling for the cloned document if needed
         const clonedElement = clonedDoc.querySelector('.invoice-template');
         if (clonedElement) {
           // Force specific styles to match A4 dimensions
-          (clonedElement as HTMLElement).style.width = '100%';
-          (clonedElement as HTMLElement).style.height = '100%';
+          (clonedElement as HTMLElement).style.width = `${A4_DIMENSIONS.PIXELS.WIDTH}px`;
+          (clonedElement as HTMLElement).style.height = `${A4_DIMENSIONS.PIXELS.HEIGHT}px`;
           (clonedElement as HTMLElement).style.padding = '0';
+          (clonedElement as HTMLElement).style.margin = '0';
           (clonedElement as HTMLElement).style.backgroundColor = 'white';
           (clonedElement as HTMLElement).style.position = 'relative';
           (clonedElement as HTMLElement).style.boxSizing = 'border-box';
           (clonedElement as HTMLElement).style.display = 'flex';
           (clonedElement as HTMLElement).style.flexDirection = 'column';
+          (clonedElement as HTMLElement).style.overflow = 'hidden';
+          (clonedElement as HTMLElement).style.transform = 'none'; // Remove any transforms
+          (clonedElement as HTMLElement).style.borderRadius = '0';
+          (clonedElement as HTMLElement).style.border = 'none';
+          (clonedElement as HTMLElement).style.boxShadow = 'none';
 
-          // Ensure all text is visible in the PDF
-          const allTextElements = clonedElement.querySelectorAll('p, span, h1, h2, h3, h4, h5, h6, td, th');
-          allTextElements.forEach((el) => {
-            (el as HTMLElement).style.color = '#000';
-            (el as HTMLElement).style.fontSize = (el as HTMLElement).style.fontSize || '10px';
+          // Fix icon positioning - ensure all SVG and icon elements maintain position
+          const iconElements = clonedElement.querySelectorAll('svg, .lucide, [class*="icon"]');
+          iconElements.forEach((el) => {
+            (el as HTMLElement).style.position = 'relative';
+            (el as HTMLElement).style.display = 'inline-block';
+            (el as HTMLElement).style.verticalAlign = 'middle';
+            // Preserve dimensions
+            const computedStyle = window.getComputedStyle(el);
+            (el as HTMLElement).style.width = computedStyle.width;
+            (el as HTMLElement).style.height = computedStyle.height;
           });
 
-          // Ensure table fits properly
+          // Fix table layout issues
           const tables = clonedElement.querySelectorAll('table');
           tables.forEach((table) => {
             (table as HTMLElement).style.width = '100%';
             (table as HTMLElement).style.tableLayout = 'fixed';
             (table as HTMLElement).style.borderCollapse = 'collapse';
+            // Ensure cells maintain their width
+            const cells = table.querySelectorAll('th, td');
+            cells.forEach((cell) => {
+              const computedStyle = window.getComputedStyle(cell);
+              (cell as HTMLElement).style.width = computedStyle.width;
+              (cell as HTMLElement).style.padding = computedStyle.padding;
+              (cell as HTMLElement).style.textAlign = computedStyle.textAlign;
+              // Ensure text doesn't wrap unexpectedly
+              (cell as HTMLElement).style.whiteSpace = 'normal';
+              (cell as HTMLElement).style.wordBreak = 'break-word';
+            });
+          });
+
+          // Ensure all text is visible and properly positioned
+          const allTextElements = clonedElement.querySelectorAll('p, span, h1, h2, h3, h4, h5, h6, td, th');
+          allTextElements.forEach((el) => {
+            const computedStyle = window.getComputedStyle(el);
+            (el as HTMLElement).style.color = computedStyle.color;
+            (el as HTMLElement).style.fontSize = computedStyle.fontSize;
+            (el as HTMLElement).style.fontWeight = computedStyle.fontWeight;
+            (el as HTMLElement).style.lineHeight = computedStyle.lineHeight;
+            (el as HTMLElement).style.textAlign = computedStyle.textAlign;
+            (el as HTMLElement).style.margin = computedStyle.margin;
+            (el as HTMLElement).style.padding = computedStyle.padding;
+          });
+
+          // Ensure flex layout is preserved
+          const flexElements = clonedElement.querySelectorAll('[class*="flex"]');
+          flexElements.forEach((el) => {
+            const computedStyle = window.getComputedStyle(el);
+            (el as HTMLElement).style.display = computedStyle.display;
+            (el as HTMLElement).style.flexDirection = computedStyle.flexDirection;
+            (el as HTMLElement).style.justifyContent = computedStyle.justifyContent;
+            (el as HTMLElement).style.alignItems = computedStyle.alignItems;
+            (el as HTMLElement).style.flexGrow = computedStyle.flexGrow;
+            (el as HTMLElement).style.flexShrink = computedStyle.flexShrink;
+            (el as HTMLElement).style.flexBasis = computedStyle.flexBasis;
           });
 
           // Ensure notes and payment details are at the bottom
@@ -155,6 +202,24 @@ export const generatePdfFromPreview = async (
             (copyrightFooter as HTMLElement).style.backgroundColor = '#000';
             (copyrightFooter as HTMLElement).style.color = '#fff';
           }
+
+          // Ensure gradients are preserved
+          const gradientElements = clonedElement.querySelectorAll('[class*="bg-gradient"]');
+          gradientElements.forEach((el) => {
+            const computedStyle = window.getComputedStyle(el);
+            (el as HTMLElement).style.backgroundImage = computedStyle.backgroundImage;
+            (el as HTMLElement).style.backgroundColor = computedStyle.backgroundColor;
+          });
+
+          // Ensure all images maintain position and size
+          const images = clonedElement.querySelectorAll('img');
+          images.forEach((img) => {
+            const computedStyle = window.getComputedStyle(img);
+            (img as HTMLElement).style.width = computedStyle.width;
+            (img as HTMLElement).style.height = computedStyle.height;
+            (img as HTMLElement).style.objectFit = computedStyle.objectFit as string;
+            (img as HTMLElement).style.position = computedStyle.position;
+          });
         }
       }
     });
@@ -183,12 +248,6 @@ export const generatePdfFromPreview = async (
     // Remove the loading overlay
     if (previewElement.contains(loadingOverlay)) {
       previewElement.removeChild(loadingOverlay);
-    }
-
-    // Remove the temporary container if it was created
-    const tempContainer = document.querySelector('div[style*="-9999px"]');
-    if (tempContainer && document.body.contains(tempContainer)) {
-      document.body.removeChild(tempContainer);
     }
 
     // Restore original styles
@@ -221,7 +280,7 @@ export const downloadInvoicePdf = async (
     onProgress?.('Preparing download...', 80);
 
     // Create a filename with date for better organization
-    const orderNumber = order.order_number || `ORD-${order.id.substring(0, 8)}`;
+    const orderNumber = order.order_number || (order.id ? `ORD-${order.id.substring(0, 8)}` : 'Unknown');
     const clientName = order.client_name || 'Client';
     const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const filename = formatInvoiceFilename(orderNumber, clientName, date);

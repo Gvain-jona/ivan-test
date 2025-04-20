@@ -16,11 +16,11 @@ export function SimpleLoadingCoordinator({ children }: LoadingCoordinatorProps) 
   const { user, profile, isLoading: authLoading, profileError, refreshProfile } = useAuth();
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   // Handle refresh of profile data
   const handleRefresh = async () => {
     if (!refreshProfile) return;
-    
+
     setIsRefreshing(true);
     try {
       await refreshProfile();
@@ -34,24 +34,32 @@ export function SimpleLoadingCoordinator({ children }: LoadingCoordinatorProps) 
 
   // Manage loading state based on auth status
   useEffect(() => {
+    // If we have user data, exit loading state immediately
+    if (user && profile) {
+      setShowSkeleton(false);
+      return;
+    }
+
+    // If auth is no longer loading, exit loading state with a small delay
     if (!authLoading) {
       // Add a small delay for smoother transition
       const timer = setTimeout(() => {
         setShowSkeleton(false);
       }, 300);
-      
+
       return () => clearTimeout(timer);
     }
-  }, [authLoading]);
-  
+  }, [authLoading, user, profile]);
+
   // Add a maximum loading time to prevent getting stuck
   useEffect(() => {
     const maxLoadingTime = 5000; // 5 seconds
-    
+
     const timer = setTimeout(() => {
+      console.log('Maximum loading time reached, exiting loading state');
       setShowSkeleton(false);
     }, maxLoadingTime);
-    
+
     return () => clearTimeout(timer);
   }, []);
 

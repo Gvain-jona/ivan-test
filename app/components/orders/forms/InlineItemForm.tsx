@@ -50,8 +50,12 @@ export function InlineItemForm({
       return {
         category_id: initialData.category_id || '',
         category_name: initialData.category_name || '',
+        // Store original values to detect changes
+        category_name_original: initialData.category_name || '',
         item_id: initialData.item_id || '',
         item_name: initialData.item_name || '',
+        // Store original values to detect changes
+        item_name_original: initialData.item_name || '',
         size: initialData.size || '',
         quantity: initialData.quantity || 1,
         unit_price: initialData.unit_price || 0,
@@ -62,8 +66,10 @@ export function InlineItemForm({
     return {
       category_id: '',
       category_name: '',
+      category_name_original: '',
       item_id: '',
       item_name: '',
+      item_name_original: '',
       size: '',
       quantity: 1,
       unit_price: 0,
@@ -77,7 +83,7 @@ export function InlineItemForm({
 
   // Generate a unique ID for this item if it doesn't have one yet
   const [itemId] = useState(() => initialData?.id || `item-${Date.now()}-${formIndex}`);
-  
+
   // Refs to track form state and prevent issues
   const hasValidData = useRef(false);
   const isAutoSaving = useRef(false);
@@ -98,7 +104,7 @@ export function InlineItemForm({
 
   // Watch all form values to persist partial data when switching tabs
   const formValues = form.watch();
-  
+
   // Function to check if all required fields are filled
   const checkFormCompleteness = useCallback(() => {
     const formData = form.getValues();
@@ -113,14 +119,37 @@ export function InlineItemForm({
     );
   }, [form]);
 
-  // Function to save the item
+  // Function to save the item - optimized to use UUIDs
   const saveItem = useCallback((formData: OrderItemFormValues) => {
     // Only create/update the item if we have valid data
     if (checkFormCompleteness()) {
+      // Ensure we have the item name and category name
+      // These are now the primary data, not the IDs
+      const itemName = formData.item_name;
+      const categoryName = formData.category_name;
+
+      // Generate UUIDs for item_id and category_id if not provided
+      // or if we have a name but no ID (which means it's a new item/category)
+      const itemId =
+        (formData.item_id && formData.item_name === formData.item_name_original)
+          ? formData.item_id
+          : crypto.randomUUID();
+
+      const categoryId =
+        (formData.category_id && formData.category_name === formData.category_name_original)
+          ? formData.category_id
+          : crypto.randomUUID();
+
       const newItem: OrderItem = {
         id: itemId,
         order_id: '',
-        ...formData,
+        item_id: itemId,
+        category_id: categoryId,
+        item_name: itemName,
+        category_name: categoryName,
+        size: formData.size || 'Default',
+        quantity: formData.quantity,
+        unit_price: formData.unit_price,
         total_amount: formData.quantity * formData.unit_price,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -129,21 +158,25 @@ export function InlineItemForm({
       // Send the item to the parent component
       onAddItem(newItem);
       hasValidData.current = true;
+
+      // Keep the form for editing until final submission
+      // This allows users to review and modify their entries
+
       return true;
     }
     return false;
-  }, [itemId, onAddItem, checkFormCompleteness]);
+  }, [itemId, onAddItem, checkFormCompleteness, onRemoveForm, formIndex]);
 
   // Auto-save handler
   const handleAutoSave = useCallback(() => {
     // Don't auto-save if we're already in the process of saving
     if (isAutoSaving.current) return;
-    
+
     // Throttle auto-save attempts (no more than once every 2 seconds)
     const now = Date.now();
     if (now - lastAutoSaveAttempt.current < 2000) return;
     lastAutoSaveAttempt.current = now;
-    
+
     const formData = form.getValues();
 
     // Only auto-save if all required fields are filled
@@ -152,14 +185,14 @@ export function InlineItemForm({
       isAutoSaving.current = true;
       console.log('Auto-saving item with valid data:', formData);
       saveItem(formData);
-      
+
       // Reset auto-save flag after a delay
       setTimeout(() => {
         isAutoSaving.current = false;
       }, 1000);
     }
   }, [form, saveItem, checkFormCompleteness]);
-  
+
   // Update partial data whenever form values change
   useEffect(() => {
     if (onUpdatePartialData) {
@@ -168,7 +201,7 @@ export function InlineItemForm({
       onUpdatePartialData(formValues);
     }
   }, [formValues, onUpdatePartialData]);
-  
+
   // When the form becomes visible again, ensure we have the latest data
   useEffect(() => {
     if (isOpen && initialData) {
@@ -180,7 +213,7 @@ export function InlineItemForm({
       });
     }
   }, [isOpen, initialData, form]);
-  
+
   // Watch form values for auto-save
   useEffect(() => {
     // Only attempt auto-save if the form is open/visible
@@ -189,11 +222,11 @@ export function InlineItemForm({
       const timer = setTimeout(() => {
         handleAutoSave();
       }, 1500); // Wait 1.5 seconds after last change before auto-saving
-      
+
       return () => clearTimeout(timer);
     }
   }, [formValues, isOpen, handleAutoSave, checkFormCompleteness]);
-  
+
   // Manual save handler - called when Save button is clicked
   const handleManualSave = useCallback(() => {
     const formData = form.getValues();

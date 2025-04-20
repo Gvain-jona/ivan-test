@@ -26,17 +26,32 @@ export interface OrderDetailsTabProps {
  */
 export interface OrderItemsTabProps {
   order: Order;
+  canEdit?: boolean;
+  onAddItem?: (item: Partial<OrderItem>) => void;
+  onEditItem?: (item: any) => void;
+  onDeleteItem?: (itemId: string) => void;
+  loadingStates?: {
+    addItem?: boolean;
+    editItem?: string | null;
+    deleteItem?: string | null;
+  };
+  onAddItemClick?: (orderId: string) => void; // New prop for handling add item clicks
 }
 
 /**
  * Props for the OrderPaymentsTab component
  */
 export interface OrderPaymentsTabProps {
-  order: Order;
-  showPaymentForm: boolean;
-  setShowPaymentForm: (show: boolean) => void;
-  canEdit: boolean;
-  onAddPayment: (payment: OrderPayment) => void;
+  order: Order | null;
+  onEdit?: (order: Order) => Promise<any>;
+  refreshOrder?: (optimisticData?: any, shouldRevalidate?: boolean) => Promise<any>;
+  isLoading?: boolean;
+  isError?: boolean;
+  loadingStates?: {
+    editPayment?: string | null;
+    deletePayment?: string | null;
+  };
+  onAddPaymentClick?: (orderId: string) => void; // New prop for handling add payment clicks
 }
 
 /**
@@ -44,7 +59,15 @@ export interface OrderPaymentsTabProps {
  */
 export interface OrderNotesTabProps {
   order: Order;
-  canEdit?: boolean;
+  onEdit?: (order: Order) => Promise<any>;
+  refreshOrder?: (optimisticData?: any, shouldRevalidate?: boolean) => Promise<any>;
+  isLoading?: boolean;
+  isError?: boolean;
+  loadingStates?: {
+    editNote?: string | null;
+    deleteNote?: string | null;
+  };
+  onAddNoteClick?: (orderId: string) => void; // New prop for handling add note clicks
 }
 
 /**

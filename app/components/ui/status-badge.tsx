@@ -3,12 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ClipboardCheck, Clock, CheckCircle, TruckIcon, Ban } from 'lucide-react';
 
-type OrderStatus = 
+type OrderStatus =
   | 'paused'
   | 'in_progress'
   | 'completed'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'pending'
+  | string
+  | undefined;
 
 interface StatusBadgeProps {
   status: OrderStatus;
@@ -48,10 +51,16 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
           label: 'Cancelled',
           className: 'bg-red-900 text-red-300 hover:bg-red-900/80',
         };
+      case 'pending':
+        return {
+          icon: <Clock className="h-3 w-3 mr-1" />,
+          label: 'Pending',
+          className: 'bg-amber-900 text-amber-300 hover:bg-amber-900/80',
+        };
       default:
         return {
           icon: <Clock className="h-3 w-3 mr-1" />,
-          label: status.replace(/_/g, ' '),
+          label: status ? status.replace(/_/g, ' ') : 'Unknown',
           className: 'bg-gray-800 text-gray-300 hover:bg-gray-800/80',
         };
     }
@@ -60,11 +69,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
   const { icon, label, className: statusClassName } = getStatusConfig(status);
 
   return (
-    <Badge 
-      variant="outline" 
+    <Badge
+      variant="outline"
       className={cn(
-        'flex items-center font-normal px-2 py-1 border-none', 
-        statusClassName, 
+        'flex items-center font-normal px-2 py-1 border-none',
+        statusClassName,
         className
       )}
     >
@@ -74,4 +83,4 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
   );
 };
 
-export default StatusBadge; 
+export default StatusBadge;

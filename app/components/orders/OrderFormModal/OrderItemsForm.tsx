@@ -51,6 +51,10 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
   // Use either provided form state or local state
   // No need for useEffect to sync - just use the prop directly
   const itemForms = formState || localItemForms;
+  // Debug order items
+  console.log('OrderItemsForm received order:', order);
+  console.log('OrderItemsForm received order.items:', order.items);
+
   // Use our custom hook for items management
   const { items } = useOrderItems({
     items: order.items || [],
@@ -59,6 +63,9 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
       recalculateOrder();
     }
   });
+
+  // Debug items after hook initialization
+  console.log('OrderItemsForm items after hook initialization:', items);
 
   // Add another item form
   const handleAddItem = () => {
@@ -98,8 +105,8 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
     updateOrderFields({ items: newItems });
     recalculateOrder();
 
-    // Don't remove the form after adding an item - this allows users to continue editing
-    // or add more items without losing their work
+    // The form will be removed automatically by the InlineItemForm component
+    // after saving to prevent duplication
   };
 
   return (
@@ -119,18 +126,51 @@ const OrderItemsForm: React.FC<OrderItemsFormProps> = ({
         </Button>
       </div>
 
-      {itemForms.map((formIndex) => (
+      {/* We're not displaying items as cards anymore - they remain as editable forms */}
+
+      {/* Only show forms for new items (not already in the items array) */}
+      {itemForms.map((formIndex) => {
+        // Skip forms that correspond to existing items to prevent duplication
+        if (formIndex < items.length) {
+          return null;
+        }
+
+        return (
+          <InlineItemForm
+            key={formIndex}
+            onAddItem={handleAddItemFromForm}
+            onRemoveForm={handleRemoveForm}
+            categories={categories}
+            items={itemOptions}
+            formIndex={formIndex}
+            isOpen={active}
+            initialData={partialData[formIndex]}
+            onUpdatePartialData={onUpdatePartialData ?
+              (data) => onUpdatePartialData(formIndex, data) :
+              undefined}
+          />
+        );
+      })}
+
+      {/* Display existing items as editable forms */}
+      {items.map((item, index) => (
         <InlineItemForm
-          key={formIndex}
+          key={`existing-${item.id || index}`}
           onAddItem={handleAddItemFromForm}
-          onRemoveForm={handleRemoveForm}
+          onRemoveForm={() => {
+            // When removing an existing item, we need to update the order
+            const newItems = [...items];
+            newItems.splice(index, 1);
+            updateOrderFields({ items: newItems });
+            recalculateOrder();
+          }}
           categories={categories}
           items={itemOptions}
-          formIndex={formIndex}
+          formIndex={index}
           isOpen={active}
-          initialData={partialData[formIndex]}
+          initialData={item}
           onUpdatePartialData={onUpdatePartialData ?
-            (data) => onUpdatePartialData(formIndex, data) :
+            (data) => onUpdatePartialData(index, data) :
             undefined}
         />
       ))}

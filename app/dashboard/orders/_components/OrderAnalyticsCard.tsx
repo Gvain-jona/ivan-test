@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn, formatCurrency } from '@/lib/utils';
 import AnalyticsBarChart from './AnalyticsBarChart';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface MetricItem {
   label: string;
@@ -74,6 +75,33 @@ interface OrderAnalyticsCardProps {
 /**
  * OrderAnalyticsCard component for displaying analytics in a card format
  */
+// Generate initials from client name
+const getInitials = (name: string): string => {
+  if (!name) return '--';
+  return name
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+// Get avatar background color based on client name
+const getAvatarColor = (name: string): string => {
+  if (!name) return 'bg-primary/20 text-primary';
+  const colors = [
+    'bg-orange-500/20 text-orange-500',
+    'bg-blue-500/20 text-blue-500',
+    'bg-green-500/20 text-green-500',
+    'bg-purple-500/20 text-purple-500',
+    'bg-red-500/20 text-red-500',
+    'bg-teal-500/20 text-teal-500',
+    'bg-indigo-500/20 text-indigo-500',
+  ];
+  const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return colors[index % colors.length];
+};
+
 const OrderAnalyticsCard: React.FC<OrderAnalyticsCardProps> = ({
   title,
   icon,
@@ -277,9 +305,11 @@ const OrderAnalyticsCard: React.FC<OrderAnalyticsCardProps> = ({
                         onClick={() => window.location.href = `/dashboard/orders?client=${invoice.clientName}`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                            <User className="h-4 w-4 text-primary" />
-                          </div>
+                          <Avatar className={`h-8 w-8 ${getAvatarColor(invoice.clientName)}`}>
+                            <AvatarFallback className="text-sm font-medium">
+                              {getInitials(invoice.clientName)}
+                            </AvatarFallback>
+                          </Avatar>
                           <div>
                             <div className="text-sm font-medium">{invoice.clientName}</div>
                             <div className="text-xs text-muted-foreground">Due: {new Date(invoice.dueDate).toLocaleDateString()}</div>
@@ -379,9 +409,11 @@ const OrderAnalyticsCard: React.FC<OrderAnalyticsCardProps> = ({
                         onClick={() => window.location.href = `/dashboard/orders?client=${invoice.clientName}`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
-                            <User className="h-4 w-4 text-green-600 dark:text-green-400" />
-                          </div>
+                          <Avatar className={`h-8 w-8 ${getAvatarColor(invoice.clientName)}`}>
+                            <AvatarFallback className="text-sm font-medium">
+                              {getInitials(invoice.clientName)}
+                            </AvatarFallback>
+                          </Avatar>
                           <div>
                             <div className="text-sm font-medium">{invoice.clientName}</div>
                             <div className="text-xs text-muted-foreground">Due: {new Date(invoice.dueDate).toLocaleDateString()}</div>
@@ -444,9 +476,11 @@ const OrderAnalyticsCard: React.FC<OrderAnalyticsCardProps> = ({
                         onClick={() => window.location.href = `/dashboard/orders?client=${invoice.clientName}`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/20">
-                            <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                          </div>
+                          <Avatar className={`h-8 w-8 ${getAvatarColor(invoice.clientName)}`}>
+                            <AvatarFallback className="text-sm font-medium">
+                              {getInitials(invoice.clientName)}
+                            </AvatarFallback>
+                          </Avatar>
                           <div>
                             <div className="text-sm font-medium">{invoice.clientName}</div>
                             <div className="text-xs text-muted-foreground">Due: {new Date(invoice.dueDate).toLocaleDateString()}</div>

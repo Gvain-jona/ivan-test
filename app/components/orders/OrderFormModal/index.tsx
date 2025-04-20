@@ -27,7 +27,6 @@ interface OrderFormModalProps {
   onSave: (order: Order) => void;
   initialOrder?: Order;
   title: string;
-  isEditing: boolean;
 }
 
 /**
@@ -40,8 +39,8 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
   onSave,
   initialOrder,
   title,
-  isEditing,
 }) => {
+  // This component now only handles creating new orders, not editing
   const [activeTab, setActiveTab] = useState('general');
 
   // Unified form state management for all tabs
@@ -207,7 +206,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
               active={activeTab === 'general'}
               order={order}
               updateOrderField={updateOrderField}
-              isEditing={isEditing}
+              isEditing={false}
             />
 
             {/* Items Tab */}
@@ -267,7 +266,7 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
               onClick={handleSave}
             >
               <Save className="mr-2 h-4 w-4" />
-              {isEditing ? 'Update Order' : 'Create Order'}
+              Create Order
             </Button>
           </DialogFooter>
         </DialogContent>

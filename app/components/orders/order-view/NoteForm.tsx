@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -16,6 +16,7 @@ import { OrderNote, NoteType } from '@/types/orders';
 interface NoteFormProps {
   onSubmit: (note: Partial<OrderNote>) => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -23,7 +24,8 @@ interface NoteFormProps {
  */
 const NoteForm: React.FC<NoteFormProps> = ({
   onSubmit,
-  onCancel
+  onCancel,
+  isLoading = false
 }) => {
   const [noteText, setNoteText] = useState<string>('');
   const [noteType, setNoteType] = useState<NoteType>('info');
@@ -93,9 +95,16 @@ const NoteForm: React.FC<NoteFormProps> = ({
         <Button
           onClick={handleSubmit}
           className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-          disabled={!noteText.trim()}
+          disabled={!noteText.trim() || isLoading}
         >
-          Add Note
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            'Add Note'
+          )}
         </Button>
       </div>
     </div>

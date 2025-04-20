@@ -17,11 +17,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     fullName: profile?.full_name || '',
     email: profile?.email || '',
-    phone: profile?.phone || '',
-    role: profile?.role || 'User',
-    bio: profile?.bio || '',
-    company: profile?.company || '',
-    jobTitle: profile?.job_title || '',
+
+
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -119,66 +116,15 @@ export default function ProfilePage() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <div className="flex items-center">
-                        <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          value={formData.phone}
-                          onChange={handleInputChange}
-                          disabled={!isEditing}
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Role</Label>
-                      <Input
-                        id="role"
-                        name="role"
-                        value={formData.role}
-                        disabled={true} // Role is typically not editable by the user
-                      />
-                    </div>
+
+
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="company">Company</Label>
-                    <Input
-                      id="company"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="jobTitle">Job Title</Label>
-                    <Input
-                      id="jobTitle"
-                      name="jobTitle"
-                      value={formData.jobTitle}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      name="bio"
-                      value={formData.bio}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                      rows={4}
-                      placeholder="Tell us a little about yourself"
-                    />
-                  </div>
+
+
+
                 </div>
               </div>
             </CardContent>
@@ -208,56 +154,8 @@ export default function ProfilePage() {
               <CardDescription>Manage your account security and password</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <div className="flex items-center">
-                    <Lock className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      placeholder="••••••••••••"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    placeholder="••••••••••••"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••••••"
-                  />
-                </div>
-                
-                <div className="pt-2">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Password must be at least 8 characters long and include a mix of letters, numbers, and special characters.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Enable 2FA</p>
-                    <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
-                  </div>
-                  <Switch id="2fa" />
-                </div>
-              </div>
-              
+
+
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-lg font-medium">Login Sessions</h3>
                 <div className="space-y-2">
@@ -274,12 +172,7 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button className="ml-auto">
-                <Save className="mr-2 h-4 w-4" />
-                Update Password
-              </Button>
-            </CardFooter>
+            <CardFooter />
           </Card>
         </TabsContent>
 

@@ -1,10 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Order, OrderItem } from '@/types/orders';
 import { InvoiceSettings } from './types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Building2, Phone, Mail, Calendar, FileText } from 'lucide-react';
+
+// Component to handle logo image with error fallback
+const LogoImage = ({ src, fallback }: { src: string, fallback: React.ReactNode }) => {
+  const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [attemptedLoad, setAttemptedLoad] = useState(false);
+
+  // Check if we've already tried to load this image in this session
+  React.useEffect(() => {
+    // Use sessionStorage to track failed image loads
+    const failedImages = JSON.parse(sessionStorage.getItem('failedImages') || '{}');
+
+    if (failedImages[src]) {
+      // We've already tried to load this image and it failed
+      console.log('Skipping known failed image:', src);
+      setError(true);
+    } else {
+      // Mark that we're attempting to load this image
+      setAttemptedLoad(true);
+    }
+  }, [src]);
+
+  // If there was an error loading the image, show the fallback
+  if (error) {
+    return <>{fallback}</>;
+  }
+
+  // If we haven't attempted to load yet, don't render anything
+  if (!attemptedLoad) {
+    return <>{fallback}</>;
+  }
+
+  return (
+    <div className="w-12 h-12 relative">
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+      <Image
+        src={src}
+        alt="Company Logo"
+        fill
+        style={{ objectFit: 'contain' }}
+        onError={() => {
+          console.log('Logo image failed to load:', src);
+          // Store this failed image in sessionStorage to avoid future attempts
+          try {
+            const failedImages = JSON.parse(sessionStorage.getItem('failedImages') || '{}');
+            failedImages[src] = true;
+            sessionStorage.setItem('failedImages', JSON.stringify(failedImages));
+          } catch (e) {
+            console.error('Error storing failed image in sessionStorage:', e);
+          }
+          setError(true);
+        }}
+        onLoad={() => setLoaded(true)}
+        className={loaded ? 'opacity-100' : 'opacity-0'}
+      />
+    </div>
+  );
+};
 
 interface InvoiceTemplatePreviewProps {
   order: Order | null;
@@ -66,14 +128,14 @@ const InvoiceTemplatePreview: React.FC<InvoiceTemplatePreviewProps> = ({
             {/* Logo Placeholder - Replace with actual logo */}
             <div className="bg-white rounded-md p-2 shadow-sm mb-2">
               {settings.companyLogo ? (
-                <div className="w-12 h-12 relative">
-                  <Image
-                    src={settings.companyLogo}
-                    alt="Company Logo"
-                    fill
-                    style={{ objectFit: 'contain' }}
-                  />
-                </div>
+                <LogoImage
+                  src={settings.companyLogo}
+                  fallback={
+                    <div className="w-12 h-12 flex items-center justify-center text-orange-500 font-bold text-base">
+                      LOGO
+                    </div>
+                  }
+                />
               ) : (
                 <div className="w-12 h-12 flex items-center justify-center text-orange-500 font-bold text-base">
                   LOGO
@@ -130,16 +192,33 @@ const InvoiceTemplatePreview: React.FC<InvoiceTemplatePreviewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {order.items?.map((item: OrderItem, index: number) => (
-                <tr key={item.id} className={cn(index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}>
-                  <td className="p-1.5 text-gray-800 text-xs">
-                    <div className="truncate">{item.item_name}</div>
-                  </td>
-                  <td className="p-1.5 text-center text-gray-800 text-xs">{item.quantity}</td>
-                  <td className="p-1.5 text-right text-gray-800 text-xs">{formatCurrencyValue(item.unit_price)}</td>
-                  <td className="p-1.5 text-right font-medium text-gray-800 text-xs">{formatCurrencyValue(item.total_amount)}</td>
-                </tr>
-              ))}
+              {order.items?.map((item: OrderItem, index: number) => {
+                // Format the item display based on settings
+                let itemDisplay = '';
+
+                if (settings.itemDisplayFormat === 'combined') {
+                  // Combined format
+                  const parts = [];
+                  if (settings.showItemCategory && item.category_name) parts.push(item.category_name);
+                  if (settings.showItemName && item.item_name) parts.push(item.item_name);
+                  itemDisplay = parts.join(' - ');
+                  if (settings.showItemSize && item.size) itemDisplay += ` (${item.size})`;
+                } else {
+                  // Default to item name if nothing is selected
+                  itemDisplay = settings.showItemName ? item.item_name : 'Item';
+                }
+
+                return (
+                  <tr key={item.id} className={cn(index % 2 === 0 ? 'bg-white' : 'bg-gray-50')}>
+                    <td className="p-1.5 text-gray-800 text-xs">
+                      <div className="truncate">{itemDisplay}</div>
+                    </td>
+                    <td className="p-1.5 text-center text-gray-800 text-xs">{item.quantity}</td>
+                    <td className="p-1.5 text-right text-gray-800 text-xs">{formatCurrencyValue(item.unit_price)}</td>
+                    <td className="p-1.5 text-right font-medium text-gray-800 text-xs">{formatCurrencyValue(item.total_amount)}</td>
+                  </tr>
+                );
+              })}
 
               {/* If there are fewer than 12 items, add empty rows to maintain consistent spacing */}
               {order.items && order.items.length < 12 && Array.from({ length: 12 - order.items.length }).map((_, index) => (
@@ -231,12 +310,7 @@ const InvoiceTemplatePreview: React.FC<InvoiceTemplatePreviewProps> = ({
                         </div>
                       </div>
                     ))}
-                    {/* Space for 2 more bank details */}
-                    {settings.bankDetails.length < 3 && (
-                      <div className="text-gray-400 text-xs italic">
-                        {settings.bankDetails.length === 0 ? "" : "Additional bank details can be added here"}
-                      </div>
-                    )}
+                    {/* No placeholder text for additional bank details */}
                   </div>
                 </div>
               ) : null}
@@ -258,12 +332,7 @@ const InvoiceTemplatePreview: React.FC<InvoiceTemplatePreviewProps> = ({
                         </div>
                       </div>
                     ))}
-                    {/* Space for 2 more mobile money details */}
-                    {settings.mobileMoneyDetails.length < 3 && (
-                      <div className="text-gray-400 text-xs italic">
-                        {settings.mobileMoneyDetails.length === 0 ? "" : "Additional mobile money details can be added here"}
-                      </div>
-                    )}
+                    {/* No placeholder text for additional mobile money details */}
                   </div>
                 </div>
               ) : null}
