@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
-import { InvoiceSettings } from '@/components/orders/invoice/types';
+import { InvoiceSettings } from '@/app/features/invoices';
 
 /**
  * GET /api/invoice-settings

@@ -1,0 +1,177 @@
+/* A5 Preview Container Styles */
+
+/* Hide scrollbars when needed */
+.hide-scrollbars {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-scrollbars::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* A5 Preview Outer Container */
+.a5-preview-outer {
+  width: 100%;
+  position: relative;
+}
+
+/* A5 Preview Container - maintains perfect aspect ratio */
+.a5-preview-container {
+  width: 100%;
+  background: white;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Add border and shadow when needed */
+.a5-preview-container.with-border {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+/* A5 Content Container */
+.a5-content {
+  background: white;
+}
+
+/* Scroll hint */
+.scroll-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.scroll-hint:hover {
+  opacity: 1;
+}
+
+/* Loading indicator */
+.loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+}
+
+/* Progress bar */
+.progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+  z-index: 30;
+}
+
+/* The actual invoice template */
+.invoice-template {
+  width: 148mm; /* Exact A5 width */
+  height: 210mm; /* Exact A5 height */
+  background: white;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent content from overflowing */
+  margin: 0 auto; /* Center the template */
+  /* Ensure consistent rendering */
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+  /* Ensure consistent font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Ensure consistent border rendering */
+  border-collapse: separate;
+}
+
+/* Special class for PDF-ready containers */
+.pdf-ready {
+  /* Ensure consistent rendering for PDF generation */
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+  /* Ensure consistent font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Print-specific styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .a5-preview-outer,
+  .a5-preview-container,
+  .a5-content,
+  .invoice-template,
+  .invoice-template * {
+    visibility: visible;
+    overflow: visible;
+  }
+
+  .a5-preview-container {
+    width: 148mm !important;
+    height: 210mm !important;
+    padding-top: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    max-height: none !important;
+  }
+
+  .a5-content {
+    overflow: visible;
+    position: relative;
+    transform: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  .invoice-template {
+    width: 148mm !important;
+    height: 210mm !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+  }
+
+  /* Ensure all table borders are visible */
+  table {
+    border-collapse: collapse !important;
+  }
+
+  td, th {
+    border: 1px solid #d1d5db !important;
+  }
+
+  /* Ensure all colors are printed */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+}

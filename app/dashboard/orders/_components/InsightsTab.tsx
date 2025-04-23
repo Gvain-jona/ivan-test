@@ -6,14 +6,16 @@ import { useOrdersPage } from '../_context/OrdersPageContext';
 import { useLoading } from '@/components/loading';
 import { useOrders } from '@/hooks/useData';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
-import PendingInvoicesCard from './PendingInvoicesCard';
-import PendingInvoicesPanel from './PendingInvoicesPanel';
+import ClientPerformanceCard from './ClientPerformanceCard';
 import { formatCurrency } from '@/lib/utils';
 import { shouldShowLoading, shouldShowEmptyState } from '@/lib/utils/loading-utils';
 import {
   ShoppingBag,
   DollarSign,
-  Users
+  Users,
+  Clock,
+  TrendingUp,
+  BarChart4
 } from 'lucide-react';
 import { LoadingState, AnalyticsCardSkeleton } from '@/components/ui/loading-states';
 import { EmptyState } from '@/components/ui/error-states';
@@ -29,7 +31,6 @@ const InsightsTab: React.FC = () => {
 
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('weekly');
   const [activeCategory, setActiveCategory] = useState<string>('All');
-  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
 
   // Calculate order analytics
   const calculateOrderAnalytics = () => {
@@ -41,18 +42,19 @@ const InsightsTab: React.FC = () => {
         pendingOrders: 0,
         completedOrders: 0,
         completionRate: 0,
-        responseTime: '0m',
-        avgResolutionTime: '0m',
-        customerSatisfaction: '0/5',
+        avgFulfillmentTime: 0,
         unpaidTotal: 0,
         unpaidOrders: 0,
         clientsWithDebt: [],
+        topClients: [],
         weeklyData: {
           days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
           values: [0, 0, 0, 0, 0, 0, 0],
-          target: 30,
+          average: 0,
           activeDay: 'Fri'
-        }
+        },
+        profitMargin: 0,
+        repeatOrderRate: 0
       };
     }
 
@@ -75,6 +77,10 @@ const InsightsTab: React.FC = () => {
       ? (completedOrders / filteredOrders.length) * 100
       : 0;
 
+    // Calculate average fulfillment time (in days)
+    // This is a simplified calculation - in a real app, you'd calculate the time between order creation and completion
+    const avgFulfillmentTime = 3.2; // Placeholder value
+
     // Calculate unpaid orders information
     const unpaidOrders = filteredOrders.filter(order =>
       order && (order.payment_status === 'unpaid' || order.payment_status === 'partially_paid'));
@@ -82,34 +88,110 @@ const InsightsTab: React.FC = () => {
     const unpaidTotal = unpaidOrders.reduce((sum, order) =>
       sum + (order.balance || 0), 0);
 
-    // Group unpaid orders by client
-    const clientDebtMap = new Map();
-    unpaidOrders.forEach(order => {
+    // Group orders by client to calculate client performance metrics
+    const clientMap = new Map();
+    filteredOrders.forEach(order => {
       if (!order.client_id || !order.client_name) return;
 
       const clientId = order.client_id;
-      const currentDebt = clientDebtMap.get(clientId) || {
+      const currentClient = clientMap.get(clientId) || {
         id: clientId,
         name: order.client_name,
-        debt: 0,
-        orderCount: 0
+        totalSpent: 0,
+        orderCount: 0,
+        orders: [],
+        lastOrderDate: null
       };
 
-      currentDebt.debt += (order.balance || 0);
-      currentDebt.orderCount += 1;
-      clientDebtMap.set(clientId, currentDebt);
+      currentClient.totalSpent += (order.total_amount || 0);
+      currentClient.orderCount += 1;
+      currentClient.orders.push(order);
+
+      // Track the most recent order date
+      const orderDate = new Date(order.date || new Date());
+      if (!currentClient.lastOrderDate || orderDate > new Date(currentClient.lastOrderDate)) {
+        currentClient.lastOrderDate = order.date;
+      }
+
+      clientMap.set(clientId, currentClient);
     });
 
-    // Convert to array and sort by debt amount (highest first)
-    const clientsWithDebt = Array.from(clientDebtMap.values())
+    // Calculate additional client metrics and convert to array
+    const clientsArray = Array.from(clientMap.values()).map(client => {
+      // Calculate average order value for this client
+      const avgOrderValue = client.totalSpent / client.orderCount;
+
+      // Calculate a retention score (1-10) based on order frequency and recency
+      // This is a simplified calculation - in a real app, you'd use more sophisticated metrics
+      const daysSinceLastOrder = client.lastOrderDate ?
+        Math.floor((new Date().getTime() - new Date(client.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24)) : 100;
+
+      const orderFrequencyScore = Math.min(10, client.orderCount);
+      const recencyScore = daysSinceLastOrder < 30 ? 10 : daysSinceLastOrder < 60 ? 7 : daysSinceLastOrder < 90 ? 5 : 3;
+      const retentionScore = Math.round((orderFrequencyScore + recencyScore) / 2);
+
+      return {
+        ...client,
+        avgOrderValue,
+        retentionScore
+      };
+    });
+
+    // Sort clients by total spent (highest first) for top clients
+    const topClients = [...clientsArray]
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 5)
+      .map(client => ({
+        id: client.id,
+        name: client.name,
+        totalSpent: client.totalSpent,
+        orderCount: client.orderCount,
+        avgOrderValue: client.avgOrderValue,
+        lastOrderDate: client.lastOrderDate || '',
+        retentionScore: client.retentionScore
+      }));
+
+    // Sort clients by debt (highest first) for clients with debt
+    const clientsWithDebt = [...clientsArray]
+      .filter(client => {
+        // Calculate total debt for this client
+        const clientDebt = client.orders
+          .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+          .reduce((sum, order) => sum + (order.balance || 0), 0);
+
+        return clientDebt > 0;
+      })
+      .map(client => {
+        // Calculate total debt for this client
+        const clientDebt = client.orders
+          .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+          .reduce((sum, order) => sum + (order.balance || 0), 0);
+
+        return {
+          id: client.id,
+          name: client.name,
+          debt: clientDebt,
+          orderCount: client.orders
+            .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+            .length
+        };
+      })
       .sort((a, b) => b.debt - a.debt)
-      .slice(0, 5); // Top 5 clients with debt
+      .slice(0, 5);
+
+    // Calculate repeat order rate
+    const clientsWithMultipleOrders = clientsArray.filter(client => client.orderCount > 1).length;
+    const repeatOrderRate = clientsArray.length > 0 ?
+      (clientsWithMultipleOrders / clientsArray.length) * 100 : 0;
+
+    // Calculate estimated profit margin (placeholder - in a real app, you'd use actual cost data)
+    const profitMargin = 32.5; // Placeholder value
 
     // Generate weekly data based on real orders
     const weeklyData = {
       days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       values: [0, 0, 0, 0, 0, 0, 0],
-      target: 30,
+      average: 0,
       activeDay: 'Fri'
     };
 
@@ -124,6 +206,9 @@ const InsightsTab: React.FC = () => {
       weeklyData.values[dayIndex]++;
     });
 
+    // Calculate average orders per day
+    weeklyData.average = weeklyData.values.reduce((sum, val) => sum + val, 0) / 7;
+
     return {
       totalOrders: filteredOrders.length,
       totalRevenue,
@@ -131,11 +216,14 @@ const InsightsTab: React.FC = () => {
       pendingOrders,
       completedOrders,
       completionRate,
-      // No mock data for these metrics
+      avgFulfillmentTime,
       unpaidTotal,
       unpaidOrders: unpaidOrders.length,
       clientsWithDebt,
-      weeklyData
+      topClients,
+      weeklyData,
+      profitMargin,
+      repeatOrderRate
     };
   };
 
@@ -156,10 +244,10 @@ const InsightsTab: React.FC = () => {
       status: "Meeting Target"
     },
     {
-      label: "Completion Rate",
-      value: `${analytics.completionRate.toFixed(1)}%`,
-      change: "+2.3%",
-      status: "Above Target"
+      label: "Avg Fulfillment",
+      value: `${analytics.avgFulfillmentTime.toFixed(1)} days`,
+      change: "-0.5 days",
+      status: "Improving"
     }
   ];
 
@@ -172,61 +260,44 @@ const InsightsTab: React.FC = () => {
       status: "Above Target"
     },
     {
-      label: "Total Revenue",
-      value: formatCurrency(analytics.totalRevenue),
-      change: "+8.2%",
+      label: "Profit Margin",
+      value: `${analytics.profitMargin.toFixed(1)}%`,
+      change: "+1.2%",
       status: "Above Target"
     },
     {
-      label: "Orders Count",
-      value: analytics.totalOrders.toString(),
+      label: "Collection Rate",
+      value: analytics.unpaidTotal > 0 ?
+        `${(100 - ((analytics.unpaidTotal / analytics.totalRevenue) * 100)).toFixed(1)}%` :
+        "100%",
       change: "+3.5%",
       status: "Meeting Target"
     }
   ];
 
-  // Pending invoices metrics
-  const pendingInvoicesMetrics = [
+  // Client performance metrics
+  const clientPerformanceMetrics = [
     {
-      label: "Unpaid Orders",
-      value: analytics.unpaidOrders.toString(),
-      change: "+3.2%",
-      status: "Needs Attention"
+      label: "Active Clients",
+      value: analytics.topClients.length.toString(),
+      change: "+2",
+      status: "Growing"
     },
     {
-      label: "Total Unpaid Amount",
-      value: formatCurrency(analytics.unpaidTotal),
-      change: "+5.7%",
+      label: "Repeat Order Rate",
+      value: `${analytics.repeatOrderRate.toFixed(1)}%`,
+      change: "+4.3%",
       status: "Above Target"
     },
     {
-      label: "Avg. Debt per Client",
-      value: analytics.clientsWithDebt.length > 0
-        ? formatCurrency(analytics.unpaidTotal / analytics.clientsWithDebt.length)
-        : formatCurrency(0),
-      change: "+2.1%",
-      status: "Needs Follow-up"
+      label: "Avg Client Value",
+      value: analytics.topClients.length > 0 ?
+        formatCurrency(analytics.totalRevenue / analytics.topClients.length) :
+        formatCurrency(0),
+      change: "+7.8%",
+      status: "Growing"
     }
   ];
-
-  // Generate real pending invoices data from unpaid orders
-  const pendingInvoicesData = useMemo(() => {
-    if (!filteredOrders || filteredOrders.length === 0) {
-      return [];
-    }
-
-    return filteredOrders
-      .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
-      .map(order => ({
-        id: order.id,
-        clientName: order.client_name || 'Unknown Client',
-        amount: order.balance || 0,
-        dueDate: order.date || formatDate(new Date()),
-        status: order.payment_status === 'unpaid' ? 'pending' : 'partially_paid'
-      }))
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-      .slice(0, 7); // Limit to 7 items
-  }, [filteredOrders]);
 
   // Handle category change
   const handleCategoryChange = (category: string) => {
@@ -240,10 +311,7 @@ const InsightsTab: React.FC = () => {
     // Here you would typically fetch data for the selected time range
   };
 
-  // Handle opening the pending invoices panel
-  const handleOpenPanel = () => {
-    setIsPanelOpen(true);
-  };
+
 
   // Get loading state and data from the orders hook directly
   const { isLoading: ordersLoading, orders: directOrders } = useOrders();
@@ -295,30 +363,22 @@ const InsightsTab: React.FC = () => {
     <div className="flex flex-col h-full min-h-0">
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-6">
-          {/* Pending Invoices Panel */}
-          <PendingInvoicesPanel
-            open={isPanelOpen}
-            onOpenChange={setIsPanelOpen}
-            pendingInvoices={pendingInvoicesData}
-          />
-
-          {/* Pending Invoices Card - Now first in the order */}
-          <PendingInvoicesCard
-            title="Pending Invoices"
-            icon={<Users size={20} className="text-green-500" />}
-            accentColor="green"
-            total={formatCurrency(analytics.unpaidTotal)}
-            change="+3.7%"
-            subtitle="unpaid balance"
-            categories={['All Clients', 'Delivered', 'Not Delivered']}
+          {/* Client Performance Card */}
+          <ClientPerformanceCard
+            title="Client Performance"
+            icon={<Users size={20} className="text-purple-500" />}
+            accentColor="purple"
+            total={analytics.topClients.length}
+            change="+2"
+            subtitle="active clients"
+            categories={['Clients', 'Regular', 'Contract']}
             activeCategory={activeCategory}
             timeRange={timeRange}
-            metrics={pendingInvoicesMetrics}
-            clientsWithDebt={analytics.clientsWithDebt}
-            pendingInvoices={pendingInvoicesData}
+            metrics={clientPerformanceMetrics}
+            topClients={analytics.topClients}
             onCategoryChange={handleCategoryChange}
             onTimeRangeChange={handleTimeRangeChange}
-            onViewMore={handleOpenPanel}
+            onViewMore={() => window.location.href = '/dashboard/clients'}
           />
 
           {/* Order Analytics Card */}

@@ -2,8 +2,8 @@ import React, { forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FilePlus, Loader2, Download, Printer } from 'lucide-react';
 import { InvoicePreviewProps } from './types';
-import InvoiceTemplatePreview from './InvoiceTemplatePreview';
-import A4PreviewContainer from './A4PreviewContainer';
+import OrangeInvoiceTemplate from './OrangeInvoiceTemplate';
+import A5PreviewContainer from './A5PreviewContainer';
 import './styles/scrollbar-hide.css';
 import './styles/print.css';
 
@@ -36,14 +36,21 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>((
     <div className="w-full h-full flex flex-col">
       <div className="flex-1 overflow-auto scrollbar-hide bg-gray-100 rounded-md p-4 flex justify-center relative">
         <div className="w-full max-w-[800px] mx-auto">
-          {/* Use our improved A4PreviewContainer for perfect aspect ratio */}
-          <A4PreviewContainer
+          {/* Scroll hint message */}
+          <div className="text-center mb-2 text-sm text-muted-foreground">
+            <span>Scroll to view the entire invoice</span>
+          </div>
+
+          {/* Use our improved A5PreviewContainer for perfect aspect ratio */}
+          <A5PreviewContainer
             ref={ref}
-            maxHeight="calc(100vh - 200px)"
+            maxHeight="calc(100vh - 220px)" /* Adjusted for the scroll hint */
             showBorder={true}
+            hideScrollbars={false} /* Show scrollbars for better UX */
+            className="pdf-ready" /* Add class for PDF generation */
           >
-            <InvoiceTemplatePreview order={order} settings={settings} />
-          </A4PreviewContainer>
+            <OrangeInvoiceTemplate order={order} settings={settings} />
+          </A5PreviewContainer>
 
           {/* Loading indicator when generating PDF */}
           {isGenerating && (
@@ -70,44 +77,5 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoicePreviewProps>((
 
 // Add display name for better debugging
 InvoicePreview.displayName = 'InvoicePreview';
-
-// Helper function to convert number to words
-function numberToWords(num: number): string {
-  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-  const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
-
-  function convertLessThanOneThousand(n: number): string {
-    if (n === 0) return '';
-
-    if (n < 10) return ones[n];
-
-    if (n < 20) return teens[n - 10];
-
-    if (n < 100) {
-      return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
-    }
-
-    return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 !== 0 ? ' ' + convertLessThanOneThousand(n % 100) : '');
-  }
-
-  if (num === 0) return 'zero';
-
-  let words = '';
-
-  if (num >= 1000000) {
-    words += convertLessThanOneThousand(Math.floor(num / 1000000)) + ' million ';
-    num %= 1000000;
-  }
-
-  if (num >= 1000) {
-    words += convertLessThanOneThousand(Math.floor(num / 1000)) + ' thousand ';
-    num %= 1000;
-  }
-
-  words += convertLessThanOneThousand(num);
-
-  return words.trim();
-}
 
 export default InvoicePreview;

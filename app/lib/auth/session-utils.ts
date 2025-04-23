@@ -17,6 +17,7 @@ export const AUTH_KEYS = [
   'auth_in_progress',
   'auth_email',
   'auth_email_temp',
+  'cached_user_profile',  // Add profile cache
   SESSION_STORAGE_KEY
 ];
 
@@ -108,7 +109,7 @@ export async function getCurrentUser(): Promise<User | null> {
  * Sign out the current user
  * This will clear the session from both cookies and localStorage
  */
-export async function signOut(): Promise<{ success: boolean, error?: any }> {
+export async function signOut(): Promise<{ success: boolean, error?: Error }> {
   try {
     const supabase = createClient();
     const { error } = await supabase.auth.signOut();
@@ -129,6 +130,9 @@ export async function signOut(): Promise<{ success: boolean, error?: any }> {
     return { success: true };
   } catch (error) {
     console.error('Error signing out:', error);
-    return { success: false, error };
+    return { 
+      success: false, 
+      error: error instanceof Error ? error : new Error('Failed to sign out')
+    };
   }
 }

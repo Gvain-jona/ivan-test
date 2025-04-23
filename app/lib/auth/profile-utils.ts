@@ -104,15 +104,23 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
       console.error('Exception checking allowed emails:', allowedEmailCheckError);
     }
 
+    const isGoogleUser = user.app_metadata?.provider === 'google';
+    const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+    const googleAvatar = user.user_metadata?.avatar_url;
+
     console.log(`Creating profile for ${user.email} with role: ${userRole}`);
 
     // Prepare profile data
     const profileData = {
       id: user.id,
       email: user.email,
-      full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      full_name: isGoogleUser ? googleName : user.user_metadata?.full_name || '',
+      avatar_url: isGoogleUser ? googleAvatar : null,
       role: userRole,
       status: 'active',
+      auth_provider: isGoogleUser ? 'google' : 'email',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     console.log('Profile data to insert:', profileData);
@@ -281,7 +289,10 @@ async function createProfileWithServiceRole(user: User): Promise<{ profile: Prof
  * Fetch or create a user profile
  * This is a convenience function that tries to fetch first, then creates if not found
  */
-export async function getOrCreateProfile(user: User): Promise<{ profile: Profile | null, error: any | null }> {
+export async function getOrCreateProfile(user: User): Promise<{ profile: Profile | null; error: Error | null }> {
+  const isGoogleUser = user.app_metadata?.provider === 'google';
+  const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+  const googleAvatar = user.user_metadata?.avatar_url;
   try {
     if (!user?.id) {
       console.error('Invalid user ID for profile fetch/create');
@@ -315,6 +326,9 @@ export async function getOrCreateProfile(user: User): Promise<{ profile: Profile
     return result;
   } catch (error) {
     console.error('Exception in getOrCreateProfile:', { id: user?.id, email: user?.email, error });
-    return { profile: null, error };
+    return { 
+      profile: null, 
+      error: error instanceof Error ? error : new Error('Failed to get or create profile')
+    };
   }
 }

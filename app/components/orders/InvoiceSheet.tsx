@@ -1,9 +1,9 @@
 /**
- * This file is now a re-export from the refactored invoice component.
+ * This file is now a re-export from the new invoice system.
  *
- * The component has been refactored into smaller, more maintainable pieces.
- * See the new implementation at app/components/orders/invoice/
+ * The invoice system has been completely rebuilt with a new architecture.
+ * See the new implementation at app/features/invoices/
  */
 
-export { default } from './invoice';
-export * from './invoice/types';
+export { InvoiceSheet as default } from '@/app/features/invoices';
+export * from '@/app/features/invoices';

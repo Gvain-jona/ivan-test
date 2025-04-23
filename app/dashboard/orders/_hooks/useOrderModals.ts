@@ -61,6 +61,8 @@ export const useOrderModals = () => {
   }, [toast]);
 
   // Handle generate or view invoice
+  // This function is now primarily for tracking and notifications
+  // The actual invoice generation is handled by the InvoiceSheet component
   const handleGenerateInvoice = useCallback(async (order: Order) => {
     setSelectedOrder(order);
     setInvoiceModalOpen(true);
@@ -70,12 +72,34 @@ export const useOrderModals = () => {
 
     console.log(hasInvoice ? 'View invoice for order:' : 'Generate invoice for order:', order.id);
 
+    // We still show a toast for user feedback, but the actual invoice generation
+    // is now handled by the InvoiceButtonWrapper component
     toast({
       title: hasInvoice ? "View Invoice" : "Generate Invoice",
       description: hasInvoice
         ? `Viewing invoice for order ${order.id}`
         : `Preparing invoice for order ${order.id}`,
     });
+
+    // Update the order's invoice_generated_at timestamp if it doesn't have one
+    if (!hasInvoice) {
+      try {
+        // Make API call to update the invoice_generated_at timestamp
+        const response = await fetch(`/api/orders/${order.id}/invoice-timestamp`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          console.warn('Failed to update invoice timestamp, but invoice generation will continue');
+        }
+      } catch (error) {
+        console.warn('Error updating invoice timestamp:', error);
+        // We don't want to block invoice generation if this fails
+      }
+    }
   }, [toast]);
 
   // Get the updateOrderStatus function from our consolidated hook

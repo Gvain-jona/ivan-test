@@ -1,0 +1,166 @@
+/* PDF-specific styles to ensure proper rendering in html2pdf.js */
+
+/* Fix for Tailwind CSS image rendering in PDFs */
+.pdf-ready img {
+  display: initial !important;
+}
+
+/* Ensure all colors are properly rendered */
+.pdf-ready {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Ensure consistent font rendering */
+.pdf-ready {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure table borders are visible */
+.pdf-ready table {
+  border-collapse: collapse !important;
+}
+
+.pdf-ready td,
+.pdf-ready th {
+  border: 1px solid #d1d5db !important;
+}
+
+/* Ensure background colors are printed */
+.pdf-ready * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Ensure proper text rendering */
+.pdf-ready {
+  text-rendering: optimizeLegibility;
+}
+
+/* Fix for SVG rendering */
+.pdf-ready svg {
+  display: inline-block;
+}
+
+/* Fix for flex layout in PDF */
+.pdf-ready .flex {
+  display: flex !important;
+}
+
+/* Fix for grid layout in PDF */
+.pdf-ready .grid {
+  display: grid !important;
+}
+
+/* Fix for absolute positioning in PDF */
+.pdf-ready .absolute {
+  position: absolute !important;
+}
+
+/* Fix for relative positioning in PDF */
+.pdf-ready .relative {
+  position: relative !important;
+}
+
+/* Fix for z-index in PDF */
+.pdf-ready .z-10 {
+  z-index: 10 !important;
+}
+
+/* Fix for overflow in PDF */
+.pdf-ready .overflow-hidden {
+  overflow: hidden !important;
+}
+
+/* Fix for text alignment in PDF */
+.pdf-ready .text-center {
+  text-align: center !important;
+}
+
+.pdf-ready .text-right {
+  text-align: right !important;
+}
+
+.pdf-ready .text-left {
+  text-align: left !important;
+}
+
+/* Fix for font weight in PDF */
+.pdf-ready .font-bold {
+  font-weight: bold !important;
+}
+
+/* Fix for border radius in PDF */
+.pdf-ready .rounded-md {
+  border-radius: 0.375rem !important;
+}
+
+/* Fix for padding in PDF */
+.pdf-ready .p-4 {
+  padding: 1rem !important;
+}
+
+/* Fix for margin in PDF */
+.pdf-ready .m-4 {
+  margin: 1rem !important;
+}
+
+/* Fix for width and height in PDF */
+.pdf-ready .w-full {
+  width: 100% !important;
+}
+
+.pdf-ready .h-full {
+  height: 100% !important;
+}
+
+/* Fix for background colors in PDF */
+.pdf-ready .bg-white {
+  background-color: white !important;
+}
+
+.pdf-ready .bg-gray-100 {
+  background-color: #f3f4f6 !important;
+}
+
+/* Fix for text colors in PDF */
+.pdf-ready .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.pdf-ready .text-black {
+  color: #000000 !important;
+}
+
+/* Fix for border colors in PDF */
+.pdf-ready .border-gray-200 {
+  border-color: #e5e7eb !important;
+}
+
+/* Fix for shadow in PDF */
+.pdf-ready .shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Print-specific styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .pdf-ready,
+  .pdf-ready * {
+    visibility: visible;
+  }
+
+  .pdf-ready {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+}

@@ -9,7 +9,9 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   ReferenceLine,
-  Cell
+  Cell,
+  Tooltip,
+  TooltipProps
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +28,7 @@ interface AnalyticsBarChartProps {
   showYAxis?: boolean;
   showGrid?: boolean;
   showAverage?: boolean;
+  valueFormatter?: (value: number) => string;
 }
 
 const AnalyticsBarChart: React.FC<AnalyticsBarChartProps> = ({
@@ -36,18 +39,20 @@ const AnalyticsBarChart: React.FC<AnalyticsBarChartProps> = ({
   showXAxis = true,
   showYAxis = false,
   showGrid = false,
-  showAverage = true
+  showAverage = true,
+  valueFormatter = (value: number) => value.toString()
 }) => {
   // Get color based on accent color
   const getBarColor = (isActive: boolean = false) => {
     const colorMap: Record<string, { active: string, inactive: string }> = {
       orange: { active: '#f97316', inactive: '#f3f4f6' },
       blue: { active: '#3b82f6', inactive: '#f3f4f6' },
-      green: { active: '#22c55e', inactive: '#f3f4f6' }
+      green: { active: '#22c55e', inactive: '#f3f4f6' },
+      purple: { active: '#a855f7', inactive: '#f3f4f6' }
     };
 
     return isActive
-      ? colorMap[accentColor]?.active || '#f97316'
+      ? colorMap[accentColor]?.active || '#a855f7'
       : colorMap[accentColor]?.inactive || '#f3f4f6';
   };
 
@@ -75,7 +80,7 @@ const AnalyticsBarChart: React.FC<AnalyticsBarChartProps> = ({
       {/* Average label - only show on hover */}
       {showAverage && calculatedAverage > 0 && isHovering && (
         <div className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-background text-xs text-muted-foreground px-1 rounded z-10 transition-opacity duration-200">
-          <span className="font-medium">Avg: {calculatedAverage.toFixed(0)}</span>
+          <span className="font-medium">Avg: {valueFormatter(calculatedAverage)}</span>
         </div>
       )}
 
@@ -114,6 +119,23 @@ const AnalyticsBarChart: React.FC<AnalyticsBarChartProps> = ({
               className="transition-opacity duration-200"
             />
           )}
+
+          <Tooltip
+            cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                return (
+                  <div className="bg-background border border-border rounded-md shadow-sm p-2 text-xs">
+                    <p className="font-medium">{payload[0].payload.name}</p>
+                    <p className="text-muted-foreground">
+                      {valueFormatter(payload[0].value as number)}
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
 
           <Bar
             dataKey="value"

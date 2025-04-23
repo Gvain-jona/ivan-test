@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { DollarSign, Calendar, Filter, X, Search } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { DollarSign, Calendar, Filter, X, Search, FileText, ChevronDown } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
@@ -12,6 +12,7 @@ import { useOrdersData } from '@/hooks/useOrdersData';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import PaymentStatusBadge from '@/components/ui/payment-status-badge';
+import InvoiceButtonWrapper from './InvoiceSystem';
 
 /**
  * Tab content for the Invoices tab in the Orders page
@@ -37,6 +38,22 @@ const InvoicesTab: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Section visibility state
+  const [dueSoonVisible, setDueSoonVisible] = useState(true);
+  const [allInvoicesVisible, setAllInvoicesVisible] = useState(true);
+
+  // Toggle section visibility
+  const toggleSection = useCallback((section: 'dueSoon' | 'allInvoices') => {
+    switch (section) {
+      case 'dueSoon':
+        setDueSoonVisible(prev => !prev);
+        break;
+      case 'allInvoices':
+        setAllInvoicesVisible(prev => !prev);
+        break;
+    }
+  }, []);
 
   // Create a mapping between invoice IDs and original order objects for easy lookup
   const orderMap = useMemo(() => {
@@ -118,8 +135,6 @@ const InvoicesTab: React.FC = () => {
     if (activeFilter === 'unpaid') return filtered.filter(invoice => invoice.status === 'unpaid');
     if (activeFilter === 'partially_paid') return filtered.filter(invoice => invoice.status === 'partially_paid');
 
-    if (activeFilter === 'high_amount') return filtered.filter(invoice => invoice.amount > 500000); // Example threshold
-
     return filtered;
   };
 
@@ -133,10 +148,7 @@ const InvoicesTab: React.FC = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     // Scroll to top of invoice list
-    const invoiceListElement = document.getElementById('invoice-list-container');
-    if (invoiceListElement) {
-      invoiceListElement.scrollTop = 0;
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePageSizeChange = (size: number) => {
@@ -180,113 +192,19 @@ const InvoicesTab: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with title and pagination */}
+      {/* Header with title and search */}
       <div className="flex justify-between items-center mb-4 px-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          {/* Hide filter button for now - will be improved later */}
-          {/* <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex-shrink-0"
-          >
-            {showFilters ? <X className="h-4 w-4 mr-1" /> : <Filter className="h-4 w-4 mr-1" />}
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </Button> */}
           <h2 className="text-xl font-semibold text-foreground">Pending Invoices</h2>
+          <Badge variant="outline" className="bg-foreground/10 text-foreground/80">
+            {pendingInvoices.length} total
+          </Badge>
         </div>
-        <TablePagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={allFilteredInvoices.length}
-          pageSize={pageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          pageSizeOptions={[4, 8, 12, 16, 24]}
-          className="flex-shrink-0"
-        />
-      </div>
-
-      {/* Search and filters container */}
-      <div className="px-4 mb-4 flex items-center gap-4">
-        {/* Quick filters */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
-              activeFilter === 'all'
-                ? "bg-white text-black"
-                : "bg-muted/50 text-foreground hover:bg-muted"
-            )}
-            onClick={() => setActiveFilter('all')}
-          >
-            All Invoices
-            <Badge className={cn(
-              "ml-1 text-xs",
-              activeFilter === 'all' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
-            )}>
-              {pendingInvoices.length}
-            </Badge>
-          </button>
-          <button
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
-              activeFilter === 'unpaid'
-                ? "bg-white text-black"
-                : "bg-muted/50 text-foreground hover:bg-muted"
-            )}
-            onClick={() => setActiveFilter('unpaid')}
-          >
-            Not Paid
-            <Badge className={cn(
-              "ml-1 text-xs",
-              activeFilter === 'unpaid' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
-            )}>
-              {pendingInvoices.filter(i => i.status === 'unpaid').length}
-            </Badge>
-          </button>
-          <button
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
-              activeFilter === 'partially_paid'
-                ? "bg-white text-black"
-                : "bg-muted/50 text-foreground hover:bg-muted"
-            )}
-            onClick={() => setActiveFilter('partially_paid')}
-          >
-            Partially Paid
-            <Badge className={cn(
-              "ml-1 text-xs",
-              activeFilter === 'partially_paid' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
-            )}>
-              {pendingInvoices.filter(i => i.status === 'partially_paid').length}
-            </Badge>
-          </button>
-          <button
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
-              activeFilter === 'high_amount'
-                ? "bg-white text-black"
-                : "bg-muted/50 text-foreground hover:bg-muted"
-            )}
-            onClick={() => setActiveFilter('high_amount')}
-          >
-            High Amount
-            <Badge className={cn(
-              "ml-1 text-xs",
-              activeFilter === 'high_amount' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
-            )}>
-              {pendingInvoices.filter(i => i.amount > 500000).length}
-            </Badge>
-          </button>
-        </div>
-
-        {/* Search bar */}
-        <div className="relative flex-1">
+        <div className="relative w-64">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by client name, order number, or item..."
+            placeholder="Search invoices..."
             className="w-full pl-9 h-10 bg-muted/50 rounded-md border border-border focus:outline-none focus:ring-1 focus:ring-primary"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -294,77 +212,190 @@ const InvoicesTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Main content area with flex layout */}
-      <div className="flex flex-1 min-h-0">
-        {/* Left Sidebar - Filters - Always full height */}
-        <div className={cn(
-          "border-r border-border h-full flex-shrink-0 transition-all duration-300",
-          showFilters ? "w-56" : "w-0 opacity-0"
-        )}>
-          {showFilters && (
-            <div className="p-4 h-full overflow-y-auto">
-              <h3 className="text-lg font-medium mb-4 text-foreground sticky top-0 bg-background pt-1 pb-2 z-10">Filters</h3>
-              <div className="space-y-1">
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start",
-                    activeFilter === 'all' && "bg-foreground/10 font-medium"
-                  )}
-                  onClick={() => setActiveFilter('all')}
-                >
-                  All Invoices
-                  <Badge className="ml-auto bg-foreground/10 text-foreground/80">{pendingInvoices.length}</Badge>
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start",
-                    activeFilter === 'unpaid' && "bg-foreground/10 font-medium"
-                  )}
-                  onClick={() => setActiveFilter('unpaid')}
-                >
-                  Not Paid
-                  <Badge className="ml-auto bg-foreground/10 text-foreground/80">
-                    {pendingInvoices.filter(i => i.status === 'unpaid').length}
-                  </Badge>
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start",
-                    activeFilter === 'partially_paid' && "bg-foreground/10 font-medium"
-                  )}
-                  onClick={() => setActiveFilter('partially_paid')}
-                >
-                  Partially Paid
-                  <Badge className="ml-auto bg-foreground/10 text-foreground/80">
-                    {pendingInvoices.filter(i => i.status === 'partially_paid').length}
-                  </Badge>
-                </Button>
+      {/* Quick filters */}
+      <div className="px-4 mb-4 flex flex-wrap gap-2">
+        <button
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
+            activeFilter === 'all'
+              ? "bg-white text-black"
+              : "bg-muted/50 text-foreground hover:bg-muted"
+          )}
+          onClick={() => setActiveFilter('all')}
+        >
+          All Invoices
+          <Badge className={cn(
+            "ml-1 text-xs",
+            activeFilter === 'all' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
+          )}>
+            {pendingInvoices.length}
+          </Badge>
+        </button>
+        <button
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
+            activeFilter === 'unpaid'
+              ? "bg-white text-black"
+              : "bg-muted/50 text-foreground hover:bg-muted"
+          )}
+          onClick={() => setActiveFilter('unpaid')}
+        >
+          Not Paid
+          <Badge className={cn(
+            "ml-1 text-xs",
+            activeFilter === 'unpaid' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
+          )}>
+            {pendingInvoices.filter(i => i.status === 'unpaid').length}
+          </Badge>
+        </button>
+        <button
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2",
+            activeFilter === 'partially_paid'
+              ? "bg-white text-black"
+              : "bg-muted/50 text-foreground hover:bg-muted"
+          )}
+          onClick={() => setActiveFilter('partially_paid')}
+        >
+          Partially Paid
+          <Badge className={cn(
+            "ml-1 text-xs",
+            activeFilter === 'partially_paid' ? "bg-black text-white" : "bg-foreground/10 text-foreground/80"
+          )}>
+            {pendingInvoices.filter(i => i.status === 'partially_paid').length}
+          </Badge>
+        </button>
+      </div>
 
-                <Separator className="my-2" />
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start",
-                    activeFilter === 'high_amount' && "bg-foreground/10 font-medium"
-                  )}
-                  onClick={() => setActiveFilter('high_amount')}
-                >
-                  High Amount
-                  <Badge className="ml-auto bg-foreground/10 text-foreground/80">
-                    {pendingInvoices.filter(i => i.amount > 500000).length}
-                  </Badge>
-                </Button>
-              </div>
+
+
+      {/* Main content area */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+
+        {/* Due Soon Section */}
+        <div className="px-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <button
+                className="flex items-center gap-2 text-lg font-medium hover:text-foreground/80 transition-colors"
+                onClick={() => toggleSection('dueSoon')}
+              >
+                <h3>Due Soon</h3>
+                <ChevronDown className={`h-5 w-5 transform transition-transform ${dueSoonVisible ? '' : 'rotate-180'}`} />
+              </button>
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
+                {pendingInvoices
+                  .filter(invoice => {
+                    const dueDate = new Date(invoice.dueDate);
+                    const today = new Date();
+                    const diffTime = dueDate.getTime() - today.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays >= 0 && diffDays <= 7;
+                  }).length} invoices
+              </Badge>
+            </div>
+            <div className="text-sm font-medium text-orange-500">
+              {formatCurrency(
+                pendingInvoices
+                  .filter(invoice => {
+                    const dueDate = new Date(invoice.dueDate);
+                    const today = new Date();
+                    const diffTime = dueDate.getTime() - today.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays >= 0 && diffDays <= 7;
+                  })
+                  .reduce((sum, invoice) => sum + invoice.amount, 0)
+              )}
+            </div>
+          </div>
+          {dueSoonVisible && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+            {(() => {
+              // Get current date
+              const today = new Date();
+
+              // Filter invoices that are due within the next 7 days
+              const almostDueInvoices = pendingInvoices
+                .filter(invoice => {
+                  const dueDate = new Date(invoice.dueDate);
+                  const diffTime = dueDate.getTime() - today.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  return diffDays >= 0 && diffDays <= 7; // Due within a week
+                })
+                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                .slice(0, 3); // Show top 3 most urgent
+
+              if (almostDueInvoices.length === 0) {
+                return (
+                  <div className="col-span-full text-center py-4 bg-card border border-dashed border-border rounded-lg">
+                    <p className="text-muted-foreground">No invoices due soon</p>
+                  </div>
+                );
+              }
+
+              return almostDueInvoices.map((invoice, index) => {
+                // Calculate days until due
+                const dueDate = new Date(invoice.dueDate);
+                const diffTime = dueDate.getTime() - today.getTime();
+                const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                return (
+                  <Card
+                    key={index}
+                    className="bg-card border-border shadow-sm hover:shadow-md transition-all cursor-pointer hover:translate-y-[-2px]"
+                    onClick={() => setSelectedInvoice(invoice.id)}
+                  >
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex justify-between items-center">
+                        <div className="font-medium truncate">{invoice.clientName}</div>
+                        <Badge
+                          variant="outline"
+                          className={`${daysLeft <= 2 ? 'bg-red-500/10 text-red-500 border-red-500/30' : 'bg-amber-500/10 text-amber-500 border-amber-500/30'} text-xs`}
+                        >
+                          {daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Due tomorrow' : `${daysLeft} days left`}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-muted-foreground">Order #{invoice.orderNumber}</div>
+                        <div className="text-sm font-medium text-orange-500">
+                          {formatCurrency(invoice.amount)}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              });
+            })()}
             </div>
           )}
         </div>
 
-        {/* Middle Section - Invoice Cards */}
-        <div id="invoice-list-container" className="flex-1 px-4 overflow-y-auto min-h-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+
+
+        {/* All Pending Invoices Section */}
+        <div className="px-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <button
+                className="flex items-center gap-2 text-lg font-medium hover:text-foreground/80 transition-colors"
+                onClick={() => toggleSection('allInvoices')}
+              >
+                <h3>All Pending Invoices</h3>
+                <ChevronDown className={`h-5 w-5 transform transition-transform ${allInvoicesVisible ? '' : 'rotate-180'}`} />
+              </button>
+              <Badge variant="outline" className="bg-foreground/10 text-foreground/80">
+                {displayedInvoices.length} of {allFilteredInvoices.length}
+              </Badge>
+            </div>
+            <div className="text-sm font-medium">
+              {formatCurrency(totalAmountDue)}
+            </div>
+          </div>
+          {allInvoicesVisible && (
+            <>
+              <div id="invoice-list-container" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
             {loading && pendingInvoices.length === 0 ? (
               // Loading skeletons - only show if we don't have any data yet
               Array(6).fill(0).map((_, index) => (
@@ -519,202 +550,42 @@ const InvoicesTab: React.FC = () => {
                         >
                           View Order
                         </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="flex-1 h-9 bg-foreground text-background hover:bg-foreground/90"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Get the full order object from the map
-                            const fullOrder = orderMap.get(invoice.id);
-                            if (fullOrder) {
-                              handleGenerateInvoice(fullOrder);
-                            } else {
-                              // Fallback to just using the ID if the full order isn't found
-                              handleGenerateInvoice({ id: invoice.id });
-                            }
-                          }}
-                        >
-                          Generate Invoice
-                        </Button>
+                        <div className="flex-1">
+                          <InvoiceButtonWrapper
+                            order={orderMap.get(invoice.id) || { id: invoice.id }}
+                            variant="default"
+                            size="sm"
+                            label="Generate Invoice"
+                            className="w-full h-9 bg-foreground text-background hover:bg-foreground/90"
+                            useContextHandler={true}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                          />
+                        </div>
                       </div>
                     </CardContent>
                   </div>
                 </Card>
               ))
             )}
-          </div>
-        </div>
-
-        {/* Right Sidebar - Invoice Summary - Always full height */}
-        <div className="w-80 border-l border-border h-full flex-shrink-0 bg-[#1A1A1A] rounded-tr-xl rounded-br-xl">
-          <div className="p-4 h-full overflow-y-auto">
-            <h3 className="text-lg font-medium mb-4 text-white sticky top-0 bg-[#1A1A1A] pt-1 pb-2 z-10">
-              Invoice Summary
-            </h3>
-            <div className="space-y-4">
-              {/* Invoice Summary Metrics */}
-              <div className="bg-[#242424] rounded-lg p-4 border border-[#333333]">
-                <h4 className="text-sm font-medium text-white mb-3">Financial Overview</h4>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-[#1A1A1A] rounded-lg p-3 border border-[#333333]">
-                    <div className="text-xl font-bold text-white">{pendingInvoices.length}</div>
-                    <div className="text-xs text-gray-400">Total Invoices</div>
-                  </div>
-                  <div className="bg-[#1A1A1A] rounded-lg p-3 border border-[#333333]">
-                    <div className="text-base font-bold text-green-500 truncate">
-                      {formatCurrency(totalAmountDue).replace('UGX', '').trim()}
-                    </div>
-                    <div className="text-xs text-gray-400">Total Amount Due</div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Not Paid</span>
-                    <span className="text-sm text-white">
-                      {pendingInvoices.filter(i => i.status === 'unpaid').length} invoices
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Partially Paid</span>
-                    <span className="text-sm text-white">
-                      {pendingInvoices.filter(i => i.status === 'partially_paid').length} invoices
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">High Amount</span>
-                    <span className="text-sm text-white">
-                      {pendingInvoices.filter(i => i.amount > 500000).length} invoices
-                    </span>
-                  </div>
-                </div>
               </div>
 
-              {/* Almost Due Invoices */}
-              <div className="bg-[#242424] rounded-lg p-4 border border-[#333333]">
-                <h4 className="text-sm font-medium text-white mb-3">Almost Due</h4>
-
-                <div className="space-y-3">
-                  {(() => {
-                    // Get current date
-                    const today = new Date();
-
-                    // Filter invoices that are due within the next 7 days
-                    const almostDueInvoices = pendingInvoices
-                      .filter(invoice => {
-                        const dueDate = new Date(invoice.dueDate);
-                        const diffTime = dueDate.getTime() - today.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        return diffDays >= 0 && diffDays <= 7; // Due within a week
-                      })
-                      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-                      .slice(0, 3); // Show top 3 most urgent
-
-                    if (almostDueInvoices.length === 0) {
-                      return (
-                        <div className="text-center py-2">
-                          <p className="text-sm text-gray-400">No invoices due soon</p>
-                        </div>
-                      );
-                    }
-
-                    return almostDueInvoices.map((invoice, index) => {
-                      // Calculate days until due
-                      const dueDate = new Date(invoice.dueDate);
-                      const diffTime = dueDate.getTime() - today.getTime();
-                      const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                      return (
-                        <div
-                          key={index}
-                          className="bg-[#1A1A1A] rounded-lg p-3 border border-[#333333] cursor-pointer hover:border-[#444444] hover:translate-y-[-2px] hover:shadow-md transition-all duration-200"
-                          onClick={() => setSelectedInvoice(invoice.id)}
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="font-medium text-sm text-white truncate">{invoice.clientName}</div>
-                            <Badge
-                              variant="outline"
-                              className={`${daysLeft <= 2 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'} text-xs`}
-                            >
-                              {daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Due tomorrow' : `${daysLeft} days left`}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="text-xs text-gray-400">Order #{invoice.orderNumber}</div>
-                            <div className="text-xs text-green-400 font-medium">
-                              {formatCurrency(invoice.amount).replace('UGX', '').trim()}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
+              {/* Pagination */}
+              <div className="flex justify-end mt-4">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={allFilteredInvoices.length}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  pageSizeOptions={[4, 8, 12, 16, 24]}
+                  className="flex-shrink-0"
+                />
               </div>
-
-              {/* Recent Invoices */}
-              <div className="bg-[#242424] rounded-lg p-4 border border-[#333333]">
-                <h4 className="text-sm font-medium text-white mb-3">Recent Invoices</h4>
-
-                <div className="space-y-3">
-                  {pendingInvoices.length > 0 ? (
-                    pendingInvoices
-                      .slice(0, 3)
-                      .map((invoice, index) => (
-                        <div
-                          key={index}
-                          className="bg-[#1A1A1A] rounded-lg p-3 border border-[#333333] cursor-pointer hover:border-[#444444] hover:translate-y-[-2px] hover:shadow-md transition-all duration-200"
-                          onClick={() => setSelectedInvoice(invoice.id)}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <div className="font-medium text-sm text-white">{invoice.clientName}</div>
-                            <PaymentStatusBadge
-                              status={invoice.status}
-                              percentage={invoice.paymentPercentage}
-                              showPercentage={true}
-                              className="scale-75 origin-right"
-                            />
-                          </div>
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="text-xs text-gray-400">Order #{invoice.orderNumber}</div>
-                            <div className="text-xs text-green-400 font-medium">
-                              {formatCurrency(invoice.amount).replace('UGX', '').trim()}
-                            </div>
-                          </div>
-
-                          {/* Item summary */}
-                          {invoice.items && invoice.items.length > 0 && (
-                            <div className="mt-1 bg-[#242424] rounded p-1 text-xs">
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-gray-400 text-[10px]">Items</span>
-                                <span className="text-orange-400 text-[10px] font-medium">{invoice.totalItems} total</span>
-                              </div>
-                              {invoice.items.slice(0, 1).map((item, idx) => (
-                                <div key={idx} className="text-[10px] text-gray-300 truncate">
-                                  {item.quantity}× {item.name.split(' - ')[0]}
-                                </div>
-                              ))}
-                              {invoice.totalItems > 1 && (
-                                <div className="text-[10px] text-gray-400 italic">
-                                  +{invoice.totalItems - 1} more
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                        </div>
-                      ))
-                  ) : (
-                    <div className="text-center py-3 bg-[#1A1A1A] rounded-lg border border-[#333333]">
-                      <p className="text-sm text-gray-400">No pending invoices</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>

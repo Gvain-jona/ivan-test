@@ -19,7 +19,7 @@ interface A4PreviewContainerProps {
 const A4PreviewContainer = forwardRef<HTMLDivElement, A4PreviewContainerProps>(
   ({
     children,
-    hideScrollbars = true,
+    hideScrollbars = false, // Default to showing scrollbars for better UX
     className = '',
     scale = 1,
     maxHeight = '80vh',
@@ -91,6 +91,15 @@ const A4PreviewContainer = forwardRef<HTMLDivElement, A4PreviewContainerProps>(
               overflow: 'auto',
               transform: scale !== 1 ? `scale(${scale})` : 'none',
               transformOrigin: 'top center',
+              display: 'flex',
+              justifyContent: 'stretch', // Changed from center to stretch to fill width
+              alignItems: 'stretch', // Changed from flex-start to stretch to fill height
+              // Add subtle scrollbar indicator
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(0,0,0,0.2) transparent',
+              // Ensure content is properly sized for PDF generation
+              width: '100%',
+              height: '100%',
             }}
           >
             {children}

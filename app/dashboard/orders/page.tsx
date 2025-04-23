@@ -6,7 +6,7 @@ import { Badge } from "../../components/ui/badge";
 import { Package, DollarSign, BarChart3 } from "lucide-react";
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
 import OrderFormSheet from '../../components/orders/OrderFormSheet';
-import InvoiceSheet from '../../components/orders/InvoiceSheet';
+import { InvoiceSheet } from '@/app/features/invoices';
 
 // Import refactored components
 import OrdersPageHeader from './_components/OrdersPageHeader';

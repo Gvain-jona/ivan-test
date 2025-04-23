@@ -1,6 +1,7 @@
 /**
  * Utility functions for downloading files
  */
+import { Order } from '@/types/orders';
 
 /**
  * Downloads a file from a URL with a custom filename
@@ -66,4 +67,24 @@ export const formatInvoiceFilename = (orderNumber: string, clientName: string, d
 
   // Format the filename
   return `Invoice_${orderNumber}_${safeClientName}_${formattedDate}.pdf`;
+};
+
+/**
+ * Formats a filename for an invoice based on the order object
+ * @param order The order to generate a filename for
+ * @returns A formatted filename string
+ */
+export const formatInvoiceFilenameFromOrder = (order: Order): string => {
+  // Use order number if available, otherwise use a portion of the ID
+  const orderIdentifier = order.order_number || order.id.substring(0, 8);
+
+  // Format the client name for the filename (remove special characters)
+  const clientName = order.client_name
+    ? order.client_name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20)
+    : 'Client';
+
+  // Add date to filename
+  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+  return `Invoice_${orderIdentifier}_${clientName}_${date}.pdf`;
 };

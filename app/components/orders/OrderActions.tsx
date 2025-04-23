@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus } from '@/types/orders';
 import { cn } from '@/lib/utils';
+import InvoiceButtonWrapper from '@/app/dashboard/orders/_components/InvoiceSystem';
 
 interface OrderActionsProps {
   order: Order;
@@ -168,20 +169,30 @@ function OrderActions(props: OrderActionsProps) {
               View/Edit Order
             </CustomDropdownItem>
           )}
-          {/* Invoice button temporarily hidden
           <CustomDropdownItem
             className={cn(
-              "focus:bg-table-hover",
+              "focus:bg-table-hover p-0",
               order.latest_invoice_id || order.invoice_generated_at
                 ? "text-green-500 focus:text-green-500"
                 : "text-white focus:text-white"
             )}
-            onClick={(e) => handleSafeAction(onInvoice, e)}
+            onClick={(e) => e.stopPropagation()}
           >
-            <FileText className="mr-2 h-4 w-4" />
-            {order.latest_invoice_id || order.invoice_generated_at ? "View Invoice" : "Generate Invoice"}
+            <InvoiceButtonWrapper
+              order={order}
+              variant="ghost"
+              size="sm"
+              label={order.latest_invoice_id || order.invoice_generated_at ? "View Invoice" : "Generate Invoice"}
+              className="w-full justify-start text-inherit hover:text-inherit"
+              showIcon={true}
+              useContextHandler={true}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Close the dropdown
+                setOpen(false);
+              }}
+            />
           </CustomDropdownItem>
-          */}
           <CustomDropdownItem
             className="text-white focus:bg-table-hover focus:text-white"
             onClick={(e) => handleSafeAction(onDuplicate, e)}

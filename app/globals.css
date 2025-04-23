@@ -161,6 +161,11 @@
 /* Triangle indicator removed as requested */
 
 @layer base {
+  /* Fix for html2pdf.js image rendering with Tailwind */
+  img {
+    display: initial;
+  }
+
   :root {
     /* Layout variables */
     --footer-height: 60px;

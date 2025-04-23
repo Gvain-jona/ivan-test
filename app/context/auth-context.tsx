@@ -30,6 +30,7 @@ type AuthContextType = {
   isLoading: boolean
   profileError: boolean
   signIn: (email: string, redirectTo?: string) => Promise<{ success: boolean; error?: string }>
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<{ success: boolean; error?: string }>
   isAdmin: boolean
   isManager: boolean
@@ -272,6 +273,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase, router])
 
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${getBaseUrl()}/auth/callback`
+        }
+      });
+
+      if (error) {
+        console.error('Error signing in with Google:', error);
+        return { success: false, error };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Exception in signInWithGoogle:', error);
+      return { success: false, error };
+    }
+  };
+
   const signIn = async (email: string, customRedirect?: string) => {
     try {
       console.log('Sign in:', email)
@@ -322,13 +344,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('Signing out')
-      const result = await signOutUtil()
-      console.log('Signed out')
-      return result
+      console.log('Signing out user:', { 
+        id: user?.id, 
+        email: user?.email, 
+        provider: user?.app_metadata?.provider 
+      });
+
+      // Clear profile state first
+      setProfile(null);
+      setUser(null);
+
+      // Then sign out from Supabase
+      const result = await signOutUtil();
+
+      if (!result.success) {
+        throw result.error || new Error('Failed to sign out');
+      }
+
+      // Force a router refresh to ensure all authenticated data is cleared
+      router.refresh();
+
+      // Redirect to sign-in
+      router.push('/auth/signin');
+
+      console.log('Successfully signed out');
+      return { success: true };
     } catch (error) {
-      console.error('Sign out error:', error)
-      throw error instanceof Error ? error : new Error('Failed to sign out')
+      console.error('Sign out error:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to sign out'
+      };
     }
   }
 
@@ -353,6 +399,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     profileError,
     signIn,
+    signInWithGoogle,
     signOut,
     isAdmin,
     isManager,

@@ -8,6 +8,12 @@ const config: Config = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: [
+    // Add any classes that might be used dynamically
+    'bg-orange-500',
+    'text-orange-500',
+    'border-orange-500',
+  ],
   theme: {
   	container: {
   		center: true,

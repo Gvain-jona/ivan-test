@@ -67,6 +67,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get database schema for invoice_settings table
+    const { data: invoiceSettingsSchema, error: invoiceSettingsSchemaError } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .limit(1);
+
+    if (invoiceSettingsSchemaError) {
+      console.error('Error fetching invoice_settings schema:', invoiceSettingsSchemaError);
+      // Don't return an error, just log it
+    }
+
     // Get all tables in the database
     const { data: tables, error: tablesError } = await supabase
       .rpc('get_tables');
@@ -79,12 +90,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error('Error fetching user:', userError);
+    }
+
     return NextResponse.json({
       tables,
       ordersSchema: ordersSchema ? Object.keys(ordersSchema[0]) : [],
       clientsSchema: clientsSchema ? Object.keys(clientsSchema[0]) : [],
       orderItemsSchema: orderItemsSchema ? Object.keys(orderItemsSchema[0]) : [],
       orderPaymentsSchema: orderPaymentsSchema ? Object.keys(orderPaymentsSchema[0]) : [],
+      invoiceSettingsSchema: invoiceSettingsSchema ? Object.keys(invoiceSettingsSchema[0]) : [],
+      user: user ? { id: user.id, email: user.email } : null,
     });
   } catch (error) {
     console.error('Error in test-db API:', error);

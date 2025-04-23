@@ -1,12 +1,15 @@
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Order } from '@/types/orders';
-import { downloadInvoicePdf } from '../utils/clientPdfGenerator';
+import { downloadInvoicePdf, downloadInvoiceAsImage } from '../utils/clientPdfGenerator';
 import { PDF_SCALE_FACTOR } from '../utils/constants';
 import { createSWRConfig } from '@/lib/swr-config';
 
 // Quality options for PDF generation
 export type PdfQuality = 'standard' | 'high';
+
+// Output format options
+export type OutputFormat = 'pdf' | 'image';
 
 // Scale factors for different quality levels
 const QUALITY_SCALE_FACTORS = {
@@ -24,6 +27,7 @@ interface UseClientInvoiceGenerationReturn {
   error: string | null;
   previewRef: React.RefObject<HTMLDivElement>;
   generateAndDownloadPdf: (quality?: PdfQuality) => Promise<void>;
+  generateAndDownloadImage: () => Promise<void>;
 }
 
 /**
@@ -131,11 +135,89 @@ export default function useClientInvoiceGeneration({
     }
   }, [order, toast]);
 
+  /**
+   * Generates and downloads a high-quality image of the invoice
+   * This is useful for debugging and for cases where the exact preview appearance is critical
+   */
+  const generateAndDownloadImage = useCallback(async (): Promise<void> => {
+    if (!order || !previewRef.current) {
+      toast({
+        title: "Error",
+        description: "Cannot generate image: Missing order data or preview element",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    // Create a single toast that we'll update
+    const toastId = "invoice-image-generation";
+
+    try {
+      // Show initial toast
+      toast({
+        id: toastId,
+        title: "Generating Image",
+        description: "Please wait while we prepare your invoice as an image... This will match exactly what you see in the preview.",
+      });
+
+      // Reset progress
+      setProgress(0);
+
+      // Generate and download the image
+      await downloadInvoiceAsImage(
+        previewRef.current,
+        order,
+        (status, currentProgress) => {
+          // Update progress if provided
+          if (currentProgress !== undefined) {
+            setProgress(currentProgress);
+          }
+
+          // Only update the toast when status changes to avoid redundant updates
+          if (status === 'Preparing download...') {
+            toast({
+              id: toastId,
+              title: "Preparing download",
+              description: "Your invoice image will download shortly... The image will match exactly what you see in the preview.",
+            });
+          }
+        }
+      );
+
+      // Update the same toast with success message
+      toast({
+        id: toastId,
+        title: "Download successful",
+        description: "Your invoice has been downloaded as a high-quality image.",
+        variant: "success",
+      });
+    } catch (err) {
+      console.error('Error generating image:', err);
+
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      setError(errorMessage);
+
+      // Update the same toast with error message
+      toast({
+        id: toastId,
+        title: "Image generation failed",
+        description: `There was a problem generating your invoice image: ${errorMessage}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [order, toast]);
+
   return {
     isGenerating,
     progress,
     error,
     previewRef,
     generateAndDownloadPdf,
+    generateAndDownloadImage,
   };
 }

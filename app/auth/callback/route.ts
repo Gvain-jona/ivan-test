@@ -20,12 +20,13 @@ export async function GET(request: NextRequest) {
     // Log all search parameters to debug what's coming in
     console.log('Auth callback received with params:', Object.fromEntries(searchParams.entries()))
 
-    // Check for token_hash (used in email confirmation)
+    // Check for OAuth state and code
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
+
+    // Check for email confirmation
     const token_hash = searchParams.get('token_hash')
     const type = searchParams.get('type') as EmailOtpType | null
-
-    // Check for code (used in magic link/OTP)
-    const code = searchParams.get('code')
 
     // Get the redirect path
     const next = searchParams.get('next') || '/dashboard/orders'
@@ -33,8 +34,47 @@ export async function GET(request: NextRequest) {
     // Create Supabase client
     const supabase = createClient()
 
-    // Handle token_hash flow (email confirmation)
-    if (token_hash && type) {
+    // Handle OAuth callback (including Google)
+    if (code && state) {
+      console.log('Processing OAuth callback')
+      
+      try {
+        // Exchange the code for a session
+        const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (sessionError) {
+          throw sessionError
+        }
+
+        // Get the session to verify everything worked
+        const { data: { session }, error: getSessionError } = await supabase.auth.getSession()
+
+        if (getSessionError) {
+          throw getSessionError
+        }
+
+        if (!session) {
+          throw new Error('Failed to get session after OAuth callback')
+        }
+
+        // Log successful authentication
+        console.log('OAuth authentication successful:', {
+          provider: session.user?.app_metadata?.provider,
+          userId: session.user?.id,
+          email: session.user?.email
+        })
+
+      } catch (error) {
+        console.error('Error in OAuth callback:', error)
+        return NextResponse.redirect(
+          `${getBaseUrl()}/auth/error?error=${encodeURIComponent(
+            error instanceof Error ? error.message : 'Authentication failed'
+          )}`
+        )
+      }
+    }
+    // Handle email confirmation
+    else if (token_hash && type) {
       console.log('Processing token_hash flow')
 
       const { error } = await supabase.auth.verifyOtp({
