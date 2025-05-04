@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') || null;
     const endDate = searchParams.get('endDate') || null;
     const search = searchParams.get('search') || null;
-    const limit = parseInt(searchParams.get('limit') || '50');
+    // Increase default limit to 500 to ensure we get all records for accurate metrics
+    const limit = parseInt(searchParams.get('limit') || '500');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Create Supabase client
@@ -338,19 +339,22 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting order:', error);
       return NextResponse.json(
-        { error: 'Failed to delete order' },
+        { error: error.message || 'Failed to delete order', details: error },
         { status: 500 }
       );
     }
 
+    // Return minimal response to reduce payload size
     return NextResponse.json({
       success: true,
-      message: 'Order deleted successfully'
+      message: 'Order deleted successfully',
+      id // Return the ID so the client can confirm which order was deleted
     });
   } catch (error) {
     console.error('Unexpected error in DELETE /api/orders:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     return NextResponse.json(
-      { error: 'An unexpected error occurred' },
+      { error: errorMessage, details: error },
       { status: 500 }
     );
   }

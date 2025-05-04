@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { AuthChangeEvent } from '@supabase/supabase-js'
 import type { Database } from '../../../types/supabase'
 
 /**
@@ -23,6 +24,15 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  // Set up auth state change listener to handle token refreshes
+  supabaseClientInstance.auth.onAuthStateChange((event: AuthChangeEvent) => {
+    // Set a cookie to indicate token refresh for middleware
+    if (event === 'TOKEN_REFRESHED') {
+      console.log('Token refresh detected, setting token_refresh cookie');
+      document.cookie = 'token_refresh=true; path=/; max-age=5'; // Short-lived cookie
+    }
+  })
 
   return supabaseClientInstance
 }

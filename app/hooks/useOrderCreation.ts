@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useNotifications } from '@/components/ui/notification';
 import { Order, OrderItem, OrderPayment } from '@/types/orders';
 import { createClient } from '@/lib/supabase/client';
-import { useOrdersPage } from '@/app/dashboard/orders/_context/OrdersPageContext';
+import { useOrdersPage } from '@/app/dashboard/orders/_context';
 import { showNotification, requestNotificationPermission } from '@/utils/push-notifications';
 import { mutate } from 'swr';
 

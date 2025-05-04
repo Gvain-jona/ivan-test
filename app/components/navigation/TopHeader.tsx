@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '../../lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useAuth } from '@/app/context/auth-context';
 import { ThemeSwitcher } from '../theme/theme-switcher';
 import { Announcement, AnnouncementTag, AnnouncementTitle } from '../ui/announcement';
-import { Bell, ArrowUpRightIcon, ExternalLink, RefreshCw } from 'lucide-react';
+import { Bell, ArrowUpRightIcon, ExternalLink, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription } from '../ui/alert';
+import { useAnnouncement } from '@/app/context/announcement-context';
 
 /**
  * Get initials from a name
@@ -82,13 +83,7 @@ export default function TopHeader({
   userInitials,
   userAvatarUrl = '',
   logoUrl = '',
-  announcement = {
-    show: true,
-    tag: 'Updated',
-    message: 'Order system updated',
-    link: '/dashboard/orders',
-    variant: 'info'
-  }
+  announcement: propAnnouncement
 }: TopHeaderProps) {
   // Get user profile information from auth context
   const { user, profile, isLoading, profileError, refreshProfile } = useAuth();
@@ -100,6 +95,45 @@ export default function TopHeader({
   // State for profile refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Use the announcement context
+  const {
+    activeAnnouncements,
+    currentAnnouncement,
+    currentIndex
+  } = useAnnouncement();
+
+  // Transform the announcement data for display
+  const announcement = useMemo(() => {
+    // If announcement is provided as a prop, use it
+    if (propAnnouncement) {
+      return {
+        show: propAnnouncement.show ?? true,
+        tag: propAnnouncement.tag || 'New',
+        message: propAnnouncement.message || 'Announcement',
+        link: propAnnouncement.link,
+        variant: propAnnouncement.variant || 'info'
+      };
+    }
+
+    // Otherwise use the current announcement from context
+    if (!currentAnnouncement) {
+      return {
+        show: false,
+        tag: '',
+        message: '',
+        variant: 'info' as const
+      };
+    }
+
+    return {
+      show: true,
+      tag: currentAnnouncement.tag,
+      message: currentAnnouncement.message,
+      link: currentAnnouncement.link,
+      variant: currentAnnouncement.variant as 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info'
+    };
+  }, [propAnnouncement, currentAnnouncement]);
+
   // Handle profile refresh
   const handleProfileRefresh = async () => {
     if (refreshProfile) {
@@ -108,11 +142,6 @@ export default function TopHeader({
       setTimeout(() => setIsRefreshing(false), 1000); // Show spinner for at least 1 second
     }
   };
-
-  // Log auth state for debugging
-  useEffect(() => {
-    console.log('Auth state in TopHeader:', { user, profile, isLoading, profileError });
-  }, [user, profile, isLoading, profileError]);
 
   // Get time-based greeting
   const [greeting, setGreeting] = useState(getTimeBasedGreeting());
@@ -125,6 +154,7 @@ export default function TopHeader({
 
     return () => clearInterval(intervalId);
   }, []);
+
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -144,9 +174,9 @@ export default function TopHeader({
           <AlertDescription>
             Unable to load your profile data. This may affect some features.
           </AlertDescription>
-          <Button 
-            size="sm" 
-            variant="outline" 
+          <Button
+            size="sm"
+            variant="outline"
             onClick={handleProfileRefresh}
             disabled={isRefreshing}
             className="ml-2 bg-background"
@@ -195,38 +225,71 @@ export default function TopHeader({
             <p className="text-xs text-muted-foreground">{appTitle}</p>
           </div>
         </div>
-        
+
         {/* Center Announcement Badge */}
         {announcement.show && (
           <div className="hidden md:flex justify-center items-center absolute left-1/2 transform -translate-x-1/2">
-            <a 
-              href={announcement.link} 
-              className="cursor-pointer transition-transform hover:scale-105 active:scale-95 min-w-[240px] max-w-[320px]"
-              onClick={(e) => {
-                if (announcement.link?.startsWith('http')) {
-                  e.preventDefault();
-                  window.open(announcement.link, '_blank');
-                }
-              }}
-            >
-              <Announcement 
-                themed 
-                variant="outline"
-                className={cn(
-                  'animate-pulse-attention hover:animate-none border-black/10 bg-white shadow-md',
-                  'hover:bg-white hover:border-black/20',
-                  'w-full text-black'
-                )}
-              >
-                <AnnouncementTag className="bg-black text-white">
-                  {announcement.tag || 'New'}
-                </AnnouncementTag>
-                <AnnouncementTitle className="text-black">
-                  {announcement.message || 'Announcement'}
-                  <ExternalLink size={14} className="shrink-0 opacity-70" />
-                </AnnouncementTitle>
-              </Announcement>
-            </a>
+            <div className="relative min-w-[240px] max-w-[320px]">
+              {/* Announcement Content */}
+              {announcement.link ? (
+                <a
+                  href={announcement.link}
+                  className="cursor-pointer transition-transform hover:scale-105 active:scale-95 block"
+                  onClick={(e) => {
+                    if (announcement.link?.startsWith('http')) {
+                      e.preventDefault();
+                      window.open(announcement.link, '_blank');
+                    }
+                  }}
+                >
+                  <Announcement
+                    themed
+                    variant="outline"
+                    className={cn(
+                      'animate-pulse-attention hover:animate-none border-black/10 bg-white shadow-md',
+                      'hover:bg-white hover:border-black/20',
+                      'w-full text-black'
+                    )}
+                  >
+                    <AnnouncementTag className="bg-black text-white">
+                      {announcement.tag || 'New'}
+                    </AnnouncementTag>
+                    <AnnouncementTitle className="text-black">
+                      {announcement.message || 'Announcement'}
+                      {activeAnnouncements.length > 1 && (
+                        <span className="text-xs ml-2 opacity-70">
+                          {currentIndex + 1}/{activeAnnouncements.length}
+                        </span>
+                      )}
+                      {announcement.link && <ExternalLink size={14} className="shrink-0 opacity-70 ml-1" />}
+                    </AnnouncementTitle>
+                  </Announcement>
+                </a>
+              ) : (
+                <div className="cursor-default block">
+                  <Announcement
+                    themed
+                    variant="outline"
+                    className={cn(
+                      'animate-pulse-attention border-black/10 bg-white shadow-md',
+                      'w-full text-black'
+                    )}
+                  >
+                    <AnnouncementTag className="bg-black text-white">
+                      {announcement.tag || 'New'}
+                    </AnnouncementTag>
+                    <AnnouncementTitle className="text-black">
+                      {announcement.message || 'Announcement'}
+                      {activeAnnouncements.length > 1 && (
+                        <span className="text-xs ml-2 opacity-70">
+                          {currentIndex + 1}/{activeAnnouncements.length}
+                        </span>
+                      )}
+                    </AnnouncementTitle>
+                  </Announcement>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

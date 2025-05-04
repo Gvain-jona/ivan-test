@@ -31,12 +31,12 @@ const DEFAULT_CONFIG: SWRConfiguration = {
   revalidateOnFocus: false,
   // Only revalidate stale data when explicitly triggered
   revalidateIfStale: false,
-  // Enable revalidation when reconnecting to prevent stale data after connection loss
-  revalidateOnReconnect: true,
+  // Disable revalidation when reconnecting to reduce API calls
+  revalidateOnReconnect: false,
   // Keep previous data while fetching new data to prevent flashing
   keepPreviousData: true,
-  // Cache data for 2 minutes to reduce unnecessary requests
-  dedupingInterval: 120000, // 2 minutes
+  // Cache data for 30 minutes to reduce unnecessary requests
+  dedupingInterval: 30 * 60 * 1000, // 30 minutes - increased to reduce API calls
   // Retry failed requests up to 2 times
   errorRetryCount: 2,
   // Set a 5 second timeout for loading states
@@ -84,8 +84,7 @@ export interface PaginationParams {
 const fetchers = {
   orders: async () => await dataService.getOrders(),
   order: async (id: string) => await dataService.getOrderById(id),
-  expenses: async () => await dataService.getExpenses(),
-  expense: async (id: string) => await dataService.getExpenseById(id),
+  // Expense fetchers are now handled in the expenses directory
   materials: async () => await dataService.getMaterials(),
   material: async (id: string) => await dataService.getMaterialById(id),
   tasks: async () => await dataService.getTasks(),
@@ -104,7 +103,7 @@ const fetchers = {
  */
 async function fetchOrdersFromSupabase(
   filters?: OrdersFilters,
-  pagination: PaginationParams = { page: 1, pageSize: 20 }
+  pagination: PaginationParams = { page: 1, pageSize: 100 }
 ): Promise<OrdersResponse> {
   try {
     // Create Supabase client
@@ -131,9 +130,21 @@ async function fetchOrdersFromSupabase(
     const offset = (pagination.page - 1) * pagination.pageSize;
 
     // Start building the query - don't use join to avoid foreign key issues
+    // Always use count: 'exact' to get the total number of records
     let query = supabase
       .from('orders')
-      .select('*', { count: 'exact' });
+      .select('*', { count: 'exact' }); // This is critical - it gets the count of ALL matching records
+
+    // Add a direct count query to verify the total number of records
+    try {
+      const { count: directCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true }); // head: true means we only want the count, not the data
+
+      console.log('DIRECT COUNT CHECK (useData): Total records in orders table:', directCount);
+    } catch (countError) {
+      console.error('Error getting direct count in useData:', countError);
+    }
     // We'll use client_name directly from orders table
 
     // Apply filters
@@ -265,9 +276,20 @@ async function fetchOrdersFromSupabase(
       notes: notesByOrderId.get(order.id) || []
     }));
 
+    // Log the total count for debugging with more details
+    console.log('fetchOrdersFromSupabase - Total count from database:', count, {
+      count,
+      pageSize: pagination.pageSize,
+      page: pagination.page,
+      pageCount: Math.ceil((count || 0) / pagination.pageSize),
+      ordersReturned: transformedOrders.length,
+      offset: (pagination.page - 1) * pagination.pageSize
+    });
+
+    // Make sure we're returning the actual total count, not just the number of records in this page
     return {
       orders: transformedOrders,
-      totalCount: count || 0,
+      totalCount: count || 0, // This should be the total count of all records, not just this page
       pageCount: Math.ceil((count || 0) / pagination.pageSize)
     };
   } catch (error) {
@@ -292,7 +314,7 @@ function generateCacheKey(filters?: OrdersFilters, pagination?: PaginationParams
  * Generate a URL with query parameters for the optimized orders API
  * Works in both client and server environments
  */
-function generateOrdersUrl(filters?: OrdersFilters, pagination: PaginationParams = { page: 1, pageSize: 20 }): string | null {
+function generateOrdersUrl(filters?: OrdersFilters, pagination: PaginationParams = { page: 1, pageSize: 50 }): string | null {
   // Only run in browser environment
   if (typeof window === 'undefined') {
     return null;
@@ -338,7 +360,7 @@ function generateOrdersUrl(filters?: OrdersFilters, pagination: PaginationParams
 }
 
 // Orders hooks
-export function useOrders(filters?: OrdersFilters, pagination: PaginationParams = { page: 1, pageSize: 20 }, config?: SWRConfiguration) {
+export function useOrders(filters?: OrdersFilters, pagination: PaginationParams = { page: 1, pageSize: 100 }, config?: SWRConfiguration) {
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const loadingId = 'orders-data';
@@ -399,16 +421,93 @@ export function useOrders(filters?: OrdersFilters, pagination: PaginationParams 
         // Use the optimized API endpoint if available
         if (url && url.startsWith('http')) {
           try {
-            // Use a simple fetch without AbortController to avoid AbortError issues
-            const response = await fetch(url);
+            // Use fetch with timeout and retry logic
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
 
-            if (!response.ok) {
-              console.error(`API error: ${response.status}`);
-              // Fallback to direct Supabase fetch on API error
-              logDebug('Falling back to direct Supabase fetch');
+            // Try with a smaller page size if we've had errors before
+            let modifiedUrl = url;
+            if (errorCountRef.current > 0 && pagination && pagination.pageSize > 50) {
+              // Create a new URL with a smaller page size
+              const urlObj = new URL(url);
+              urlObj.searchParams.set('pageSize', '50');
+              modifiedUrl = urlObj.toString();
+              logDebug('Using smaller page size for retry:', modifiedUrl);
+            }
+
+            let response;
+            try {
+              response = await fetch(modifiedUrl, {
+                signal: controller.signal,
+                headers: {
+                  'Cache-Control': 'max-age=60', // Cache for 1 minute
+                }
+              });
+
+              // Clear the timeout
+              clearTimeout(timeoutId);
+
+              if (!response || !response.ok) {
+                console.error(`API error: ${response ? response.status : 'No response'}`);
+                // Fallback to direct Supabase fetch on API error
+                logDebug('Falling back to direct Supabase fetch');
+                errorCountRef.current++;
+                try {
+                  // Use a smaller page size for the fallback
+                  const fallbackPagination = {
+                    ...pagination,
+                    pageSize: Math.min(pagination?.pageSize || 100, 50)
+                  };
+                  return await fetchOrdersFromSupabase(filters, fallbackPagination);
+                } catch (supabaseError) {
+                  console.error('Error in Supabase fallback:', supabaseError);
+                  // Return empty data if both methods fail
+                  return {
+                    orders: [],
+                    totalCount: 0,
+                    pageCount: 0
+                  };
+                }
+              }
+            } catch (fetchAbortError) {
+              // Clear the timeout
+              clearTimeout(timeoutId);
+
+              // If it's an abort error (timeout), try with a smaller page size
+              if (fetchAbortError instanceof Error && fetchAbortError.name === 'AbortError') {
+                console.warn('Fetch timeout - trying with smaller page size');
+
+                // Try again with a much smaller page size
+                try {
+                  const retryUrl = new URL(url);
+                  retryUrl.searchParams.set('pageSize', '20');
+
+                  logDebug('Retrying with smaller page size:', retryUrl.toString());
+
+                  const retryResponse = await fetch(retryUrl.toString(), {
+                    headers: {
+                      'Cache-Control': 'max-age=60', // Cache for 1 minute
+                    }
+                  });
+
+                  if (retryResponse.ok) {
+                    return await retryResponse.json();
+                  }
+                } catch (retryError) {
+                  console.error('Retry with smaller page size also failed:', retryError);
+                }
+              }
+
+              // If retry failed or it wasn't an abort error, fall back to Supabase
+              logDebug('Falling back to direct Supabase fetch after fetch error');
               errorCountRef.current++;
               try {
-                return await fetchOrdersFromSupabase(filters, pagination);
+                // Use a smaller page size for the fallback
+                const fallbackPagination = {
+                  ...pagination,
+                  pageSize: Math.min(pagination?.pageSize || 100, 20)
+                };
+                return await fetchOrdersFromSupabase(filters, fallbackPagination);
               } catch (supabaseError) {
                 console.error('Error in Supabase fallback:', supabaseError);
                 // Return empty data if both methods fail
@@ -418,13 +517,23 @@ export function useOrders(filters?: OrdersFilters, pagination: PaginationParams 
                   pageCount: 0
                 };
               }
+
+              throw fetchAbortError;
             }
-            const data = await response.json();
-            logDebug('API response received');
-            // Reset error count and toast flag on successful fetch
-            errorCountRef.current = 0;
-            errorToastShownRef.current = false;
-            return data;
+
+            // If we get here, we have a valid response
+            try {
+              const data = await response.json();
+              logDebug('API response received');
+              // Reset error count and toast flag on successful fetch
+              errorCountRef.current = 0;
+              errorToastShownRef.current = false;
+              return data;
+            } catch (jsonError) {
+              console.error('Error parsing JSON response:', jsonError);
+              // Fallback to direct Supabase fetch if JSON parsing fails
+              return await fetchOrdersFromSupabase(filters, pagination);
+            }
           } catch (fetchError) {
             console.error('Error fetching from API:', fetchError);
             // Fallback to direct Supabase fetch on fetch error
@@ -799,39 +908,8 @@ export function useOrder(
   };
 }
 
-// Expenses hooks
-export function useExpenses(config?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useLoadingSWR(
-    API_ENDPOINTS.EXPENSES,
-    () => fetchers.expenses(),
-    'expenses',
-    { ...DEFAULT_CONFIG, ...config }
-  );
-
-  return {
-    expenses: data || [],
-    isLoading,
-    isError: !!error,
-    isEmpty: !data || data.length === 0,
-    mutate,
-  };
-}
-
-export function useExpense(id?: string, config?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useLoadingSWR(
-    id ? `${API_ENDPOINTS.EXPENSES}/${id}` : null,
-    () => fetchers.expense(id!),
-    `expense-${id}`,
-    { ...DEFAULT_CONFIG, ...config }
-  );
-
-  return {
-    expense: data,
-    isLoading,
-    isError: !!error,
-    mutate,
-  };
-}
+// Expenses hooks are now imported from './expenses' directory
+// See app/hooks/useExpenses.ts for the re-exports
 
 // Materials hooks
 export function useMaterials(config?: SWRConfiguration) {

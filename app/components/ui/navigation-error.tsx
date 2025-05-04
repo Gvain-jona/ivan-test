@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, RefreshCw, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useNavigation } from '@/context/navigation-context';
@@ -11,7 +11,7 @@ interface NavigationErrorProps {
 }
 
 /**
- * Component to display navigation errors with retry functionality
+ * Enhanced component to display navigation errors with improved retry functionality
  */
 export function NavigationError({ className }: NavigationErrorProps) {
   const { navigationError, cancelNavigation, startNavigation, previousPath } = useNavigation();
@@ -22,10 +22,10 @@ export function NavigationError({ className }: NavigationErrorProps) {
     if (navigationError) {
       setVisible(true);
 
-      // Auto-hide after 10 seconds
+      // Auto-hide after 8 seconds
       const timeout = setTimeout(() => {
         setVisible(false);
-      }, 10000);
+      }, 8000);
 
       return () => clearTimeout(timeout);
     } else {
@@ -38,18 +38,38 @@ export function NavigationError({ className }: NavigationErrorProps) {
     return null;
   }
 
-  // Handle retry
+  // Extract target path from error message
+  const getTargetPath = () => {
+    // Improved regex to handle different error message formats
+    const match = navigationError.message.match(/(?:Failed|Falling back|failed) to (?:navigate|direct navigation) to (.+?)(?:$|\s)/i);
+    return match ? match[1] : null;
+  };
+
+  const targetPath = getTargetPath();
+
+  // Handle retry with Next.js router
   const handleRetry = () => {
-    // Get the target path from the error message
-    const match = navigationError.message.match(/(?:Failed|Falling back) to (?:navigate|direct navigation) to (.+)$/);
-    const targetPath = match ? match[1] : undefined;
-
-    // Cancel the current navigation attempt
-    cancelNavigation();
-
-    // If we have a target path, retry the navigation
     if (targetPath) {
+      // Cancel the current navigation attempt
+      cancelNavigation();
+      // Retry the navigation
       startNavigation(targetPath);
+    }
+  };
+
+  // Handle direct navigation (fallback)
+  const handleDirectNavigation = () => {
+    if (targetPath) {
+      // Use window.location for direct navigation
+      window.location.href = targetPath;
+    }
+  };
+
+  // Handle go back
+  const handleGoBack = () => {
+    if (previousPath) {
+      cancelNavigation();
+      startNavigation(previousPath);
     }
   };
 
@@ -76,46 +96,36 @@ export function NavigationError({ className }: NavigationErrorProps) {
           {navigationError.message.replace(/^Navigation timeout: /, '')}
         </p>
 
-        <div className="flex gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mt-3">
           <Button
             variant="secondary"
             size="sm"
-            className="h-8 px-3 text-xs"
+            className="h-8 px-3 text-xs flex items-center gap-1"
             onClick={handleRetry}
           >
+            <RefreshCw className="h-3 w-3" />
             Retry
           </Button>
 
-          {/* Extract target path for direct navigation */}
-          {(() => {
-            const match = navigationError.message.match(/(?:Failed|Falling back) to (?:navigate|direct navigation) to (.+)$/);
-            const targetPath = match ? match[1] : null;
-
-            if (targetPath) {
-              return (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs"
-                  asChild
-                >
-                  <a href={targetPath}>Direct Link</a>
-                </Button>
-              );
-            }
-            return null;
-          })()}
+          {targetPath && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs"
+              onClick={handleDirectNavigation}
+            >
+              Direct Link
+            </Button>
+          )}
 
           {previousPath && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-3 text-xs"
-              onClick={() => {
-                cancelNavigation();
-                startNavigation(previousPath);
-              }}
+              className="h-8 px-3 text-xs flex items-center gap-1"
+              onClick={handleGoBack}
             >
+              <ArrowLeft className="h-3 w-3" />
               Go Back
             </Button>
           )}

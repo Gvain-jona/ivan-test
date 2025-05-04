@@ -1,15 +1,28 @@
 "use client"
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Order, OrderStatus } from '@/types/orders';
+import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import OrderRow from './OrderRow';
 import { Button } from '@/app/components/ui/button';
-import { Search, Filter, Download, PlusCircle, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
+import {
+  Search, Filter, RefreshCw, X, Calendar,
+  CreditCard, ClipboardList, ChevronDown, Users
+} from 'lucide-react';
 import { useLoading, LoadingButton } from '@/components/loading';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Input } from '@/app/components/ui/input';
-import TablePagination from '@/app/components/ui/table/TablePagination';
+import { Badge } from '@/app/components/ui/badge';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/app/components/ui/select';
+import {
+  Popover, PopoverContent, PopoverTrigger
+} from '@/app/components/ui/popover';
+import { DateRangePicker } from '@/app/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface OrdersTableProps {
   orders: Order[];
@@ -32,6 +45,16 @@ interface OrdersTableProps {
   onCreateOrder?: () => void;
   searchTerm: string;
   showFilters?: boolean;
+
+  // New quick filter props
+  selectedStatus?: OrderStatus[];
+  onStatusFilterChange?: (statuses: OrderStatus[]) => void;
+  selectedPaymentStatus?: PaymentStatus[];
+  onPaymentStatusFilterChange?: (statuses: PaymentStatus[]) => void;
+  selectedClientType?: ClientType[];
+  onClientTypeFilterChange?: (types: ClientType[]) => void;
+  dateRange?: DateRange;
+  onDateRangeChange?: (range: DateRange | undefined) => void;
 }
 
 // Sort configuration type
@@ -62,6 +85,16 @@ export default function OrdersTable(props: OrdersTableProps) {
     onCreateOrder,
     searchTerm,
     showFilters = false,
+
+    // New quick filter props with defaults
+    selectedStatus = [],
+    onStatusFilterChange = () => {},
+    selectedPaymentStatus = [],
+    onPaymentStatusFilterChange = () => {},
+    selectedClientType = [],
+    onClientTypeFilterChange = () => {},
+    dateRange,
+    onDateRangeChange = () => {},
   } = props;
 
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
@@ -125,61 +158,309 @@ export default function OrdersTable(props: OrdersTableProps) {
               type="text"
               placeholder="Search orders..."
               value={searchTerm}
-              onChange={(e) => onSearch(e.target.value)}
-              className="pl-9 w-full bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]"
+              onChange={(e) => {
+                // Apply the search immediately for instant feedback
+                onSearch(e.target.value);
+              }}
+              className={cn(
+                "pl-9 pr-8 w-full bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]",
+                searchTerm && "pr-8" // Add padding for the clear button
+              )}
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onFilter}
-            className={cn(
-              "border-[hsl(var(--table-border))]",
-              showFilters && "bg-accent text-accent-foreground"
+
+            {/* Clear search button */}
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => onSearch("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
-            title="Filter Orders"
-          >
-            <Filter className="h-4 w-4" />
-          </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onExport}
-            className="border-[hsl(var(--table-border))]"
-            title="Export Orders"
-          >
-            <Download className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+          {/* Status Quick Filter */}
+          <div className="relative">
+            <Select
+              value={selectedStatus.length === 0 ? "all" : selectedStatus.length === 1 ? selectedStatus[0] : "multiple"}
+              onValueChange={(value) => {
+                if (value === "all") {
+                  onStatusFilterChange([]);
+                } else {
+                  onStatusFilterChange([value as OrderStatus]);
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 px-3 py-2 w-[130px] bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Status" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="ready">Ready</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedStatus.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
+              >
+                {selectedStatus.length}
+              </Badge>
+            )}
+          </div>
 
+          {/* Payment Status Quick Filter */}
+          <div className="relative">
+            <Select
+              value={selectedPaymentStatus.length === 0 ? "all" : selectedPaymentStatus.length === 1 ? selectedPaymentStatus[0] : "multiple"}
+              onValueChange={(value) => {
+                if (value === "all") {
+                  onPaymentStatusFilterChange([]);
+                } else {
+                  onPaymentStatusFilterChange([value as PaymentStatus]);
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 px-3 py-2 w-[130px] bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Payment" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Payments</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedPaymentStatus.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
+              >
+                {selectedPaymentStatus.length}
+              </Badge>
+            )}
+          </div>
+
+          {/* Client Type Quick Filter */}
+          <div className="relative">
+            <Select
+              value={selectedClientType.length === 0 ? "all" : selectedClientType.length === 1 ? selectedClientType[0] : "multiple"}
+              onValueChange={(value) => {
+                if (value === "all") {
+                  onClientTypeFilterChange([]);
+                } else {
+                  onClientTypeFilterChange([value as ClientType]);
+                }
+              }}
+            >
+              <SelectTrigger className="h-9 px-3 py-2 w-[130px] bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Client Type" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Clients</SelectItem>
+                <SelectItem value="regular">Regular</SelectItem>
+                <SelectItem value="contract">Contract</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedClientType.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
+              >
+                {selectedClientType.length}
+              </Badge>
+            )}
+          </div>
+
+          {/* Date Range Quick Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 px-3 py-2 bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]",
+                  dateRange && "text-foreground"
+                )}
+              >
+                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd")
+                  )
+                ) : (
+                  <span>Date Range</span>
+                )}
+                {dateRange && (
+                  <span
+                    className="ml-1 cursor-pointer text-muted-foreground hover:text-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDateRangeChange(undefined);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={onDateRangeChange}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Keep the Refresh Button */}
           <LoadingButton
             variant="outline"
             size="icon"
             onClick={onLoadMore}
-            className="border-[hsl(var(--table-border))]"
+            className="h-9 w-9 border-[hsl(var(--table-border))] bg-[hsl(var(--table-search-bg))]"
             isLoading={loading}
             loadingText=""
             title="Refresh Orders"
           >
             <RefreshCw className="h-4 w-4" />
           </LoadingButton>
-
-          {userRole !== 'employee' && onCreateOrder && (
-            <LoadingButton
-              onClick={onCreateOrder}
-              className="gap-1 bg-orange-500 hover:bg-orange-600 text-white"
-              isLoading={false}
-              loadingText="Creating..."
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">New Order</span>
-            </LoadingButton>
-          )}
         </div>
       </div>
+
+      {/* Active filters indicator */}
+      {(searchTerm || selectedStatus.length > 0 || selectedPaymentStatus.length > 0 || selectedClientType.length > 0 || dateRange) && (
+        <div className="px-4 py-2 border-b border-[hsl(var(--table-border))] bg-[hsl(var(--table-search-bg))] flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Search term indicator */}
+            {searchTerm && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Search: <span className="font-medium text-foreground">"{searchTerm}"</span>
+                </span>
+              </div>
+            )}
+
+            {/* Status filter indicator */}
+            {selectedStatus.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">Status:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {selectedStatus.map(status => (
+                    <Badge key={status} variant="outline" className="text-xs">
+                      {status.replace('_', ' ')}
+                      <span
+                        className="ml-1 hover:text-foreground cursor-pointer"
+                        onClick={() => onStatusFilterChange(selectedStatus.filter(s => s !== status))}
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Payment status filter indicator */}
+            {selectedPaymentStatus.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">Payment:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {selectedPaymentStatus.map(status => (
+                    <Badge key={status} variant="outline" className="text-xs">
+                      {status.replace('_', ' ')}
+                      <span
+                        className="ml-1 hover:text-foreground cursor-pointer"
+                        onClick={() => onPaymentStatusFilterChange(selectedPaymentStatus.filter(s => s !== status))}
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Client type filter indicator */}
+            {selectedClientType.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">Client:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {selectedClientType.map(type => (
+                    <Badge key={type} variant="outline" className="text-xs">
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      <span
+                        className="ml-1 hover:text-foreground cursor-pointer"
+                        onClick={() => onClientTypeFilterChange(selectedClientType.filter(t => t !== type))}
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Date range filter indicator */}
+            {dateRange && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">Date:</span>
+                <Badge variant="outline" className="text-xs">
+                  {format(dateRange.from, "MMM dd, yyyy")}
+                  {dateRange.to && ` - ${format(dateRange.to, "MMM dd, yyyy")}`}
+                  <span
+                    className="ml-1 hover:text-foreground cursor-pointer"
+                    onClick={() => onDateRangeChange(undefined)}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                </Badge>
+              </div>
+            )}
+
+            <Badge variant="outline" className="ml-2">
+              {orders.length} {orders.length === 1 ? 'result' : 'results'}
+            </Badge>
+          </div>
+
+          {/* Clear all filters button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onSearch("");
+              onStatusFilterChange([]);
+              onPaymentStatusFilterChange([]);
+              onClientTypeFilterChange([]);
+              onDateRangeChange(undefined);
+            }}
+            className="h-8 px-2 text-xs"
+          >
+            Clear all filters
+          </Button>
+        </div>
+      )}
 
       {/* Table Container - This is the scrollable area */}
       <div
@@ -325,13 +606,18 @@ export default function OrdersTable(props: OrdersTableProps) {
       <div className="border-t border-table-border py-5 px-5 bg-gray-950 flex-shrink-0 rounded-b-md">
         {/* Always show pagination when there's at least one record */}
         {(sortedOrders && sortedOrders.length > 0) && (
-          <TablePagination
-            currentPage={currentPage || 1}
-            totalPages={Math.max(1, totalPages || 1)}
-            totalCount={totalCount}
-            onPageChange={onPageChange || (() => {})}
-            className="py-2"
-          />
+          <>
+
+            <TablePagination
+              currentPage={currentPage || 1}
+              totalPages={Math.max(1, totalPages || 1)}
+              totalCount={totalCount || orders.length}
+              pageSize={10} // Explicitly set page size to 10 for UI display
+              onPageChange={onPageChange || (() => {})}
+              className="py-2"
+              isLoading={loading}
+            />
+          </>
         )}
       </div>
     </div>

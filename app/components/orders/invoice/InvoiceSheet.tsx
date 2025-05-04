@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useOrdersPage } from '@/app/dashboard/orders/_context/OrdersPageContext';
+import { useOrdersPage } from '@/app/dashboard/orders/_context';
 import { useForm } from 'react-hook-form';
 import { useInvoiceSettings } from './hooks/useInvoiceSettings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';

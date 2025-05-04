@@ -1,4 +1,5 @@
 'use client';
+// Updated with optimized data fetching - 60 minute refresh interval
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -32,8 +33,8 @@ interface DropdownCacheContextValue {
 // Create the context
 const DropdownCacheContext = createContext<DropdownCacheContextValue | undefined>(undefined);
 
-// Cache expiration time (30 minutes)
-const CACHE_EXPIRATION = 30 * 60 * 1000;
+// Cache expiration time (60 minutes - increased to reduce API calls)
+const CACHE_EXPIRATION = 60 * 60 * 1000; // 60 minutes
 
 // Helper function to transform data to options
 function transformDataToOptions(data: any[]): SmartComboboxOption[] {
@@ -658,11 +659,11 @@ export function DropdownCacheProvider({ children }: { children: React.ReactNode 
       prefetchData();
     }, 800); // Increased delay to ensure component is fully mounted
 
-    // Set up a refresh interval (every 30 minutes)
+    // Set up a refresh interval (every 60 minutes - using CACHE_EXPIRATION)
     const intervalId = setInterval(() => {
-      console.log('[DropdownCache] Refreshing cache...');
+      console.log('[DropdownCache] Refreshing cache every 60 minutes...');
       prefetchData();
-    }, CACHE_EXPIRATION);
+    }, CACHE_EXPIRATION); // 60 minutes
 
     return () => {
       // Clean up all timeouts on unmount

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../../components/ui/button';
 import OrdersTable from '@/components/orders/OrdersTableNew';
 import FilterDrawer, { OrderFilters as FilterTypes } from '../../../components/orders/FilterDrawer';
-import { useOrdersPage } from '../_context/OrdersPageContext';
+import { useOrdersPage } from '../_context';
 import { useLoading } from '@/components/loading';
 import { useOrders } from '@/hooks/useData';
 import { OrdersTableSkeleton } from '@/components/ui/loading-states';
@@ -26,11 +26,23 @@ const OrdersTab: React.FC = () => {
     searchTerm,
     toggleFilters,
 
+    // Quick filters
+    selectedStatus,
+    selectedPaymentStatus,
+    selectedClientType,
+    dateRange,
+    handleStatusFilterChange,
+    handlePaymentStatusFilterChange,
+    handleClientTypeFilterChange,
+    handleDateRangeChange,
+
     // Pagination
     paginatedOrders,
     filteredOrders,
     currentPage,
     totalPages,
+    totalCount, // Get totalCount from context
+    rawTotalCount, // Get raw total count for debugging
     handlePageChange,
 
     // Loading
@@ -50,7 +62,12 @@ const OrdersTab: React.FC = () => {
   } = useOrdersPage();
 
   // Use our consolidated data hook with loading state management
-  const { isLoading: ordersLoading, orders: directOrders, isValidating, mutate: refreshDirectOrders } = useOrders(undefined, undefined, {
+  const {
+    isLoading: ordersLoading,
+    orders: directOrders,
+    isValidating,
+    mutate: refreshDirectOrders
+  } = useOrders(undefined, undefined, {
     ...createSWRConfig('list', {
       // Disable revalidation on focus to reduce API calls
       revalidateOnFocus: false,
@@ -63,7 +80,6 @@ const OrdersTab: React.FC = () => {
 
   // Function to force refresh the orders data
   const forceRefreshOrders = useCallback(() => {
-    console.log('OrdersTab - Force refreshing orders data');
     // Refresh the direct orders data
     refreshDirectOrders();
     // Also refresh the orders data in the context
@@ -108,57 +124,59 @@ const OrdersTab: React.FC = () => {
     }
   }, [isInitialLoading, dataAttempted, hasAnyData]);
 
-  // Log the data state for debugging
+  // Check if we need to force a refresh
   React.useEffect(() => {
-    console.log('OrdersTab - Data state:', {
-      directOrders: directOrders?.length || 0,
-      directOrdersData: directOrders ? directOrders.slice(0, 2) : null, // Log first 2 orders for debugging
-      paginatedOrders: paginatedOrders?.length || 0,
-      filteredOrders: filteredOrders?.length || 0,
-      hasData: !!directOrders && directOrders.length > 0,
-      isInitialLoading,
-      isValidating
-    });
-
-    // If we have direct orders but no filtered/paginated orders, force a refresh
+    // If we have direct orders but no server-side orders, force a refresh
     if (directOrders && directOrders.length > 0 &&
-        (!filteredOrders || filteredOrders.length === 0) &&
         (!paginatedOrders || paginatedOrders.length === 0)) {
-      console.log('OrdersTab - Forcing refresh because we have direct orders but no filtered/paginated orders');
       handleLoadMore(false); // Don't show toast
     }
-  }, [directOrders, paginatedOrders, filteredOrders, isInitialLoading, isValidating, handleLoadMore]);
+  }, [directOrders, paginatedOrders, handleLoadMore]);
 
   // Directly use the orders data if available, even if not authenticated
   React.useEffect(() => {
-    if (directOrders && directOrders.length > 0) {
-      console.log('OrdersTab - Using direct orders data:', directOrders.length);
-    }
+    // Data availability check (debug logs removed)
   }, [directOrders]);
 
   // Set up an interval to periodically refresh the orders data
   React.useEffect(() => {
-    // Refresh the orders data every 2 minutes
+    // Refresh the orders data every 30 minutes to reduce API calls
+    const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
     const intervalId = setInterval(() => {
-      console.log('OrdersTab - Auto-refreshing orders data');
+      console.log('OrdersTab - Auto-refreshing orders data after 30 minutes');
       // Only refresh if the document is visible
       if (document.visibilityState === 'visible') {
         forceRefreshOrders();
       } else {
         console.log('OrdersTab - Skipping refresh because document is not visible');
       }
-    }, 120000); // 2 minutes - increased to reduce API calls
+    }, REFRESH_INTERVAL);
 
     // Clean up the interval when the component unmounts
     return () => clearInterval(intervalId);
   }, [forceRefreshOrders]);
 
   // Listen for visibility changes to refresh data when the tab becomes visible
+  // but only if it's been a significant amount of time since the last refresh
   React.useEffect(() => {
+    // Track the last refresh time
+    let lastRefreshTime = Date.now();
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('OrdersTab - Tab became visible, refreshing orders data');
-        forceRefreshOrders();
+        // Only refresh if it's been at least 10 minutes since the last refresh
+        const now = Date.now();
+        const timeSinceLastRefresh = now - lastRefreshTime;
+        const MIN_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+        if (timeSinceLastRefresh > MIN_REFRESH_INTERVAL) {
+          console.log('OrdersTab - Tab became visible after 10+ minutes, refreshing orders data');
+          forceRefreshOrders();
+          lastRefreshTime = now;
+        } else {
+          console.log('OrdersTab - Tab became visible, but skipping refresh (last refresh was too recent)');
+        }
       }
     };
 
@@ -204,8 +222,8 @@ const OrdersTab: React.FC = () => {
             )}
 
             <OrdersTable
-              orders={paginatedOrders && paginatedOrders.length > 0 ? paginatedOrders : directOrders || []}
-              totalCount={(filteredOrders && filteredOrders.length > 0) ? filteredOrders.length : (directOrders?.length || 0)}
+              orders={paginatedOrders || directOrders || []}
+              totalCount={totalCount || 0} // Use totalCount from context
               userRole={userRole}
               onView={handleViewOrder}
               onEdit={handleViewOrder} /* Use view handler instead of edit handler */
@@ -214,7 +232,7 @@ const OrdersTab: React.FC = () => {
               onInvoice={handleGenerateInvoice}
               onStatusChange={handleOrderStatusChange}
               onLoadMore={forceRefreshOrders} // Use forceRefreshOrders instead of handleLoadMore
-              loading={isInitialLoading} // Only pass loading=true during initial load
+              loading={loading || isInitialLoading} // Pass loading state from context
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -223,17 +241,22 @@ const OrdersTab: React.FC = () => {
               onExport={() => console.log('Export')}
               onCreateOrder={handleCreateOrder}
               searchTerm={searchTerm}
+
+              // Quick filters
+              selectedStatus={selectedStatus}
+              onStatusFilterChange={handleStatusFilterChange}
+              selectedPaymentStatus={selectedPaymentStatus}
+              onPaymentStatusFilterChange={handlePaymentStatusFilterChange}
+              selectedClientType={selectedClientType}
+              onClientTypeFilterChange={handleClientTypeFilterChange}
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
               showFilters={showFilters}
             />
           </>
         )}
 
-        {/* Development mode indicator */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="fixed bottom-20 right-4 bg-yellow-500/80 text-black px-3 py-1 rounded-md text-xs font-medium">
-            Dev Mode - No Auth Required
-          </div>
-        )}
+
       </div>
     </div>
   );

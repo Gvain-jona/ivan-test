@@ -1,13 +1,14 @@
 'use client';
 
 import useSWR from 'swr';
+// Updated with optimized data fetching - 30 minute refresh interval
 import { dataService } from '@/lib/supabase';
 
 // API endpoints (these would be real API endpoints in a production app)
 const API_ENDPOINTS = {
   ORDERS: '/api/orders',
   EXPENSES: '/api/expenses',
-  MATERIALS: '/api/materials',
+  MATERIALS: '/api/material-purchases',
   TASKS: '/api/tasks',
   DASHBOARD: '/api/dashboard',
 };
@@ -30,12 +31,14 @@ export function useOrders() {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS.ORDERS,
     () => fetchers.orders(),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     orders: data,
     isLoading,
@@ -48,12 +51,14 @@ export function useOrder(id: string) {
   const { data, error, isLoading, mutate } = useSWR(
     id ? `${API_ENDPOINTS.ORDERS}/${id}` : null,
     () => fetchers.order(id),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 15 * 60 * 1000, // 15 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     order: data,
     isLoading,
@@ -66,12 +71,14 @@ export function useExpenses() {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS.EXPENSES,
     () => fetchers.expenses(),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     expenses: data,
     isLoading,
@@ -84,12 +91,14 @@ export function useExpense(id: string) {
   const { data, error, isLoading, mutate } = useSWR(
     id ? `${API_ENDPOINTS.EXPENSES}/${id}` : null,
     () => fetchers.expense(id),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 15 * 60 * 1000, // 15 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     expense: data,
     isLoading,
@@ -102,12 +111,14 @@ export function useMaterials() {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS.MATERIALS,
     () => fetchers.materials(),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     materials: data,
     isLoading,
@@ -120,12 +131,14 @@ export function useMaterial(id: string) {
   const { data, error, isLoading, mutate } = useSWR(
     id ? `${API_ENDPOINTS.MATERIALS}/${id}` : null,
     () => fetchers.material(id),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 15 * 60 * 1000, // 15 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     material: data,
     isLoading,
@@ -138,12 +151,14 @@ export function useTasks() {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS.TASKS,
     () => fetchers.tasks(),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     tasks: data,
     isLoading,
@@ -156,12 +171,14 @@ export function useTask(id: string) {
   const { data, error, isLoading, mutate } = useSWR(
     id ? `${API_ENDPOINTS.TASKS}/${id}` : null,
     () => fetchers.task(id),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 60000, // 1 minute
+      dedupingInterval: 15 * 60 * 1000, // 15 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     task: data,
     isLoading,
@@ -174,12 +191,14 @@ export function useDashboardStats() {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS.DASHBOARD,
     () => fetchers.dashboardStats(),
-    { 
+    {
       revalidateOnFocus: false,
-      dedupingInterval: 300000, // 5 minutes
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes (increased to reduce API calls)
+      revalidateIfStale: false, // Don't automatically revalidate stale data
+      keepPreviousData: true, // Keep previous data while fetching new data
     }
   );
-  
+
   return {
     stats: data,
     isLoading,

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import {
@@ -177,10 +177,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Trigger data prefetch as early as possible
           triggerPrefetch();
 
-          // Get the redirect path and navigate
-          const searchParams = new URLSearchParams(window.location.search)
-          const redirect = getRedirectPath(searchParams)
-          router.push(redirect)
+          // Only redirect if this is a new sign-in, not a token refresh
+          if (event === 'SIGNED_IN') {
+            // Get the redirect path and navigate
+            const searchParams = new URLSearchParams(window.location.search)
+            const redirect = getRedirectPath(searchParams)
+            router.push(redirect)
+          } else {
+            // For token refresh, don't navigate - stay on current page
+            console.log('Token refreshed, maintaining current route')
+            console.log('Current pathname:', window.location.pathname)
+
+            // Set a header for future requests to indicate token refresh
+            // This will help middleware identify token refresh requests
+            const tokenRefreshHeader = { 'x-token-refresh': 'true' };
+
+            // Apply this header to the Supabase client for future requests
+            supabase.realtime.setAuth(session.access_token, tokenRefreshHeader);
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out, cleaning up...')
@@ -229,16 +243,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // In development mode, create a mock user and profile
           console.log('No user found, but in development mode - creating mock user')
 
-          // Create a mock user
+          // Create a mock user with a valid UUID
+          const mockUserId = '00000000-0000-0000-0000-000000000000'; // Valid UUID format
           const mockUser = {
-            id: 'dev-user-id',
+            id: mockUserId,
             email: 'dev@example.com',
             user_metadata: { full_name: 'Development User' }
           } as User;
 
-          // Create a mock profile
+          // Create a mock profile with the same valid UUID
           const mockProfile = {
-            id: 'dev-user-id',
+            id: mockUserId,
             email: 'dev@example.com',
             full_name: 'Development User',
             role: 'admin',
@@ -344,10 +359,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('Signing out user:', { 
-        id: user?.id, 
-        email: user?.email, 
-        provider: user?.app_metadata?.provider 
+      console.log('Signing out user:', {
+        id: user?.id,
+        email: user?.email,
+        provider: user?.app_metadata?.provider
       });
 
       // Clear profile state first
@@ -371,8 +386,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (error) {
       console.error('Sign out error:', error);
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error instanceof Error ? error.message : 'Failed to sign out'
       };
     }
@@ -393,7 +408,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     user,
     profile,
     isLoading,
@@ -406,7 +422,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isStaff,
     checkSupabaseHealth,
     refreshProfile: user ? () => fetchProfileWithRetry(user) : undefined
-  }
+  }), [
+    user,
+    profile,
+    isLoading,
+    profileError,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    isAdmin,
+    isManager,
+    isStaff,
+    checkSupabaseHealth,
+    // We don't include fetchProfileWithRetry in the dependency array
+    // because it would cause unnecessary re-renders
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

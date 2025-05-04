@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useOrdersPage } from '../_context/OrdersPageContext';
+import { useOrdersPage } from '../_context';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
 import PendingInvoicesPanel from './PendingInvoicesPanel';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -226,29 +226,29 @@ const InsightsTab: React.FC = () => {
     // Initialize data structure with zeros
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const values = [0, 0, 0, 0, 0, 0, 0];
-    
+
     // Get current date and start of week
     const now = new Date();
     const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ...
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Start from Monday
-    
+
     // Count orders by day of week
     filteredOrders.forEach(order => {
       if (!order.date) return;
-      
+
       const orderDate = new Date(order.date);
       const dayDiff = Math.floor((orderDate.getTime() - startOfWeek.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       // Only count orders from current week
       if (dayDiff >= 0 && dayDiff < 7) {
         values[dayDiff]++;
       }
     });
-    
+
     // Calculate average
     const average = values.reduce((sum, val) => sum + val, 0) / values.length;
-    
+
     return {
       days,
       values,
@@ -269,7 +269,7 @@ const InsightsTab: React.FC = () => {
             onOpenChange={setIsPanelOpen}
             pendingInvoices={pendingInvoices}
           />
-          
+
           {/* Order Analytics Card */}
           <OrderAnalyticsCard
             title="Order Analytics"

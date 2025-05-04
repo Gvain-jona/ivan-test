@@ -32,16 +32,21 @@ function Calendar({
     ),
     weekday: "size-9 p-0 text-xs font-medium text-muted-foreground/80",
     day_button:
-      "relative flex size-9 items-center justify-center whitespace-nowrap rounded-lg p-0 text-foreground outline-offset-2 group-[[data-selected]:not(.range-middle)]:[transition-property:color,background-color,border-radius,box-shadow] group-[[data-selected]:not(.range-middle)]:duration-150 focus:outline-none group-data-[disabled]:pointer-events-none focus-visible:z-10 hover:bg-accent group-data-[selected]:bg-primary hover:text-foreground group-data-[selected]:text-primary-foreground group-data-[disabled]:text-foreground/30 group-data-[disabled]:line-through group-data-[outside]:text-foreground/30 group-data-[outside]:group-data-[selected]:text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 group-[.range-start:not(.range-end)]:rounded-e-none group-[.range-end:not(.range-start)]:rounded-s-none group-[.range-middle]:rounded-none group-data-[selected]:group-[.range-middle]:bg-accent group-data-[selected]:group-[.range-middle]:text-foreground",
+      "relative flex size-9 items-center justify-center whitespace-nowrap rounded-lg p-0 text-foreground outline-offset-2 group-[[data-selected]:not(.range-middle)]:[transition-property:color,background-color,border-radius,box-shadow] group-[[data-selected]:not(.range-middle)]:duration-150 focus:outline-none group-data-[disabled]:pointer-events-none focus-visible:z-10 hover:bg-muted group-data-[selected]:bg-foreground hover:text-foreground group-data-[selected]:text-background group-data-[disabled]:text-foreground/30 group-data-[disabled]:line-through group-data-[outside]:text-foreground/30 group-data-[outside]:group-data-[selected]:text-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 group-[.range-start:not(.range-end)]:rounded-e-none group-[.range-end:not(.range-start)]:rounded-s-none group-[.range-middle]:rounded-none group-data-[selected]:group-[.range-middle]:bg-muted group-data-[selected]:group-[.range-middle]:text-foreground",
     day: "group size-9 px-0 text-sm",
     range_start: "range-start",
     range_end: "range-end",
     range_middle: "range-middle",
     today:
-      "*:after:pointer-events-none *:after:absolute *:after:bottom-1 *:after:start-1/2 *:after:z-10 *:after:size-[3px] *:after:-translate-x-1/2 *:after:rounded-full *:after:bg-primary [&[data-selected]:not(.range-middle)>*]:after:bg-background [&[data-disabled]>*]:after:bg-foreground/30 *:after:transition-colors",
-    outside: "text-muted-foreground data-selected:bg-accent/50 data-selected:text-muted-foreground",
+      "*:after:pointer-events-none *:after:absolute *:after:bottom-1 *:after:start-1/2 *:after:z-10 *:after:size-[3px] *:after:-translate-x-1/2 *:after:rounded-full *:after:bg-foreground [&[data-selected]:not(.range-middle)>*]:after:bg-background [&[data-disabled]>*]:after:bg-foreground/30 *:after:transition-colors",
+    outside: "text-muted-foreground data-selected:bg-foreground/50 data-selected:text-background",
     hidden: "invisible",
     week_number: "size-9 p-0 text-xs font-medium text-muted-foreground/80",
+    table: "border-collapse border-spacing-0 w-full table-fixed",
+    head_row: "flex w-full justify-between",
+    row: "flex w-full justify-between mt-2",
+    head: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] text-center",
+    cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 w-9 h-9",
   };
 
   const mergedClassNames: typeof defaultClassNames = Object.keys(defaultClassNames).reduce(
@@ -72,13 +77,17 @@ function Calendar({
   };
 
   return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn("w-fit", className)}
-      classNames={mergedClassNames}
-      components={mergedComponents}
-      {...props}
-    />
+    <div className="rdp-root">
+      <DayPicker
+        showOutsideDays={showOutsideDays}
+        className={cn("w-full", className)}
+        classNames={mergedClassNames}
+        components={mergedComponents}
+        captionLayout="dropdown-buttons"
+        fixedWeeks
+        {...props}
+      />
+    </div>
   );
 }
 Calendar.displayName = "Calendar";

@@ -4,6 +4,7 @@ import React from 'react';
 import { Skeleton } from "../../components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
 import { Package, Users, CheckSquare, DollarSign } from "lucide-react";
+import { UpcomingExpenses } from './_components/UpcomingExpenses';
 
 /**
  * A simplified home page that loads quickly without complex data fetching
@@ -13,7 +14,7 @@ export default function SimpleHomePage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       <p className="text-muted-foreground">Welcome to your business management dashboard.</p>
-      
+
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-transparent border-border/40 hover:bg-muted/10 transition-all duration-200 cursor-pointer rounded-xl">
@@ -68,7 +69,7 @@ export default function SimpleHomePage() {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Content Placeholder */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
@@ -79,17 +80,12 @@ export default function SimpleHomePage() {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold tracking-tight">Upcoming Tasks</h2>
-          <Card className="bg-transparent border-border/40">
-            <CardContent className="p-6">
-              <p className="text-muted-foreground">Loading upcoming tasks...</p>
-            </CardContent>
-          </Card>
+          <UpcomingExpenses />
         </div>
       </div>
-      
+
       <div className="text-center text-muted-foreground mt-8">
         <p>Loading full dashboard content...</p>
       </div>

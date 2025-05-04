@@ -1,4 +1,5 @@
 'use client';
+// Updated with optimized data fetching - 30 minute refresh interval
 
 import { useState, useCallback, useMemo } from 'react';
 import useSWR from 'swr';
@@ -57,6 +58,13 @@ async function fetchOrdersFromSupabase(
 
     // Calculate offset
     const offset = (pagination.page - 1) * pagination.pageSize;
+
+    console.log('Fetching orders with pagination:', {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      offset,
+      filters
+    });
 
     // Start building the query - don't use joins since we've denormalized the data
     let query = supabase
@@ -139,6 +147,16 @@ async function fetchOrdersFromSupabase(
     const maxPage = Math.max(1, Math.ceil(totalCount / pagination.pageSize));
     const safePage = Math.min(pagination.page, maxPage);
     const safeOffset = (safePage - 1) * pagination.pageSize;
+
+    console.log('Applying pagination with safe values:', {
+      totalCount,
+      pageSize: pagination.pageSize,
+      requestedPage: pagination.page,
+      maxPage,
+      safePage,
+      safeOffset,
+      range: [safeOffset, safeOffset + pagination.pageSize - 1]
+    });
 
     // Apply pagination with safe values
     query = query.range(safeOffset, safeOffset + pagination.pageSize - 1);
@@ -259,11 +277,11 @@ export function useOrdersData(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 5000, // 5 seconds - reduced for better responsiveness
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes (increased to reduce API calls)
       keepPreviousData: true, // Keep previous data while fetching new data
       refreshInterval: 0, // Disable auto refresh - we'll handle it manually
       errorRetryCount: 1, // Limit retries to reduce loading states
-      loadingTimeout: 2000, // 2 seconds - reduced for better UX
+      loadingTimeout: 5000, // 5 seconds - increased for better reliability
       suspense: false, // Don't use suspense to avoid unnecessary loading states
       revalidateIfStale: false, // Don't revalidate stale data automatically
       revalidateOnMount: true, // Always fetch on mount
@@ -395,12 +413,16 @@ export function useOrdersData(
   console.log('useOrdersData - Data state:', {
     hasData,
     ordersCount: hasData ? data.orders.length : 0,
+    totalCount: hasData ? data.totalCount : 0,
+    pageCount: hasData ? data.pageCount : 0,
     sampleData: hasData && data.orders.length > 0 ? data.orders.slice(0, 2) : null, // Log first 2 orders
     isLoading,
     isValidating,
     error: error ? `Error fetching data: ${error.message || 'Unknown error'}` : null,
     filters,
-    pagination
+    pagination,
+    currentPage: pagination.page,
+    pageSize: pagination.pageSize
   });
 
   return {

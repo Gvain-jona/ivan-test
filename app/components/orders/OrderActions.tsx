@@ -1,29 +1,20 @@
 import React, { useState } from 'react';
 import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from './CustomDropdown';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
-  Edit, Eye, Trash2, Copy, FileText, MoreVertical, AlertTriangle
+  Edit, Eye, Trash2, Copy, FileText, MoreVertical
 } from 'lucide-react';
 import { Order, OrderStatus } from '@/types/orders';
 import { cn } from '@/lib/utils';
 import InvoiceButtonWrapper from '@/app/dashboard/orders/_components/InvoiceSystem';
+import { OrderDeleteConfirmation } from './OrderDeleteConfirmation';
 
 interface OrderActionsProps {
   order: Order;
   userRole: 'admin' | 'manager' | 'employee';
   onView: (order: Order) => void;
   onEdit: (order: Order) => void;
-  onDelete: (order: Order) => void;
+  onDelete: (order: Order) => Promise<boolean>;
   onDuplicate: (order: Order) => void;
   onInvoice: (order: Order) => void;
   onStatusChange: (order: Order, status: OrderStatus) => void;
@@ -113,6 +104,8 @@ function OrderActions(props: OrderActionsProps) {
 
       // Open the confirmation dialog after a short delay
       setTimeout(() => {
+        // Reset loading state when opening the dialog
+        setDeleteLoading(false);
         setDeleteDialogOpen(true);
 
         // Reset processing flag after a delay
@@ -126,9 +119,18 @@ function OrderActions(props: OrderActionsProps) {
     }, 50);
   };
 
+  // State for loading during delete
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Handle confirmed delete
-  const handleConfirmedDelete = () => {
-    onDelete(order);
+  const handleConfirmedDelete = async () => {
+    setDeleteLoading(true);
+    try {
+      await onDelete(order);
+    } finally {
+      setDeleteLoading(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   return (
@@ -219,36 +221,13 @@ function OrderActions(props: OrderActionsProps) {
       </CustomDropdown>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-background border-table-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-status-cancelled" />
-              Confirm Deletion
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this order? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={(e) => e.stopPropagation()}
-              className="border-table-border bg-background text-white hover:bg-table-hover"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.stopPropagation();
-                handleConfirmedDelete();
-              }}
-              className="bg-status-cancelled text-white hover:bg-status-cancelled/80"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <OrderDeleteConfirmation
+        order={order}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleConfirmedDelete}
+        loading={deleteLoading}
+      />
     </>
   );
 }

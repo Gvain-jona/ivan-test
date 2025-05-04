@@ -1,4 +1,5 @@
 'use client';
+// Updated with optimized data fetching - 30 minute refresh interval to reduce API calls
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -315,11 +316,17 @@ export const useRealNotifications = () => {
       // Initial fetch
       fetchNotifications();
 
-      // Set up polling for notifications every 30 seconds
+      // Set up polling for notifications every 30 minutes
+      const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes - increased to reduce API calls
       const intervalId = setInterval(() => {
-        console.log('Polling for notifications...');
-        fetchNotifications();
-      }, 30000); // 30 seconds
+        console.log('Polling for notifications every 30 minutes...');
+        // Only refresh if the document is visible
+        if (document.visibilityState === 'visible') {
+          fetchNotifications();
+        } else {
+          console.log('Skipping notification refresh because document is not visible');
+        }
+      }, REFRESH_INTERVAL);
 
       // Clean up interval on unmount
       return () => clearInterval(intervalId);

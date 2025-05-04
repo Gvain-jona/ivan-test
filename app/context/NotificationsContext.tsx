@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { format, subDays } from 'date-fns';
 
@@ -388,28 +388,47 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     }
   }, [markAsRead]);
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    notifications,
+    unreadCount,
+    isDrawerOpen,
+    openDrawer,
+    closeDrawer,
+    activeTab,
+    setActiveTab,
+    loading,
+    error,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    archiveNotification,
+    deleteNotification,
+    deleteAllArchived,
+    groupNotificationsByDate,
+    handleNotificationAction,
+  }), [
+    notifications,
+    unreadCount,
+    isDrawerOpen,
+    openDrawer,
+    closeDrawer,
+    activeTab,
+    setActiveTab,
+    loading,
+    error,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    archiveNotification,
+    deleteNotification,
+    deleteAllArchived,
+    groupNotificationsByDate,
+    handleNotificationAction,
+  ]);
+
   return (
-    <NotificationsContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        isDrawerOpen,
-        openDrawer,
-        closeDrawer,
-        activeTab,
-        setActiveTab,
-        loading,
-        error,
-        fetchNotifications,
-        markAsRead,
-        markAllAsRead,
-        archiveNotification,
-        deleteNotification,
-        deleteAllArchived,
-        groupNotificationsByDate,
-        handleNotificationAction,
-      }}
-    >
+    <NotificationsContext.Provider value={contextValue}>
       {children}
     </NotificationsContext.Provider>
   );

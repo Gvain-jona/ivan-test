@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const next = searchParams.get('next') || '/dashboard/orders'
 
     // Create Supabase client
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Validate required parameters
     if (!token_hash || !type) {
@@ -42,9 +42,10 @@ export async function GET(request: NextRequest) {
     // Log all available auth cookies for debugging
     const cookieStore = await cookies()
     const allAuthCookies = getAllAuthCookieNames()
-    const availableCookies = cookieStore.getAll().map((c: any) => c.name)
+    const availableCookies = await cookieStore.getAll()
+    const cookieNames = availableCookies.map((c: any) => c.name)
     console.log('All auth cookies:', allAuthCookies)
-    console.log('Available cookies:', availableCookies)
+    console.log('Available cookies:', cookieNames)
 
     // Verify the OTP
     const { error } = await supabase.auth.verifyOtp({

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
-import { Package, DollarSign, BarChart3 } from "lucide-react";
+import { Package, DollarSign } from "lucide-react";
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
 import OrderFormSheet from '../../components/orders/OrderFormSheet';
 import { InvoiceSheet } from '@/app/features/invoices';
@@ -13,10 +13,10 @@ import OrdersPageHeader from './_components/OrdersPageHeader';
 import OrderMetricsCards from './_components/OrderMetricsCards';
 import OrdersTab from './_components/OrdersTab';
 import InvoicesTab from './_components/InvoicesTab';
-import InsightsTab from './_components/InsightsTab';
+
 
 // Import context provider
-import { OrdersPageProvider, useOrdersPage } from './_context/OrdersPageContext';
+import { OrdersPageProvider, useOrdersPage } from './_context';
 
 /**
  * Inner component that uses the context
@@ -49,7 +49,8 @@ const OrdersPageContent: React.FC = () => {
     stats,
 
     // Filtering
-    filterByStatus
+    filterByStatus,
+    filters
   } = useOrdersPage();
 
   return (
@@ -61,11 +62,12 @@ const OrdersPageContent: React.FC = () => {
         onCreateOrder={handleCreateOrder}
       />
 
-      {/* Metric Cards */}
+      {/* Metric Cards - Pass filters to ensure accurate metrics */}
       <OrderMetricsCards
         stats={stats}
         isLoading={initialLoading}
         onFilterByStatus={filterByStatus}
+        filters={filters}
       />
 
       {/* Tabs */}
@@ -75,29 +77,12 @@ const OrdersPageContent: React.FC = () => {
         className="space-y-5"
       >
         <div className="mb-5">
-          <TabsList className="bg-background/80 border border-border/60 rounded-lg p-2 w-full inline-flex gap-1.5 shadow-sm">
-            <TabsTrigger
-              value="insights"
-              className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
-            >
-              <BarChart3
-                className="-ms-0.5 me-1.5 opacity-60"
-                size={16}
-                strokeWidth={2}
-                aria-hidden="true"
-              />
-              Insights
-            </TabsTrigger>
+          <TabsList className="bg-transparent border border-border/40 rounded-lg p-1">
             <TabsTrigger
               value="orders"
-              className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
+              className="text-sm font-medium text-muted-foreground py-2 px-4 rounded-md data-[state=active]:bg-orange-500 data-[state=active]:text-white hover:bg-muted/10"
             >
-              <Package
-                className="-ms-0.5 me-1.5 opacity-60"
-                size={16}
-                strokeWidth={2}
-                aria-hidden="true"
-              />
+              <Package className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} />
               Orders
               <Badge
                 className="ms-1.5 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full transition-opacity group-data-[state=inactive]:opacity-50"
@@ -108,22 +93,13 @@ const OrdersPageContent: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger
               value="invoices"
-              className="text-sm font-medium text-muted-foreground py-2.5 px-5 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/20 group transition-all duration-200"
+              className="text-sm font-medium text-muted-foreground py-2 px-4 rounded-md data-[state=active]:bg-orange-500 data-[state=active]:text-white hover:bg-muted/10"
             >
-              <DollarSign
-                className="-ms-0.5 me-1.5 opacity-60"
-                size={16}
-                strokeWidth={2}
-                aria-hidden="true"
-              />
+              <DollarSign className="-ms-0.5 me-1.5 opacity-60" size={16} strokeWidth={2} />
               Invoices
             </TabsTrigger>
           </TabsList>
         </div>
-
-        <TabsContent value="insights" className="space-y-5 animate-in fade-in-50 duration-300">
-          <InsightsTab />
-        </TabsContent>
 
         <TabsContent value="orders" className="space-y-5 animate-in fade-in-50 duration-300">
           <OrdersTab />

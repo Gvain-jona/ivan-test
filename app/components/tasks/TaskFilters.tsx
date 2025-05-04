@@ -2,13 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@/components/ui/popover';
-import { 
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -56,7 +51,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
     assignedToMe: false,
     recurring: false,
   });
-  
+
   const [dateRange, setDateRange] = useState<{
     from?: Date;
     to?: Date;
@@ -64,33 +59,33 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
     from: undefined,
     to: undefined,
   });
-  
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchTerm);
     setFilters({ ...filters, search: searchTerm });
   };
-  
+
   const handleFilterChange = (newFilters: Partial<TaskFilters>) => {
     const updatedFilters = { ...filters, ...newFilters };
     setFilters(updatedFilters);
     onFilter(updatedFilters);
   };
-  
+
   const handleStatusChange = (status: TaskStatus) => {
     const statuses = filters.status.includes(status)
       ? filters.status.filter(s => s !== status)
       : [...filters.status, status];
     handleFilterChange({ status: statuses });
   };
-  
+
   const handlePriorityChange = (priority: TaskPriority) => {
     const priorities = filters.priority.includes(priority)
       ? filters.priority.filter(p => p !== priority)
       : [...filters.priority, priority];
     handleFilterChange({ priority: priorities });
   };
-  
+
   const handleDateChange = (range: { from?: Date; to?: Date }) => {
     setDateRange(range);
     handleFilterChange({
@@ -98,7 +93,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
       endDate: range.to?.toISOString().split('T')[0],
     });
   };
-  
+
   const handleResetFilters = () => {
     setSearchTerm('');
     setFilters({
@@ -113,7 +108,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
     setDateRange({ from: undefined, to: undefined });
     onReset();
   };
-  
+
   const getActiveFiltersCount = () => {
     let count = 0;
     if (filters.status.length) count++;
@@ -123,7 +118,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
     if (filters.recurring) count++;
     return count;
   };
-  
+
   return (
     <div className="space-y-4">
       <form onSubmit={handleSearchSubmit} className="flex gap-2">
@@ -137,17 +132,17 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
             className="pl-9 bg-gray-900 border-gray-800 focus-visible:ring-orange-600"
           />
         </div>
-        <Button 
+        <Button
           type="button"
-          variant="outline" 
+          variant="outline"
           className="border-gray-800 hover:bg-gray-800 hover:text-white"
           onClick={() => setFiltersVisible(!filtersVisible)}
         >
           <Filter className="h-4 w-4 mr-2" />
           Filters
           {getActiveFiltersCount() > 0 && (
-            <Badge 
-              variant="secondary" 
+            <Badge
+              variant="secondary"
               className="ml-2 bg-orange-600 text-white text-xs"
             >
               {getActiveFiltersCount()}
@@ -166,60 +161,33 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
           </Button>
         )}
       </form>
-      
+
       {filtersVisible && (
         <div className="bg-gray-900 border border-gray-800 rounded-md p-4 text-gray-100 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-medium">Filter Tasks</h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 w-8 p-0" 
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
               onClick={() => setFiltersVisible(false)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Date Range */}
             <div>
               <Label className="text-sm text-gray-400 mb-2 block">Due Date Range</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal border-gray-700 bg-gray-900 hover:bg-gray-800"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        <>
-                          {formatDate(dateRange.from.toISOString())} -{' '}
-                          {formatDate(dateRange.to.toISOString())}
-                        </>
-                      ) : (
-                        formatDate(dateRange.from.toISOString())
-                      )
-                    ) : (
-                      'Select date range'
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-gray-950 border-gray-800" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange.from}
-                    selected={dateRange}
-                    onSelect={handleDateChange}
-                    numberOfMonths={1}
-                    className="rounded-md border border-gray-800"
-                  />
-                </PopoverContent>
-              </Popover>
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={handleDateChange}
+                className="w-full border-gray-700 bg-gray-900 hover:bg-gray-800"
+                align="start"
+              />
             </div>
-            
+
             {/* Task Status */}
             <div>
               <Label className="text-sm text-gray-400 mb-2 block">Task Status</Label>
@@ -274,7 +242,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
                 </Button>
               </div>
             </div>
-            
+
             {/* Priority */}
             <div>
               <Label className="text-sm text-gray-400 mb-2 block">Priority</Label>
@@ -330,25 +298,25 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
               </div>
             </div>
           </div>
-          
+
           <Separator className="my-4 bg-gray-800" />
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
-              <Checkbox 
+              <Checkbox
                 checked={filters.assignedToMe}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
+                onCheckedChange={(checked: boolean | "indeterminate") =>
                   handleFilterChange({ assignedToMe: checked === true })}
               />
               <Label htmlFor="assignedToMe" className="text-sm">
                 Assigned to me
               </Label>
             </div>
-            
+
             <div className="flex items-center space-x-2">
-              <Checkbox 
+              <Checkbox
                 checked={filters.recurring}
-                onCheckedChange={(checked: boolean | "indeterminate") => 
+                onCheckedChange={(checked: boolean | "indeterminate") =>
                   handleFilterChange({ recurring: checked === true })}
               />
               <Label htmlFor="recurring" className="text-sm">
@@ -362,4 +330,4 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
   );
 };
 
-export default TaskFilters; 
+export default TaskFilters;

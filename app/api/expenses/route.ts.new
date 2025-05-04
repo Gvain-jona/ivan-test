@@ -1,0 +1,341 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
+import { createApiResponse } from '@/lib/api/response-handler';
+
+/**
+ * GET /api/expenses
+ * Retrieves a list of expenses with optional filtering and pagination
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+
+    // Parse query parameters
+    const category = searchParams.getAll('category');
+    const paymentStatus = searchParams.getAll('paymentStatus');
+    const startDate = searchParams.get('startDate') || null;
+    const endDate = searchParams.get('endDate') || null;
+    const search = searchParams.get('search') || null;
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Start building the query
+    let query = supabase
+      .from('expenses')
+      .select('*, profiles:created_by(id, full_name)', { count: 'exact' });
+
+    // Apply filters
+    if (category && category.length > 0 && category[0] !== 'all') {
+      query = query.in('category', category);
+    }
+
+    if (paymentStatus && paymentStatus.length > 0 && paymentStatus[0] !== 'all') {
+      query = query.in('payment_status', paymentStatus);
+    }
+
+    if (startDate) {
+      query = query.gte('date', startDate);
+    }
+
+    if (endDate) {
+      query = query.lte('date', endDate);
+    }
+
+    if (search) {
+      query = query.or(`description.ilike.%${search}%,category.ilike.%${search}%`);
+    }
+
+    // Apply pagination
+    query = query.order('date', { ascending: false }).range(offset, offset + limit - 1);
+
+    // Execute the query
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching expenses:', error);
+      return handleSupabaseError(error);
+    }
+
+    return createApiResponse({
+      expenses: data || [],
+      count: count || 0,
+      limit,
+      offset
+    });
+  } catch (error) {
+    console.error('Unexpected error in GET /api/expenses:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while fetching expenses'
+    );
+  }
+}
+
+/**
+ * POST /api/expenses
+ * Creates a new expense
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { expense, payments = [], notes = [] } = body;
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return handleApiError(
+        'AUTHENTICATION_ERROR',
+        'Authentication required to create an expense'
+      );
+    }
+
+    // Start a transaction
+    const { data: newExpense, error: expenseError } = await supabase
+      .from('expenses')
+      .insert({
+        ...expense,
+        created_by: user.id,
+        payment_status: 'unpaid', // Default status, will be updated by trigger
+        responsible: expense.responsible || null
+      })
+      .select()
+      .single();
+
+    if (expenseError) {
+      console.error('Error creating expense:', expenseError);
+      return handleSupabaseError(expenseError);
+    }
+
+    // Add payments if any
+    if (payments.length > 0) {
+      const paymentsWithExpenseId = payments.map((payment: any) => ({
+        ...payment,
+        expense_id: newExpense.id,
+        created_by: user.id
+      }));
+
+      const { error: paymentsError } = await supabase
+        .from('expense_payments')
+        .insert(paymentsWithExpenseId);
+
+      if (paymentsError) {
+        console.error('Error adding expense payments:', paymentsError);
+        return handleSupabaseError(paymentsError);
+      }
+    }
+
+    // Add notes if any
+    if (notes.length > 0) {
+      const notesWithExpenseId = notes.map((note: any) => ({
+        ...note,
+        linked_item_type: 'expense',
+        linked_item_id: newExpense.id,
+        created_by: user.id
+      }));
+
+      const { error: notesError } = await supabase
+        .from('notes')
+        .insert(notesWithExpenseId);
+
+      if (notesError) {
+        console.error('Error adding expense notes:', notesError);
+        return handleSupabaseError(notesError);
+      }
+    }
+
+    // Get the complete expense with payments and notes
+    const { data: completeExpense, error: fetchError } = await supabase
+      .from('expenses')
+      .select(`
+        *,
+        profiles:created_by(id, full_name)
+      `)
+      .eq('id', newExpense.id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching complete expense:', fetchError);
+      return handleSupabaseError(fetchError);
+    }
+
+    // Get payments for the expense
+    const { data: expensePayments, error: fetchPaymentsError } = await supabase
+      .from('expense_payments')
+      .select('*')
+      .eq('expense_id', newExpense.id)
+      .order('date', { ascending: false });
+
+    if (fetchPaymentsError) {
+      console.error('Error fetching expense payments:', fetchPaymentsError);
+      return handleSupabaseError(fetchPaymentsError);
+    }
+
+    // Get notes for the expense
+    const { data: expenseNotes, error: fetchNotesError } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('linked_item_type', 'expense')
+      .eq('linked_item_id', newExpense.id)
+      .order('created_at', { ascending: false });
+
+    if (fetchNotesError) {
+      console.error('Error fetching expense notes:', fetchNotesError);
+      return handleSupabaseError(fetchNotesError);
+    }
+
+    // Return the complete expense with payments and notes
+    return createApiResponse({
+      expense: {
+        ...completeExpense,
+        payments: expensePayments || [],
+        notes: expenseNotes || []
+      }
+    });
+  } catch (error) {
+    console.error('Unexpected error in POST /api/expenses:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while creating the expense'
+    );
+  }
+}
+
+/**
+ * PUT /api/expenses
+ * Updates an existing expense
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { expense, id } = body;
+
+    if (!id) {
+      return handleApiError(
+        'VALIDATION_ERROR',
+        'Expense ID is required',
+        { param: 'id' }
+      );
+    }
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return handleApiError(
+        'AUTHENTICATION_ERROR',
+        'Authentication required to update an expense'
+      );
+    }
+
+    // Update the expense
+    const { data: updatedExpense, error: updateError } = await supabase
+      .from('expenses')
+      .update({
+        ...expense,
+        updated_at: new Date().toISOString(),
+        responsible: expense.responsible || null
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating expense:', updateError);
+      return handleSupabaseError(updateError);
+    }
+
+    return createApiResponse({
+      expense: updatedExpense
+    });
+  } catch (error) {
+    console.error('Unexpected error in PUT /api/expenses:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while updating the expense'
+    );
+  }
+}
+
+/**
+ * DELETE /api/expenses
+ * Deletes an expense by ID
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return handleApiError(
+        'VALIDATION_ERROR',
+        'Expense ID is required',
+        { param: 'id' }
+      );
+    }
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return handleApiError(
+        'AUTHENTICATION_ERROR',
+        'Authentication required to delete an expense'
+      );
+    }
+
+    // Check if the user is an admin or manager
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
+      return handleApiError(
+        'AUTHORIZATION_ERROR',
+        'Only admins and managers can delete expenses'
+      );
+    }
+
+    // Delete the expense
+    const { error: deleteError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Error deleting expense:', deleteError);
+      return handleSupabaseError(deleteError);
+    }
+
+    return createApiResponse({
+      success: true,
+      message: 'Expense deleted successfully'
+    });
+  } catch (error) {
+    console.error('Unexpected error in DELETE /api/expenses:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while deleting the expense'
+    );
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useOrdersPage } from '@/app/dashboard/orders/_context/OrdersPageContext';
+import { useOrdersPage } from '@/app/dashboard/orders/_context';
 import { Button } from '@/components/ui/button';
 import { Printer, Calendar, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';

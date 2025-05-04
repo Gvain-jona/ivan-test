@@ -11,7 +11,10 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { formatCurrency, formatNumber } from '../../../lib/utils';
-// Define the metrics data interface
+import { useOrderMetrics } from '@/hooks/useOrderMetrics';
+import { OrdersFilters } from '@/hooks/useData';
+
+// Define the metrics data interface for backward compatibility
 interface MetricsData {
   totalOrders: number;
   revenue: number;
@@ -23,21 +26,36 @@ interface OrderMetricsCardsProps {
   stats?: MetricsData;
   isLoading?: boolean;
   onFilterByStatus?: (status?: string[]) => void;
+  filters?: OrdersFilters;
 }
 
 /**
  * Grid of metric cards displaying order statistics
+ * Uses server-side calculated metrics for accurate data
  */
 const OrderMetricsCards: React.FC<OrderMetricsCardsProps> = ({
-  stats = {
-    totalOrders: 0,
-    revenue: 0,
-    activeClients: 0,
-    pendingOrders: 0
-  },
-  isLoading = false,
-  onFilterByStatus
+  stats,
+  isLoading: externalLoading = false,
+  onFilterByStatus,
+  filters
 }) => {
+  // Use the new hook to fetch metrics from the server
+  const {
+    metrics,
+    isLoading: metricsLoading
+  } = useOrderMetrics(filters);
+
+  // Combine external loading state with metrics loading state
+  const isLoading = externalLoading || metricsLoading;
+
+  // Use server-calculated metrics or fallback to provided stats
+  const displayMetrics = {
+    totalOrders: metrics?.totalOrders ?? stats?.totalOrders ?? 0,
+    revenue: metrics?.totalRevenue ?? stats?.revenue ?? 0,
+    activeClients: metrics?.activeClients ?? stats?.activeClients ?? 0,
+    pendingOrders: metrics?.pendingOrders ?? stats?.pendingOrders ?? 0
+  };
+
   // Handle card clicks to filter orders
   const handleTotalOrdersClick = () => {
     if (onFilterByStatus) onFilterByStatus(undefined); // Show all orders
@@ -73,7 +91,7 @@ const OrderMetricsCards: React.FC<OrderMetricsCardsProps> = ({
             <Skeleton className="h-7 w-16 bg-muted/20" />
           ) : (
             <>
-              <div className="text-2xl font-bold">{formatNumber(stats.totalOrders)}</div>
+              <div className="text-2xl font-bold">{formatNumber(displayMetrics.totalOrders)}</div>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 <span>+12% from last month</span>
@@ -99,7 +117,7 @@ const OrderMetricsCards: React.FC<OrderMetricsCardsProps> = ({
             <Skeleton className="h-7 w-24 bg-muted/20" />
           ) : (
             <>
-              <div className="text-2xl font-bold">{formatCurrency(stats.revenue)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(displayMetrics.revenue)}</div>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 <span>+8.5% from last month</span>
@@ -125,7 +143,7 @@ const OrderMetricsCards: React.FC<OrderMetricsCardsProps> = ({
             <Skeleton className="h-7 w-16 bg-muted/20" />
           ) : (
             <>
-              <div className="text-2xl font-bold">{formatNumber(stats.activeClients)}</div>
+              <div className="text-2xl font-bold">{formatNumber(displayMetrics.activeClients)}</div>
               <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 <span>+4.2% from last month</span>
@@ -151,7 +169,7 @@ const OrderMetricsCards: React.FC<OrderMetricsCardsProps> = ({
             <Skeleton className="h-7 w-16 bg-muted/20" />
           ) : (
             <>
-              <div className="text-2xl font-bold">{formatNumber(stats.pendingOrders)}</div>
+              <div className="text-2xl font-bold">{formatNumber(displayMetrics.pendingOrders)}</div>
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 <span>+2 new today</span>

@@ -168,14 +168,14 @@ export function useOrders(
     () => fetchOrders(filters, pagination),
     {
       revalidateOnFocus: false, // Don't revalidate on focus to reduce requests
-      revalidateOnReconnect: true,
-      dedupingInterval: 60000, // 60 seconds - increased to reduce requests
+      revalidateOnReconnect: false, // Don't revalidate on reconnect to reduce API calls
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes - increased to reduce API calls
       keepPreviousData: true, // Keep previous data while fetching new data
-      errorRetryCount: 3, // Increased retry count
-      errorRetryInterval: 3000, // 3 seconds between retries
-      loadingTimeout: 30000, // 30 seconds timeout (increased from 15s)
-      focusThrottleInterval: 60000, // Throttle focus events (increased from 30s)
-      revalidateIfStale: true, // Revalidate if data is stale
+      errorRetryCount: 2, // Reduced retry count to prevent excessive retries
+      errorRetryInterval: 5000, // 5 seconds between retries - increased to reduce API calls
+      loadingTimeout: 30000, // 30 seconds timeout
+      focusThrottleInterval: 5 * 60 * 1000, // 5 minutes - increased to reduce API calls
+      revalidateIfStale: false, // Don't revalidate stale data automatically
       revalidateOnMount: true, // Always revalidate on mount
       suspense: false, // Don't use suspense
       shouldRetryOnError: true, // Always retry on error

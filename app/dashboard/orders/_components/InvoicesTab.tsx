@@ -6,8 +6,8 @@ import { Badge } from '../../../components/ui/badge';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
-import TablePagination from '../../../components/ui/table/TablePagination';
-import { useOrdersPage } from '../_context/OrdersPageContext';
+import TablePagination from '@/app/components/ui/pagination/TablePagination';
+import { useOrdersPage } from '../_context';
 import { useOrdersData } from '@/hooks/useOrdersData';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -582,6 +582,7 @@ const InvoicesTab: React.FC = () => {
                   onPageSizeChange={handlePageSizeChange}
                   pageSizeOptions={[4, 8, 12, 16, 24]}
                   className="flex-shrink-0"
+                  isLoading={loading}
                 />
               </div>
             </>

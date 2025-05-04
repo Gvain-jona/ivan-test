@@ -9,7 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 const API_ENDPOINTS = {
   ORDERS: '/api/orders',
   EXPENSES: '/api/expenses',
-  MATERIALS: '/api/materials',
+  MATERIALS: '/api/material-purchases',
   TASKS: '/api/tasks',
   DASHBOARD: '/api/dashboard',
 };

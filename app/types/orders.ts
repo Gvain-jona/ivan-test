@@ -128,9 +128,11 @@ export interface Task {
 export interface OrdersTableFilters {
   status?: OrderStatus[];
   paymentStatus?: PaymentStatus[];
+  clientType?: ClientType[];
   startDate?: string;
   endDate?: string;
   search?: string;
+  clientName?: string;
 }
 
 export interface TasksFilters {

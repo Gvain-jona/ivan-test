@@ -107,13 +107,21 @@ export type Supplier = z.infer<typeof supplierSchema>;
 
 // Expense schema
 export const expenseSchema = baseEntitySchema.extend({
-  category: z.string().min(1),
-  description: z.string().min(1),
-  amount: z.number().nonnegative(),
+  category: z.enum(['fixed', 'variable']).default('variable'),
+  description: z.string().optional(),
+  item_name: z.string().min(1),
+  quantity: z.number().positive().default(1),
+  unit_cost: z.number().nonnegative().default(0),
   total_amount: z.number().nonnegative(),
   amount_paid: z.number().nonnegative(),
   balance: z.number().nonnegative(),
   date: z.string().or(z.date()),
+  is_recurring: z.boolean().default(false),
+  recurrence_frequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly']).optional(),
+  recurrence_start_date: z.string().or(z.date()).optional(),
+  recurrence_end_date: z.string().or(z.date()).optional(),
+  next_occurrence_date: z.string().or(z.date()).optional(),
+  reminder_days: z.number().int().nonnegative().optional(),
   created_by: z.string().uuid(),
   // Virtual fields for frontend
   payments: z.array(z.any()).optional(),
@@ -131,6 +139,15 @@ export const expensePaymentSchema = baseEntitySchema.extend({
 });
 
 export type ExpensePayment = z.infer<typeof expensePaymentSchema>;
+
+// Recurring Expense Occurrence schema
+export const recurringExpenseOccurrenceSchema = baseEntitySchema.extend({
+  parent_expense_id: z.string().uuid(),
+  occurrence_date: z.string().or(z.date()),
+  status: z.enum(['pending', 'completed', 'skipped']).default('pending'),
+});
+
+export type RecurringExpenseOccurrence = z.infer<typeof recurringExpenseOccurrenceSchema>;
 
 // Material Purchase schema
 export const materialPurchaseSchema = baseEntitySchema.extend({
@@ -249,6 +266,7 @@ export const validateCategory = (data: unknown) => categorySchema.parse(data);
 export const validateItem = (data: unknown) => itemSchema.parse(data);
 export const validateSupplier = (data: unknown) => supplierSchema.parse(data);
 export const validateExpense = (data: unknown) => expenseSchema.parse(data);
+export const validateRecurringExpenseOccurrence = (data: unknown) => recurringExpenseOccurrenceSchema.parse(data);
 export const validateMaterialPurchase = (data: unknown) => materialPurchaseSchema.parse(data);
 export const validateNote = (data: unknown) => noteSchema.parse(data);
 export const validateNotification = (data: unknown) => notificationSchema.parse(data);

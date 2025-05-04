@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { SWRConfig } from 'swr';
 import { createSWRConfig, DataFetchType, getSWRConfigForKey } from '@/lib/swr-config';
 
@@ -292,9 +292,28 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     ],
   };
 
+  // Memoize the addSlowLoadingKey and removeSlowLoadingKey functions
+  const addSlowLoadingKeyMemo = useCallback((key: string) => {
+    addSlowLoadingKey(key);
+  }, [addSlowLoadingKey]);
+
+  const removeSlowLoadingKeyMemo = useCallback((key: string) => {
+    removeSlowLoadingKey(key);
+  }, [removeSlowLoadingKey]);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    slowLoadingKeys,
+    addSlowLoadingKey: addSlowLoadingKeyMemo,
+    removeSlowLoadingKey: removeSlowLoadingKeyMemo
+  }), [slowLoadingKeys, addSlowLoadingKeyMemo, removeSlowLoadingKeyMemo]);
+
+  // Memoize the SWR config to prevent unnecessary re-renders
+  const memoizedConfig = useMemo(() => enhancedConfig, []);
+
   return (
-    <SlowLoadingContext.Provider value={{ slowLoadingKeys, addSlowLoadingKey, removeSlowLoadingKey }}>
-      <SWRConfig value={enhancedConfig}>
+    <SlowLoadingContext.Provider value={contextValue}>
+      <SWRConfig value={memoizedConfig}>
         {children}
       </SWRConfig>
     </SlowLoadingContext.Provider>

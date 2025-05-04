@@ -123,10 +123,15 @@ export async function handleSupabaseError(error: any): Promise<NextResponse<ApiE
   }
 
   if (error.code === '42501') {
+    // RLS policy violation
     return handleApiError(
       'FORBIDDEN',
       'Permission denied',
-      error.message
+      {
+        message: error.message,
+        details: 'This operation violates a row-level security policy. Make sure you are authenticated and have the necessary permissions.',
+        code: error.code
+      }
     );
   }
 
@@ -135,6 +140,32 @@ export async function handleSupabaseError(error: any): Promise<NextResponse<ApiE
       'VALIDATION_ERROR',
       'Unique constraint violation',
       error.message
+    );
+  }
+
+  // Check for "record has no field" errors
+  if (error.code === '42703' && error.message?.includes('has no field')) {
+    return handleApiError(
+      'DATABASE_ERROR',
+      'Database schema mismatch',
+      {
+        message: error.message,
+        details: 'There is a mismatch between the database schema and the expected fields. This might be due to a trigger or constraint trying to access a field that doesn\'t exist.',
+        code: error.code
+      }
+    );
+  }
+
+  // Check for ambiguous column reference errors
+  if (error.code === '42702' && error.message?.includes('ambiguous')) {
+    return handleApiError(
+      'DATABASE_ERROR',
+      'Ambiguous column reference',
+      {
+        message: error.message,
+        details: 'A column name is used in multiple tables without proper qualification. This is likely due to a database trigger or function that needs to be updated.',
+        code: error.code
+      }
     );
   }
 

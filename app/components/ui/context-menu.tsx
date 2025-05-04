@@ -297,20 +297,23 @@ function ContextMenu({
             </div>
 
             <div className="space-y-1">
-              <button
-                className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent rounded-md"
-                onClick={() => router.push('/dashboard/profile')}
+              {/* Disabled Profile Settings button */}
+              <div
+                className="w-full flex items-center px-2 py-2 text-sm rounded-md opacity-70 cursor-not-allowed"
               >
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile Settings</span>
-              </button>
-              <button
-                className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent rounded-md"
-                onClick={() => router.push('/dashboard/settings')}
+              </div>
+
+              {/* Disabled App Settings button */}
+              <div
+                className="w-full flex items-center px-2 py-2 text-sm rounded-md opacity-70 cursor-not-allowed"
               >
                 <Settings className="mr-2 h-4 w-4" />
                 <span>App Settings</span>
-              </button>
+              </div>
+
+              {/* Theme toggle - still active */}
               <button
                 className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent rounded-md"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -327,6 +330,8 @@ function ContextMenu({
                   </>
                 )}
               </button>
+
+              {/* Logout button - still active */}
               <LogoutButton className="w-full mt-2 justify-start" />
             </div>
           </div>
@@ -424,6 +429,12 @@ function ContextMenu({
 
   if (!menuType) {
     console.log('ContextMenu not showing: menuType is null');
+    return null;
+  }
+
+  // Check if the menu type is disabled (notifications or search)
+  if (menuType === 'notifications' || menuType === 'search') {
+    console.log(`ContextMenu not showing: ${menuType} is currently disabled`);
     return null;
   }
 

@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { OrderStatus } from '@/types/orders';
-import { X, Filter, RefreshCw } from 'lucide-react';
+import { Filter, RefreshCw } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { OptimizedSmartCombobox } from '@/components/ui/optimized-smart-combobox';
 
@@ -60,9 +60,12 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   // We don't need to load data here anymore - the CachedSmartCombobox will handle it
 
   const handleChange = (key: keyof OrderFilters, value: any) => {
+    // Handle "any" value as undefined for filters
+    const processedValue = value === 'any' ? undefined : value;
+
     setFilters(prev => ({
       ...prev,
-      [key]: value,
+      [key]: processedValue,
     }));
   };
 
@@ -82,6 +85,8 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
       setFilters(initialFilters);
     }
   }, [open, initialFilters]);
+
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -122,7 +127,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                 <SelectValue placeholder="Any type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any type</SelectItem>
+                <SelectItem value="any">Any type</SelectItem>
                 <SelectItem value="Regular">Regular</SelectItem>
                 <SelectItem value="VIP">VIP</SelectItem>
                 <SelectItem value="Corporate">Corporate</SelectItem>
@@ -141,7 +146,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
                 <SelectValue placeholder="Any status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any status</SelectItem>
+                <SelectItem value="any">Any status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="ready">Ready</SelectItem>
@@ -201,7 +206,9 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             <DateRangePicker
               dateRange={filters.dateRange}
               onDateRangeChange={(dateRange) => handleChange('dateRange', dateRange)}
-              className="bg-muted/5 border-border w-full"
+              className="bg-background border-border w-full"
+              disabled={!open}
+              align="center"
             />
           </div>
 

@@ -9,6 +9,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Check if this is a token refresh request (has a special header or cookie)
+  const isTokenRefresh = request.headers.get('x-token-refresh') === 'true' ||
+                         request.cookies.get('token_refresh')?.value === 'true';
+
+  // Skip redirects if this is a token refresh request
+  if (isTokenRefresh) {
+    console.log('Middleware: Token refresh detected, skipping redirects');
+    return NextResponse.next();
+  }
+
   // Redirect root to dashboard orders
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/dashboard/orders', request.url))

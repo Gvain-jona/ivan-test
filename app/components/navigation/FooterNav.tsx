@@ -11,7 +11,8 @@ import {
   BarChart3,
   ArrowUp,
   Search,
-  User
+  User,
+  RefreshCw
 } from 'lucide-react';
 import { NotificationsIndicator } from '@/components/notifications/NotificationsIndicator';
 import { useNotifications } from '@/context/NotificationsContext';
@@ -37,25 +38,33 @@ import { useScrollNavigation } from '@/hooks/ui/useScrollNavigation';
 import { useTabNavigation, NavItemType, NavItem } from '@/hooks/ui/useTabNavigation';
 import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
-// Define navigation items with direct link flags for problematic routes
+// Define navigation items with consistent navigation approach
 const getNavigationItems = (unreadCount: number): NavItemType[] => [
   // Home page removed temporarily
   // { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
-  { title: 'Expenses', icon: Banknote, href: '/dashboard/feature-in-development' },
-  { title: 'Material', icon: ShoppingBag, href: '/dashboard/feature-in-development' },
+  { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },
+  { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
   { type: 'separator' },
-  { title: 'To-Do', icon: CheckSquare, href: '/dashboard/feature-in-development' },
-  { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', useDirectLink: true } as NavItem,
+  // No longer using useDirectLink flag, but now disabled
+  { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', disabled: true } as NavItem,
   { type: 'separator' },
   {
     title: 'Notifications',
-    icon: () => <NotificationsIndicator />,
+    icon: () => <NotificationsIndicator disabled={true} />,
     href: '#',
     isContextMenu: true,
-    menuType: 'notifications'
+    menuType: 'notifications',
+    disabled: true
   },
-  { title: 'Search', icon: Search, href: '#', isContextMenu: true, menuType: 'search' },
+  {
+    title: 'Search',
+    icon: Search,
+    href: '#',
+    isContextMenu: true,
+    menuType: 'search',
+    disabled: true
+  },
   { title: 'Profile', icon: User, href: '#', isContextMenu: true, menuType: 'profile' },
 ];
 
@@ -80,14 +89,34 @@ function FooterNavComponent({ className }: FooterNavProps) {
     closeMenu
   } = useContextMenu();
 
-  // Handle navigation errors
+  // Enhanced navigation error handling
   useEffect(() => {
     if (navigationError) {
-      console.error('Navigation error detected:', navigationError);
-      // Show error toast or notification here if needed
+      console.error('Navigation error detected in FooterNav:', navigationError);
 
-      // Cancel the navigation to reset the state
-      cancelNavigation();
+      // Check if the error is related to the expenses or material purchases page
+      if (navigationError.message.includes('/dashboard/expenses') ||
+          navigationError.message.includes('/dashboard/material-purchases')) {
+        console.warn('Detected navigation error for data-heavy page - this may be a false positive due to slow data loading');
+
+        // For data-heavy pages, we'll wait a bit longer before canceling
+        // This gives the page more time to load its data
+        const timeoutId = setTimeout(() => {
+          // Only cancel if we still have the same error
+          if (navigationError &&
+              (navigationError.message.includes('/dashboard/expenses') ||
+               navigationError.message.includes('/dashboard/material-purchases'))) {
+            console.log('Canceling data-heavy page navigation error after delay');
+            cancelNavigation();
+          }
+        }, 2000); // 2 second delay
+
+        return () => clearTimeout(timeoutId);
+      } else {
+        // For other errors, cancel immediately
+        console.log('Canceling navigation error immediately');
+        cancelNavigation();
+      }
     }
   }, [navigationError, cancelNavigation]);
 
@@ -145,10 +174,16 @@ function FooterNavComponent({ className }: FooterNavProps) {
   // Setup route prefetching
   useRoutePrefetching(navigationItems);
 
-  // Handle tab change with context menu integration and direct links
+  // Enhanced tab change handler with context menu integration and special handling for expenses
   const handleTabChangeWithContext = (index: number | null, event?: React.MouseEvent) => {
     if (index !== null && 'href' in navigationItems[index]) {
       const item = navigationItems[index];
+
+      // Skip if the item is disabled
+      if (item.disabled) {
+        console.log(`Navigation or menu ${item.title} is currently disabled`);
+        return;
+      }
 
       if (item.isContextMenu) {
         // Handle context menu click
@@ -159,15 +194,30 @@ function FooterNavComponent({ className }: FooterNavProps) {
           closeMenu();
         }
 
-        if (item.useDirectLink) {
-          // Handle direct link navigation
-          console.log(`Using direct link for ${item.title} (${item.href})`);
-          // Set active tab for visual feedback
-          handleTabChange(index, event);
-        } else {
-          // Handle regular navigation
-          handleTabChange(index, event);
+        // Special handling for expenses page to prevent navigation errors
+        if (item.href === '/dashboard/expenses') {
+          console.log('Navigating to expenses page with special handling');
+
+          // If we're already on the expenses page, don't navigate again
+          if (pathname.startsWith('/dashboard/expenses')) {
+            console.log('Already on expenses page, skipping navigation');
+            return;
+          }
         }
+
+        // Special handling for material purchases page to prevent navigation errors
+        if (item.href === '/dashboard/material-purchases') {
+          console.log('Navigating to material purchases page with special handling');
+
+          // If we're already on the material purchases page, don't navigate again
+          if (pathname.startsWith('/dashboard/material-purchases')) {
+            console.log('Already on material purchases page, skipping navigation');
+            return;
+          }
+        }
+
+        // Use consistent navigation approach for all routes
+        handleTabChange(index, event);
       }
     }
   };

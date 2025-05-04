@@ -11,9 +11,13 @@ export type NavItem = {
   href: string;
   isContextMenu?: boolean;
   menuType?: 'notifications' | 'search' | 'profile';
-  useDirectLink?: boolean; // Flag to use direct link navigation instead of router
+  // Removed useDirectLink flag in favor of a more consistent approach
   badge?: number;
   type?: never;
+  // New property to identify routes that might need special handling
+  isExternalRoute?: boolean;
+  // New property to disable navigation for specific routes
+  disabled?: boolean;
 };
 
 export type NavSeparator = {
@@ -43,7 +47,7 @@ interface UseTabNavigationReturn {
 }
 
 /**
- * Custom hook to manage tab navigation
+ * Custom hook to manage tab navigation with improved consistency
  */
 export function useTabNavigation({
   navigationItems,
@@ -61,20 +65,6 @@ export function useTabNavigation({
     (item) => 'href' in item && item.href && item.href !== '#' && pathname.startsWith(item.href)
   );
 
-  // Restore active tab from sessionStorage on initial load
-  useEffect(() => {
-    // Only run on initial mount
-    const storedTabIndex = sessionStorage.getItem('lastActiveTabIndex');
-    if (storedTabIndex !== null) {
-      const index = parseInt(storedTabIndex, 10);
-      if (!isNaN(index) && index >= 0 && index < navigationItems.length) {
-        setActiveTab(index);
-        // Clear the stored index after restoring
-        sessionStorage.removeItem('lastActiveTabIndex');
-      }
-    }
-  }, [navigationItems.length]);
-
   // Find the index of the active context menu item (if any)
   const findContextMenuIndex = useCallback((menuType: 'notifications' | 'search' | 'profile' | null) => {
     if (!menuType) return -1;
@@ -83,40 +73,52 @@ export function useTabNavigation({
     );
   }, [navigationItems]);
 
-  // Handle tab change with support for direct links
+  // Enhanced tab change handler with improved navigation handling
   const handleTabChange = useCallback((index: number | null, event?: React.MouseEvent) => {
     if (index !== null && 'href' in navigationItems[index]) {
       const item = navigationItems[index];
+      const targetHref = item.href as string;
+
+      // Skip navigation for disabled items
+      if (item.disabled) {
+        // Optionally provide feedback that the item is disabled
+        console.log(`Navigation to ${targetHref} is currently disabled`);
+        return;
+      }
+
+      // Skip navigation if we're already on the target page
+      if (targetHref !== '#' && pathname === targetHref) {
+        console.log(`Already on ${targetHref}, skipping navigation`);
+        return;
+      }
 
       if (item.isContextMenu) {
         // Set active tab to this context menu item for visual feedback
         setActiveTab(index);
-      } else if (item.href !== '#') {
+      } else if (targetHref !== '#') {
         // Set active tab immediately for visual feedback
         setActiveTab(index);
 
-        // If we're navigating to a page (not a context menu), we should close any open context menu
-        // This is a signal to the parent component that we're navigating away
-        // The parent component should handle closing the context menu
+        // Signal to parent component that we're navigating away
         if (contextMenuOpen) {
-          console.log('Navigating to a page, contextual menu should close');
-          // The actual closing is handled by the parent component that receives this callback
+          // The actual closing is handled by the parent component
         }
 
-        // Check if this item should use direct link navigation
-        if (item.useDirectLink) {
-          // Use direct window.location navigation for problematic routes
-          console.log(`Using direct navigation for ${item.href}`);
-          // Store the active tab index in sessionStorage before navigation
-          sessionStorage.setItem('lastActiveTabIndex', index.toString());
-          window.location.href = item.href;
-        } else {
-          // Use normal router navigation
-          startNavigation(item.href as string);
+        // Special handling for complex pages that might take longer to load
+        if (targetHref === '/dashboard/expenses') {
+          console.log('Starting navigation to expenses page with special handling');
         }
+
+        // Special handling for material purchases page
+        if (targetHref === '/dashboard/material-purchases') {
+          console.log('Starting navigation to material purchases page with special handling');
+        }
+
+        // Use consistent navigation approach for all routes
+        startNavigation(targetHref);
       }
     }
-  }, [navigationItems, startNavigation, contextMenuOpen]);
+  }, [navigationItems, startNavigation, contextMenuOpen, pathname]);
 
   // Initialize with the active tab from URL and ensure it persists
   useEffect(() => {
@@ -130,12 +132,7 @@ export function useTabNavigation({
   // Always prioritize the active tab from URL, but keep context menu visually active when open
   const contextMenuIndex = findContextMenuIndex(activeMenu);
 
-  // We need to handle two active states simultaneously:
-  // 1. The actual page navigation state (which tab is active based on the current URL)
-  // 2. The contextual menu visual state (which contextual menu is open)
-  //
-  // Instead of using a single 'initialTab' value, we'll return both values
-  // and let the UI component decide how to display them
+  // Determine initial tab state
   const initialTab = activeTabIndex !== -1 ? activeTabIndex :
                     activeTab !== null ? activeTab : null;
 

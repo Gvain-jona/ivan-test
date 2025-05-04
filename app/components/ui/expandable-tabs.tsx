@@ -13,6 +13,7 @@ interface Tab {
   menuType?: 'notifications' | 'search' | 'profile';
   type?: never;
   badge?: number;
+  disabled?: boolean;
 }
 
 interface Separator {
@@ -82,6 +83,12 @@ export function ExpandableTabs({
   // This allows the active tab to persist until explicitly changed
 
   const handleSelect = (index: number, event?: React.MouseEvent) => {
+    // Skip if the tab is disabled
+    if ('disabled' in tabs[index] && tabs[index].disabled) {
+      console.log(`Tab ${tabs[index].title} is disabled`);
+      return;
+    }
+
     setSelected(index);
     // Make sure we're passing the event to the onChange handler
     if (onChange) {
@@ -119,7 +126,7 @@ export function ExpandableTabs({
             className={cn(
               "relative flex items-center rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-300",
               // Regular navigation items are active based on the selected state
-              !tab.isContextMenu && selected === index
+              !tab.isContextMenu && selected === index && !tab.disabled
                 ? cn("bg-muted", activeColor)
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
               // Context menu items have special handling
@@ -127,7 +134,9 @@ export function ExpandableTabs({
               // Context menu items can be active based on activeContextMenuIndex
               tab.isContextMenu && activeContextMenuIndex === index && cn("bg-muted", activeColor, "active-context-menu-item"),
               // Always keep the current page tab active even when a context menu is open
-              initialSelectedIndex === index && cn("bg-muted", activeColor)
+              initialSelectedIndex === index && !tab.disabled && cn("bg-muted", activeColor),
+              // Disabled items styling - slightly increased opacity for better visibility
+              tab.disabled && "opacity-70 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground"
             )}
             role="tab"
             aria-selected={selected === index || activeContextMenuIndex === index || initialSelectedIndex === index}
@@ -137,7 +146,7 @@ export function ExpandableTabs({
                 <Icon /> :
                 <Icon size={20} />
               }
-              {tab.badge !== undefined && (
+              {tab.badge !== undefined && !tab.disabled && (
                 <span
                   className={`absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground ${tab.badge === 0 ? 'opacity-0' : ''}`}
                 >

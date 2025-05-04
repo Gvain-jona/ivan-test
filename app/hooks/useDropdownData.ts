@@ -266,11 +266,11 @@ export function useDropdownData(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 120000, // 2 minutes - increased to reduce requests
+      dedupingInterval: 60 * 60 * 1000, // 60 minutes - increased to reduce API calls
       keepPreviousData: true,
       refreshInterval: 0, // Don't automatically refresh
-      errorRetryCount: 3, // Increased retry count
-      errorRetryInterval: 3000, // 3 seconds between retries
+      errorRetryCount: 2, // Reduced retry count to prevent excessive retries
+      errorRetryInterval: 5000, // 5 seconds between retries - increased to reduce API calls
       suspense: false, // Don't use suspense
       revalidateIfStale: false, // Don't revalidate stale data automatically
       onErrorRetry: (error, key, config, revalidate, { retryCount }) => {

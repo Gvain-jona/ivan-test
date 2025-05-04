@@ -34,10 +34,26 @@ export async function GET(request: Request) {
     const order = searchParams.get('order') || 'desc';
 
     // Build the query using the optimizer - don't use join to avoid foreign key issues
+    // Always enable count to get the total number of records
     const queryOptimizer = new QueryOptimizer('orders')
-      .count()
+      .count() // This is critical - it enables the count of ALL matching records, not just the current page
       .paginate(page, pageSize)
-      .sort(sort, order as 'asc' | 'desc');
+      .sort(sort, order as 'asc' | 'desc')
+      .timeout(15000); // Set a 15-second timeout for large queries
+
+    // Add a direct count query to verify the total number of records
+    const supabase = await createClient();
+    if (supabase) {
+      try {
+        const { count: directCount } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true }); // head: true means we only want the count, not the data
+
+        console.log('DIRECT COUNT CHECK: Total records in orders table:', directCount);
+      } catch (countError) {
+        console.error('Error getting direct count:', countError);
+      }
+    }
     // We'll use client_name directly from orders table instead of joining
 
     // Initialize the optimizer
@@ -140,10 +156,60 @@ export async function GET(request: Request) {
         // Process the data
         const transformedOrders = processOrdersData(data, itemsData, notesData);
 
+        // Log the total count for debugging (search case) with more details
+        console.log('API orders/optimized (search) - Total count from database:', count, {
+          count,
+          pageSize,
+          pageCount: Math.ceil((count || 0) / pageSize),
+          ordersReturned: transformedOrders.length,
+          page
+        });
+
+        // Handle count properly for search results
+        let totalCount = count;
+
+        // Log count details for debugging
+        console.log('API: Search count details:', {
+          count,
+          hasCount: count !== null && count !== undefined,
+          dataLength: transformedOrders.length
+        });
+
+        // If count is missing, log a warning and use a fallback
+        if (count === null || count === undefined) {
+          console.warn('API: Count is missing from search results. This may indicate an issue with the query or permissions.');
+
+          // Use a direct count query as a fallback
+          try {
+            const { count: directCount } = await supabase
+              .from('orders')
+              .select('*', { count: 'exact', head: true })
+              .or(`order_number.ilike.%${search}%,client_name.ilike.%${search}%`);
+
+            if (directCount !== null && directCount !== undefined) {
+              console.log('API: Successfully retrieved direct search count:', directCount);
+              totalCount = directCount;
+            } else {
+              console.warn('API: Direct search count query also returned null/undefined. Falling back to data length.');
+              totalCount = transformedOrders.length;
+            }
+          } catch (countError) {
+            console.error('API: Error getting direct search count:', countError);
+            totalCount = transformedOrders.length;
+          }
+        }
+
+        // Ensure totalCount is at least the length of the current page data
+        if (totalCount < transformedOrders.length) {
+          console.warn(`API: Search total count (${totalCount}) is less than the current page data length (${transformedOrders.length}). Adjusting to prevent pagination issues.`);
+          totalCount = transformedOrders.length;
+        }
+
+        // Make sure we're returning the actual total count, not just the number of records in this page
         return NextResponse.json({
           orders: transformedOrders,
-          totalCount: count || 0,
-          pageCount: Math.ceil((count || 0) / pageSize)
+          totalCount: totalCount,
+          pageCount: Math.ceil(totalCount / pageSize)
         });
       } catch (searchError) {
         console.error('Error in search functionality:', searchError);
@@ -155,21 +221,99 @@ export async function GET(request: Request) {
     }
 
     // Execute the query
-    let data, count, error;
+    let data, count, error, isTimeout = false;
     try {
+      // Log that we're about to execute the query with the current page size
+      console.log(`API: Executing orders query with page=${page}, pageSize=${pageSize}`);
+
       const result = await queryOptimizer.execute();
       data = result.data;
       count = result.count;
       error = result.error;
+      isTimeout = result.isTimeout || false;
 
       if (error) {
-        console.error('Error fetching orders:', error);
-        // Return empty results instead of error to avoid UI issues
-        return NextResponse.json({
-          orders: [],
-          totalCount: 0,
-          pageCount: 0
-        });
+        // Check if this is a timeout error
+        if (isTimeout) {
+          console.error('Timeout error fetching orders - query took too long to complete');
+
+          // For timeout errors, try to get at least some data with a smaller page size
+          if (pageSize > 20) {
+            console.log('API: Timeout occurred with large page size. Attempting fallback with smaller page size.');
+
+            // Create a new optimizer with a smaller page size
+            const fallbackOptimizer = new QueryOptimizer('orders')
+              .count()
+              .paginate(page, 20) // Use a smaller page size
+              .sort(sort, order as 'asc' | 'desc')
+              .timeout(10000); // Shorter timeout for fallback
+
+            await fallbackOptimizer.init();
+
+            // Apply the same filters
+            if (status.length > 0) {
+              fallbackOptimizer.filter('status', 'in', status);
+            }
+            if (paymentStatus.length > 0) {
+              fallbackOptimizer.filter('payment_status', 'in', paymentStatus);
+            }
+            if (startDate) {
+              fallbackOptimizer.filter('date', '>=', startDate);
+            }
+            if (endDate) {
+              fallbackOptimizer.filter('date', '<=', endDate);
+            }
+            if (clientId) {
+              fallbackOptimizer.filter('client_id', '=', clientId);
+            }
+
+            // Execute the fallback query
+            const fallbackResult = await fallbackOptimizer.execute();
+
+            if (!fallbackResult.error) {
+              console.log('API: Fallback query succeeded with smaller page size');
+              data = fallbackResult.data;
+              count = fallbackResult.count;
+              error = null;
+            } else {
+              console.error('API: Fallback query also failed:', fallbackResult.error);
+            }
+          }
+        } else {
+          console.error('Error fetching orders:', error);
+        }
+
+        // If we still have an error after fallback attempts
+        if (error) {
+          // Log detailed error information for debugging
+          console.error('Query details:', {
+            table: 'orders',
+            page,
+            pageSize,
+            isTimeout,
+            filters: {
+              status: status.length > 0 ? status : undefined,
+              paymentStatus: paymentStatus.length > 0 ? paymentStatus : undefined,
+              startDate,
+              endDate,
+              clientId
+            }
+          });
+
+          // Return empty results with error information
+          // This helps with debugging while still allowing the UI to function
+          return NextResponse.json({
+            orders: [],
+            totalCount: 0,
+            pageCount: 0,
+            error: {
+              message: error.message || 'Failed to fetch orders',
+              code: error.code,
+              isTimeout,
+              details: 'See server logs for more information'
+            }
+          }, { status: 200 }); // Use 200 status to prevent UI from showing error state
+        }
       }
 
       // Check if data is empty or null
@@ -229,10 +373,113 @@ export async function GET(request: Request) {
     // Process the data
     const transformedOrders = processOrdersData(data || [], itemsData, notesData);
 
+    // Log the total count for debugging with more details
+    console.log('API orders/optimized - Total count from database:', count, {
+      count,
+      pageSize,
+      pageCount: Math.ceil((count || 0) / pageSize),
+      ordersReturned: transformedOrders.length,
+      page
+    });
+
+    // Handle count properly with enhanced error handling and fallbacks
+    let totalCount = count;
+
+    // Log count details for debugging
+    console.log('API: Orders count details:', {
+      count,
+      hasCount: count !== null && count !== undefined,
+      dataLength: transformedOrders.length,
+      page,
+      pageSize,
+      filters: {
+        status: status.length > 0 ? status : undefined,
+        paymentStatus: paymentStatus.length > 0 ? paymentStatus : undefined,
+        startDate,
+        endDate,
+        clientId
+      }
+    });
+
+    // If count is missing, log a warning and use a fallback
+    if (count === null || count === undefined) {
+      console.warn('API: Count is missing from Supabase response. This may indicate an issue with the query or permissions.');
+
+      // Use a direct count query as a fallback - with more robust error handling
+      try {
+        const supabase = await createClient();
+        if (supabase) {
+          // Build a query that matches the filters used in the main query
+          let countQuery = supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true });
+
+          // Apply the same filters as the main query
+          if (status.length > 0) {
+            countQuery = countQuery.in('status', status);
+          }
+
+          if (paymentStatus.length > 0) {
+            countQuery = countQuery.in('payment_status', paymentStatus);
+          }
+
+          if (startDate) {
+            countQuery = countQuery.gte('date', startDate);
+          }
+
+          if (endDate) {
+            countQuery = countQuery.lte('date', endDate);
+          }
+
+          if (clientId) {
+            countQuery = countQuery.eq('client_id', clientId);
+          }
+
+          // Execute the count query
+          const { count: directCount, error: countQueryError } = await countQuery;
+
+          if (countQueryError) {
+            console.error('API: Error in direct count query:', countQueryError);
+            totalCount = transformedOrders.length;
+          } else if (directCount !== null && directCount !== undefined) {
+            console.log('API: Successfully retrieved direct count:', directCount);
+            totalCount = directCount;
+          } else {
+            console.warn('API: Direct count query also returned null/undefined. Falling back to data length.');
+            totalCount = transformedOrders.length;
+          }
+        }
+      } catch (countError) {
+        console.error('API: Error getting direct count:', countError);
+        totalCount = transformedOrders.length;
+      }
+    }
+
+    // Ensure totalCount is at least the length of the current page data
+    // This prevents pagination issues where totalCount is less than the visible data
+    if (totalCount < transformedOrders.length) {
+      console.warn(`API: Total count (${totalCount}) is less than the current page data length (${transformedOrders.length}). Adjusting to prevent pagination issues.`);
+      totalCount = transformedOrders.length;
+    }
+
+    // Calculate the expected number of pages
+    const expectedPageCount = Math.ceil(totalCount / pageSize);
+
+    // Log detailed pagination information
+    console.log('API: Pagination details:', {
+      totalCount,
+      pageSize,
+      currentPage: page,
+      expectedPageCount,
+      recordsOnCurrentPage: transformedOrders.length,
+      hasMorePages: expectedPageCount > page
+    });
+
+    // Make sure we're returning the actual total count, not just the number of records in this page
     return NextResponse.json({
       orders: transformedOrders,
-      totalCount: count || 0,
-      pageCount: Math.ceil((count || 0) / pageSize)
+      totalCount: totalCount,
+      pageCount: Math.ceil(totalCount / pageSize)
     });
   } catch (error) {
     console.error('Unexpected error in optimized orders API:', error);

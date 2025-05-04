@@ -55,20 +55,20 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
     recurring: false,
     assigned_to: '',
   });
-  
+
   const [showRecurringOptions, setShowRecurringOptions] = useState(
     initialTask?.recurring || false
   );
-  
+
   const isManager = userRole === 'admin' || userRole === 'manager';
-  
+
   const handleSave = () => {
     // Here you would validate the form before saving
     console.log('Saving task:', task);
     onSave(task as Task);
     onOpenChange(false);
   };
-  
+
   const handleDueDateSelect = (date: Date | undefined) => {
     if (date) {
       setTask({
@@ -77,7 +77,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       });
     }
   };
-  
+
   const handleRecurringEndDateSelect = (date: Date | undefined) => {
     if (date) {
       setTask({
@@ -86,7 +86,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       });
     }
   };
-  
+
   const handleToggleRecurring = (checked: boolean) => {
     setShowRecurringOptions(checked);
     setTask({
@@ -96,14 +96,14 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       recurrence_end_date: checked ? task.recurrence_end_date : undefined
     });
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] bg-gray-950 border-gray-800 text-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           <div>
             <Label htmlFor="title">Task Title</Label>
@@ -115,7 +115,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               className="bg-gray-900 border-gray-800 mt-1"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -126,7 +126,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               className="bg-gray-900 border-gray-800 mt-1 min-h-[100px]"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="due_date">Due Date</Label>
@@ -151,7 +151,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 </PopoverContent>
               </Popover>
             </div>
-            
+
             <div>
               <Label htmlFor="priority">Priority</Label>
               <Select
@@ -170,19 +170,20 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </Select>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             {isManager && (
               <div>
                 <Label htmlFor="assigned_to">Assign To</Label>
                 <Select
-                  value={task.assigned_to || ''}
-                  onValueChange={(value) => setTask({ ...task, assigned_to: value })}
+                  value={task.assigned_to || 'unassigned'}
+                  onValueChange={(value) => setTask({ ...task, assigned_to: value === 'unassigned' ? undefined : value })}
                 >
                   <SelectTrigger id="assigned_to" className="bg-gray-900 border-gray-800 mt-1">
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-950 border-gray-800">
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     <SelectItem value="user1">Alex Johnson</SelectItem>
                     <SelectItem value="user2">Sarah Williams</SelectItem>
                     <SelectItem value="user3">Mike Davis</SelectItem>
@@ -190,7 +191,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 </Select>
               </div>
             )}
-            
+
             <div>
               <Label htmlFor="status">Status</Label>
               <Select
@@ -209,26 +210,26 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </Select>
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="linked_order">Linked Order</Label>
             <Select
-              value={task.linked_item_id || ''}
+              value={task.linked_item_id || 'none'}
               onValueChange={(value) => setTask({
                 ...task,
-                linked_item_id: value || undefined,
-                linked_item_type: value ? 'order' : undefined
+                linked_item_id: value === 'none' ? undefined : value,
+                linked_item_type: value !== 'none' ? 'order' : undefined
               })}
             >
-              <SelectTrigger 
-                id="linked_order" 
+              <SelectTrigger
+                id="linked_order"
                 className="bg-gray-900 border-gray-800 mt-1"
                 icon={<Link className="h-4 w-4" />}
               >
                 <SelectValue placeholder="Link to an order (optional)" />
               </SelectTrigger>
               <SelectContent className="bg-gray-950 border-gray-800">
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {linkedOrders.map(order => (
                   <SelectItem key={order.id} value={order.id}>
                     {order.display}
@@ -237,7 +238,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="recurring">Recurring Task</Label>
@@ -251,7 +252,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               onCheckedChange={handleToggleRecurring}
             />
           </div>
-          
+
           {showRecurringOptions && (
             <div className="grid grid-cols-2 gap-4 bg-gray-900/50 p-3 rounded-md border border-gray-800">
               <div>
@@ -271,7 +272,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="recurrence_end_date">End Date (Optional)</Label>
                 <Popover>
@@ -298,7 +299,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
             </div>
           )}
         </div>
-        
+
         <DialogFooter className="sm:justify-between">
           <Button
             variant="outline"
@@ -321,4 +322,4 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
   );
 };
 
-export default TaskFormModal; 
+export default TaskFormModal;

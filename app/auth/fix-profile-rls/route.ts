@@ -40,7 +40,13 @@ export async function POST(request: NextRequest) {
     // Create a direct Supabase client with the service role key to bypass RLS
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     )
 
     // Get role from allowed_emails table

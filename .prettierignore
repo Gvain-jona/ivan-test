@@ -3,6 +3,7 @@ node_modules
 build
 dist
 public
+.env.production
 .vercel
 .git
 package-lock.json 

@@ -33,6 +33,13 @@ export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => 
       );
     }
 
+    // Filter by client type
+    if (filtersToApply.clientType && filtersToApply.clientType.length > 0) {
+      filtered = filtered.filter(order =>
+        filtersToApply.clientType?.includes(order.client_type)
+      );
+    }
+
     // Filter by date range
     if (filtersToApply.startDate) {
       filtered = filtered.filter(order =>
@@ -53,19 +60,60 @@ export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => 
       );
     }
 
-    // Filter by search term
+    // Enhanced search functionality for better UX
     if (filtersToApply.search) {
-      const searchLower = filtersToApply.search.toLowerCase();
-      filtered = filtered.filter(order =>
-        order.id.toLowerCase().includes(searchLower) ||
-        order.client_name?.toLowerCase().includes(searchLower) ||
-        order.items?.some((item) =>
-          item.item_name?.toLowerCase().includes(searchLower)
-        ) ||
-        order.notes?.some((note) =>
-          note.text.toLowerCase().includes(searchLower)
-        )
-      );
+      const searchLower = filtersToApply.search.toLowerCase().trim();
+      const searchTerms = searchLower.split(/\s+/); // Split by whitespace to search for each word
+
+      filtered = filtered.filter(order => {
+        // Check if all search terms are found in at least one of the searchable fields
+        return searchTerms.every(term => {
+          // Search in order ID and order number
+          if (order.id?.toLowerCase().includes(term) ||
+              order.order_number?.toLowerCase().includes(term)) {
+            return true;
+          }
+
+          // Search in client name
+          if (order.client_name?.toLowerCase().includes(term)) {
+            return true;
+          }
+
+          // Search in items
+          if (order.items?.some(item =>
+            item.item_name?.toLowerCase().includes(term) ||
+            item.description?.toLowerCase().includes(term)
+          )) {
+            return true;
+          }
+
+          // Search in notes
+          if (order.notes?.some(note =>
+            note.text?.toLowerCase().includes(term)
+          )) {
+            return true;
+          }
+
+          // Search in payment status
+          if (order.payment_status?.toLowerCase().includes(term)) {
+            return true;
+          }
+
+          // Search in status
+          if (order.status?.toLowerCase().includes(term)) {
+            return true;
+          }
+
+          // Search in date (if the term looks like a date)
+          if (order.date?.includes(term) ||
+              (order.date && new Date(order.date).toLocaleDateString().toLowerCase().includes(term))) {
+            return true;
+          }
+
+          // No match found for this term
+          return false;
+        });
+      });
     }
 
     return filtered;
@@ -144,7 +192,7 @@ export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => 
   }, [safeInitialOrders, applyFilters, filters, filteredOrders]);
 
   /**
-   * Handle search for orders
+   * Handle search for orders - enhanced for better UX with client-side filtering
    */
   const handleSearch = useCallback((term: string) => {
     // Skip if the search term hasn't changed
@@ -152,16 +200,26 @@ export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => 
       return;
     }
 
+    // Update the search term state
     setSearchTerm(term);
+
+    // Create new filters object with the search term
     const newFilters = {
       ...filters,
       search: term || undefined
     };
 
-    // Apply filtering immediately
+    // Apply filtering immediately using client-side filtering only
     setFilters(newFilters);
+
+    // Apply the filters to the initial orders array
     const filtered = applyFilters(safeInitialOrders, newFilters);
+
+    // Update the filtered orders state
     setFilteredOrders(filtered);
+
+    // Return the number of filtered orders for pagination calculations
+    return filtered.length;
   }, [filters, safeInitialOrders, applyFilters, searchTerm]);
 
   /**
@@ -212,6 +270,7 @@ export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => 
 
   return {
     filteredOrders,
+    setFilteredOrders, // Expose the setter for direct manipulation
     filters,
     searchTerm,
     showFilters,
@@ -220,6 +279,7 @@ export const useOrderFiltering = (initialOrders: Order[] | null | undefined) => 
     handleSearch,
     resetFilters,
     toggleFilters,
-    filterByStatus
+    filterByStatus,
+    applyFilters // Expose the applyFilters function for direct use
   };
 };

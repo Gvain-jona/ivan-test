@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { InlineLoading } from '@/components/ui/loading';
 
 // Define the context type
@@ -25,7 +25,7 @@ export const useLoading = () => useContext(LoadingContext);
 // Loading provider component
 export function LoadingProvider({ children }: { children: React.ReactNode }) {
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-  
+
   // Start loading with an optional ID
   const startLoading = useCallback((id: string = 'global') => {
     setLoadingIds(prev => {
@@ -34,7 +34,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
       return newSet;
     });
   }, []);
-  
+
   // Stop loading with an optional ID
   const stopLoading = useCallback((id: string = 'global') => {
     setLoadingIds(prev => {
@@ -43,18 +43,18 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
       return newSet;
     });
   }, []);
-  
+
   // Check if any loading is happening
   const isLoading = loadingIds.size > 0;
-  
-  // Create the context value
-  const contextValue = {
+
+  // Create the context value with useMemo to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
     isLoading,
     startLoading,
     stopLoading,
     loadingIds,
-  };
-  
+  }), [isLoading, startLoading, stopLoading, loadingIds]);
+
   return (
     <LoadingContext.Provider value={contextValue}>
       {children}
@@ -63,22 +63,22 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
 }
 
 // Loading indicator component that uses the loading context
-export function LoadingIndicator({ 
+export function LoadingIndicator({
   id = 'global',
   text = 'Loading...',
   className = '',
-}: { 
+}: {
   id?: string;
   text?: string;
   className?: string;
 }) {
   const { loadingIds } = useLoading();
-  
+
   // Only show if this specific ID is loading
   if (!loadingIds.has(id)) {
     return null;
   }
-  
+
   return <InlineLoading text={text} className={className} />;
 }
 
@@ -90,7 +90,7 @@ export function withLoading<P extends object>(
   return (props: P) => {
     const { isLoading, loadingIds } = useLoading();
     const isComponentLoading = loadingIds.has(loadingId);
-    
+
     return (
       <div className="relative">
         {isComponentLoading && (

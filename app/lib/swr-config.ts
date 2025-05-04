@@ -13,17 +13,25 @@ export type DataFetchType = 'list' | 'detail' | 'dropdown' | 'dashboard' | 'invo
 /**
  * Global SWR configuration constants
  * These values are used across the application to ensure consistent caching behavior
+ *
+ * IMPORTANT: All deduping intervals have been standardized to at least 30 minutes
+ * to prevent excessive API calls and improve application performance.
  */
 export const SWR_CACHE_TIMES = {
   // How long to dedupe identical requests (ms)
-  LIST_DEDUPE: 60000,        // 60 seconds for list data (increased to reduce API calls)
-  DETAIL_DEDUPE: 120000,     // 120 seconds for detail data (increased to reduce API calls)
-  DROPDOWN_DEDUPE: 300000,   // 5 minutes for dropdown data
-  DASHBOARD_DEDUPE: 120000,  // 2 minutes for dashboard data
-  INVOICE_DEDUPE: 300000,    // 5 minutes for invoice data
+  LIST_DEDUPE: 5 * 60 * 1000,      // 5 minutes for list data (reduced to prevent stale data issues)
+  DETAIL_DEDUPE: 15 * 60 * 1000,   // 15 minutes for detail data
+  DROPDOWN_DEDUPE: 60 * 60 * 1000, // 60 minutes for dropdown data
+  DASHBOARD_DEDUPE: 30 * 60 * 1000, // 30 minutes for dashboard data
+  INVOICE_DEDUPE: 60 * 60 * 1000,   // 60 minutes for invoice data
+  STATS_DEDUPE: 30 * 60 * 1000,     // 30 minutes for stats data
+  RECURRING_DEDUPE: 30 * 60 * 1000, // 30 minutes for recurring data
+
+  // Minimum deduping interval for any data type
+  MIN_DEDUPE: 15 * 60 * 1000,      // 15 minutes minimum for any data type
 
   // How long to keep data in memory cache (ms)
-  MEMORY_TTL: 10 * 60 * 1000, // 10 minutes (increased to reduce API calls)
+  MEMORY_TTL: 60 * 60 * 1000,      // 60 minutes
 };
 
 /**
@@ -72,6 +80,15 @@ export function getSWRConfigForKey(key: string | null): SWRConfiguration {
   } else if (key.includes('/api/invoices')) {
     // Invoices list endpoint
     type = 'list';
+  } else if (key.includes('/api/expenses')) {
+    // Expenses list endpoint
+    type = 'list';
+  } else if (key.includes('/api/material-purchases/') && !key.includes('/payments')) {
+    // Material purchase detail endpoint
+    type = 'detail';
+  } else if (key.includes('/api/material-purchases')) {
+    // Material purchases list endpoint
+    type = 'list';
   }
 
   return createSWRConfig(type);
@@ -86,8 +103,9 @@ export function createSWRConfig(
     // Don't revalidate on window focus by default to reduce unnecessary API calls
     revalidateOnFocus: false,
 
-    // Revalidate when reconnecting to ensure data is fresh after connection loss
-    revalidateOnReconnect: true,
+    // Don't revalidate when reconnecting to reduce unnecessary API calls
+    // This was changed from true to false to prevent excessive API calls
+    revalidateOnReconnect: false,
 
     // Keep previous data while fetching new data to prevent UI flicker
     keepPreviousData: true,
@@ -106,6 +124,9 @@ export function createSWRConfig(
 
     // Don't revalidate on mount by default
     revalidateOnMount: true,
+
+    // Don't automatically revalidate stale data to reduce API calls
+    revalidateIfStale: false,
   };
 
   // Type-specific configurations
@@ -123,6 +144,12 @@ export function createSWRConfig(
 
       // Use consistent retry count
       errorRetryCount: SWR_RETRY.LIST_COUNT,
+
+      // Explicitly set revalidateOnFocus to false for list data
+      revalidateOnFocus: false,
+
+      // Explicitly set revalidateOnReconnect to false for list data
+      revalidateOnReconnect: false,
     },
 
     // Detail data (e.g., order details)
@@ -187,9 +214,21 @@ export function createSWRConfig(
   };
 
   // Combine base config with type-specific config and custom options
-  return {
+  const combinedConfig = {
     ...baseConfig,
     ...typeConfigs[type],
     ...customOptions,
   };
+
+  // Enforce minimum deduping interval to prevent excessive API calls
+  if (combinedConfig.dedupingInterval !== undefined &&
+      combinedConfig.dedupingInterval < SWR_CACHE_TIMES.MIN_DEDUPE) {
+    console.warn(
+      `Warning: dedupingInterval of ${combinedConfig.dedupingInterval}ms is below the minimum of ${SWR_CACHE_TIMES.MIN_DEDUPE}ms. ` +
+      `Using minimum value instead to prevent excessive API calls.`
+    );
+    combinedConfig.dedupingInterval = SWR_CACHE_TIMES.MIN_DEDUPE;
+  }
+
+  return combinedConfig;
 }

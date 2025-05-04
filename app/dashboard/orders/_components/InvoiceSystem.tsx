@@ -5,7 +5,7 @@ import { InvoiceButton } from '@/app/features/invoices';
 import { Order } from '@/types/orders';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
-import { useOrdersPage } from '../_context/OrdersPageContext';
+import { useOrdersPage } from '../_context';
 
 interface InvoiceButtonWrapperProps {
   order: Order;

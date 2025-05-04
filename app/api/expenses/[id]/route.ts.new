@@ -1,0 +1,220 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
+import { createApiResponse } from '@/lib/api/response-handler';
+
+/**
+ * GET /api/expenses/[id]
+ * Retrieves a single expense with all related details (payments, notes)
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // In Next.js 15, params is now async and needs to be awaited
+    const { id } = await params;
+
+    if (!id) {
+      return handleApiError(
+        'VALIDATION_ERROR',
+        'Expense ID is required',
+        { param: 'id' }
+      );
+    }
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Get expense without using joins to avoid foreign key issues
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*, profiles:created_by(id, full_name)')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching expense:', error);
+      return handleSupabaseError(error);
+    }
+
+    // Get payments for the expense
+    const { data: payments, error: paymentsError } = await supabase
+      .from('expense_payments')
+      .select('*')
+      .eq('expense_id', id)
+      .order('date', { ascending: false });
+
+    if (paymentsError) {
+      console.error('Error fetching expense payments:', paymentsError);
+      return handleSupabaseError(paymentsError);
+    }
+
+    // Get notes for the expense
+    const { data: notes, error: notesError } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('linked_item_type', 'expense')
+      .eq('linked_item_id', id)
+      .order('created_at', { ascending: false });
+
+    if (notesError) {
+      console.error('Error fetching expense notes:', notesError);
+      return handleSupabaseError(notesError);
+    }
+
+    // Return the complete expense with payments and notes
+    return createApiResponse({
+      expense: {
+        ...data,
+        payments: payments || [],
+        notes: notes || []
+      }
+    });
+  } catch (error) {
+    console.error('Unexpected error in GET /api/expenses/[id]:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while fetching the expense'
+    );
+  }
+}
+
+/**
+ * PUT /api/expenses/[id]
+ * Updates a specific expense
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // In Next.js 15, params is now async and needs to be awaited
+    const { id } = await params;
+    const body = await request.json();
+    const { expense } = body;
+
+    if (!id) {
+      return handleApiError(
+        'VALIDATION_ERROR',
+        'Expense ID is required',
+        { param: 'id' }
+      );
+    }
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return handleApiError(
+        'AUTHENTICATION_ERROR',
+        'Authentication required to update an expense'
+      );
+    }
+
+    // Update the expense
+    const { data: updatedExpense, error: updateError } = await supabase
+      .from('expenses')
+      .update({
+        ...expense,
+        updated_at: new Date().toISOString(),
+        responsible: expense.responsible || null
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating expense:', updateError);
+      return handleSupabaseError(updateError);
+    }
+
+    return createApiResponse({
+      expense: updatedExpense
+    });
+  } catch (error) {
+    console.error('Unexpected error in PUT /api/expenses/[id]:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while updating the expense'
+    );
+  }
+}
+
+/**
+ * DELETE /api/expenses/[id]
+ * Deletes a specific expense
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // In Next.js 15, params is now async and needs to be awaited
+    const { id } = await params;
+
+    if (!id) {
+      return handleApiError(
+        'VALIDATION_ERROR',
+        'Expense ID is required',
+        { param: 'id' }
+      );
+    }
+
+    // Create Supabase client - await it since it's now async
+    const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return handleApiError(
+        'AUTHENTICATION_ERROR',
+        'Authentication required to delete an expense'
+      );
+    }
+
+    // Check if the user is an admin or manager
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
+      return handleApiError(
+        'AUTHORIZATION_ERROR',
+        'Only admins and managers can delete expenses'
+      );
+    }
+
+    // Delete the expense
+    const { error: deleteError } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Error deleting expense:', deleteError);
+      return handleSupabaseError(deleteError);
+    }
+
+    return createApiResponse({
+      success: true,
+      message: 'Expense deleted successfully'
+    });
+  } catch (error) {
+    console.error('Unexpected error in DELETE /api/expenses/[id]:', error);
+    return handleApiError(
+      'SERVER_ERROR',
+      'An unexpected error occurred while deleting the expense'
+    );
+  }
+}

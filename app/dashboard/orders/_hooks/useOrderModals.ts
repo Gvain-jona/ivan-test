@@ -3,6 +3,8 @@ import { Order, OrderStatus } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrders } from '@/hooks/useData';
 import { createSWRConfig } from '@/lib/swr-config';
+import { API_ENDPOINTS } from '@/lib/api-endpoints';
+import { mutate } from 'swr';
 
 /**
  * Custom hook to manage order modals state and functionality
@@ -10,6 +12,7 @@ import { createSWRConfig } from '@/lib/swr-config';
 export const useOrderModals = () => {
   const { toast } = useToast();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Modal visibility states
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -39,16 +42,87 @@ export const useOrderModals = () => {
     });
   }, [toast]);
 
-  // Handle delete order
-  const handleDeleteOrder = useCallback((order: Order) => {
-    console.log('Delete order:', order.id);
-    // In a real app, make API call to delete
-    // Only show toast after successful deletion
-    toast({
-      title: "Order Deleted",
-      description: `Order ${order.id} has been deleted`,
-    });
-  }, [toast]);
+  // Handle delete order with optimistic updates
+  const handleDeleteOrder = useCallback(async (order: Order) => {
+    try {
+      // Show loading state
+      setLoading(true);
+
+      // Keep track of whether we've updated the UI optimistically
+      let optimisticUpdateApplied = false;
+
+      // Optimistically update the UI by filtering out the deleted order
+      // This will immediately remove the order from the UI without waiting for the API
+      mutate(
+        API_ENDPOINTS.ORDERS,
+        (currentData) => {
+          if (!currentData) return currentData;
+
+          // Mark that we've applied an optimistic update
+          optimisticUpdateApplied = true;
+
+          return {
+            ...currentData,
+            orders: currentData.orders.filter(o => o.id !== order.id),
+            totalCount: currentData.totalCount - 1,
+            pageCount: Math.ceil((currentData.totalCount - 1) / (currentData.pageSize || 10))
+          };
+        },
+        false // Don't revalidate immediately
+      );
+
+      // Call the API to delete the order
+      const response = await fetch(`/api/orders?id=${order.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        // If there's an error and we applied an optimistic update, revalidate to restore the data
+        if (optimisticUpdateApplied) {
+          mutate(API_ENDPOINTS.ORDERS);
+        }
+        throw new Error(errorData.error || 'Failed to delete order');
+      }
+
+      // Show success notification
+      // Import directly from our utility function
+      const { showOrderDeletionNotification } = await import('@/utils/notifications');
+      showOrderDeletionNotification(
+        true, // success
+        order.order_number || order.id.substring(0, 8)
+      );
+
+      // No need to revalidate since we've already updated the cache optimistically
+      // Just mark the cache as valid
+      mutate(API_ENDPOINTS.ORDERS, undefined, { revalidate: false });
+
+      // Also update any other components that might be using this order
+      // This ensures all parts of the UI are updated
+      mutate(
+        (key) => typeof key === 'string' && key.includes(`/api/orders/${order.id}`),
+        null,
+        false
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting order:', error);
+
+      // Show error notification
+      // Import directly from our utility function
+      const { showOrderDeletionNotification } = await import('@/utils/notifications');
+      showOrderDeletionNotification(
+        false, // error
+        order.order_number || order.id.substring(0, 8),
+        error instanceof Error ? error.message : 'Failed to delete order'
+      );
+
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [toast, mutate]);
 
   // Handle duplicate order
   const handleDuplicateOrder = useCallback((order: Order) => {
@@ -276,11 +350,13 @@ export const useOrderModals = () => {
     viewModalOpen,
     createModalOpen,
     invoiceModalOpen,
+    loading,
 
     // Setters
     setViewModalOpen,
     setCreateModalOpen,
     setInvoiceModalOpen,
+    setLoading,
 
     // Handlers
     handleViewOrder,

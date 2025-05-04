@@ -33,7 +33,7 @@ const navigationItems = [
   { href: '/dashboard/expenses', icon: Banknote, label: 'Expenses' },
   { href: '/dashboard/material-purchases', icon: ShoppingBag, label: 'Material Purchases' },
   { href: '/dashboard/todo', icon: CheckSquare, label: 'To-Do' },
-  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
+  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics', disabled: true },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -161,6 +161,7 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                         isActive={isRouteActive(item.href)}
                         onClick={onClose}
                         isCollapsed={true}
+                        disabled={item.disabled}
                       />
                     </TooltipTrigger>
                     <TooltipContent side="right">
@@ -176,6 +177,7 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                   isActive={isRouteActive(item.href)}
                   onClick={onClose}
                   isCollapsed={false}
+                  disabled={item.disabled}
                 />
               )}
             </li>
@@ -341,38 +343,55 @@ type NavLinkProps = {
   className?: string;
   onClick?: () => void;
   isCollapsed?: boolean;
+  disabled?: boolean;
 };
 
-function NavLink({ href, icon, label, isActive, className, onClick, isCollapsed = false }: NavLinkProps) {
+function NavLink({ href, icon, label, isActive, className, onClick, isCollapsed = false, disabled = false }: NavLinkProps) {
+  // Handle click for disabled items
+  const handleClick = (e: React.MouseEvent) => {
+    if (disabled) {
+      e.preventDefault();
+      return;
+    }
+
+    if (onClick) {
+      onClick();
+    }
+  };
+
+  // Use a div instead of Link for disabled items to prevent navigation
+  const Component = disabled ? 'div' : Link;
+
   return (
-    <Link
-      href={href}
+    <Component
+      href={disabled ? undefined : href}
       className={cn(
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
         isActive ?
           "text-primary bg-primary/10 font-semibold" :
           "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
         isCollapsed && "justify-center px-2",
+        disabled && "opacity-70 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground",
         className
       )}
-      onClick={onClick}
+      onClick={handleClick}
     >
       {/* Active indicator */}
-      {isActive && (
+      {isActive && !disabled && (
         <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
       )}
       <span className={cn(
         "flex items-center justify-center",
-        isActive ? "text-primary" : "text-muted-foreground"
+        isActive && !disabled ? "text-primary" : "text-muted-foreground"
       )}>
         {icon}
       </span>
       {!isCollapsed && (
         <span className="truncate">{label}</span>
       )}
-      {isActive && !isCollapsed && (
+      {isActive && !isCollapsed && !disabled && (
         <ChevronRight className="ml-auto h-4 w-4 text-primary/50" />
       )}
-    </Link>
+    </Component>
   );
 }

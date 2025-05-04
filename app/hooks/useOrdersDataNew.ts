@@ -261,7 +261,7 @@ export function useOrdersDataNew(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 5000, // 5 seconds
+      dedupingInterval: 30 * 60 * 1000, // 30 minutes - increased to reduce API calls
       keepPreviousData: true,
       refreshInterval: 0,
       revalidateIfStale: false,

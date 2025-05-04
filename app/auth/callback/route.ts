@@ -32,12 +32,12 @@ export async function GET(request: NextRequest) {
     const next = searchParams.get('next') || '/dashboard/orders'
 
     // Create Supabase client
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Handle OAuth callback (including Google)
     if (code && state) {
       console.log('Processing OAuth callback')
-      
+
       try {
         // Exchange the code for a session
         const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
@@ -97,16 +97,24 @@ export async function GET(request: NextRequest) {
       const cookieName = getCodeVerifierCookieName()
       console.log('Looking for cookie:', cookieName)
 
-      // Check if we have the code verifier cookie
-      const cookieStore = await cookies()
-      const codeVerifier = cookieStore.get(cookieName)?.value
+      let codeVerifier: string | undefined;
 
-      // Log all available auth cookies for debugging
-      const allAuthCookies = getAllAuthCookieNames()
-      const availableCookies = cookieStore.getAll().map((c: any) => c.name)
-      console.log('All auth cookies:', allAuthCookies)
-      console.log('Available cookies:', availableCookies)
-      console.log('Code verifier cookie present:', !!codeVerifier)
+      try {
+        // In Next.js 15, cookies() is asynchronous in App Router
+        const cookieStore = await cookies()
+        codeVerifier = cookieStore.get(cookieName)?.value
+
+        // Log all available auth cookies for debugging
+        const allAuthCookies = getAllAuthCookieNames()
+        const availableCookies = await cookieStore.getAll()
+        const cookieNames = availableCookies.map((c: any) => c.name)
+        console.log('All auth cookies:', allAuthCookies)
+        console.log('Available cookies:', cookieNames)
+        console.log('Code verifier cookie present:', !!codeVerifier)
+      } catch (cookieError) {
+        console.error('Error accessing cookies:', cookieError)
+        // Continue anyway - the Supabase client will handle missing cookies
+      }
 
       // If code verifier is missing, redirect to sign-in with an error
       if (!codeVerifier) {
