@@ -41,6 +41,7 @@ const SaveSettingsButton: React.FC<SaveSettingsButtonProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [settingName, setSettingName] = useState('Default Settings');
   const [isDefault, setIsDefault] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSave = async () => {
     try {
@@ -48,12 +49,15 @@ const SaveSettingsButton: React.FC<SaveSettingsButtonProps> = ({
 
       await saveSettings(settings, settingName, isDefault);
 
-      toast({
-        title: 'Settings Saved',
-        description: `Invoice settings "${settingName}" have been saved successfully.`,
-      });
-
-      setOpen(false);
+      // Show success state
+      setShowSuccess(true);
+      
+      // Close dialog after a short delay to show success
+      setTimeout(() => {
+        setOpen(false);
+        setShowSuccess(false);
+        setSettingName('Default Settings');
+      }, 1500);
     } catch (error: any) {
       console.error('Error saving settings:', error);
 
@@ -65,11 +69,8 @@ const SaveSettingsButton: React.FC<SaveSettingsButtonProps> = ({
           variant: 'destructive',
         });
       } else {
-        toast({
-          title: 'Error Saving Settings',
-          description: 'There was an error saving your invoice settings. Please try again.',
-          variant: 'destructive',
-        });
+        // The error message already includes details from the API
+        // No need to show another toast since the hook already shows one
       }
     } finally {
       setIsSaving(false);
@@ -131,9 +132,15 @@ const SaveSettingsButton: React.FC<SaveSettingsButtonProps> = ({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || showSuccess}
+            className={showSuccess ? 'bg-green-600 hover:bg-green-600' : ''}
           >
-            {isSaving ? (
+            {showSuccess ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Saved Successfully!
+              </>
+            ) : isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...

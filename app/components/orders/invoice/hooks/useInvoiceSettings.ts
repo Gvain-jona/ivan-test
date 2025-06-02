@@ -146,56 +146,54 @@ export function useInvoiceSettings(): UseInvoiceSettingsReturn {
         if (!loadFromCache()) {
           // If we can't load from cache either, create default settings
           const defaultSettings: InvoiceSettings = {
-            // Display options
+            // Keep only essential fields
+            companyName: 'IVAN PRINTS LIMITED',
+            companyEmail: 'sherilox356@gmail.com',
+            companyPhone: '+256(0) 755 541 373',
+            companyAddress: 'DESIGN.PRINT.BRAND.',
+            tinNumber: '1050884489',
+            companyLogo: '/images/default-logo.svg',
+            
+            // Remove all display options except these
             includeHeader: true,
             includeFooter: true,
-            includeLogo: true,
+            includeLogo: false, // Simplified - no logo for now
             includeSignature: false,
+            
+            // Keep format but set to A5 only
             format: 'a4',
             template: 'standard',
-
-            // Item display options
-            showItemCategory: true,
+            
+            // Remove all item display options
+            showItemCategory: false,
             showItemName: true,
-            showItemSize: true,
+            showItemSize: false,
             itemDisplayFormat: 'combined',
-
-            // Tax and discount options
+            
+            // Remove tax/discount
             includeTax: false,
             taxRate: 0,
             includeDiscount: false,
             discountRate: 0,
-
-            // Content
-            notes: `Thank you for your business!`,
+            
+            // Simplified content
+            notes: '',
             customHeader: '',
-            customFooter: 'Making You Visible.',
-
-            // Company information
-            tinNumber: '1028570150',
-            companyName: 'IVAN PRINTS',
-            companyEmail: 'sherilex256@gmail.com',
-            companyPhone: '0755 541 373',
-            companyAddress: 'Printing, Designing, Branding.',
-            companyLogo: '/images/default-logo.svg',
-
-            // Payment details
-            bankDetails: [
-              {
-                id: '1',
-                bankName: 'ABSA BANK',
-                accountName: 'IVAN PRINTS',
-                accountNumber: '6008084570',
-              }
-            ],
-            mobileMoneyDetails: [
-              {
-                id: '1',
-                provider: 'Airtel',
-                phoneNumber: '0755 541 373',
-                contactName: 'Vuule Abdul',
-              }
-            ],
+            customFooter: 'Making You Visible',
+            
+            // Single payment method each
+            bankDetails: [{
+              id: '1',
+              bankName: 'ABSA BANK',
+              accountName: 'IVAN PRINTS',
+              accountNumber: '6008084570',
+            }],
+            mobileMoneyDetails: [{
+              id: '1',
+              provider: 'Airtel',
+              phoneNumber: '0755 541 373',
+              contactName: 'Wadie Abduli',
+            }],
           };
 
           // Create a default setting record

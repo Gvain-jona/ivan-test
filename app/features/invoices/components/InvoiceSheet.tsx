@@ -22,7 +22,14 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<string>('preview');
-  const { settings, isLoading } = useInvoiceSettings();
+  const { settings, isLoading, mutate } = useInvoiceSettings();
+
+  // Refetch settings when sheet opens to ensure we have the latest
+  React.useEffect(() => {
+    if (open) {
+      mutate();
+    }
+  }, [open, mutate]);
 
   // Handle close with confirmation if needed
   const handleClose = () => {

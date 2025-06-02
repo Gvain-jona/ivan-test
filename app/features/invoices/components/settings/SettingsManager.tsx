@@ -33,12 +33,13 @@ import { Loader2, Save, Trash, Check, Star, StarOff } from 'lucide-react';
  * Component for managing saved invoice settings
  */
 const SettingsManager: React.FC = () => {
-  const { settings, updateSettings } = useInvoiceContext();
+  const { settings: currentSettings, updateSettings } = useInvoiceContext();
   const { toast } = useToast();
 
   // State for saved settings
   const [savedSettings, setSavedSettings] = useState<InvoiceSettingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeSettingId, setActiveSettingId] = useState<string | null>(null);
 
   // State for save dialog
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -52,48 +53,115 @@ const SettingsManager: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Get the functions from the hook
-  const { saveSettings, getAllSettings, deleteSettings, setDefaultSettings } = useInvoiceSettings();
+  const { saveSettings, getAllSettings, deleteSettings, setDefaultSettings, mutate: mutateInvoiceSettings } = useInvoiceSettings();
 
   // Load saved settings
   useEffect(() => {
+    let mounted = true; // Track if component is still mounted
+    
     const loadSettings = async () => {
-      try {
-        const settings = await getAllSettings();
-        setSavedSettings(settings);
-        setIsLoading(false);
-      } catch (error: any) {
-        console.error('Error loading settings:', error);
-
-        toast({
-          title: 'Error Loading Settings',
-          description: 'There was an error loading your saved invoice settings.',
-          variant: 'destructive',
-        });
-
-        setIsLoading(false);
+      if (!mounted) return;
+      
+      // Only load if we don't have settings yet
+      if (savedSettings.length === 0) {
+        setIsLoading(true);
+        try {
+          const settings = await getAllSettings();
+          
+          if (!mounted) return;
+          
+          // Ensure settings is an array
+          const settingsArray = Array.isArray(settings) ? settings : [];
+          
+          // Filter out fallback settings
+          const realSettings = settingsArray.filter((s: any) => 
+            s && s.id !== 'default-fallback' && !s.id?.startsWith('mock-id-')
+          );
+          
+          setSavedSettings(realSettings);
+          
+          // Try to determine the active setting
+          // If there's a default setting, mark it as active initially
+          const defaultSetting = realSettings.find((s: any) => s.is_default);
+          if (defaultSetting) {
+            setActiveSettingId(defaultSetting.id);
+          }
+        } catch (error: any) {
+          console.error('Error loading settings:', error);
+          
+          if (!mounted) return;
+          
+          toast({
+            title: 'Error Loading Settings',
+            description: 'Could not load saved settings. The database may not be available.',
+            variant: 'destructive',
+          });
+          setSavedSettings([]);
+        } finally {
+          if (mounted) {
+            setIsLoading(false);
+          }
+        }
       }
     };
 
     loadSettings();
-  }, [toast, getAllSettings]);
+    
+    // Cleanup function
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Handle save
   const handleSave = async () => {
     try {
       setIsSaving(true);
 
-      await saveSettings(settings, settingName, isDefault);
+      // Check if we're trying to save as default
+      if (isDefault) {
+        // Check if there's already a default setting for this user
+        const existingDefault = savedSettings.find(s => s.is_default);
+        
+        if (existingDefault) {
+          // Update the existing default instead of creating a new one
+          await saveSettings(currentSettings, existingDefault.name, true, existingDefault.id);
+          setActiveSettingId(existingDefault.id);
+        } else {
+          // No existing default, create a new one
+          const result = await saveSettings(currentSettings, settingName, isDefault);
+          if (result && result.id) {
+            setActiveSettingId(result.id);
+          }
+        }
+      } else {
+        // Not default, just save normally
+        const result = await saveSettings(currentSettings, settingName, isDefault);
+        if (result && result.id) {
+          setActiveSettingId(result.id);
+        }
+      }
 
       // Reload settings to get the updated list
       const updatedSettings = await getAllSettings();
-      setSavedSettings(updatedSettings);
+      const settingsArray = Array.isArray(updatedSettings) ? updatedSettings : [];
+      setSavedSettings(settingsArray);
 
       toast({
         title: 'Settings Saved',
-        description: `Invoice settings "${settingName}" have been saved successfully.`,
+        description: isDefault ? 'Default settings updated successfully.' : `Invoice settings "${settingName}" have been saved successfully.`,
       });
 
+      // If we saved as default, update the main invoice settings cache
+      if (isDefault) {
+        mutateInvoiceSettings();
+      }
+
       setSaveDialogOpen(false);
+      // Reset form
+      setSettingName('Default Settings');
+      setIsDefault(true);
     } catch (error) {
       console.error('Error saving settings:', error);
 
@@ -134,6 +202,9 @@ const SettingsManager: React.FC = () => {
       updateSettings(key as any, value);
     });
 
+    // Mark this as the active setting
+    setActiveSettingId(setting.id);
+
     toast({
       title: 'Settings Loaded',
       description: `Invoice settings "${setting.name}" have been loaded successfully.`,
@@ -150,6 +221,12 @@ const SettingsManager: React.FC = () => {
           ...s,
           is_default: s.id === setting.id,
         })));
+        
+        // Update the main invoice settings cache to use the new default
+        mutateInvoiceSettings();
+        
+        // Also mark this as the active setting
+        setActiveSettingId(setting.id);
       }
     } catch (error) {
       console.error('Error setting default:', error);
@@ -240,13 +317,22 @@ const SettingsManager: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {savedSettings.map((setting) => (
-            <Card key={setting.id} className="relative">
-              {setting.is_default && (
-                <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-medium">
-                  Default
+          {savedSettings.map((setting) => {
+            const isActive = setting.id === activeSettingId;
+            return (
+              <Card key={setting.id} className={`relative ${isActive ? 'ring-2 ring-primary' : ''}`}>
+                <div className="absolute top-2 right-2 flex gap-2">
+                  {setting.is_default && (
+                    <div className="bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-medium">
+                      Default
+                    </div>
+                  )}
+                  {isActive && (
+                    <div className="bg-green-500 text-white px-2 py-1 rounded-md text-xs font-medium">
+                      Active
+                    </div>
+                  )}
                 </div>
-              )}
 
               <CardHeader>
                 <CardTitle>{setting.name}</CardTitle>
@@ -299,7 +385,8 @@ const SettingsManager: React.FC = () => {
                 </div>
               </CardFooter>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

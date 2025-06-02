@@ -41,6 +41,11 @@ export interface InvoiceSettings {
   companyPhone: string;
   companyAddress: string;
   companyLogo: string;
+  
+  // Logo settings
+  logoSize: 'small' | 'medium' | 'large';
+  logoShowBorder: boolean;
+  logoZoom: number; // 0.5 to 3.0 (50% to 300%)
 
   // Payment details
   bankDetails: BankDetail[];
@@ -107,4 +112,67 @@ export interface UseInvoiceActionsReturn {
   handleDownload: () => Promise<void>;
   handlePrint: () => void;
   isDownloading: boolean;
+}
+
+// Simplified invoice settings for new template
+export interface SimplifiedInvoiceSettings {
+  // Company
+  companyName: string;
+  companyLogo?: string;
+  logoSize: 'small' | 'medium' | 'large';
+  logoShowBorder: boolean;
+  logoZoom: number;
+  tagline: string;
+  phone: string;
+  email: string;
+  tin: string;
+  
+  // Payment (now supports multiple entries)
+  bankDetails: Array<{
+    accountName: string;
+    bankName: string;
+    accountNumber: string;
+  }>;
+  mobileMoneyDetails: Array<{
+    provider: string;
+    phone: string;
+    name: string;
+  }>;
+}
+
+// Adapter function to convert complex settings to simplified
+export function toSimplifiedSettings(complex: InvoiceSettings): SimplifiedInvoiceSettings {
+  return {
+    companyName: complex.companyName || 'IVAN PRINTS LIMITED',
+    companyLogo: complex.companyLogo,
+    logoSize: complex.logoSize || 'medium',
+    logoShowBorder: complex.logoShowBorder ?? true,
+    logoZoom: complex.logoZoom ?? 1.0,
+    tagline: complex.companyAddress || 'DESIGN.PRINT.BRAND.',
+    phone: complex.companyPhone || '+256(0) 755 541 373',
+    email: complex.companyEmail || 'sherilox356@gmail.com',
+    tin: complex.tinNumber || '1050884489',
+    bankDetails: complex.bankDetails && complex.bankDetails.length > 0 
+      ? complex.bankDetails.map(bd => ({
+          accountName: bd.accountName,
+          bankName: bd.bankName,
+          accountNumber: bd.accountNumber
+        }))
+      : [{
+          accountName: 'IVAN PRINTS',
+          bankName: 'ABSA BANK',
+          accountNumber: '6008084570'
+        }],
+    mobileMoneyDetails: complex.mobileMoneyDetails && complex.mobileMoneyDetails.length > 0
+      ? complex.mobileMoneyDetails.map(mmd => ({
+          provider: mmd.provider,
+          phone: mmd.phoneNumber,
+          name: mmd.contactName
+        }))
+      : [{
+          provider: 'MTN Mobile Money',
+          phone: '0755 541 373',
+          name: 'Wadie Abduli'
+        }]
+  };
 }

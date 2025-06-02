@@ -1,3 +1,7 @@
+// ⚠️ DEPRECATED: This file is no longer used in the app
+// The app now uses /app/features/invoices/components/settings/PaymentSection.tsx
+// This file should be removed in future cleanup
+
 import React from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';

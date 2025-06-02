@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FormField,
   FormItem,
@@ -7,6 +7,7 @@ import {
   FormDescription,
   FormMessage
 } from '@/components/ui/form';
+import { useWatch } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { SettingsSectionProps } from '../types';
 import Image from 'next/image';
@@ -16,6 +17,9 @@ import { Building2, Mail, Phone, FileText, Upload, Info, Check } from 'lucide-re
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 
 /**
  * Component for the company information section
@@ -24,6 +28,13 @@ import { Label } from '@/components/ui/label';
  */
 const CompanyInformationSection: React.FC<SettingsSectionProps> = ({ control }) => {
   const { toast } = useToast();
+  
+  // Watch logo settings for live preview updates
+  const watchedValues = useWatch({
+    control,
+    name: ['companyLogo', 'logoSize', 'logoShowBorder', 'logoZoom', 'logoPanX', 'logoPanY']
+  });
+  
   return (
     <div className="space-y-6">
       <Card className="border-border/40 bg-background/50 overflow-hidden">
@@ -312,6 +323,194 @@ const CompanyInformationSection: React.FC<SettingsSectionProps> = ({ control }) 
               </FormItem>
             )}
           />
+          
+          {/* Logo Display Settings - Only show if any logo is selected */}
+          {control.getValues('companyLogo') && (
+            <div className="space-y-4 pt-4 border-t border-border/40">
+              {/* Logo Preview Section */}
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-border/40">
+                <h4 className="text-sm font-medium text-foreground mb-3">Logo Preview</h4>
+                <div className="flex items-center justify-center">
+                  {/* Exact replica of invoice template logo styling */}
+                  <div style={{
+                    width: control.getValues('logoSize') === 'small' ? '60px' : 
+                           control.getValues('logoSize') === 'large' ? '100px' : '80px',
+                    height: control.getValues('logoSize') === 'small' ? '60px' : 
+                            control.getValues('logoSize') === 'large' ? '100px' : '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    borderRadius: '8px',
+                    border: control.getValues('logoShowBorder') ? '2px solid #0a3b22' : 'none',
+                    padding: control.getValues('logoShowBorder') ? '0' : '4px',
+                    position: 'relative',
+                    backgroundColor: 'white'
+                  }}>
+                    <img 
+                      src={control.getValues('companyLogo')}
+                      alt="Logo Preview"
+                      style={{
+                        maxWidth: 'none',
+                        maxHeight: 'none',
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain',
+                        transform: `scale(${control.getValues('logoZoom') || 1}) translate(${control.getValues('logoPanX') || 0}%, ${control.getValues('logoPanY') || 0}%)`,
+                        transformOrigin: 'center',
+                        position: 'relative'
+                      }}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  This is exactly how your logo will appear on invoices
+                </p>
+              </div>
+              {/* Logo Size Selector */}
+              <FormField
+                control={control}
+                name="logoSize"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Logo Size</FormLabel>
+                    <FormControl>
+                      <Select value={field.value || 'medium'} onValueChange={field.onChange}>
+                        <SelectTrigger className="bg-transparent border-[#2B2B40] focus:border-orange-500">
+                          <SelectValue placeholder="Select logo size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="small">Small (60x60)</SelectItem>
+                          <SelectItem value="medium">Medium (80x80)</SelectItem>
+                          <SelectItem value="large">Large (100x100)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              {/* Show Border Toggle */}
+              <FormField
+                control={control}
+                name="logoShowBorder"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between space-y-0">
+                    <div className="flex-1">
+                      <FormLabel>Show Logo Border</FormLabel>
+                      <FormDescription className="text-[#6B7280] text-xs mt-1">
+                        Display a border around your logo
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value ?? true}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-orange-500"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              {/* Zoom Control */}
+              <FormField
+                control={control}
+                name="logoZoom"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Logo Zoom ({Math.round(field.value * 100)}%)</FormLabel>
+                    <FormControl>
+                      <Slider
+                        value={[field.value]}
+                        onValueChange={(values) => field.onChange(values[0])}
+                        min={0.5}
+                        max={3.0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                    </FormControl>
+                    <FormDescription className="text-[#6B7280] text-xs mt-1">
+                      Scale your logo from 50% to 300%
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+              
+              {/* Pan Controls */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={control}
+                  name="logoPanX"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Horizontal Position ({field.value > 0 ? '+' : ''}{field.value}%)</FormLabel>
+                      <FormControl>
+                        <Slider
+                          value={[field.value]}
+                          onValueChange={(values) => field.onChange(values[0])}
+                          min={-50}
+                          max={50}
+                          step={5}
+                          className="w-full"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-[#6B7280] text-xs mt-1">
+                        Move logo left/right
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={control}
+                  name="logoPanY"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vertical Position ({field.value > 0 ? '+' : ''}{field.value}%)</FormLabel>
+                      <FormControl>
+                        <Slider
+                          value={[field.value]}
+                          onValueChange={(values) => field.onChange(values[0])}
+                          min={-50}
+                          max={50}
+                          step={5}
+                          className="w-full"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-[#6B7280] text-xs mt-1">
+                        Move logo up/down
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              {/* Reset Button */}
+              <div className="pt-2 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Reset all logo positioning to defaults
+                    control.setValue('logoZoom', 1.0);
+                    control.setValue('logoPanX', 0);
+                    control.setValue('logoPanY', 0);
+                    control.setValue('logoSize', 'medium');
+                    control.setValue('logoShowBorder', true);
+                  }}
+                  className="text-sm text-orange-500 hover:text-orange-400 underline"
+                >
+                  Reset All Logo Settings
+                </button>
+                <div className="text-xs text-muted-foreground">
+                  Size: {control.getValues('logoSize') || 'medium'} | 
+                  Zoom: {Math.round((control.getValues('logoZoom') || 1) * 100)}% | 
+                  Position: {control.getValues('logoPanX') || 0}, {control.getValues('logoPanY') || 0}
+                </div>
+                </div> {/* End Controls Section */}
+              </div> {/* End Grid Layout */}
+            </div>
+          )}
         </CardContent>
       </Card>
 

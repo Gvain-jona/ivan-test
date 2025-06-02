@@ -31,7 +31,16 @@ export function useInvoiceSettings() {
           console.warn('Using fallback invoice settings:', result.message);
         }
         
-        return result.data?.settings || defaultInvoiceSettings;
+        // Handle the full record structure from the API
+        if (result.data) {
+          // If result.data has a settings property, it's a full record
+          if ('settings' in result.data && result.data.settings) {
+            return result.data.settings;
+          }
+          // Otherwise, it might be the settings directly (for backward compatibility)
+          return result.data;
+        }
+        return defaultInvoiceSettings;
       } catch (error) {
         console.error('Error fetching invoice settings:', error);
         return defaultInvoiceSettings;
@@ -45,7 +54,7 @@ export function useInvoiceSettings() {
   );
   
   // Save settings to the database
-  const saveSettings = async (settings: InvoiceSettings, name: string = 'Default Settings', isDefault: boolean = true) => {
+  const saveSettings = async (settings: InvoiceSettings, name: string = 'Default Settings', isDefault: boolean = true, id?: string) => {
     try {
       const response = await fetch('/api/invoice-settings/v2', {
         method: 'POST',
@@ -56,6 +65,7 @@ export function useInvoiceSettings() {
           settings,
           name,
           isDefault,
+          id,
         }),
       });
       
@@ -65,35 +75,31 @@ export function useInvoiceSettings() {
       
       const result = await response.json();
       
-      // If using fallback settings, show a toast
+      // If using fallback settings, throw an error to trigger the catch block
       if (result.fallback) {
         console.warn('Using fallback for saving invoice settings:', result.message);
-        toast({
-          title: 'Settings Saved Locally',
-          description: 'Your settings have been saved locally but not to the database.',
-        });
-      } else {
-        toast({
-          title: 'Settings Saved',
-          description: 'Your invoice settings have been saved successfully.',
-        });
+        throw new Error(result.message || 'Database not available');
       }
+      
+      toast({
+        title: 'Settings Saved',
+        description: 'Your invoice settings have been saved successfully.',
+      });
       
       // Update the cache with the new settings
       mutate(settings, false);
       
       return result.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving invoice settings:', error);
+      
+      const errorMessage = error.message || 'There was an error saving your invoice settings.';
       
       toast({
         title: 'Error Saving Settings',
-        description: 'There was an error saving your invoice settings. Your changes will be applied temporarily.',
+        description: errorMessage,
         variant: 'destructive',
       });
-      
-      // Update the cache anyway to provide a better user experience
-      mutate(settings, false);
       
       throw error;
     }
@@ -110,7 +116,15 @@ export function useInvoiceSettings() {
       
       const result = await response.json();
       
-      return result.data || [];
+      // Ensure we always return an array
+      if (Array.isArray(result.data)) {
+        return result.data;
+      } else if (result.data && typeof result.data === 'object') {
+        // If it's a single object (shouldn't happen with our fixes), wrap it in an array
+        return [result.data];
+      } else {
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching all invoice settings:', error);
       return [];
@@ -210,6 +224,7 @@ export function useInvoiceSettings() {
     settings: data || defaultInvoiceSettings,
     isLoading,
     error,
+    mutate,
     saveSettings,
     getAllSettings,
     deleteSettings,

@@ -10,6 +10,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { FormDescription } from '@/components/ui/form';
+import { useWatch } from 'react-hook-form';
 import { BUCKETS } from '@/lib/supabase/storage';
 
 // Predefined logos
@@ -41,9 +46,15 @@ interface LogoSelectorProps {
 }
 
 const LogoSelector: React.FC<LogoSelectorProps> = ({ name = 'companyLogo' }) => {
-  const { control } = useFormContext();
+  const { control, getValues, setValue } = useFormContext();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>('gallery');
+  
+  // Watch logo-related values for live preview
+  const watchedLogo = useWatch({ control, name: 'companyLogo' });
+  const watchedSize = useWatch({ control, name: 'logoSize' });
+  const watchedBorder = useWatch({ control, name: 'logoShowBorder' });
+  const watchedZoom = useWatch({ control, name: 'logoZoom' });
 
   return (
     <FormField
@@ -152,6 +163,155 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ name = 'companyLogo' }) => 
                 </TabsContent>
               </Tabs>
               <FormMessage />
+              
+              {/* Logo Display Settings - Only show if logo is selected */}
+              {field.value && (
+                <Card className="mt-6">
+                  <CardContent className="pt-4">
+                    <div className="space-y-6">
+                      {/* Logo Preview and Controls Layout */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Live Preview Section */}
+                        <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-border/40">
+                          <h4 className="text-sm font-medium text-foreground mb-3">Live Preview</h4>
+                          <div className="flex items-center justify-center min-h-[120px]">
+                            {/* Exact replica of invoice template logo styling */}
+                            <div style={{
+                              width: watchedSize === 'small' ? '60px' : 
+                                     watchedSize === 'large' ? '100px' : '80px',
+                              height: watchedSize === 'small' ? '60px' : 
+                                      watchedSize === 'large' ? '100px' : '80px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden',
+                              borderRadius: '8px',
+                              border: watchedBorder ? '2px solid #0a3b22' : 'none',
+                              padding: watchedBorder ? '0' : '4px',
+                              position: 'relative',
+                              backgroundColor: 'white',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}>
+                              <img 
+                                src={field.value}
+                                alt="Logo Preview"
+                                style={{
+                                  maxWidth: 'none',
+                                  maxHeight: 'none',
+                                  width: 'auto',
+                                  height: 'auto',
+                                  objectFit: 'contain',
+                                  transform: `scale(${watchedZoom || 1})`,
+                                  maxWidth: '100%',
+                                  maxHeight: '100%',
+                                  transformOrigin: 'center',
+                                  position: 'relative'
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center mt-2">
+                            Exact invoice appearance
+                          </p>
+                        </div>
+                        
+                        {/* Logo Controls Section */}
+                        <div className="space-y-4">
+                          {/* Logo Size Selector */}
+                          <FormField
+                            control={control}
+                            name="logoSize"
+                            render={({ field: sizeField }) => (
+                              <FormItem>
+                                <FormLabel>Logo Size</FormLabel>
+                                <FormControl>
+                                  <Select value={sizeField.value || 'medium'} onValueChange={sizeField.onChange}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select logo size" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="small">Small (60x60)</SelectItem>
+                                      <SelectItem value="medium">Medium (80x80)</SelectItem>
+                                      <SelectItem value="large">Large (100x100)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          {/* Show Border Toggle */}
+                          <FormField
+                            control={control}
+                            name="logoShowBorder"
+                            render={({ field: borderField }) => (
+                              <FormItem className="flex items-center justify-between space-y-0">
+                                <div className="flex-1">
+                                  <FormLabel>Show Logo Border</FormLabel>
+                                  <FormDescription className="text-xs mt-1">
+                                    Display a border around your logo
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={borderField.value ?? true}
+                                    onCheckedChange={borderField.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          {/* Zoom Control */}
+                          <FormField
+                            control={control}
+                            name="logoZoom"
+                            render={({ field: zoomField }) => (
+                              <FormItem>
+                                <FormLabel>Logo Zoom ({Math.round((zoomField.value || 1) * 100)}%)</FormLabel>
+                                <FormControl>
+                                  <Slider
+                                    value={[zoomField.value || 1]}
+                                    onValueChange={(values) => zoomField.onChange(values[0])}
+                                    min={0.5}
+                                    max={3.0}
+                                    step={0.1}
+                                    className="w-full"
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs mt-1">
+                                  Scale your logo from 50% to 300%
+                                </FormDescription>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          
+                          {/* Reset Button */}
+                          <div className="pt-2 flex justify-between items-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setValue('logoZoom', 1.0);
+                                setValue('logoSize', 'medium');
+                                setValue('logoShowBorder', true);
+                              }}
+                              className="text-sm text-orange-500 hover:text-orange-400 underline"
+                            >
+                              Reset Logo Settings
+                            </button>
+                            <div className="text-xs text-muted-foreground">
+                              Size: {watchedSize || 'medium'} | 
+                              Zoom: {Math.round((watchedZoom || 1) * 100)}% | 
+                              Border: {watchedBorder ? 'On' : 'Off'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </FormItem>

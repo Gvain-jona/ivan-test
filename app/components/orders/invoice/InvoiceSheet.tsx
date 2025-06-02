@@ -1,3 +1,7 @@
+// ⚠️ DEPRECATED: This file is no longer used in the app
+// The app now uses /app/features/invoices/components/InvoiceSheet.tsx
+// This file should be removed in future cleanup
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOrdersPage } from '@/app/dashboard/orders/_context';
 import { useForm } from 'react-hook-form';
@@ -73,6 +77,11 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
       companyPhone: '0755 541 373',
       companyAddress: 'Printing, Designing, Branding.',
       companyLogo: '/images/default-logo.svg',
+      
+      // Logo settings
+      logoSize: 'medium' as 'small' | 'medium' | 'large',
+      logoShowBorder: true,
+      logoZoom: 1.0,
 
       // Payment details arrays
       bankDetails: [

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get sizes from the database
     const { data, error } = await supabase
@@ -45,7 +45,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { label } = await request.json();
     
     if (!label) {

@@ -48,6 +48,13 @@ export interface InvoiceSettings {
   showFooter: boolean;
   showLogo: boolean;
   
+  // Logo customization options
+  logoSize?: 'small' | 'medium' | 'large';
+  logoZoom?: number;
+  logoPanX?: number;
+  logoPanY?: number;
+  logoShowBorder?: boolean;
+  
   // Item display options
   showItemCategory: boolean;
   showItemName: boolean;

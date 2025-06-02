@@ -22,6 +22,13 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   showFooter: true,
   showLogo: true,
   
+  // Logo customization options (optional fields)
+  logoSize: 'medium',
+  logoZoom: 1,
+  logoPanX: 0,
+  logoPanY: 0,
+  logoShowBorder: false,
+  
   // Item display options
   showItemCategory: true,
   showItemName: true,

@@ -1,8 +1,12 @@
+// ⚠️ DEPRECATED: This file is no longer used in the app
+// The app now uses /app/features/invoices/components/InvoicePreview.tsx
+// This file should be removed in future cleanup
+
 import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FilePlus, Loader2, Download, Printer, Eye } from 'lucide-react';
 import { Order } from '@/types/orders';
-import { InvoiceSettings } from './types';
+import { InvoiceSettings, toSimplifiedSettings } from './types';
 import OrangeInvoiceTemplate from './OrangeInvoiceTemplate';
 import A5PreviewContainer from './A5PreviewContainer';
 import useEnhancedInvoiceGeneration from './hooks/useEnhancedInvoiceGeneration';
@@ -71,7 +75,7 @@ const EnhancedInvoicePreview: React.FC<EnhancedInvoicePreviewProps> = ({
             hideScrollbars={false}
             className="pdf-ready"
           >
-            <OrangeInvoiceTemplate order={order} settings={settings} />
+            <OrangeInvoiceTemplate order={order} settings={toSimplifiedSettings(settings)} />
           </A5PreviewContainer>
 
           {/* Loading indicator */}

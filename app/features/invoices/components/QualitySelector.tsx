@@ -33,50 +33,53 @@ export function QualitySelector({
         <Button
           variant="outline"
           size="sm"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 min-w-[140px] justify-start"
           disabled={disabled}
+          type="button"
         >
           {selectedQuality === 'digital' ? (
             <>
-              <Monitor className="h-4 w-4" />
-              <span>Digital Quality</span>
+              <Monitor className="h-4 w-4 shrink-0" />
+              <span className="truncate">Digital Quality</span>
             </>
           ) : (
             <>
-              <Printer className="h-4 w-4" />
-              <span>Print Quality</span>
+              <Printer className="h-4 w-4 shrink-0" />
+              <span className="truncate">Print Quality</span>
             </>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Select Quality</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-80 p-1">
+        <DropdownMenuLabel className="px-2 py-1.5 text-sm font-semibold">Select Quality</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="flex items-center gap-2"
-          onClick={() => {
+          className="flex items-center gap-2 cursor-pointer focus:bg-orange-50 focus:text-orange-900"
+          onSelect={() => {
             onQualityChange('digital');
-            setOpen(false); // Close dropdown after selection
+            setOpen(false);
           }}
         >
           <Monitor className="h-4 w-4" />
-          <div>
-            <div>Digital Quality</div>
+          <div className="flex-1">
+            <div className="font-medium">Digital Quality</div>
             <div className="text-xs text-muted-foreground">Smaller file size (~200KB), optimized for digital sharing</div>
           </div>
+          {selectedQuality === 'digital' && <div className="ml-2 text-orange-500 font-bold">✓</div>}
         </DropdownMenuItem>
         <DropdownMenuItem
-          className="flex items-center gap-2"
-          onClick={() => {
+          className="flex items-center gap-2 cursor-pointer focus:bg-orange-50 focus:text-orange-900"
+          onSelect={() => {
             onQualityChange('print');
-            setOpen(false); // Close dropdown after selection
+            setOpen(false);
           }}
         >
           <Printer className="h-4 w-4" />
-          <div>
-            <div>Print Quality</div>
+          <div className="flex-1">
+            <div className="font-medium">Print Quality</div>
             <div className="text-xs text-muted-foreground">High-quality resolution (~1MB), good for printing</div>
           </div>
+          {selectedQuality === 'print' && <div className="ml-2 text-orange-500 font-bold">✓</div>}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

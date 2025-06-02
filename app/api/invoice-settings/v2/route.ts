@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
+import { createClient } from '@/app/lib/supabase/server';
 import { defaultInvoiceSettings } from '@/app/features/invoices/context/InvoiceContext';
 
 /**
@@ -9,8 +8,7 @@ import { defaultInvoiceSettings } from '@/app/features/invoices/context/InvoiceC
  */
 export async function GET(request: NextRequest) {
   try {
-    // Create a Supabase client
-    const cookieStore = await cookies();
+    // Create Supabase client
     const supabase = await createClient();
     
     // Get the default parameter from the URL
@@ -21,33 +19,10 @@ export async function GET(request: NextRequest) {
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (userError) {
+    if (userError || !user) {
       console.error('Authentication error:', userError);
-      // Return default settings instead of error
-      return NextResponse.json({ 
-        data: {
-          id: 'default-fallback',
-          name: 'Default Settings',
-          is_default: true,
-          settings: defaultInvoiceSettings,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        fallback: true,
-        message: 'Using fallback settings due to authentication error'
-      });
-    }
-    
-    try {
-      // Check if the table exists
-      const { error: tableCheckError } = await supabase
-        .from('invoice_settings')
-        .select('id')
-        .limit(1);
-      
-      // If the table doesn't exist, return default settings
-      if (tableCheckError && tableCheckError.message.includes('does not exist')) {
-        console.warn('invoice_settings table does not exist yet');
+      // Return empty array for non-default requests, single object for default requests
+      if (getDefault) {
         return NextResponse.json({ 
           data: {
             id: 'default-fallback',
@@ -58,8 +33,48 @@ export async function GET(request: NextRequest) {
             updated_at: new Date().toISOString(),
           },
           fallback: true,
-          message: 'Using fallback settings because table does not exist'
+          message: 'User not authenticated. Please sign in to save settings.'
         });
+      } else {
+        // Return empty array for getAllSettings
+        return NextResponse.json({ 
+          data: [],
+          fallback: true,
+          message: 'User not authenticated. Please sign in to view saved settings.'
+        });
+      }
+    }
+    
+    try {
+      // Check if the table exists
+      const { error: tableCheckError } = await supabase
+        .from('invoice_settings')
+        .select('id')
+        .limit(1);
+      
+      // If the table doesn't exist, log the actual error
+      if (tableCheckError) {
+        console.error('Table check error:', tableCheckError);
+        if (getDefault) {
+          return NextResponse.json({ 
+            data: {
+              id: 'default-fallback',
+              name: 'Default Settings',
+              is_default: true,
+              settings: defaultInvoiceSettings,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            fallback: true,
+            message: `Database error: ${tableCheckError.message}`
+          });
+        } else {
+          return NextResponse.json({ 
+            data: [],
+            fallback: true,
+            message: `Database error: ${tableCheckError.message}`
+          });
+        }
       }
       
       let query = supabase
@@ -85,19 +100,27 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         console.error('Error fetching invoice settings:', error);
-        // Return default settings instead of error
-        return NextResponse.json({ 
-          data: {
-            id: 'default-fallback',
-            name: 'Default Settings',
-            is_default: true,
-            settings: defaultInvoiceSettings,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          fallback: true,
-          message: 'Using fallback settings due to database error'
-        });
+        // Return appropriate response based on request type
+        if (getDefault) {
+          return NextResponse.json({ 
+            data: {
+              id: 'default-fallback',
+              name: 'Default Settings',
+              is_default: true,
+              settings: defaultInvoiceSettings,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            fallback: true,
+            message: 'Using fallback settings due to database error'
+          });
+        } else {
+          return NextResponse.json({ 
+            data: [],
+            fallback: true,
+            message: 'Using fallback due to database error'
+          });
+        }
       }
       
       // If no settings found and default was requested, return default settings
@@ -117,12 +140,40 @@ export async function GET(request: NextRequest) {
       }
       
       return NextResponse.json({ 
-        data: getDefault ? settings[0] : settings,
+        data: getDefault && settings.length > 0 ? settings[0] : settings,
         fallback: false
       });
     } catch (dbError) {
       console.error('Database error:', dbError);
-      // Return default settings instead of error
+      // Return appropriate response based on request type
+      if (getDefault) {
+        return NextResponse.json({ 
+          data: {
+            id: 'default-fallback',
+            name: 'Default Settings',
+            is_default: true,
+            settings: defaultInvoiceSettings,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          fallback: true,
+          message: 'Using fallback settings due to database error'
+        });
+      } else {
+        return NextResponse.json({ 
+          data: [],
+          fallback: true,
+          message: 'Using fallback due to database error'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error in invoice settings API:', error);
+    // Get the default parameter to determine response type
+    const { searchParams } = new URL(request.url);
+    const getDefault = searchParams.get('default') === 'true';
+    
+    if (getDefault) {
       return NextResponse.json({ 
         data: {
           id: 'default-fallback',
@@ -133,24 +184,15 @@ export async function GET(request: NextRequest) {
           updated_at: new Date().toISOString(),
         },
         fallback: true,
-        message: 'Using fallback settings due to database error'
+        message: 'Using fallback settings due to server error'
+      });
+    } else {
+      return NextResponse.json({ 
+        data: [],
+        fallback: true,
+        message: 'Using fallback due to server error'
       });
     }
-  } catch (error) {
-    console.error('Error in invoice settings API:', error);
-    // Return default settings instead of error
-    return NextResponse.json({ 
-      data: {
-        id: 'default-fallback',
-        name: 'Default Settings',
-        is_default: true,
-        settings: defaultInvoiceSettings,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      fallback: true,
-      message: 'Using fallback settings due to server error'
-    });
   }
 }
 
@@ -164,14 +206,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { settings, name, isDefault, id } = body;
     
-    // Create a Supabase client
-    const cookieStore = await cookies();
+    // Create Supabase client
     const supabase = await createClient();
     
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (userError) {
+    if (userError || !user) {
       console.error('Authentication error:', userError);
       // Return a mock response instead of an error
       return NextResponse.json({ 
@@ -184,7 +225,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         },
         fallback: true,
-        message: 'Using mock data due to authentication error'
+        message: 'User not authenticated. Please sign in to save settings.'
       });
     }
     
@@ -195,9 +236,9 @@ export async function POST(request: NextRequest) {
         .select('id')
         .limit(1);
       
-      // If the table doesn't exist, return a mock response
-      if (tableCheckError && tableCheckError.message.includes('does not exist')) {
-        console.warn('invoice_settings table does not exist yet, returning mock data');
+      // If the table doesn't exist, log the actual error
+      if (tableCheckError) {
+        console.error('Table check error in POST:', tableCheckError);
         return NextResponse.json({ 
           data: {
             id: id || 'mock-id-' + Date.now(),
@@ -208,7 +249,7 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           },
           fallback: true,
-          message: 'Using mock data because table does not exist'
+          message: `Database error: ${tableCheckError.message}`
         });
       }
       
@@ -222,6 +263,47 @@ export async function POST(request: NextRequest) {
       
       // If an ID is provided, update the existing settings
       if (id && id !== 'default-fallback' && !id.startsWith('mock-id-')) {
+        // If only updating the default flag, fetch existing settings first
+        if (!settings && isDefault !== undefined) {
+          const { data: existingSettings, error: fetchError } = await supabase
+            .from('invoice_settings')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (fetchError || !existingSettings) {
+            console.error('Error fetching existing settings:', fetchError);
+            return NextResponse.json({ 
+              error: 'Settings not found',
+              fallback: true
+            }, { status: 404 });
+          }
+          
+          // Update only the is_default flag
+          const { data: updateData, error: updateError } = await supabase
+            .from('invoice_settings')
+            .update({
+              is_default: isDefault,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+          
+          if (updateError) {
+            console.error('Error updating default flag:', updateError);
+            return NextResponse.json({ 
+              error: 'Failed to update default settings',
+              fallback: true
+            }, { status: 500 });
+          }
+          
+          return NextResponse.json({ data: updateData, fallback: false });
+        }
+        
+        // Otherwise update all fields
         const { data: updateData, error: updateError } = await supabase
           .from('invoice_settings')
           .update({
@@ -329,8 +411,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Create a Supabase client
-    const cookieStore = await cookies();
+    // Create Supabase client
     const supabase = await createClient();
     
     // Get the current user
