@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { InvoiceSettings } from '../types';
-import { defaultInvoiceSettings } from '../context/InvoiceContext';
+import { emptyInvoiceSettings } from '../context/InvoiceContext';
 import { getDefaultInvoiceSettings, saveInvoiceSettings } from '../api/settings';
 import useSWR from 'swr';
 
@@ -19,7 +19,7 @@ export function useInvoiceSettings() {
         return await getDefaultInvoiceSettings();
       } catch (error) {
         console.error('Error fetching invoice settings:', error);
-        return defaultInvoiceSettings;
+        return emptyInvoiceSettings;
       }
     },
     {
@@ -42,7 +42,7 @@ export function useInvoiceSettings() {
   };
 
   return {
-    settings: data || defaultInvoiceSettings,
+    settings: data || emptyInvoiceSettings,
     isLoading,
     error,
     saveSettings,
@@ -59,7 +59,7 @@ export function useLocalInvoiceSettings(initialSettings?: Partial<InvoiceSetting
 
   // Local state for settings
   const [settings, setSettings] = useState<InvoiceSettings>({
-    ...defaultInvoiceSettings,
+    ...emptyInvoiceSettings,
     ...initialSettings,
   });
 

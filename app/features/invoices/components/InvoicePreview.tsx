@@ -17,6 +17,9 @@ import { PdfGenerationOverlay } from './PdfGenerationOverlay';
  */
 const InvoicePreview: React.FC = () => {
   const { order, settings } = useInvoiceContext();
+  
+  // Check if settings are empty (no company name means not configured)
+  const hasValidSettings = settings && settings.companyName && settings.companyName.trim().length > 0;
   const previewRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -94,6 +97,26 @@ const InvoicePreview: React.FC = () => {
     setIsGenerating(false);
     setProgress(0);
   };
+
+  // Show settings required message if no valid settings
+  if (!hasValidSettings) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <div className="max-w-md">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Invoice Settings Required
+          </h3>
+          <p className="text-gray-600 mb-4">
+            You need to configure your invoice settings before you can preview or generate invoices. 
+            Please go to the Settings tab to add your company information.
+          </p>
+          <p className="text-sm text-gray-500">
+            At minimum, you need to provide a company name to generate invoices.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

@@ -80,11 +80,22 @@ const SettingsManager: React.FC = () => {
           
           setSavedSettings(realSettings);
           
-          // Try to determine the active setting
-          // If there's a default setting, mark it as active initially
-          const defaultSetting = realSettings.find((s: any) => s.is_default);
-          if (defaultSetting) {
-            setActiveSettingId(defaultSetting.id);
+          // Try to determine the active setting based on current settings
+          // Compare current settings with saved ones to find the active one
+          const activeSettingFromCurrent = realSettings.find((savedSetting: InvoiceSettingRecord) => {
+            // Check if company name matches as a simple indicator
+            return savedSetting.settings.companyName === currentSettings.companyName &&
+                   savedSetting.settings.companyEmail === currentSettings.companyEmail;
+          });
+          
+          if (activeSettingFromCurrent) {
+            setActiveSettingId(activeSettingFromCurrent.id);
+          } else {
+            // If no match, check for default
+            const defaultSetting = realSettings.find((s: any) => s.is_default);
+            if (defaultSetting) {
+              setActiveSettingId(defaultSetting.id);
+            }
           }
         } catch (error: any) {
           console.error('Error loading settings:', error);
@@ -119,28 +130,10 @@ const SettingsManager: React.FC = () => {
     try {
       setIsSaving(true);
 
-      // Check if we're trying to save as default
-      if (isDefault) {
-        // Check if there's already a default setting for this user
-        const existingDefault = savedSettings.find(s => s.is_default);
-        
-        if (existingDefault) {
-          // Update the existing default instead of creating a new one
-          await saveSettings(currentSettings, existingDefault.name, true, existingDefault.id);
-          setActiveSettingId(existingDefault.id);
-        } else {
-          // No existing default, create a new one
-          const result = await saveSettings(currentSettings, settingName, isDefault);
-          if (result && result.id) {
-            setActiveSettingId(result.id);
-          }
-        }
-      } else {
-        // Not default, just save normally
-        const result = await saveSettings(currentSettings, settingName, isDefault);
-        if (result && result.id) {
-          setActiveSettingId(result.id);
-        }
+      // Save settings - allow multiple default settings
+      const result = await saveSettings(currentSettings, settingName, isDefault);
+      if (result && result.id) {
+        setActiveSettingId(result.id);
       }
 
       // Reload settings to get the updated list
@@ -211,32 +204,41 @@ const SettingsManager: React.FC = () => {
     });
   };
 
-  // Handle set default
-  const handleSetDefault = async (setting: InvoiceSettingRecord) => {
+  // Handle toggle default
+  const handleToggleDefault = async (setting: InvoiceSettingRecord) => {
     try {
+      const newDefaultValue = !setting.is_default;
       const success = await setDefaultSettings(setting.id);
 
       if (success) {
-        setSavedSettings(prev => prev.map(s => ({
-          ...s,
-          is_default: s.id === setting.id,
-        })));
+        setSavedSettings(prev => prev.map(s => 
+          s.id === setting.id 
+            ? { ...s, is_default: newDefaultValue }
+            : s
+        ));
         
-        // Update the main invoice settings cache to use the new default
+        // Update the main invoice settings cache
         mutateInvoiceSettings();
         
-        // Also mark this as the active setting
-        setActiveSettingId(setting.id);
+        toast({
+          title: newDefaultValue ? 'Default Added' : 'Default Removed',
+          description: `Settings "${setting.name}" ${newDefaultValue ? 'marked as default' : 'unmarked as default'}.`,
+        });
       }
     } catch (error) {
-      console.error('Error setting default:', error);
+      console.error('Error toggling default:', error);
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Saved Settings</h2>
+        <div>
+          <h2 className="text-2xl font-bold">Saved Settings</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Default settings are automatically loaded when creating invoices. All users see the same default settings.
+          </p>
+        </div>
 
         <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
           <DialogTrigger asChild>
@@ -271,7 +273,7 @@ const SettingsManager: React.FC = () => {
                   checked={isDefault}
                   onCheckedChange={(checked) => setIsDefault(checked as boolean)}
                 />
-                <Label htmlFor="is-default">Set as default settings</Label>
+                <Label htmlFor="is-default">Mark as default (you can have multiple)</Label>
               </div>
             </div>
 
@@ -350,26 +352,43 @@ const SettingsManager: React.FC = () => {
               </CardContent>
 
               <CardFooter className="flex justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleLoad(setting)}
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Load
-                </Button>
-
                 <div className="flex gap-2">
-                  {!setting.is_default && (
+                  {!isActive && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleSetDefault(setting)}
+                      onClick={() => handleLoad(setting)}
                     >
-                      <Star className="mr-2 h-4 w-4" />
-                      Set Default
+                      <Check className="mr-2 h-4 w-4" />
+                      Apply
                     </Button>
                   )}
+                  {isActive && (
+                    <div className="text-sm text-green-500 flex items-center">
+                      <Check className="mr-1 h-4 w-4" />
+                      Currently Applied
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleDefault(setting)}
+                  >
+                    {setting.is_default ? (
+                      <>
+                        <StarOff className="mr-2 h-4 w-4" />
+                        Unmark Default
+                      </>
+                    ) : (
+                      <>
+                        <Star className="mr-2 h-4 w-4" />
+                        Mark as Default
+                      </>
+                    )}
+                  </Button>
 
                   <Button
                     variant="outline"

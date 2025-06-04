@@ -50,7 +50,11 @@ const OrdersPageContent: React.FC = () => {
 
     // Filtering
     filterByStatus,
-    filters
+    filters,
+
+    // Invoice Settings
+    invoiceSettings,
+    isLoadingInvoiceSettings
   } = useOrdersPage();
 
   return (
@@ -133,13 +137,14 @@ const OrdersPageContent: React.FC = () => {
         title="Create New Order"
       />
 
-      {/* Invoice Sheet */}
+      {/* Invoice Sheet - Pass pre-loaded settings */}
       {selectedOrder && (
         <InvoiceSheet
           open={invoiceModalOpen}
           onOpenChange={setInvoiceModalOpen}
           order={selectedOrder}
           onClose={() => setInvoiceModalOpen(false)}
+          initialSettings={invoiceSettings}
         />
       )}
     </div>

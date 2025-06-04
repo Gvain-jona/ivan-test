@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { InvoiceSettings, InvoiceSettingRecord } from '../types';
-import { defaultInvoiceSettings } from '../context/InvoiceContext';
+import { emptyInvoiceSettings } from '../context/InvoiceContext';
 
 /**
  * Get all invoice settings for the current user
@@ -22,7 +22,6 @@ export async function getInvoiceSettings(): Promise<InvoiceSettingRecord[]> {
   const { data, error } = await supabase
     .from('invoice_settings')
     .select('*')
-    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -52,8 +51,7 @@ export async function deleteInvoiceSettings(id: string): Promise<void> {
   const { error } = await supabase
     .from('invoice_settings')
     .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('id', id);
 
   if (error) {
     console.error('Error deleting invoice settings:', error);
@@ -77,11 +75,10 @@ export async function setDefaultInvoiceSettings(id: string): Promise<void> {
     throw new Error('User not authenticated');
   }
 
-  // First, set all settings to not default
+  // First, set all settings to not default (company-wide)
   const { error: updateError } = await supabase
     .from('invoice_settings')
-    .update({ is_default: false })
-    .eq('user_id', user.id);
+    .update({ is_default: false });
 
   if (updateError) {
     console.error('Error updating invoice settings:', updateError);
@@ -92,8 +89,7 @@ export async function setDefaultInvoiceSettings(id: string): Promise<void> {
   const { error } = await supabase
     .from('invoice_settings')
     .update({ is_default: true })
-    .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('id', id);
 
   if (error) {
     console.error('Error setting default invoice settings:', error);
@@ -120,7 +116,6 @@ export async function getDefaultInvoiceSettings(): Promise<InvoiceSettings> {
     .from('invoice_settings')
     .select('*')
     .eq('is_default', true)
-    .eq('user_id', user.id)
     .single();
 
   if (error) {
@@ -156,7 +151,7 @@ export async function createDefaultInvoiceSettings(): Promise<InvoiceSettings> {
     .insert({
       name: 'Default Settings',
       is_default: true,
-      settings: defaultInvoiceSettings,
+      settings: emptyInvoiceSettings,
       user_id: user.id
     })
     .select()
@@ -192,21 +187,19 @@ export async function saveInvoiceSettings(
     throw new Error('User not authenticated');
   }
 
-  // If this is the default, update any existing default to not be default
+  // If this is the default, update any existing default to not be default (company-wide)
   if (isDefault) {
     await supabase
       .from('invoice_settings')
       .update({ is_default: false })
-      .eq('is_default', true)
-      .eq('user_id', user.id);
+      .eq('is_default', true);
   }
 
-  // Check if default settings exist
+  // Check if default settings exist (company-wide)
   const { data: existingData } = await supabase
     .from('invoice_settings')
     .select('*')
     .eq('is_default', true)
-    .eq('user_id', user.id)
     .maybeSingle();
 
   if (existingData) {
@@ -217,7 +210,8 @@ export async function saveInvoiceSettings(
         name,
         is_default: isDefault,
         settings,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        user_id: user.id // Track who made the last update
       })
       .eq('id', existingData.id)
       .select()

@@ -140,39 +140,31 @@ export interface SimplifiedInvoiceSettings {
   }>;
 }
 
-// Adapter function to convert complex settings to simplified
+// Adapter function to convert complex settings to simplified - no fallbacks
 export function toSimplifiedSettings(complex: InvoiceSettings): SimplifiedInvoiceSettings {
   return {
-    companyName: complex.companyName || 'IVAN PRINTS LIMITED',
+    companyName: complex.companyName || '',
     companyLogo: complex.companyLogo,
     logoSize: complex.logoSize || 'medium',
-    logoShowBorder: complex.logoShowBorder ?? true,
+    logoShowBorder: complex.logoShowBorder ?? false,
     logoZoom: complex.logoZoom ?? 1.0,
-    tagline: complex.companyAddress || 'DESIGN.PRINT.BRAND.',
-    phone: complex.companyPhone || '+256(0) 755 541 373',
-    email: complex.companyEmail || 'sherilox356@gmail.com',
-    tin: complex.tinNumber || '1050884489',
+    tagline: complex.companyAddress || '',
+    phone: complex.companyPhone || '',
+    email: complex.companyEmail || '',
+    tin: complex.tinNumber || '',
     bankDetails: complex.bankDetails && complex.bankDetails.length > 0 
       ? complex.bankDetails.map(bd => ({
           accountName: bd.accountName,
           bankName: bd.bankName,
           accountNumber: bd.accountNumber
         }))
-      : [{
-          accountName: 'IVAN PRINTS',
-          bankName: 'ABSA BANK',
-          accountNumber: '6008084570'
-        }],
+      : [],
     mobileMoneyDetails: complex.mobileMoneyDetails && complex.mobileMoneyDetails.length > 0
       ? complex.mobileMoneyDetails.map(mmd => ({
           provider: mmd.provider,
           phone: mmd.phoneNumber,
           name: mmd.contactName
         }))
-      : [{
-          provider: 'MTN Mobile Money',
-          phone: '0755 541 373',
-          name: 'Wadie Abduli'
-        }]
+      : []
   };
 }

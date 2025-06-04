@@ -7,20 +7,20 @@ import { Order } from '@/types/orders';
 // Create the context with a default undefined value
 export const InvoiceContext = createContext<InvoiceContextValue | undefined>(undefined);
 
-// Default settings
-export const defaultInvoiceSettings: InvoiceSettings = {
+// Empty settings template - no hardcoded defaults
+export const emptyInvoiceSettings: InvoiceSettings = {
   // Company information
-  companyName: 'IVAN PRINTS',
-  companyLogo: '/images/default-logo.svg',
-  companyAddress: 'Printing, Designing, Branding.',
-  companyEmail: 'sherilex256@gmail.com',
-  companyPhone: '0755 541 373',
-  tinNumber: '1028570150',
+  companyName: '',
+  companyLogo: '',
+  companyAddress: '',
+  companyEmail: '',
+  companyPhone: '',
+  tinNumber: '',
   
   // Layout options
   showHeader: true,
   showFooter: true,
-  showLogo: true,
+  showLogo: false,
   
   // Logo customization options (optional fields)
   logoSize: 'medium',
@@ -42,26 +42,12 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   discountRate: 0,
   
   // Content options
-  notes: 'Thank you for your business!',
-  customFooter: 'Making You Visible.',
+  notes: '',
+  customFooter: '',
   
   // Payment details
-  bankDetails: [
-    {
-      id: '1',
-      bankName: 'ABSA BANK',
-      accountName: 'IVAN PRINTS',
-      accountNumber: '6008084570',
-    }
-  ],
-  mobileMoneyDetails: [
-    {
-      id: '1',
-      provider: 'Airtel',
-      phoneNumber: '0755 541 373',
-      contactName: 'Vuule Abdul',
-    }
-  ],
+  bankDetails: [],
+  mobileMoneyDetails: [],
 };
 
 interface InvoiceProviderProps {
@@ -75,11 +61,10 @@ export const InvoiceProvider: React.FC<InvoiceProviderProps> = ({
   order,
   initialSettings = {},
 }) => {
-  // Merge default settings with any provided initial settings
-  const [settings, setSettings] = useState<InvoiceSettings>({
-    ...defaultInvoiceSettings,
-    ...initialSettings,
-  });
+  // Use only the provided initial settings or empty template
+  const [settings, setSettings] = useState<InvoiceSettings>(
+    Object.keys(initialSettings).length > 0 ? initialSettings as InvoiceSettings : emptyInvoiceSettings
+  );
   
   // PDF generation state
   const [isGenerating, setIsGenerating] = useState(false);

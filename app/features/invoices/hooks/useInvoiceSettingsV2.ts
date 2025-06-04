@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { InvoiceSettings } from '../types';
-import { defaultInvoiceSettings } from '../context/InvoiceContext';
+import { emptyInvoiceSettings } from '../context/InvoiceContext';
 import useSWR from 'swr';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -13,43 +13,43 @@ import { useToast } from '@/components/ui/use-toast';
 export function useInvoiceSettings() {
   const { toast } = useToast();
   
-  // Use SWR to fetch and cache settings
+  // Use SWR to fetch and cache settings - no fallbacks
   const { data, error, isLoading, mutate } = useSWR(
     'invoice-settings-v2',
     async () => {
-      try {
-        const response = await fetch('/api/invoice-settings/v2?default=true');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch invoice settings');
-        }
-        
-        const result = await response.json();
-        
-        // If using fallback settings, show a toast
-        if (result.fallback) {
-          console.warn('Using fallback invoice settings:', result.message);
-        }
-        
-        // Handle the full record structure from the API
-        if (result.data) {
-          // If result.data has a settings property, it's a full record
-          if ('settings' in result.data && result.data.settings) {
-            return result.data.settings;
-          }
-          // Otherwise, it might be the settings directly (for backward compatibility)
-          return result.data;
-        }
-        return defaultInvoiceSettings;
-      } catch (error) {
-        console.error('Error fetching invoice settings:', error);
-        return defaultInvoiceSettings;
+      const response = await fetch('/api/invoice-settings/v2?default=true');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoice settings');
       }
+      
+      const result = await response.json();
+      
+      // Only return actual data from database
+      if (result.data && !result.fallback) {
+        // If result.data has a settings property, it's a full record
+        if ('settings' in result.data && result.data.settings) {
+          return result.data.settings;
+        }
+        // Otherwise, it might be the settings directly
+        return result.data;
+      }
+      
+      // Return null if no settings found - no fallbacks
+      return null;
     },
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60000, // 1 minute
+      onError: (error) => {
+        console.error('Invoice settings fetch error:', error);
+        toast({
+          title: 'Settings Unavailable',
+          description: 'Unable to load saved settings. Please check your connection or create new settings.',
+          variant: 'destructive',
+        });
+      }
     }
   );
   
@@ -77,8 +77,7 @@ export function useInvoiceSettings() {
       
       // If using fallback settings, throw an error to trigger the catch block
       if (result.fallback) {
-        console.warn('Using fallback for saving invoice settings:', result.message);
-        throw new Error(result.message || 'Database not available');
+        throw new Error(result.message || 'Database not available - settings not saved');
       }
       
       toast({
@@ -144,27 +143,23 @@ export function useInvoiceSettings() {
       
       const result = await response.json();
       
-      // If using fallback, show a toast
+      // If using fallback, throw an error
       if (result.fallback) {
-        console.warn('Using fallback for deleting invoice settings');
-        toast({
-          title: 'Settings Deleted Locally',
-          description: 'Your settings have been deleted locally but not from the database.',
-        });
-      } else {
-        toast({
-          title: 'Settings Deleted',
-          description: 'Your invoice settings have been deleted successfully.',
-        });
+        throw new Error('Database not available - settings not deleted');
       }
       
+      toast({
+        title: 'Settings Deleted',
+        description: 'Invoice settings have been deleted successfully.',
+      });
+      
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting invoice settings:', error);
       
       toast({
         title: 'Error Deleting Settings',
-        description: 'There was an error deleting your invoice settings.',
+        description: error.message || 'There was an error deleting your invoice settings.',
         variant: 'destructive',
       });
       
@@ -172,9 +167,19 @@ export function useInvoiceSettings() {
     }
   };
   
-  // Set default settings
+  // Toggle default status for settings
   const setDefaultSettings = async (id: string) => {
     try {
+      // First get the current setting to know its default status
+      const currentSettings = await getAllSettings();
+      const currentSetting = currentSettings.find((s: any) => s.id === id);
+      
+      if (!currentSetting) {
+        throw new Error('Setting not found');
+      }
+      
+      const newDefaultValue = !currentSetting.is_default;
+      
       const response = await fetch('/api/invoice-settings/v2', {
         method: 'POST',
         headers: {
@@ -182,37 +187,27 @@ export function useInvoiceSettings() {
         },
         body: JSON.stringify({
           id,
-          isDefault: true,
+          isDefault: newDefaultValue,
         }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to set default invoice settings');
+        throw new Error('Failed to update default status');
       }
       
       const result = await response.json();
       
-      // If using fallback, show a toast
       if (result.fallback) {
-        console.warn('Using fallback for setting default invoice settings');
-        toast({
-          title: 'Default Settings Set Locally',
-          description: 'Your default settings have been set locally but not in the database.',
-        });
-      } else {
-        toast({
-          title: 'Default Settings Set',
-          description: 'Your default invoice settings have been set successfully.',
-        });
+        throw new Error('Database not available');
       }
       
       return true;
-    } catch (error) {
-      console.error('Error setting default invoice settings:', error);
+    } catch (error: any) {
+      console.error('Error updating default status:', error);
       
       toast({
-        title: 'Error Setting Default Settings',
-        description: 'There was an error setting your default invoice settings.',
+        title: 'Error Updating Default Status',
+        description: error.message || 'There was an error updating the default status.',
         variant: 'destructive',
       });
       
@@ -221,7 +216,7 @@ export function useInvoiceSettings() {
   };
   
   return {
-    settings: data || defaultInvoiceSettings,
+    settings: data || null,
     isLoading,
     error,
     mutate,
@@ -240,11 +235,10 @@ export function useLocalInvoiceSettings(initialSettings?: Partial<InvoiceSetting
   // Fetch settings from the database
   const { settings: dbSettings, isLoading, error, saveSettings } = useInvoiceSettings();
   
-  // Local state for settings
-  const [settings, setSettings] = useState<InvoiceSettings>({
-    ...defaultInvoiceSettings,
-    ...initialSettings,
-  });
+  // Local state for settings  
+  const [settings, setSettings] = useState<InvoiceSettings>(
+    initialSettings as InvoiceSettings || dbSettings || emptyInvoiceSettings
+  );
   
   // Update a specific setting
   const updateSetting = (name: keyof InvoiceSettings, value: any) => {

@@ -9,6 +9,7 @@ export interface InvoiceSheetProps {
   onOpenChange: (open: boolean) => void;
   order: Order;
   onClose: () => void;
+  initialSettings?: InvoiceSettings;
 }
 
 /**

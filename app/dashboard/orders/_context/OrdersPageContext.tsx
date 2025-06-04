@@ -7,6 +7,7 @@ import { OrdersFilterProvider, useOrdersFilter } from './OrdersFilterContext';
 import { OrdersPaginationProvider, useOrdersPagination } from './OrdersPaginationContext';
 import { OrdersMetricsProvider, useOrdersMetrics } from './OrdersMetricsContext';
 import { OrdersTasksProvider, useOrdersTasks } from './OrdersTasksContext';
+import { OrdersInvoiceSettingsProvider, useOrdersInvoiceSettings } from './OrdersInvoiceSettingsContext';
 
 // Create a composite hook that combines all the individual hooks
 export const useOrdersPage = () => {
@@ -17,6 +18,7 @@ export const useOrdersPage = () => {
   const ordersPagination = useOrdersPagination();
   const ordersMetrics = useOrdersMetrics();
   const ordersTasks = useOrdersTasks();
+  const ordersInvoiceSettings = useOrdersInvoiceSettings();
   
   // Combine all context values into a single object
   return {
@@ -36,7 +38,10 @@ export const useOrdersPage = () => {
     ...ordersMetrics,
     
     // Tasks
-    ...ordersTasks
+    ...ordersTasks,
+    
+    // Invoice Settings
+    ...ordersInvoiceSettings
   };
 };
 
@@ -44,17 +49,19 @@ export const useOrdersPage = () => {
 export const OrdersPageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <OrdersDataProvider>
-      <OrdersUIProvider>
-        <OrdersFilterProvider>
-          <OrdersPaginationProvider>
-            <OrdersMetricsProvider>
-              <OrdersTasksProvider>
-                {children}
-              </OrdersTasksProvider>
-            </OrdersMetricsProvider>
-          </OrdersPaginationProvider>
-        </OrdersFilterProvider>
-      </OrdersUIProvider>
+      <OrdersInvoiceSettingsProvider>
+        <OrdersUIProvider>
+          <OrdersFilterProvider>
+            <OrdersPaginationProvider>
+              <OrdersMetricsProvider>
+                <OrdersTasksProvider>
+                  {children}
+                </OrdersTasksProvider>
+              </OrdersMetricsProvider>
+            </OrdersPaginationProvider>
+          </OrdersFilterProvider>
+        </OrdersUIProvider>
+      </OrdersInvoiceSettingsProvider>
     </OrdersDataProvider>
   );
 };

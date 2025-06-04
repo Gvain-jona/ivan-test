@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { FileText, Settings2, Save } from 'lucide-react';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { InvoiceSheetProps } from '../types';
-import { InvoiceProvider, defaultInvoiceSettings } from '../context/InvoiceContext';
+import { InvoiceProvider, emptyInvoiceSettings } from '../context/InvoiceContext';
 import { useInvoiceSettings } from '../hooks/useInvoiceSettingsV2';
 import InvoicePreview from './InvoicePreview';
 import InvoiceSettings from './settings/InvoiceSettings';
@@ -20,16 +20,13 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   onOpenChange,
   order,
   onClose,
+  initialSettings,
 }) => {
   const [activeTab, setActiveTab] = useState<string>('preview');
-  const { settings, isLoading, mutate } = useInvoiceSettings();
+  const { settings: fetchedSettings, isLoading, mutate } = useInvoiceSettings();
 
-  // Refetch settings when sheet opens to ensure we have the latest
-  React.useEffect(() => {
-    if (open) {
-      mutate();
-    }
-  }, [open, mutate]);
+  // Use passed initial settings if available, otherwise use fetched settings
+  const settings = initialSettings || fetchedSettings || emptyInvoiceSettings;
 
   // Handle close with confirmation if needed
   const handleClose = () => {
@@ -41,7 +38,7 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
   return (
     <InvoiceProvider
       order={order}
-      initialSettings={isLoading ? defaultInvoiceSettings : settings}>
+      initialSettings={settings}>
       <OrderSheet
         open={open}
         onOpenChange={onOpenChange}

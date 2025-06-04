@@ -7,7 +7,7 @@ export { default as InvoicePreview } from './components/InvoicePreview';
 export { default as ProfessionalTemplate } from './components/templates/ProfessionalTemplate';
 
 // Context
-export { InvoiceProvider, useInvoiceContext, defaultInvoiceSettings } from './context/InvoiceContext';
+export { InvoiceProvider, useInvoiceContext, emptyInvoiceSettings } from './context/InvoiceContext';
 
 // Hooks
 export { useInvoiceSettings as useInvoiceSettingsLegacy, useLocalInvoiceSettings as useLocalInvoiceSettingsLegacy } from './hooks/useInvoiceSettings';
