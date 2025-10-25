@@ -351,7 +351,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
               </div>
               <div style={{ padding: '12px', color: 'white', backgroundColor: styles.primaryGreen }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '14px' }}>TOTAL:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '14px' }}>TOTAL <span style={{ fontSize: '10px', opacity: 0.8 }}>(Inc. 18% VAT)</span>:</span>
                   <span style={{ fontWeight: 'bold', fontSize: '16px', textAlign: 'right' }}>{order.total_amount.toLocaleString()}/=</span>
                 </div>
               </div>
