@@ -40,11 +40,12 @@ export const emptyInvoiceSettings: InvoiceSettings = {
   taxRate: 0,
   includeDiscount: false,
   discountRate: 0,
-  
+
   // Content options
   notes: '',
   customFooter: '',
-  
+  vatPercentage: 18, // Default VAT percentage
+
   // Payment details
   bankDetails: [],
   mobileMoneyDetails: [],

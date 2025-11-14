@@ -188,6 +188,36 @@ const CompanySection: React.FC<SettingsSectionProps> = ({ control }) => {
               </FormItem>
             )}
           />
+
+          {/* VAT Percentage */}
+          <FormField
+            control={control}
+            name="vatPercentage"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-[#D1D5DB]">VAT Percentage</FormLabel>
+                <FormControl>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      placeholder="18"
+                      className="bg-transparent border-[#2B2B40] focus:border-[#F97316]"
+                      {...field}
+                      value={field.value ?? 18}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    />
+                    <span className="text-[#D1D5DB] text-sm">% VAT Inc</span>
+                  </div>
+                </FormControl>
+                <FormDescription className="text-[#6B7280] text-xs mt-1.5">
+                  Display-only percentage shown below the total. This does not affect calculations.
+                </FormDescription>
+              </FormItem>
+            )}
+          />
         </CardContent>
       </Card>
     </div>

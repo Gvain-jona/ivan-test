@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import type { Database } from '../../../types/supabase'
+import type { Database } from '@/types/supabase'
 
 /**
  * Special route to fix profile RLS issues

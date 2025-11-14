@@ -175,12 +175,13 @@ export function useInvoiceSettings(): UseInvoiceSettingsReturn {
             taxRate: 0,
             includeDiscount: false,
             discountRate: 0,
-            
+
             // Simplified content
             notes: '',
             customHeader: '',
             customFooter: 'Making You Visible',
-            
+            vatPercentage: 18,
+
             // Single payment method each
             bankDetails: [{
               id: '1',

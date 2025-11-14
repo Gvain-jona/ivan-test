@@ -67,11 +67,12 @@ export interface InvoiceSettings {
   taxRate: number;
   includeDiscount: boolean;
   discountRate: number;
-  
+
   // Content options
   notes: string;
   customFooter: string;
-  
+  vatPercentage: number; // Display-only VAT percentage (e.g., 18 for "18% VAT Inc")
+
   // Payment details
   bankDetails: BankDetail[];
   mobileMoneyDetails: MobileMoneyDetail[];

@@ -33,6 +33,7 @@ export interface InvoiceSettings {
   notes: string;
   customHeader: string;
   customFooter: string;
+  vatPercentage: number; // Display-only VAT percentage (e.g., 18 for "18% VAT Inc")
 
   // Company information
   tinNumber: string;
@@ -126,7 +127,10 @@ export interface SimplifiedInvoiceSettings {
   phone: string;
   email: string;
   tin: string;
-  
+
+  // Display options
+  vatPercentage?: number; // Display-only VAT percentage (e.g., 18 for "18% VAT Inc")
+
   // Payment (now supports multiple entries)
   bankDetails: Array<{
     accountName: string;
@@ -152,7 +156,8 @@ export function toSimplifiedSettings(complex: InvoiceSettings): SimplifiedInvoic
     phone: complex.companyPhone || '',
     email: complex.companyEmail || '',
     tin: complex.tinNumber || '',
-    bankDetails: complex.bankDetails && complex.bankDetails.length > 0 
+    vatPercentage: complex.vatPercentage ?? 18,
+    bankDetails: complex.bankDetails && complex.bankDetails.length > 0
       ? complex.bankDetails.map(bd => ({
           accountName: bd.accountName,
           bankName: bd.bankName,

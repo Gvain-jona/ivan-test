@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import type { Database } from '../../../types/supabase'
+import type { Database } from '@/types/supabase'
 import { getBaseUrl } from '@/app/lib/auth/session-utils'
 import { getAllAuthCookieNames } from '@/app/lib/auth/cookie-utils'
 import { createClient } from '../../../utils/supabase/server'

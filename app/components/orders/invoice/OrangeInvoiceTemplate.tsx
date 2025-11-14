@@ -345,8 +345,8 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
             <div style={{ width: '33.33%', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ backgroundColor: '#f3f4f6', padding: '12px', borderBottom: `1px solid ${styles.tableBorder}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: '500', fontSize: '14px' }}>Subtotal:</span>
-                  <span style={{ fontSize: '14px', textAlign: 'right' }}>{order.total_amount.toLocaleString()}/=</span>
+                  <span style={{ fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>Subtotal:</span>
+                  <span style={{ fontSize: '14px', textAlign: 'right', fontWeight: '600', color: '#1f2937' }}>{order.total_amount.toLocaleString()}/=</span>
                 </div>
               </div>
               <div style={{ padding: '12px', color: 'white', backgroundColor: styles.primaryGreen }}>
@@ -355,6 +355,16 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
                   <span style={{ fontWeight: 'bold', fontSize: '16px', textAlign: 'right' }}>{order.total_amount.toLocaleString()}/=</span>
                 </div>
               </div>
+              {/* VAT Display Text - Display only, no calculation */}
+              {settings.vatPercentage !== undefined && settings.vatPercentage > 0 && (
+                <div style={{ padding: '6px 12px', backgroundColor: '#fef3c7', borderTop: `1px solid ${styles.tableBorder}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#92400e', fontWeight: '500' }}>
+                      {settings.vatPercentage}% VAT Inc
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

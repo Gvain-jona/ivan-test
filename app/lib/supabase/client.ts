@@ -1,6 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { AuthChangeEvent } from '@supabase/supabase-js'
-import type { Database } from '../../../types/supabase'
+import type { Database } from '@/types/supabase'
 
 /**
  * Creates a Supabase client for browser/client components
