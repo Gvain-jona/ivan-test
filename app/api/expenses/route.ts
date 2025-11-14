@@ -72,56 +72,80 @@ export async function GET(request: NextRequest) {
       return handleSupabaseError(error);
     }
 
-    // Fetch payments and notes for each expense
-    const expensesWithDetails = await Promise.all((data || []).map(async (expense) => {
-      // Get payments for the expense
-      const { data: payments, error: paymentsError } = await supabase
-        .from('expense_payments')
-        .select('*')
-        .eq('expense_id', expense.id)
-        .order('date', { ascending: false });
+    // PERFORMANCE FIX: Use batch queries instead of N+1 queries
+    // OLD: 3 queries per expense = 150+ queries for 50 expenses
+    // NEW: 3 batch queries total regardless of expense count
+    const expenseIds = (data || []).map(expense => expense.id);
+    console.log(`Fetching related data for ${expenseIds.length} expenses using batch queries`);
 
-      if (paymentsError) {
-        console.error(`Error fetching payments for expense ${expense.id}:`, paymentsError);
-      }
+    // Batch fetch all payments for all expenses in a single query
+    const { data: allPayments, error: paymentsError } = await supabase
+      .from('expense_payments')
+      .select('*')
+      .in('expense_id', expenseIds)
+      .order('date', { ascending: false });
 
-      // Get notes for the expense - try both tables for backward compatibility
-      let notes = [];
+    if (paymentsError) {
+      console.error('Error fetching payments:', paymentsError);
+    }
 
-      // First try the expense_notes table (new structure)
-      const { data: expenseNotes, error: expenseNotesError } = await supabase
-        .from('expense_notes')
-        .select('*')
-        .eq('expense_id', expense.id)
-        .order('created_at', { ascending: false });
+    // Batch fetch all expense_notes for all expenses in a single query
+    const { data: allExpenseNotes, error: expenseNotesError } = await supabase
+      .from('expense_notes')
+      .select('*')
+      .in('expense_id', expenseIds)
+      .order('created_at', { ascending: false });
 
-      if (expenseNotesError) {
-        console.error(`Error fetching notes from expense_notes for expense ${expense.id}:`, expenseNotesError);
-      } else if (expenseNotes && expenseNotes.length > 0) {
-        notes = expenseNotes;
-      } else {
-        // Fall back to the notes table with linked_item fields (old structure)
-        const { data: linkedNotes, error: linkedNotesError } = await supabase
-          .from('notes')
-          .select('*')
-          .eq('linked_item_type', 'expense')
-          .eq('linked_item_id', expense.id)
-          .order('created_at', { ascending: false });
+    if (expenseNotesError) {
+      console.error('Error fetching expense_notes:', expenseNotesError);
+    }
 
-        if (linkedNotesError) {
-          console.error(`Error fetching notes from notes table for expense ${expense.id}:`, linkedNotesError);
-        } else {
-          notes = linkedNotes || [];
-        }
-      }
+    // Batch fetch all linked notes for all expenses in a single query (fallback)
+    const { data: allLinkedNotes, error: linkedNotesError } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('linked_item_type', 'expense')
+      .in('linked_item_id', expenseIds)
+      .order('created_at', { ascending: false });
 
-      // Return the expense with payments and notes
+    if (linkedNotesError) {
+      console.error('Error fetching linked notes:', linkedNotesError);
+    }
+
+    // Group payments and notes by expense_id for O(1) lookup
+    const paymentsByExpenseId = (allPayments || []).reduce((acc, payment) => {
+      if (!acc[payment.expense_id]) acc[payment.expense_id] = [];
+      acc[payment.expense_id].push(payment);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const expenseNotesByExpenseId = (allExpenseNotes || []).reduce((acc, note) => {
+      if (!acc[note.expense_id]) acc[note.expense_id] = [];
+      acc[note.expense_id].push(note);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const linkedNotesByExpenseId = (allLinkedNotes || []).reduce((acc, note) => {
+      if (!acc[note.linked_item_id]) acc[note.linked_item_id] = [];
+      acc[note.linked_item_id].push(note);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Combine expenses with their payments and notes
+    const expensesWithDetails = (data || []).map(expense => {
+      const payments = paymentsByExpenseId[expense.id] || [];
+      const expenseNotes = expenseNotesByExpenseId[expense.id] || [];
+      const linkedNotes = linkedNotesByExpenseId[expense.id] || [];
+
+      // Use expense_notes if available, otherwise fall back to linked notes
+      const notes = expenseNotes.length > 0 ? expenseNotes : linkedNotes;
+
       return {
         ...expense,
-        payments: payments || [],
-        notes: notes || []
+        payments,
+        notes
       };
-    }));
+    });
 
     // Create a consistent response structure
     const responseData = {
