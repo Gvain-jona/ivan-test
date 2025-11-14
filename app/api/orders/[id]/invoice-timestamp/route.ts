@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 
 /**
  * Updates the invoice_generated_at timestamp for an order
@@ -8,14 +7,14 @@ import { cookies } from 'next/headers';
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const orderId = params.id;
-    
-    // Create Supabase client
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
+    // Await params as required by Next.js 15
+    const { id: orderId } = await params;
+
+    // Create Supabase client (async in Next.js 15)
+    const supabase = await createClient();
     
     // Check if the order exists
     const { data: order, error: orderError } = await supabase
