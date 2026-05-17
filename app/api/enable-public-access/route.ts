@@ -53,20 +53,19 @@ export async function POST() {
     if (error) {
       console.error('Error applying public access policies:', error);
       return NextResponse.json(
-        { error: 'Failed to apply public access policies', details: error },
+        { error: 'Failed to apply public access policies' },
         { status: 500 }
       );
     }
 
-    console.log('✅ Public access policies applied successfully');
+    console.log('Public access policies applied successfully');
 
     return NextResponse.json(
       { message: 'Public access enabled successfully' },
       { status: 200 }
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error enabling public access:', errorMessage);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    console.error('Error enabling public access:', error);
+    return NextResponse.json({ error: 'Failed to enable public access' }, { status: 500 });
   }
 }

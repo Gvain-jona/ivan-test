@@ -3,8 +3,12 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
+  // Restrict this diagnostic endpoint to development only
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
-    // Create a fresh Supabase client
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,31 +35,22 @@ export async function GET(request: NextRequest) {
         }
       }
     );
-    
-    // Get the current user
+
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    // Check if the table exists
+
     const { data, error: tableCheckError } = await supabase
       .from('invoice_settings')
       .select('*')
       .limit(1);
-    
+
     return NextResponse.json({
       user: user ? { id: user.id, email: user.email } : null,
-      userError: userError?.message || null,
+      authenticated: !userError && !!user,
       tableExists: !tableCheckError,
-      tableError: tableCheckError?.message || null,
       data: data || null,
-      env: {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
-        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      }
     });
   } catch (error: any) {
-    return NextResponse.json({
-      error: error.message,
-      stack: error.stack
-    }, { status: 500 });
+    console.error('Error in invoice settings test endpoint:', error);
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 }

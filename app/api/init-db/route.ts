@@ -32,14 +32,14 @@ export async function POST() {
     if (result.success) {
       return NextResponse.json({ message: 'Database initialized successfully' }, { status: 200 });
     } else {
+      console.error('Database initialization failed:', result.error);
       return NextResponse.json(
-        { error: 'Failed to initialize database', details: result.error },
+        { error: 'Failed to initialize database' },
         { status: 500 }
       );
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error initializing database:', errorMessage);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    console.error('Error initializing database:', error);
+    return NextResponse.json({ error: 'Failed to initialize database' }, { status: 500 });
   }
 }

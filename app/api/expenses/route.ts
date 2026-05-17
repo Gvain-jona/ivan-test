@@ -444,25 +444,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Unexpected error in POST /api/expenses:', error);
 
-    // Provide more detailed error information
-    let errorMessage = 'An unexpected error occurred while creating the expense';
-    let errorDetails = undefined;
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = { stack: error.stack };
-    } else if (typeof error === 'object' && error !== null) {
-      try {
-        errorDetails = error;
-      } catch (e) {
-        console.error('Error processing error object:', e);
-      }
-    }
-
     return handleApiError(
       'SERVER_ERROR',
-      errorMessage,
-      process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      'An unexpected error occurred while creating the expense',
+      error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) }
     );
   }
 }
@@ -618,25 +603,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   } catch (error) {
     console.error('Unexpected error in PUT /api/expenses:', error);
 
-    // Provide more detailed error information
-    let errorMessage = 'An unexpected error occurred while updating the expense';
-    let errorDetails = undefined;
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = { stack: error.stack };
-    } else if (typeof error === 'object' && error !== null) {
-      try {
-        errorDetails = error;
-      } catch (e) {
-        console.error('Error processing error object:', e);
-      }
-    }
-
     return handleApiError(
       'SERVER_ERROR',
-      errorMessage,
-      process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      'An unexpected error occurred while updating the expense',
+      error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) }
     );
   }
 }
@@ -704,25 +674,10 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('Unexpected error in DELETE /api/expenses:', error);
 
-    // Provide more detailed error information
-    let errorMessage = 'An unexpected error occurred while deleting the expense';
-    let errorDetails = undefined;
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = { stack: error.stack };
-    } else if (typeof error === 'object' && error !== null) {
-      try {
-        errorDetails = error;
-      } catch (e) {
-        console.error('Error processing error object:', e);
-      }
-    }
-
     return handleApiError(
       'SERVER_ERROR',
-      errorMessage,
-      process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      'An unexpected error occurred while deleting the expense',
+      error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) }
     );
   }
 }
