@@ -8,7 +8,6 @@ import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { useOrdersPage } from '../_context';
-import { useOrdersData } from '@/dashboard/orders/_context';
 import { Task } from '@/types/orders';
 import { cn } from '@/lib/utils';
 
@@ -25,11 +24,7 @@ const TasksTab: React.FC = () => {
     handleTaskFilterChange
   } = useOrdersPage();
 
-  // Get loading state from the orders hook directly
-  const { isLoading: ordersLoading } = useOrdersData();
-
-  // Combined loading state - show skeleton if either context loading or SWR loading is true
-  const loading = contextLoading || ordersLoading;
+  const loading = contextLoading;
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('all');
