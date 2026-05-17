@@ -1,142 +1,146 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useState } from 'react';
-import { Order } from '@/types/orders';
-import { useOrderModals } from '../_hooks/useOrderModals';
+import React, { createContext, useContext, ReactNode, useState, useCallback } from 'react';
+import { Order, OrderStatus } from '@/types/orders';
+import { useToast } from '@/components/ui/use-toast';
+import { useOrdersStore } from './OrdersStoreContext';
 
-// Define the context type
 interface OrdersUIContextType {
-  // Tab state
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  
-  // User role
-  userRole: 'admin' | 'manager' | 'employee';
-  
-  // Active modal tracking
-  activeModal: 'view' | 'create' | 'invoice' | null;
-  
-  // Modal states and handlers from useOrderModals
   selectedOrder: Order | null;
-  viewModalOpen: boolean;
-  createModalOpen: boolean;
-  invoiceModalOpen: boolean;
-  setViewModalOpen: (open: boolean) => void;
-  setCreateModalOpen: (open: boolean) => void;
-  setInvoiceModalOpen: (open: boolean) => void;
+  viewSheetOpen: boolean;
+  createSheetOpen: boolean;
+  invoiceSheetOpen: boolean;
+  setViewSheetOpen: (open: boolean) => void;
+  setCreateSheetOpen: (open: boolean) => void;
+  setInvoiceSheetOpen: (open: boolean) => void;
   handleViewOrder: (order: Order) => void;
   handleCreateOrder: () => void;
+  handleGenerateInvoice: (order: Order) => Promise<void>;
   handleDeleteOrder: (orderId: string) => Promise<boolean>;
-  handleDuplicateOrder: (order: Order) => void;
-  handleGenerateInvoice: (order: Order) => void;
-  handleOrderStatusChange: (orderId: string, status: string) => Promise<boolean>;
-  handleSaveOrder: (order: Order) => Promise<{ success: boolean; data?: any; error?: any; }>;
-  handleInlineEdit: (order: Order) => void;
+  handleOrderStatusChange: (orderId: string, status: OrderStatus) => Promise<boolean>;
+  handleSaveOrder: (order: Order) => Promise<{ success: boolean; data?: unknown; error?: unknown }>;
+  handleInlineEdit: (order: Order) => Promise<{ success: boolean; data?: unknown; error?: unknown }>;
 }
 
-// Create the context
 const OrdersUIContext = createContext<OrdersUIContextType | undefined>(undefined);
 
-// Provider component
 export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Basic UI state
-  const [activeTab, setActiveTab] = useState('orders'); // 'insights', 'orders' or 'invoices'
-  const [activeModal, setActiveModal] = useState<'view' | 'create' | 'invoice' | null>(null);
-  
-  // User role state - in development mode, default to admin
-  const [userRole] = useState<'admin' | 'manager' | 'employee'>('admin');
-  
-  // Get modal state and handlers from useOrderModals
-  const {
-    selectedOrder,
-    viewModalOpen,
-    createModalOpen,
-    invoiceModalOpen,
-    setViewModalOpen: setViewModalOpenBase,
-    setCreateModalOpen: setCreateModalOpenBase,
-    setInvoiceModalOpen: setInvoiceModalOpenBase,
-    handleViewOrder: handleViewOrderBase,
-    handleCreateOrder: handleCreateOrderBase,
-    handleDeleteOrder,
-    handleDuplicateOrder,
-    handleGenerateInvoice: handleGenerateInvoiceBase,
-    handleOrderStatusChange,
-    handleSaveOrder,
-    handleInlineEdit
-  } = useOrderModals();
-  
-  // Wrap modal handlers to update activeModal state
-  const setViewModalOpen = (open: boolean) => {
-    setViewModalOpenBase(open);
-    setActiveModal(open ? 'view' : null);
-  };
-  
-  const setCreateModalOpen = (open: boolean) => {
-    setCreateModalOpenBase(open);
-    setActiveModal(open ? 'create' : null);
-  };
-  
-  const setInvoiceModalOpen = (open: boolean) => {
-    setInvoiceModalOpenBase(open);
-    setActiveModal(open ? 'invoice' : null);
-  };
-  
-  const handleViewOrder = (order: Order) => {
-    handleViewOrderBase(order);
-    setActiveModal('view');
-  };
-  
-  const handleCreateOrder = () => {
-    handleCreateOrderBase();
-    setActiveModal('create');
-  };
-  
-  const handleGenerateInvoice = (order: Order) => {
-    handleGenerateInvoiceBase(order);
-    setActiveModal('invoice');
-  };
+  const { toast } = useToast();
+  const store = useOrdersStore();
 
-  const contextValue = {
-    // Tab state
-    activeTab,
-    setActiveTab,
-    
-    // User role
-    userRole,
-    
-    // Active modal tracking
-    activeModal,
-    
-    // Modal states and handlers
-    selectedOrder,
-    viewModalOpen,
-    createModalOpen,
-    invoiceModalOpen,
-    setViewModalOpen,
-    setCreateModalOpen,
-    setInvoiceModalOpen,
-    handleViewOrder,
-    handleCreateOrder,
-    handleDeleteOrder,
-    handleDuplicateOrder,
-    handleGenerateInvoice,
-    handleOrderStatusChange,
-    handleSaveOrder,
-    handleInlineEdit
-  };
+  const [activeTab, setActiveTab] = useState('orders');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false);
+
+  const handleViewOrder = useCallback((order: Order) => {
+    setSelectedOrder(order);
+    setViewSheetOpen(true);
+  }, []);
+
+  const handleCreateOrder = useCallback(() => {
+    setSelectedOrder(null);
+    setCreateSheetOpen(true);
+  }, []);
+
+  const handleGenerateInvoice = useCallback(async (order: Order) => {
+    setSelectedOrder(order);
+    setInvoiceSheetOpen(true);
+    if (!order.invoice_generated_at) {
+      try {
+        await fetch(`/api/orders/${order.id}/invoice-timestamp`, { method: 'PUT' });
+      } catch {
+        // Non-blocking
+      }
+    }
+  }, []);
+
+  const handleDeleteOrder = useCallback(async (orderId: string): Promise<boolean> => {
+    return store.deleteOrder(orderId);
+  }, [store]);
+
+  const handleOrderStatusChange = useCallback(async (orderId: string, status: OrderStatus): Promise<boolean> => {
+    return store.updateOrderStatus(orderId, status);
+  }, [store]);
+
+  const handleSaveOrder = useCallback(async (order: Order): Promise<{ success: boolean; data?: unknown; error?: unknown }> => {
+    try {
+      const res = await fetch('/api/orders', {
+        method: order.id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order),
+      });
+      if (!res.ok) throw new Error(`Failed to ${order.id ? 'update' : 'create'} order`);
+      const data = await res.json();
+      toast({
+        title: order.id ? 'Order Updated' : 'Order Created',
+        description: order.id ? `Order has been updated` : 'New order has been created',
+      });
+      setCreateSheetOpen(false);
+      await store.refresh();
+      return { success: true, data };
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to save order', variant: 'destructive' });
+      return { success: false, error };
+    }
+  }, [store, toast]);
+
+  const handleInlineEdit = useCallback(async (order: Order): Promise<{ success: boolean; data?: unknown; error?: unknown }> => {
+    try {
+      const res = await fetch(`/api/orders/${order.id}/inline-edit`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: order.items, payments: order.payments, notes: order.notes }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error?.message ?? `Failed to update order (${res.status})`);
+      }
+      const data = await res.json();
+      if (data.order) setSelectedOrder(data.order);
+      await store.refresh();
+      return { success: true, data };
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update order',
+        variant: 'destructive',
+      });
+      return { success: false, error };
+    }
+  }, [store, toast]);
 
   return (
-    <OrdersUIContext.Provider value={contextValue}>
+    <OrdersUIContext.Provider
+      value={{
+        activeTab,
+        setActiveTab,
+        selectedOrder,
+        viewSheetOpen,
+        createSheetOpen,
+        invoiceSheetOpen,
+        setViewSheetOpen,
+        setCreateSheetOpen,
+        setInvoiceSheetOpen,
+        handleViewOrder,
+        handleCreateOrder,
+        handleGenerateInvoice,
+        handleDeleteOrder,
+        handleOrderStatusChange,
+        handleSaveOrder,
+        handleInlineEdit,
+      }}
+    >
       {children}
     </OrdersUIContext.Provider>
   );
 };
 
-// Hook to use the orders UI context
-export const useOrdersUI = () => {
-  const context = useContext(OrdersUIContext);
-  if (context === undefined) {
-    throw new Error('useOrdersUI must be used within an OrdersUIProvider');
-  }
-  return context;
+export const useOrdersUI = (): OrdersUIContextType => {
+  const ctx = useContext(OrdersUIContext);
+  if (!ctx) throw new Error('useOrdersUI must be used within an OrdersUIProvider');
+  return ctx;
 };
