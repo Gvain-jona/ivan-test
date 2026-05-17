@@ -19,6 +19,10 @@ import { analyticsService } from '@/lib/services/analytics-service';
  */
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'month';

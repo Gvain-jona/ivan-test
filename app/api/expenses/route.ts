@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
     // Create Supabase client - await it since it's now async
     const cookieStore = await cookies();
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     // Start building the query
     let query = supabase
