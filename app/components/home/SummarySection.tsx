@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SummaryItem } from '../../types';
-import { cn } from '../../lib/utils';
+import { cn, formatCurrency } from '../../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { ArrowRight, BarChart2, Plus } from 'lucide-react';
@@ -52,16 +52,6 @@ export default function SummarySection({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Format currency
-  const formatCurrency = (amount: number | undefined) => {
-    if (amount === undefined) return '';
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   // Format date
   const formatDate = (dateString: string) => {

@@ -2,6 +2,7 @@
 
 import { BarChart2, ArrowUpRight, TrendingUp, DollarSign, Package, Users, ShoppingCart } from 'lucide-react';
 import { StatCard, GradientCard, Card, CardContent } from '../ui/card';
+import { formatCurrency } from '@/lib/utils';
 
 interface StatCardsProps {
   stats?: {
@@ -22,16 +23,6 @@ export default function StatCards({
   }, 
   isLoading = false 
 }: StatCardsProps) {
-  
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
   
   // If loading, show skeleton
   if (isLoading) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PendingInvoice } from '../../types';
+import { formatCurrency } from '@/lib/utils';
 
 interface PendingInvoicesProps {
   invoices: PendingInvoice[];
@@ -26,15 +27,6 @@ export default function PendingInvoices({ invoices, isLoading = false }: Pending
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
   // Format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
