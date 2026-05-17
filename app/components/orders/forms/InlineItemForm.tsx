@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { GlobalSmartCombobox } from '@/components/ui/global-smart-combobox';
 import { OrderItemFormValues, orderItemSchema } from '@/schemas/order-schema';
 import { OrderItem } from '@/types/orders';
-import { formatCurrency } from '@/utils/formatting.utils';
+import { formatCurrency } from '@/lib/utils';
 import { X } from 'lucide-react';
 import {
   Form,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Order, OrderPayment, PaymentMethod } from '@/types/orders';
-import { formatCurrency } from '@/utils/formatting.utils';
+import { formatCurrency } from '@/lib/utils';
 import { Plus, Trash2 } from 'lucide-react';
 import { DeletionType } from '@/components/ui/approval-dialog';
 import { InlinePaymentForm } from '@/components/orders/forms/InlinePaymentForm';
