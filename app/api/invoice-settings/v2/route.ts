@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     
     if (tableCheckError) {
       return NextResponse.json(
-        { error: 'Database table not available', details: tableCheckError.message },
+        { error: 'Database table not available' },
         { status: 503 }
       );
     }
@@ -55,8 +55,9 @@ export async function GET(request: NextRequest) {
     const { data: settings, error } = await query;
     
     if (error) {
+      console.error('Error fetching invoice settings:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch settings', details: error.message },
+        { error: 'Failed to fetch settings' },
         { status: 500 }
       );
     }
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error in invoice settings API:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
     
     if (tableCheckError) {
       return NextResponse.json(
-        { error: 'Database table not available', details: tableCheckError.message },
+        { error: 'Database table not available' },
         { status: 503 }
       );
     }
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
         
         if (updateError) {
           return NextResponse.json(
-            { error: 'Failed to update default settings', details: updateError.message },
+            { error: 'Failed to update default settings' },
             { status: 500 }
           );
         }
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
       
       if (updateError) {
         return NextResponse.json(
-          { error: 'Failed to update settings', details: updateError.message },
+          { error: 'Failed to update settings' },
           { status: 500 }
         );
       }
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
       
       if (insertError) {
         return NextResponse.json(
-          { error: 'Failed to create settings', details: insertError.message },
+          { error: 'Failed to create settings' },
           { status: 500 }
         );
       }
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error in invoice settings API:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
@@ -261,7 +262,7 @@ export async function DELETE(request: NextRequest) {
     
     if (tableCheckError) {
       return NextResponse.json(
-        { error: 'Database table not available', details: tableCheckError.message },
+        { error: 'Database table not available' },
         { status: 503 }
       );
     }
@@ -274,7 +275,7 @@ export async function DELETE(request: NextRequest) {
     
     if (deleteError) {
       return NextResponse.json(
-        { error: 'Failed to delete settings', details: deleteError.message },
+        { error: 'Failed to delete settings' },
         { status: 500 }
       );
     }
@@ -283,7 +284,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error: any) {
     console.error('Error in invoice settings API:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }

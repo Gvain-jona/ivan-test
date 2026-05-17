@@ -43,7 +43,7 @@ const errorStatusCodes: Record<ApiErrorType, number> = {
  *
  * @param type Error type
  * @param message Error message
- * @param details Additional error details
+ * @param details Additional error details (logged server-side, never sent to client in production)
  * @returns NextResponse with appropriate status code and error details
  */
 export async function handleApiError(
@@ -51,25 +51,21 @@ export async function handleApiError(
   message: string,
   details?: any
 ): Promise<NextResponse<ApiErrorResponse>> {
-  // Log the error (except for validation errors which are expected)
+  // Always log full details server-side (except validation errors which are expected)
   if (type !== 'VALIDATION_ERROR') {
     console.error(`API Error [${type}]:`, message, details || '');
   }
 
-  // Create the error response
+  // Never include technical details in client responses — only expose in development
   const errorResponse: ApiErrorResponse = {
     error: {
       type,
       message,
-      ...(details && { details })
+      ...(process.env.NODE_ENV === 'development' && details && { details })
     }
   };
 
-  // Return the response with the appropriate status code
-  return NextResponse.json(
-    errorResponse,
-    { status: errorStatusCodes[type] }
-  );
+  return NextResponse.json(errorResponse, { status: errorStatusCodes[type] });
 }
 
 /**
@@ -79,14 +75,14 @@ export async function handleApiError(
  * @returns NextResponse with error details
  */
 export async function handleUnexpectedError(error: unknown): Promise<NextResponse<ApiErrorResponse>> {
-  const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-
   console.error('Unexpected API error:', error);
 
   return handleApiError(
     'INTERNAL_SERVER_ERROR',
-    errorMessage,
-    process.env.NODE_ENV === 'development' ? { stack: error instanceof Error ? error.stack : undefined } : undefined
+    'An unexpected error occurred',
+    error instanceof Error
+      ? { message: error.message, stack: error.stack }
+      : { error: String(error) }
   );
 }
 
@@ -118,61 +114,46 @@ export async function handleSupabaseError(error: any): Promise<NextResponse<ApiE
     return handleApiError(
       'NOT_FOUND',
       'Resource not found',
-      error.message
+      { message: error.message }
     );
   }
 
   if (error.code === '42501') {
-    // RLS policy violation
     return handleApiError(
       'FORBIDDEN',
       'Permission denied',
-      {
-        message: error.message,
-        details: 'This operation violates a row-level security policy. Make sure you are authenticated and have the necessary permissions.',
-        code: error.code
-      }
+      { message: error.message, code: error.code }
     );
   }
 
   if (error.code === '23505') {
     return handleApiError(
       'VALIDATION_ERROR',
-      'Unique constraint violation',
-      error.message
+      'A record with these details already exists',
+      { message: error.message }
     );
   }
 
-  // Check for "record has no field" errors
   if (error.code === '42703' && error.message?.includes('has no field')) {
     return handleApiError(
       'DATABASE_ERROR',
-      'Database schema mismatch',
-      {
-        message: error.message,
-        details: 'There is a mismatch between the database schema and the expected fields. This might be due to a trigger or constraint trying to access a field that doesn\'t exist.',
-        code: error.code
-      }
+      'A database error occurred',
+      { message: error.message, code: error.code }
     );
   }
 
-  // Check for ambiguous column reference errors
   if (error.code === '42702' && error.message?.includes('ambiguous')) {
     return handleApiError(
       'DATABASE_ERROR',
-      'Ambiguous column reference',
-      {
-        message: error.message,
-        details: 'A column name is used in multiple tables without proper qualification. This is likely due to a database trigger or function that needs to be updated.',
-        code: error.code
-      }
+      'A database error occurred',
+      { message: error.message, code: error.code }
     );
   }
 
-  // Generic Supabase error
+  // Generic Supabase error — log full details, return generic message
   return handleApiError(
     'SUPABASE_ERROR',
-    error.message || 'Database operation failed',
-    process.env.NODE_ENV === 'development' ? { code: error.code, details: error.details } : undefined
+    'A database error occurred',
+    { message: error.message, code: error.code, details: error.details }
   );
 }

@@ -121,11 +121,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating announcement:', error);
       return NextResponse.json(
-        {
-          error: 'Failed to create announcement',
-          details: error.message,
-          code: error.code
-        },
+        { error: 'Failed to create announcement' },
         { status: 500 }
       );
     }
@@ -222,11 +218,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating announcement:', error);
       return NextResponse.json(
-        {
-          error: 'Failed to update announcement',
-          details: error.message,
-          code: error.code
-        },
+        { error: 'Failed to update announcement' },
         { status: 500 }
       );
     }

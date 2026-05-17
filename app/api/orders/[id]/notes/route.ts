@@ -118,22 +118,15 @@ export async function POST(
     if (error) {
       console.error('Error adding order note:', error);
 
-      // Check if it's an RLS error
       if (error.code === '42501') {
         return NextResponse.json(
-          {
-            error: 'Row-level security policy violation. Please check the RLS policies for the notes table.',
-            details: error
-          },
+          { error: 'Permission denied' },
           { status: 403 }
         );
       }
 
       return NextResponse.json(
-        {
-          error: 'Failed to add order note',
-          details: error
-        },
+        { error: 'Failed to add order note' },
         { status: 500 }
       );
     }

@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating order:', error);
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Failed to create order' },
         { status: 500 }
       );
     }
@@ -339,7 +339,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting order:', error);
       return NextResponse.json(
-        { error: error.message || 'Failed to delete order', details: error },
+        { error: 'Failed to delete order' },
         { status: 500 }
       );
     }
@@ -352,9 +352,8 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error) {
     console.error('Unexpected error in DELETE /api/orders:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     return NextResponse.json(
-      { error: errorMessage, details: error },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
