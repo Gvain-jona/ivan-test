@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { OrdersFilters } from './useData';
+import { OrdersTableFilters } from '@/types/orders';
 import { createSWRConfig } from '@/lib/swr-config';
 
 export interface OrderAnalytics {
@@ -25,7 +25,7 @@ export interface OrderAnalytics {
  * Custom hook to fetch order analytics from the API
  * This uses server-side calculations for accurate analytics based on the complete dataset
  */
-export function useOrderAnalytics(filters?: OrdersFilters) {
+export function useOrderAnalytics(filters?: OrdersTableFilters) {
   // Build query string for filters
   const queryParams = new URLSearchParams();
 

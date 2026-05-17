@@ -8,7 +8,7 @@ import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { OrderViewSheetProps } from './types';
 import { OrderPayment } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
-import { useOrder } from '@/hooks/useData';
+import { useOrder } from '@/hooks/useOrders';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { createSWRConfig } from '@/lib/swr-config';
 import { invalidateOrderCache } from '@/lib/cache-utils';

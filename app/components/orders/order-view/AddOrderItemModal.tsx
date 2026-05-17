@@ -4,7 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import BottomOverlayForm from './BottomOverlayForm';
 import AddOrderItemForm from './AddOrderItemForm';
 import { invalidateOrderCache } from '@/lib/cache-utils';
-import { useOrder } from '@/hooks/useData';
+import { useOrder } from '@/hooks/useOrders';
 import { useNotifications } from '@/components/ui/notification';
 
 interface AddOrderItemModalProps {
