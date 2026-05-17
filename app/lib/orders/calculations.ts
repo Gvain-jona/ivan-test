@@ -82,18 +82,3 @@ export function updateOrderCalculations(order: Partial<Order>): Partial<Order> {
     payment_status: paymentStatus
   };
 }
-
-/**
- * Format currency for display
- * 
- * @param amount The amount to format
- * @returns Formatted currency string
- */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-UG', {
-    style: 'currency',
-    currency: 'UGX',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
-}
