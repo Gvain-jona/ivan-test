@@ -25,7 +25,8 @@ const AddOrderPaymentForm: React.FC<AddOrderPaymentFormProps> = ({
     order_id: orderId,
     amount: 0,
     payment_method: 'cash',
-    payment_date: new Date().toISOString().split('T')[0],
+    // Use 'date' instead of 'payment_date' to match the database schema
+    date: new Date().toISOString().split('T')[0],
   });
 
   // Handle input changes
@@ -36,6 +37,12 @@ const AddOrderPaymentForm: React.FC<AddOrderPaymentFormProps> = ({
       setFormData({
         ...formData,
         [name]: parseFloat(value) || 0
+      });
+    } else if (name === 'payment_date') {
+      // Map payment_date to date to match the database schema
+      setFormData({
+        ...formData,
+        date: value
       });
     } else {
       setFormData({
@@ -76,7 +83,7 @@ const AddOrderPaymentForm: React.FC<AddOrderPaymentFormProps> = ({
       return;
     }
 
-    if (!formData.payment_date) {
+    if (!formData.date) {
       toast({
         title: 'Error',
         description: 'Payment date is required',
@@ -146,7 +153,7 @@ const AddOrderPaymentForm: React.FC<AddOrderPaymentFormProps> = ({
             id="payment_date"
             name="payment_date"
             type="date"
-            value={formData.payment_date}
+            value={formData.date}
             onChange={handleChange}
             disabled={isLoading}
             required
@@ -174,7 +181,7 @@ const AddOrderPaymentForm: React.FC<AddOrderPaymentFormProps> = ({
         </Button>
         <Button
           type="submit"
-          disabled={isLoading || !formData.amount || formData.amount <= 0 || !formData.payment_method || !formData.payment_date}
+          disabled={isLoading || !formData.amount || formData.amount <= 0 || !formData.payment_method || !formData.date}
           className="bg-green-600 hover:bg-green-700 text-white"
         >
           {isLoading ? (

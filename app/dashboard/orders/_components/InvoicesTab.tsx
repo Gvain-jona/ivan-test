@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { useOrdersPage } from '../_context';
-import { useOrdersData } from '@/hooks/useOrdersData';
+import { useOrdersData } from '@/dashboard/orders/_context';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import PaymentStatusBadge from '@/components/ui/payment-status-badge';

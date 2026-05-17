@@ -1,68 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
-import { OrderStatus } from '@/types/orders';
+import { createClient } from '@/utils/supabase/server';
+import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
+import { UpdateOrderStatusSchema } from '@/lib/orders/validators';
 
-/**
- * PATCH /api/orders/[id]/status
- * Updates the status of an order
- */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const orderId = params.id;
+    const { id } = await params;
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Order ID is required');
 
-    if (!orderId) {
-      return NextResponse.json(
-        { error: 'Order ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Parse request body
-    const body = await request.json();
-    const { status } = body as { status: OrderStatus };
-
-    if (!status) {
-      return NextResponse.json(
-        { error: 'Status is required' },
-        { status: 400 }
-      );
-    }
-
-    // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Update order status
+    const body = await request.json();
+    const parsed = UpdateOrderStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid status value', parsed.error.flatten());
+    }
+
     const { data, error } = await supabase
       .from('orders')
-      .update({
-        status,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId)
+      .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
+      .eq('id', id)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating order status:', error);
-      return NextResponse.json(
-        { error: 'Failed to update order status' },
-        { status: 500 }
-      );
-    }
+    if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({
-      success: true,
-      order: data
-    });
+    return NextResponse.json({ success: true, order: data });
   } catch (error) {
-    console.error('Error in order status API:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error);
   }
 }

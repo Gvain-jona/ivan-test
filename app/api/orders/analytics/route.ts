@@ -1,136 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { handleUnexpectedError } from '@/lib/api-error';
+import { createClient } from '@/utils/supabase/server';
+import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 
-/**
- * GET /api/orders/analytics
- * Retrieves analytics calculated from all orders with optional filtering
- */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Parse query parameters for filtering
+    const { searchParams } = new URL(request.url);
     const status = searchParams.getAll('status');
     const paymentStatus = searchParams.getAll('paymentStatus');
-    const startDate = searchParams.get('startDate') || null;
-    const endDate = searchParams.get('endDate') || null;
-    const search = searchParams.get('search') || null;
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const search = searchParams.get('search');
 
-    // Create Supabase client
-    const supabase = await createClient();
-
-    // Start building the query - don't use joins since we've denormalized the data
     let query = supabase
       .from('orders')
-      .select('*, clients:client_id(id, name)', { count: 'exact' });
+      .select('status, payment_status, total_amount, balance, client_id, client_name', {
+        count: 'exact',
+      });
 
-    // Apply filters
-    if (status && status.length > 0) {
-      query = query.in('status', status);
-    }
-
-    if (paymentStatus && paymentStatus.length > 0) {
-      query = query.in('payment_status', paymentStatus);
-    }
-
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
-
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
+    if (status.length) query = query.in('status', status);
+    if (paymentStatus.length) query = query.in('payment_status', paymentStatus);
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
     if (search) {
-      // Search in order number or client name - more efficient than searching by ID
-      query = query.or(`order_number.ilike.%${search}%,clients.name.ilike.%${search}%`);
+      query = query.or(`order_number.ilike.%${search}%,client_name.ilike.%${search}%`);
     }
 
-    // Execute the query with a timeout
-    console.log('Executing Supabase query for order analytics');
-    const { data, error, count } = await query.abortSignal(AbortSignal.timeout(20000)); // 20 second timeout
+    const { data, error, count } = await query;
+    if (error) return handleSupabaseError(error);
 
-    if (error) {
-      console.error('Error fetching order analytics:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch order analytics' },
-        { status: 500 }
-      );
-    }
-
-    // Calculate analytics from the complete dataset
-    const totalOrders = count || 0;
-    const totalRevenue = data?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-
-    // Calculate average order value
+    const orders = data ?? [];
+    const totalOrders = count ?? 0;
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // Count orders by status
-    const pendingOrders = data?.filter(order =>
-      order.status === 'pending' ||
-      order.status === 'in_progress' ||
-      order.status === 'draft'
-    ).length || 0;
-
-    const completedOrders = data?.filter(order =>
-      order.status === 'completed' ||
-      order.status === 'delivered'
-    ).length || 0;
-
-    // Calculate completion rate
+    const pendingOrders = orders.filter(o =>
+      o.status === 'pending' || o.status === 'in_progress',
+    ).length;
+    const completedOrders = orders.filter(o =>
+      o.status === 'completed' || o.status === 'delivered',
+    ).length;
     const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
 
-    // Calculate unpaid orders
-    const unpaidOrders = data?.filter(order =>
-      order.payment_status === 'unpaid' ||
-      order.payment_status === 'partially_paid'
-    ).length || 0;
+    const unpaidOrders = orders.filter(o =>
+      o.payment_status === 'unpaid' || o.payment_status === 'partially_paid',
+    ).length;
+    const unpaidTotal = orders
+      .filter(o => o.payment_status === 'unpaid' || o.payment_status === 'partially_paid')
+      .reduce((sum, o) => sum + (o.balance || 0), 0);
 
-    // Calculate unpaid total
-    const unpaidTotal = data?.filter(order =>
-      order.payment_status === 'unpaid' ||
-      order.payment_status === 'partially_paid'
-    ).reduce((sum, order) => sum + (order.balance || 0), 0) || 0;
-
-    // Calculate clients with debt
-    const clientsWithDebt = [];
-    const clientDebtMap = new Map();
-
-    // Process orders to find clients with debt
-    data?.forEach(order => {
+    const clientDebtMap = new Map<string, { id: string; name: string; debt: number; orderCount: number }>();
+    for (const order of orders) {
       if (
         (order.payment_status === 'unpaid' || order.payment_status === 'partially_paid') &&
         order.balance > 0 &&
         order.client_id
       ) {
-        const clientId = order.client_id;
-        const clientName = order.clients?.name || 'Unknown Client';
-
-        if (!clientDebtMap.has(clientId)) {
-          clientDebtMap.set(clientId, {
-            id: clientId,
-            name: clientName,
-            debt: 0,
-            orderCount: 0
+        const existing = clientDebtMap.get(order.client_id);
+        if (existing) {
+          existing.debt += order.balance;
+          existing.orderCount += 1;
+        } else {
+          clientDebtMap.set(order.client_id, {
+            id: order.client_id,
+            name: order.client_name || 'Unknown Client',
+            debt: order.balance,
+            orderCount: 1,
           });
         }
-
-        const clientData = clientDebtMap.get(clientId);
-        clientData.debt += order.balance;
-        clientData.orderCount += 1;
-        clientDebtMap.set(clientId, clientData);
       }
-    });
+    }
 
-    // Convert map to array and sort by debt amount (highest first)
-    clientDebtMap.forEach(client => {
-      clientsWithDebt.push(client);
-    });
+    const clientsWithDebt = Array.from(clientDebtMap.values()).sort((a, b) => b.debt - a.debt);
 
-    clientsWithDebt.sort((a, b) => b.debt - a.debt);
-
-    // Return the analytics
     return NextResponse.json({
       analytics: {
         totalOrders,
@@ -141,11 +86,10 @@ export async function GET(request: NextRequest) {
         completionRate,
         unpaidTotal,
         unpaidOrders,
-        clientsWithDebt
-      }
+        clientsWithDebt,
+      },
     });
   } catch (error) {
-    console.error('Error in order analytics API:', error);
     return handleUnexpectedError(error);
   }
 }

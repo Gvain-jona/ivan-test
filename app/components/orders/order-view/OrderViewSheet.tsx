@@ -23,9 +23,9 @@ import OrderPaymentsTab from './OrderPaymentsTab';
 import OrderNotesTab from './OrderNotesTab';
 
 // Import modal components
-import AddOrderItemModal from './AddOrderItemModal.simplified';
-import AddOrderPaymentModal from './AddOrderPaymentModal.simplified';
-import AddOrderNoteModal from './AddOrderNoteModal.simplified';
+import AddOrderItemModal from './AddOrderItemModal';
+import AddOrderPaymentModal from './AddOrderPaymentModal';
+import AddOrderNoteModal from './AddOrderNoteModal';
 
 // Import custom hooks
 import { useOrderUpdates } from './hooks/useOrderUpdates';

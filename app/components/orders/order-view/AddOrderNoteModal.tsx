@@ -1,33 +1,42 @@
 import React, { useState } from 'react';
-import { OrderNote } from '@/types/orders';
+import { Order, OrderNote } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import BottomOverlayForm from './BottomOverlayForm';
 import AddOrderNoteForm from './AddOrderNoteForm';
+import { invalidateOrderCache } from '@/lib/cache-utils';
+import { useOrder } from '@/hooks/useData';
+import { useNotifications } from '@/components/ui/notification';
 
 interface AddOrderNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string;
   onSuccess?: () => void;
+  order?: Order;
 }
 
 const AddOrderNoteModal: React.FC<AddOrderNoteModalProps> = ({
   isOpen,
   onClose,
   orderId,
-  onSuccess
+  onSuccess,
+  order: initialOrder
 }) => {
   const { toast } = useToast();
+  const { success: showSuccess, error: showError } = useNotifications();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch the order data if not provided
+  const { order: fetchedOrder } = useOrder(orderId ? `/api/orders/${orderId}` : null);
+
+  // Use the provided order or the fetched order
+  const order = initialOrder || fetchedOrder;
 
   // Handle form submission
   const handleSubmit = async (note: Partial<OrderNote>) => {
     if (!orderId) {
-      toast({
-        title: 'Error',
-        description: 'Order ID is required',
-        variant: 'destructive'
-      });
+      // Show error notification with improved styling
+      showError('Order ID is required', 'Error');
       return;
     }
 
@@ -46,19 +55,40 @@ const AddOrderNoteModal: React.FC<AddOrderNoteModalProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add note');
+        console.error('API error response:', errorData);
+
+        // Check if it's an RLS error
+        if (errorData.details && errorData.details.code === '42501') {
+          throw new Error('Permission denied: Row-level security policy violation. Please contact your administrator.');
+        }
+
+        throw new Error(errorData.error || errorData.message || 'Failed to add note');
       }
 
       const result = await response.json();
       console.log('Note added successfully:', result);
 
-      // Show success toast
-      toast({
-        title: 'Note Added',
-        description: 'Your note has been added to the order.',
-      });
+      // Show success notification with improved styling
+      showSuccess('Your note has been added to the order.', 'Note Added');
 
-      // Close the modal
+      // Create optimistic data for the order with the new note
+      // Add an id to the note for optimistic updates
+      const optimisticNote = {
+        ...note,
+        id: result.id || crypto.randomUUID(),
+        created_at: new Date().toISOString()
+      };
+
+      const optimisticData = {
+        id: orderId,
+        notes: [...(order?.notes || []), optimisticNote]
+      };
+
+      // Invalidate the cache for this order with optimistic data
+      // This will update the UI immediately while the revalidation happens in the background
+      invalidateOrderCache(orderId, optimisticData);
+
+      // Close the modal immediately - the optimistic update will keep the UI updated
       onClose();
 
       // Call onSuccess callback if provided
@@ -67,11 +97,8 @@ const AddOrderNoteModal: React.FC<AddOrderNoteModalProps> = ({
       }
     } catch (error) {
       console.error('Error adding note:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add note',
-        variant: 'destructive'
-      });
+      // Show error notification with improved styling
+      showError(error instanceof Error ? error.message : 'Failed to add note', 'Error');
     } finally {
       setIsSubmitting(false);
     }

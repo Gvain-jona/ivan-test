@@ -1,5 +1,3 @@
-'use client';
-
 import { Order, OrderItem, OrderPayment, PaymentStatus } from '@/types/orders';
 
 /**

@@ -4,49 +4,26 @@
  */
 
 import { API_ENDPOINTS } from './api-endpoints';
-import { OrdersFilters, PaginationParams } from '@/hooks/useData';
+import { OrdersTableFilters, PaginationParams } from '@/types/orders';
 
-/**
- * Generate a consistent cache key for orders list with filters and pagination
- */
-export function getOrdersListKey(
-  filters?: OrdersFilters,
-  pagination?: PaginationParams
-): string {
-  // Base key
-  let key = API_ENDPOINTS.ORDERS;
-
-  // Add optimized flag if using the optimized endpoint
-  key = `${key}/optimized`;
-
-  // Add query parameters
+export function getOrdersListKey(filters?: OrdersTableFilters, pagination?: PaginationParams): string {
   const params = new URLSearchParams();
 
-  // Add pagination parameters
   if (pagination) {
-    if (pagination.page) params.append('page', pagination.page.toString());
-    if (pagination.pageSize) params.append('pageSize', pagination.pageSize.toString());
+    if (pagination.page) params.set('limit', String(pagination.pageSize ?? 50));
+    if (pagination.pageSize) params.set('offset', String(((pagination.page ?? 1) - 1) * (pagination.pageSize ?? 50)));
   }
 
-  // Add filter parameters
   if (filters) {
-    if (filters.status) params.append('status', filters.status);
-    if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
-    if (filters.clientId) params.append('clientId', filters.clientId);
-    if (filters.clientType) params.append('clientType', filters.clientType);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.isDelivered !== undefined) params.append('isDelivered', filters.isDelivered.toString());
+    filters.status?.forEach(s => params.append('status', s));
+    filters.paymentStatus?.forEach(s => params.append('paymentStatus', s));
+    if (filters.startDate) params.set('startDate', filters.startDate);
+    if (filters.endDate) params.set('endDate', filters.endDate);
+    if (filters.search) params.set('search', filters.search);
   }
 
-  // Add query string to key if there are parameters
-  const queryString = params.toString();
-  if (queryString) {
-    key = `${key}?${queryString}`;
-  }
-
-  return key;
+  const qs = params.toString();
+  return qs ? `${API_ENDPOINTS.ORDERS}?${qs}` : API_ENDPOINTS.ORDERS;
 }
 
 /**
