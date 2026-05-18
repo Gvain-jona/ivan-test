@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError } from '@/lib/api/error-handler';
 
@@ -23,8 +22,6 @@ export async function GET(
       );
     }
 
-    // Create Supabase client
-    const cookieStore = await cookies();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -87,9 +84,9 @@ export async function PATCH(
       );
     }
 
-    // Create Supabase client
-    const cookieStore = await cookies();
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     // Update occurrence status
     const { data: updatedOccurrence, error } = await supabase

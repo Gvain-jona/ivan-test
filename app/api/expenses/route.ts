@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
 import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
 import { createApiResponse } from '@/lib/api/response-handler';
 
@@ -12,7 +11,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // Parse query parameters
     const expenseType = searchParams.getAll('expense_type');
     const category = searchParams.getAll('category');
     const paymentStatus = searchParams.getAll('paymentStatus');
@@ -23,18 +21,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Create Supabase client - await it since it's now async
-    const cookieStore = await cookies();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Start building the query
     let query = supabase
       .from('expenses')
       .select('*', { count: 'exact' });
 
-    // Apply filters
     if (expenseType && expenseType.length > 0 && expenseType[0] !== 'all') {
       query = query.in('expense_type', expenseType);
     }
@@ -51,141 +45,67 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_recurring', isRecurring === 'true');
     }
 
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+    if (search) query = query.or(`item_name.ilike.%${search}%,category.ilike.%${search}%`);
 
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
-    if (search) {
-      query = query.or(`item_name.ilike.%${search}%,category.ilike.%${search}%`);
-    }
-
-    // Apply pagination
     query = query.order('date', { ascending: false }).range(offset, offset + limit - 1);
 
-    // Execute the query
     const { data, error, count } = await query;
 
-    if (error) {
-      console.error('Error fetching expenses:', error);
-      return handleSupabaseError(error);
-    }
+    if (error) return handleSupabaseError(error);
 
-    // PERFORMANCE FIX: Use batch queries instead of N+1 queries
-    // OLD: 3 queries per expense = 150+ queries for 50 expenses
-    // NEW: 3 batch queries total regardless of expense count
+    // Batch fetch related data — 3 queries total regardless of expense count
     const expenseIds = (data || []).map(expense => expense.id);
-    console.log(`Fetching related data for ${expenseIds.length} expenses using batch queries`);
 
-    // Batch fetch all payments for all expenses in a single query
-    const { data: allPayments, error: paymentsError } = await supabase
-      .from('expense_payments')
-      .select('*')
-      .in('expense_id', expenseIds)
-      .order('date', { ascending: false });
+    const [paymentsResult, expenseNotesResult, linkedNotesResult] = await Promise.all([
+      supabase
+        .from('expense_payments')
+        .select('*')
+        .in('expense_id', expenseIds)
+        .order('date', { ascending: false }),
+      supabase
+        .from('expense_notes')
+        .select('*')
+        .in('expense_id', expenseIds)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('notes')
+        .select('*')
+        .eq('linked_item_type', 'expense')
+        .in('linked_item_id', expenseIds)
+        .order('created_at', { ascending: false })
+    ]);
 
-    if (paymentsError) {
-      console.error('Error fetching payments:', paymentsError);
-    }
-
-    // Batch fetch all expense_notes for all expenses in a single query
-    const { data: allExpenseNotes, error: expenseNotesError } = await supabase
-      .from('expense_notes')
-      .select('*')
-      .in('expense_id', expenseIds)
-      .order('created_at', { ascending: false });
-
-    if (expenseNotesError) {
-      console.error('Error fetching expense_notes:', expenseNotesError);
-    }
-
-    // Batch fetch all linked notes for all expenses in a single query (fallback)
-    const { data: allLinkedNotes, error: linkedNotesError } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('linked_item_type', 'expense')
-      .in('linked_item_id', expenseIds)
-      .order('created_at', { ascending: false });
-
-    if (linkedNotesError) {
-      console.error('Error fetching linked notes:', linkedNotesError);
-    }
-
-    // Group payments and notes by expense_id for O(1) lookup
-    const paymentsByExpenseId = (allPayments || []).reduce((acc, payment) => {
+    const paymentsByExpenseId = (paymentsResult.data || []).reduce((acc, payment) => {
       if (!acc[payment.expense_id]) acc[payment.expense_id] = [];
       acc[payment.expense_id].push(payment);
       return acc;
     }, {} as Record<string, any[]>);
 
-    const expenseNotesByExpenseId = (allExpenseNotes || []).reduce((acc, note) => {
+    const expenseNotesByExpenseId = (expenseNotesResult.data || []).reduce((acc, note) => {
       if (!acc[note.expense_id]) acc[note.expense_id] = [];
       acc[note.expense_id].push(note);
       return acc;
     }, {} as Record<string, any[]>);
 
-    const linkedNotesByExpenseId = (allLinkedNotes || []).reduce((acc, note) => {
+    const linkedNotesByExpenseId = (linkedNotesResult.data || []).reduce((acc, note) => {
       if (!acc[note.linked_item_id]) acc[note.linked_item_id] = [];
       acc[note.linked_item_id].push(note);
       return acc;
     }, {} as Record<string, any[]>);
 
-    // Combine expenses with their payments and notes
     const expensesWithDetails = (data || []).map(expense => {
       const payments = paymentsByExpenseId[expense.id] || [];
       const expenseNotes = expenseNotesByExpenseId[expense.id] || [];
       const linkedNotes = linkedNotesByExpenseId[expense.id] || [];
-
-      // Use expense_notes if available, otherwise fall back to linked notes
       const notes = expenseNotes.length > 0 ? expenseNotes : linkedNotes;
-
-      return {
-        ...expense,
-        payments,
-        notes
-      };
+      return { ...expense, payments, notes };
     });
 
-    // Create a consistent response structure
-    const responseData = {
-      expenses: expensesWithDetails || [],
-      count: count || 0,
-      limit,
-      offset
-    };
-
-    // More detailed logging to debug the structure
-    console.log('API response data:', {
-      count: responseData.count,
-      limit: responseData.limit,
-      offset: responseData.offset,
-      expensesCount: responseData.expenses.length,
-      // Log the first expense's structure if available
-      firstExpenseStructure: responseData.expenses.length > 0 ? {
-        id: responseData.expenses[0].id,
-        hasPayments: !!responseData.expenses[0].payments,
-        paymentsCount: Array.isArray(responseData.expenses[0].payments) ? responseData.expenses[0].payments.length : 0,
-        hasNotes: !!responseData.expenses[0].notes,
-        notesCount: Array.isArray(responseData.expenses[0].notes) ? responseData.expenses[0].notes.length : 0,
-        paymentsSample: Array.isArray(responseData.expenses[0].payments) && responseData.expenses[0].payments.length > 0
-          ? responseData.expenses[0].payments[0]
-          : null,
-        notesSample: Array.isArray(responseData.expenses[0].notes) && responseData.expenses[0].notes.length > 0
-          ? responseData.expenses[0].notes[0]
-          : null
-      } : null
-    });
-
-    return createApiResponse(responseData);
+    return createApiResponse({ expenses: expensesWithDetails, count: count || 0, limit, offset });
   } catch (error) {
-    console.error('Unexpected error in GET /api/expenses:', error);
-    return handleApiError(
-      'SERVER_ERROR',
-      'An unexpected error occurred while fetching expenses'
-    );
+    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while fetching expenses');
   }
 }
 
@@ -198,46 +118,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { expense, payments = [], notes = [] } = body;
 
-    // Create Supabase client - await it since it's now async
-    const cookieStore = await cookies();
     const supabase = await createClient();
-
-    // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError(
-        'AUTHENTICATION_ERROR',
-        'Authentication required to create an expense'
-      );
+      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to create an expense');
     }
 
-    // Validate required fields
     if (!expense.date) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Date is required',
-        { param: 'date' }
-      );
+      return handleApiError('VALIDATION_ERROR', 'Date is required', { param: 'date' });
     }
 
     if (!expense.total_amount && expense.total_amount !== 0) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Total amount is required',
-        { param: 'total_amount' }
-      );
+      return handleApiError('VALIDATION_ERROR', 'Total amount is required', { param: 'total_amount' });
     }
 
-    // Log the received category value
-    console.log('Received category value in API:', expense.category);
-
-    // Validate category
     if (!expense.category) {
-      console.log('Category not provided, defaulting to variable');
       expense.category = 'variable';
     } else if (!['fixed', 'variable'].includes(expense.category)) {
-      console.log('Invalid category provided:', expense.category);
       return handleApiError(
         'VALIDATION_ERROR',
         'Invalid category value. Must be either "fixed" or "variable".',
@@ -245,26 +143,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Final category value in API:', expense.category);
+    const amount_paid = payments.reduce((sum: number, payment: any) => sum + (parseFloat(payment.amount) || 0), 0);
 
-    // Calculate amount_paid
-    const amount_paid = payments.reduce((sum, payment) => sum + (parseFloat(payment.amount as any) || 0), 0);
-
-    // Determine payment status
     let payment_status = 'unpaid';
     if (amount_paid > 0) {
-      payment_status = amount_paid >= parseFloat(expense.total_amount as any) ? 'paid' : 'partially_paid';
+      payment_status = amount_paid >= parseFloat(expense.total_amount) ? 'paid' : 'partially_paid';
     }
 
-    // Log payment information
-    console.log('Payments:', payments);
-    console.log('Amount paid:', amount_paid);
-    console.log('Total amount:', expense.total_amount);
-    console.log('Payment status:', payment_status);
-
-    // Start a transaction
-    // Remove any expense_type field if it exists to prevent errors
-    // Also extract recurrence pattern fields to handle them explicitly
     const {
       expense_type,
       description,
@@ -277,45 +162,23 @@ export async function POST(request: NextRequest) {
       ...cleanedExpense
     } = expense;
 
-    // Prepare the expense data
-    const expenseData = {
+    const expenseData: any = {
       ...cleanedExpense,
       created_by: user.id,
       payment_status,
       amount_paid,
-      // balance is a generated column, so we don't need to include it
       responsible: expense.responsible || null,
       category: expense.category,
-      // Use item_name as the primary description field
       item_name: expense.item_name,
     };
 
-    // Add recurrence pattern fields if this is a recurring expense
     if (expense.is_recurring) {
-      // Only add fields that have values to avoid null entries
-      if (recurrence_day_of_week !== undefined) {
-        expenseData.recurrence_day_of_week = recurrence_day_of_week;
-      }
-
-      if (recurrence_day_of_month !== undefined) {
-        expenseData.recurrence_day_of_month = recurrence_day_of_month;
-      }
-
-      if (recurrence_week_of_month !== undefined) {
-        expenseData.recurrence_week_of_month = recurrence_week_of_month;
-      }
-
-      if (recurrence_month_of_year !== undefined) {
-        expenseData.recurrence_month_of_year = recurrence_month_of_year;
-      }
-
-      if (recurrence_time) {
-        expenseData.recurrence_time = recurrence_time;
-      }
-
-      if (monthly_recurrence_type) {
-        expenseData.monthly_recurrence_type = monthly_recurrence_type;
-      }
+      if (recurrence_day_of_week !== undefined) expenseData.recurrence_day_of_week = recurrence_day_of_week;
+      if (recurrence_day_of_month !== undefined) expenseData.recurrence_day_of_month = recurrence_day_of_month;
+      if (recurrence_week_of_month !== undefined) expenseData.recurrence_week_of_month = recurrence_week_of_month;
+      if (recurrence_month_of_year !== undefined) expenseData.recurrence_month_of_year = recurrence_month_of_year;
+      if (recurrence_time) expenseData.recurrence_time = recurrence_time;
+      if (monthly_recurrence_type) expenseData.monthly_recurrence_type = monthly_recurrence_type;
     }
 
     const { data: newExpense, error: expenseError } = await supabase
@@ -325,43 +188,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (expenseError) {
-      console.error('Error creating expense:', expenseError);
-
-      // Check for specific error types
       if (expenseError.code === '23502') {
-        // Not null violation
-        return handleApiError(
-          'VALIDATION_ERROR',
-          'Missing required field',
-          { details: expenseError.message, code: expenseError.code }
-        );
+        return handleApiError('VALIDATION_ERROR', 'Missing required field', { details: expenseError.message, code: expenseError.code });
       } else if (expenseError.code === '23503') {
-        // Foreign key violation
-        return handleApiError(
-          'VALIDATION_ERROR',
-          'Referenced record does not exist',
-          { details: expenseError.message, code: expenseError.code }
-        );
+        return handleApiError('VALIDATION_ERROR', 'Referenced record does not exist', { details: expenseError.message, code: expenseError.code });
       } else if (expenseError.code === '23505') {
-        // Unique violation
-        return handleApiError(
-          'VALIDATION_ERROR',
-          'Record already exists',
-          { details: expenseError.message, code: expenseError.code }
-        );
+        return handleApiError('VALIDATION_ERROR', 'Record already exists', { details: expenseError.message, code: expenseError.code });
       } else if (expenseError.code === '428C9') {
-        // Generated column error
-        return handleApiError(
-          'VALIDATION_ERROR',
-          'Cannot insert value into a generated column',
-          { details: 'Some columns like "balance" are calculated automatically and cannot be set directly', code: expenseError.code }
-        );
+        return handleApiError('VALIDATION_ERROR', 'Cannot insert value into a generated column', {
+          details: 'Some columns like "balance" are calculated automatically and cannot be set directly',
+          code: expenseError.code
+        });
       }
-
       return handleSupabaseError(expenseError);
     }
 
-    // Add payments if any
     if (payments.length > 0) {
       const paymentsWithExpenseId = payments.map((payment: any) => ({
         ...payment,
@@ -374,28 +215,15 @@ export async function POST(request: NextRequest) {
         .insert(paymentsWithExpenseId);
 
       if (paymentsError) {
-        console.error('Error adding expense payments:', paymentsError);
-
-        // Check for specific payment errors
         if (paymentsError.code === '23502') {
-          return handleApiError(
-            'VALIDATION_ERROR',
-            'Missing required field in payment',
-            { details: paymentsError.message, code: paymentsError.code }
-          );
+          return handleApiError('VALIDATION_ERROR', 'Missing required field in payment', { details: paymentsError.message, code: paymentsError.code });
         } else if (paymentsError.code === '23514') {
-          return handleApiError(
-            'VALIDATION_ERROR',
-            'Payment amount must be greater than 0',
-            { details: paymentsError.message, code: paymentsError.code }
-          );
+          return handleApiError('VALIDATION_ERROR', 'Payment amount must be greater than 0', { details: paymentsError.message, code: paymentsError.code });
         }
-
         return handleSupabaseError(paymentsError);
       }
     }
 
-    // Add notes if any
     if (notes.length > 0) {
       const notesWithExpenseId = notes.map((note: any) => ({
         ...note,
@@ -408,22 +236,13 @@ export async function POST(request: NextRequest) {
         .insert(notesWithExpenseId);
 
       if (notesError) {
-        console.error('Error adding expense notes:', notesError);
-
-        // Check for specific note errors
         if (notesError.code === '23502') {
-          return handleApiError(
-            'VALIDATION_ERROR',
-            'Missing required field in note',
-            { details: notesError.message, code: notesError.code }
-          );
+          return handleApiError('VALIDATION_ERROR', 'Missing required field in note', { details: notesError.message, code: notesError.code });
         }
-
         return handleSupabaseError(notesError);
       }
     }
 
-    // Get the complete expense with payments and notes in a single query
     const { data: completeExpense, error: fetchError } = await supabase
       .from('expenses')
       .select(`
@@ -434,82 +253,35 @@ export async function POST(request: NextRequest) {
       .eq('id', newExpense.id)
       .single();
 
-    if (fetchError) {
-      console.error('Error fetching complete expense:', fetchError);
-      return handleSupabaseError(fetchError);
-    }
+    if (fetchError) return handleSupabaseError(fetchError);
 
-    // Return the complete expense with payments and notes
-    return createApiResponse({
-      expense: completeExpense
-    });
+    return createApiResponse({ expense: completeExpense });
   } catch (error) {
-    console.error('Unexpected error in POST /api/expenses:', error);
-
-    // Provide more detailed error information
-    let errorMessage = 'An unexpected error occurred while creating the expense';
-    let errorDetails = undefined;
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = { stack: error.stack };
-    } else if (typeof error === 'object' && error !== null) {
-      try {
-        errorDetails = error;
-      } catch (e) {
-        console.error('Error processing error object:', e);
-      }
-    }
-
-    return handleApiError(
-      'SERVER_ERROR',
-      errorMessage,
-      process.env.NODE_ENV === 'development' ? errorDetails : undefined
-    );
+    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while creating the expense');
   }
 }
 
 /**
- * PUT /api/expenses/:id
- * Updates an existing expense
+ * PUT /api/expenses
+ * Updates an existing expense (ID in request body)
  */
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { expense } = body;
-
-    // Get ID from URL path or request body
-    let id = params?.id;
-
-    // If ID is not in the URL path, try to get it from the request body
-    if (!id) {
-      id = body.id;
-    }
+    const id = body.id;
 
     if (!id) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Expense ID is required',
-        { param: 'id' }
-      );
+      return handleApiError('VALIDATION_ERROR', 'Expense ID is required', { param: 'id' });
     }
 
-    // Create Supabase client - await it since it's now async
-    const cookieStore = await cookies();
     const supabase = await createClient();
-
-    // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError(
-        'AUTHENTICATION_ERROR',
-        'Authentication required to update an expense'
-      );
+      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to update an expense');
     }
 
-    // Remove generated columns, expense_type, and description from the update
-    // Also extract recurrence pattern fields to handle them explicitly
     const {
       balance,
       expense_type,
@@ -523,58 +295,26 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       ...expenseToUpdate
     } = expense;
 
-    // Log the received category value
-    console.log('Received category value in PUT API:', expenseToUpdate.category);
-
-    // Ensure category is valid
     if (!expenseToUpdate.category) {
-      console.log('Category not provided in update, defaulting to variable');
       expenseToUpdate.category = 'variable';
-    } else if (expenseToUpdate.category === 'fixed') {
-      console.log('Category in update is fixed, keeping it as fixed');
-      expenseToUpdate.category = 'fixed';
-    } else {
-      console.log('Category in update is not fixed, setting to variable');
+    } else if (expenseToUpdate.category !== 'fixed') {
       expenseToUpdate.category = 'variable';
     }
 
-    console.log('Final category value in PUT API:', expenseToUpdate.category);
-
-    // Prepare the expense data for update
-    const updateData = {
+    const updateData: any = {
       ...expenseToUpdate,
       updated_at: new Date().toISOString()
     };
 
-    // Add recurrence pattern fields if this is a recurring expense
     if (expense.is_recurring) {
-      // Only add fields that have values to avoid null entries
-      if (recurrence_day_of_week !== undefined) {
-        updateData.recurrence_day_of_week = recurrence_day_of_week;
-      }
-
-      if (recurrence_day_of_month !== undefined) {
-        updateData.recurrence_day_of_month = recurrence_day_of_month;
-      }
-
-      if (recurrence_week_of_month !== undefined) {
-        updateData.recurrence_week_of_month = recurrence_week_of_month;
-      }
-
-      if (recurrence_month_of_year !== undefined) {
-        updateData.recurrence_month_of_year = recurrence_month_of_year;
-      }
-
-      if (recurrence_time) {
-        updateData.recurrence_time = recurrence_time;
-      }
-
-      if (monthly_recurrence_type) {
-        updateData.monthly_recurrence_type = monthly_recurrence_type;
-      }
+      if (recurrence_day_of_week !== undefined) updateData.recurrence_day_of_week = recurrence_day_of_week;
+      if (recurrence_day_of_month !== undefined) updateData.recurrence_day_of_month = recurrence_day_of_month;
+      if (recurrence_week_of_month !== undefined) updateData.recurrence_week_of_month = recurrence_week_of_month;
+      if (recurrence_month_of_year !== undefined) updateData.recurrence_month_of_year = recurrence_month_of_year;
+      if (recurrence_time) updateData.recurrence_time = recurrence_time;
+      if (monthly_recurrence_type) updateData.monthly_recurrence_type = monthly_recurrence_type;
     }
 
-    // Update the expense
     const { data: updatedExpense, error: updateError } = await supabase
       .from('expenses')
       .update(updateData)
@@ -583,22 +323,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .single();
 
     if (updateError) {
-      console.error('Error updating expense:', updateError);
-
-      // Check for specific error types
       if (updateError.code === '428C9') {
-        // Generated column error
-        return handleApiError(
-          'VALIDATION_ERROR',
-          'Cannot update a generated column',
-          { details: 'Some columns like "balance" are calculated automatically and cannot be updated directly', code: updateError.code }
-        );
+        return handleApiError('VALIDATION_ERROR', 'Cannot update a generated column', {
+          details: 'Some columns like "balance" are calculated automatically and cannot be updated directly',
+          code: updateError.code
+        });
       }
-
       return handleSupabaseError(updateError);
     }
 
-    // Get the complete expense with payments and notes in a single query
     const { data: completeExpense, error: fetchError } = await supabase
       .from('expenses')
       .select(`
@@ -609,43 +342,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .eq('id', id)
       .single();
 
-    if (fetchError) {
-      console.error('Error fetching complete expense after update:', fetchError);
-      return handleSupabaseError(fetchError);
-    }
+    if (fetchError) return handleSupabaseError(fetchError);
 
-    return createApiResponse({
-      expense: completeExpense
-    });
+    return createApiResponse({ expense: completeExpense });
   } catch (error) {
-    console.error('Unexpected error in PUT /api/expenses:', error);
-
-    // Provide more detailed error information
-    let errorMessage = 'An unexpected error occurred while updating the expense';
-    let errorDetails = undefined;
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = { stack: error.stack };
-    } else if (typeof error === 'object' && error !== null) {
-      try {
-        errorDetails = error;
-      } catch (e) {
-        console.error('Error processing error object:', e);
-      }
-    }
-
-    return handleApiError(
-      'SERVER_ERROR',
-      errorMessage,
-      process.env.NODE_ENV === 'development' ? errorDetails : undefined
-    );
+    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while updating the expense');
   }
 }
 
 /**
  * DELETE /api/expenses
- * Deletes an expense by ID
+ * Deletes an expense by ID (query param)
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -653,28 +360,16 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Expense ID is required',
-        { param: 'id' }
-      );
+      return handleApiError('VALIDATION_ERROR', 'Expense ID is required', { param: 'id' });
     }
 
-    // Create Supabase client - await it since it's now async
-    const cookieStore = await cookies();
     const supabase = await createClient();
-
-    // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError(
-        'AUTHENTICATION_ERROR',
-        'Authentication required to delete an expense'
-      );
+      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to delete an expense');
     }
 
-    // Check if the user is an admin or manager
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -682,49 +377,18 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
-      return handleApiError(
-        'AUTHORIZATION_ERROR',
-        'Only admins and managers can delete expenses'
-      );
+      return handleApiError('AUTHORIZATION_ERROR', 'Only admins and managers can delete expenses');
     }
 
-    // Delete the expense
     const { error: deleteError } = await supabase
       .from('expenses')
       .delete()
       .eq('id', id);
 
-    if (deleteError) {
-      console.error('Error deleting expense:', deleteError);
-      return handleSupabaseError(deleteError);
-    }
+    if (deleteError) return handleSupabaseError(deleteError);
 
-    return createApiResponse({
-      success: true,
-      message: 'Expense deleted successfully'
-    });
+    return createApiResponse({ success: true, message: 'Expense deleted successfully' });
   } catch (error) {
-    console.error('Unexpected error in DELETE /api/expenses:', error);
-
-    // Provide more detailed error information
-    let errorMessage = 'An unexpected error occurred while deleting the expense';
-    let errorDetails = undefined;
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = { stack: error.stack };
-    } else if (typeof error === 'object' && error !== null) {
-      try {
-        errorDetails = error;
-      } catch (e) {
-        console.error('Error processing error object:', e);
-      }
-    }
-
-    return handleApiError(
-      'SERVER_ERROR',
-      errorMessage,
-      process.env.NODE_ENV === 'development' ? errorDetails : undefined
-    );
+    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
   }
 }

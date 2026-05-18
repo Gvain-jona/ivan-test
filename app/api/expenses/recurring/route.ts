@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError } from '@/lib/api/error-handler';
 
@@ -13,8 +12,9 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') || new Date().toISOString().split('T')[0];
     const endDate = searchParams.get('endDate') || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     // Get recurring expenses with upcoming occurrences
     const { data: expenses, error: expensesError } = await supabase
@@ -98,20 +98,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authorization for production (skip in development)
-    if (process.env.NODE_ENV === 'production') {
-      const authHeader = request.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return handleApiError(
-          'AUTHENTICATION_ERROR',
-          'Authentication required to access this endpoint',
-          { status: 401 }
-        );
-      }
-      // In production, you would validate the token here
+    const authHeader = request.headers.get('authorization');
+    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return handleApiError('AUTHENTICATION_ERROR', 'Unauthorized', { status: 401 });
     }
 
-    // Create Supabase client
     const supabase = await createClient();
 
     // Get all active recurring expenses
