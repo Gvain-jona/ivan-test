@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { KPICard } from '@/components/analytics/KPICard';
-import { LineChartComponent } from '@/components/analytics/LineChartComponent';
-import { BarChartComponent } from '@/components/analytics/BarChartComponent';
+import { BarChartComponent, BarSeries } from '@/components/analytics/BarChartComponent';
 import { PieChartComponent } from '@/components/analytics/PieChartComponent';
 import { useAnalyticsContext } from '../_context/AnalyticsContext';
 import { useMaterialsBySupplier, useInstallmentDelinquencyRate } from '@/hooks/analytics/useAnalytics';
@@ -75,32 +74,23 @@ export function MaterialsPanel() {
 
   // Prepare supplier chart data
   const supplierChartData = React.useMemo(() => {
-    if (!materialsBySupplier) return { labels: [], datasets: [] };
-
-    // Sort suppliers by total amount
-    const sortedSuppliers = [...materialsBySupplier].sort((a, b) => b.total_amount - a.total_amount).slice(0, 10);
-
-    return {
-      labels: sortedSuppliers.map(supplier => supplier.supplier_name),
-      datasets: [
-        {
-          label: 'Total Amount',
-          data: sortedSuppliers.map(supplier => supplier.total_amount),
-          backgroundColor: '#3b82f6',
-        },
-        {
-          label: 'Amount Paid',
-          data: sortedSuppliers.map(supplier => supplier.amount_paid),
-          backgroundColor: '#22c55e',
-        },
-        {
-          label: 'Balance',
-          data: sortedSuppliers.map(supplier => supplier.total_amount - supplier.amount_paid),
-          backgroundColor: '#ef4444',
-        },
-      ],
-    };
+    if (!materialsBySupplier) return [];
+    return [...materialsBySupplier]
+      .sort((a, b) => b.total_amount - a.total_amount)
+      .slice(0, 10)
+      .map(s => ({
+        name: s.supplier_name,
+        totalAmount: s.total_amount,
+        amountPaid: s.amount_paid,
+        balance: s.total_amount - s.amount_paid,
+      }));
   }, [materialsBySupplier]);
+
+  const supplierBars: BarSeries[] = [
+    { key: 'totalAmount', label: 'Total Amount', color: '#3b82f6' },
+    { key: 'amountPaid', label: 'Amount Paid', color: '#22c55e' },
+    { key: 'balance', label: 'Balance', color: '#ef4444' },
+  ];
 
   // Prepare payment status chart data
   const paymentStatusData = React.useMemo(() => {
@@ -186,28 +176,13 @@ export function MaterialsPanel() {
           title="Top Suppliers by Purchase Amount"
           description="Showing top 10 suppliers"
           data={supplierChartData}
+          xDataKey="name"
+          bars={supplierBars}
           isLoading={isLoadingMaterials}
           className="lg:col-span-2"
           height={300}
-          options={{
-            scales: {
-              y: {
-                ticks: {
-                  callback: (value) => formatCurrency(Number(value)),
-                },
-              },
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw as number;
-                    return `${context.dataset.label}: ${formatCurrency(value)}`;
-                  },
-                },
-              },
-            },
-          }}
+          yTickFormatter={(v) => formatCurrency(v)}
+          tooltipFormatter={(value) => formatCurrency(value)}
         />
 
         <div className="grid grid-cols-1 gap-6">

@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { KPICard } from '@/components/analytics/KPICard';
-import { LineChartComponent } from '@/components/analytics/LineChartComponent';
-import { BarChartComponent } from '@/components/analytics/BarChartComponent';
+import { LineChartComponent, ChartSeries } from '@/components/analytics/LineChartComponent';
 import { PieChartComponent } from '@/components/analytics/PieChartComponent';
 import { useAnalyticsContext } from '../_context/AnalyticsContext';
 import { useExpensesByCategory, useExpenseToRevenueRatio } from '@/hooks/analytics/useAnalytics';
@@ -110,70 +109,38 @@ export function ExpensesPanel() {
   
   // Prepare expense to revenue ratio chart data
   const expenseRatioChartData = React.useMemo(() => {
-    if (!expenseToRevenueRatio) return { labels: [], datasets: [] };
-    
-    // Format labels based on timeframe
+    if (!expenseToRevenueRatio) return [];
+
     const formatLabel = (period: string) => {
       try {
         const date = new Date(period);
         switch (timeframe) {
-          case 'day':
-            return format(date, 'MMM d');
-          case 'week':
-            return `Week ${format(date, 'w')}`;
-          case 'month':
-            return format(date, 'MMM yyyy');
-          case 'year':
-            return format(date, 'yyyy');
-          default:
-            return period;
+          case 'day': return format(date, 'MMM d');
+          case 'week': return `Week ${format(date, 'w')}`;
+          case 'month': return format(date, 'MMM yyyy');
+          case 'year': return format(date, 'yyyy');
+          default: return period;
         }
-      } catch (error) {
+      } catch {
         return period;
       }
     };
-    
-    return {
-      labels: expenseToRevenueRatio.map(item => formatLabel(item.period)),
-      datasets: [
-        {
-          label: 'Revenue',
-          data: expenseToRevenueRatio.map(item => item.total_revenue),
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          type: 'line',
-          yAxisID: 'y',
-        },
-        {
-          label: 'Expenses',
-          data: expenseToRevenueRatio.map(item => item.total_expenses),
-          backgroundColor: '#ef4444',
-          borderColor: '#ef4444',
-          borderWidth: 1,
-          type: 'bar',
-          yAxisID: 'y',
-        },
-        {
-          label: 'Materials',
-          data: expenseToRevenueRatio.map(item => item.total_materials),
-          backgroundColor: '#f97316',
-          borderColor: '#f97316',
-          borderWidth: 1,
-          type: 'bar',
-          yAxisID: 'y',
-        },
-        {
-          label: 'Expense Ratio',
-          data: expenseToRevenueRatio.map(item => item.expense_ratio * 100),
-          borderColor: '#a855f7',
-          backgroundColor: 'rgba(168, 85, 247, 0.1)',
-          type: 'line',
-          yAxisID: 'y1',
-          borderDash: [5, 5],
-        },
-      ],
-    };
+
+    return expenseToRevenueRatio.map(item => ({
+      period: formatLabel(item.period),
+      revenue: item.total_revenue,
+      expenses: item.total_expenses,
+      materials: item.total_materials,
+      expenseRatio: item.expense_ratio * 100,
+    }));
   }, [expenseToRevenueRatio, timeframe]);
+
+  const expenseRatioSeries: ChartSeries[] = [
+    { key: 'revenue', label: 'Revenue', color: '#3b82f6', type: 'line', yAxisId: 'left' },
+    { key: 'expenses', label: 'Expenses', color: '#ef4444', type: 'bar', yAxisId: 'left' },
+    { key: 'materials', label: 'Materials', color: '#f97316', type: 'bar', yAxisId: 'left' },
+    { key: 'expenseRatio', label: 'Expense Ratio', color: '#a855f7', type: 'line', yAxisId: 'right', dashed: true },
+  ];
   
   return (
     <div className="space-y-6">
@@ -218,46 +185,15 @@ export function ExpensesPanel() {
           title="Expense to Revenue Ratio"
           description={`Showing data by ${timeframe}`}
           data={expenseRatioChartData}
+          xDataKey="period"
+          series={expenseRatioSeries}
           isLoading={isLoadingRatios}
           height={300}
-          options={{
-            scales: {
-              y: {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                ticks: {
-                  callback: (value) => formatCurrency(Number(value)),
-                },
-              },
-              y1: {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                grid: {
-                  drawOnChartArea: false,
-                },
-                min: 0,
-                max: 100,
-                ticks: {
-                  callback: (value) => `${value}%`,
-                },
-              },
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw as number;
-                    if (context.dataset.label === 'Expense Ratio') {
-                      return `${context.dataset.label}: ${value.toFixed(1)}%`;
-                    }
-                    return `${context.dataset.label}: ${formatCurrency(value)}`;
-                  },
-                },
-              },
-            },
-          }}
+          leftAxisFormatter={(v) => formatCurrency(v)}
+          rightAxis={{ domain: [0, 100], formatter: (v) => `${v}%` }}
+          tooltipFormatter={(value, name) =>
+            name === 'Expense Ratio' ? `${value.toFixed(1)}%` : formatCurrency(value)
+          }
         />
         
         <PieChartComponent

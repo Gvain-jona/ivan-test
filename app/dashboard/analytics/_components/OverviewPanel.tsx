@@ -735,24 +735,9 @@ export function OverviewPanel() {
                 iconClassName="bg-primary/10 dark:bg-primary/20"
                 chartType="line"
                 chartHeight={60}
-                chartColor="hsl(var(--primary))" // Use primary theme color for consistency
+                chartColor="hsl(var(--primary))"
                 isLoading={isLoadingSummary}
-                chartData={{
-                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-                  datasets: [
-                    {
-                      data: [12, 19, 15, 22, 18, 25, 31],
-                      borderColor: 'hsl(var(--primary))', // Use primary theme color
-                      backgroundColor: (context) => {
-                        const ctx = context.chart.ctx;
-                        if (!ctx) return 'hsla(var(--primary), 0.2)';
-                        // Let the component handle gradient creation
-                        return 'hsl(var(--primary))';
-                      },
-                      fill: true,
-                    },
-                  ],
-                }}
+                sparklineData={[12, 19, 15, 22, 18, 25, 31]}
               />
 
               <KPICardWithChart
@@ -763,21 +748,10 @@ export function OverviewPanel() {
                 icon={<BanknoteIcon className="h-5 w-5 text-primary" />}
                 iconClassName="bg-primary/10 dark:bg-primary/20"
                 chartType="bar"
-                chartHeight={60} // Reduced height for better stacking
-                chartColor="hsl(var(--primary))" // Use primary theme color for consistency
+                chartHeight={60}
+                chartColor="hsl(var(--primary))"
                 isLoading={isLoadingSummary}
-                chartData={{
-                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-                  datasets: [
-                    {
-                      data: [8, 12, 9, 14, 10, 7, 11],
-                      borderColor: 'hsl(var(--primary))',
-                      backgroundColor: 'hsl(var(--primary))',
-                      borderRadius: 4,
-                      borderWidth: 0,
-                    },
-                  ],
-                }}
+                sparklineData={[8, 12, 9, 14, 10, 7, 11]}
                 className="bg-card border-border shadow-sm"
                 valueClassName="text-card-foreground"
               />
@@ -791,25 +765,10 @@ export function OverviewPanel() {
                 iconClassName="bg-primary/10 dark:bg-primary/20"
                 chartType="line"
                 chartHeight={60}
-                chartColor="hsl(var(--primary))" // Use primary theme color for consistency
+                chartColor="hsl(var(--primary))"
                 className="bg-card border-border shadow-sm"
                 valueClassName="text-card-foreground"
-                chartData={{
-                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-                  datasets: [
-                    {
-                      data: [15, 23, 18, 25, 27, 24, 28],
-                      borderColor: 'hsl(var(--primary))', // Use primary theme color
-                      backgroundColor: (context) => {
-                        const ctx = context.chart.ctx;
-                        if (!ctx) return 'hsla(var(--primary), 0.2)';
-                        // Let the component handle gradient creation
-                        return 'hsl(var(--primary))';
-                      },
-                      fill: true,
-                    },
-                  ],
-                }}
+                sparklineData={[15, 23, 18, 25, 27, 24, 28]}
               />
             </div>
           </div>
