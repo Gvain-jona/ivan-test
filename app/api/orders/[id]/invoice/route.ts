@@ -22,6 +22,9 @@ export async function GET(
 
     // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
 
     // Get invoices for the order
     const { data, error } = await supabase

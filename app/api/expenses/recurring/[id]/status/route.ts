@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError } from '@/lib/api/error-handler';
 
@@ -25,6 +24,10 @@ export async function PATCH(
         { param: 'id' }
       );
     }
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     // Parse request body
     const body = await request.json();

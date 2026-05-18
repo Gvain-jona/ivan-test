@@ -7,7 +7,10 @@ import { createClient } from '@/utils/supabase/server';
  */
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     
     // Get categories from the database
     const { data, error } = await supabase
@@ -45,7 +48,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { label } = await request.json();
     
     if (!label) {
