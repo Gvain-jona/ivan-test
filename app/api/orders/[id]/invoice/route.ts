@@ -1,6 +1,6 @@
 // Next.js API Route Handler for generating and retrieving invoices for an order
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * GET /api/orders/[id]/invoice

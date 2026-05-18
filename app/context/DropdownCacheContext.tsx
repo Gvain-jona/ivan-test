@@ -2,7 +2,7 @@
 // Updated with optimized data fetching - 60 minute refresh interval
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import { SmartComboboxOption } from '@/components/ui/smart-combobox';
 import { toast } from '@/components/ui/use-toast';
 

@@ -8,7 +8,7 @@ import { useSmartSizes } from '@/hooks/useSmartSizes'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/use-toast'
 import { DatabaseSetupMessage } from '@/components/ui/database-setup-message'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/utils/supabase/client'
 
 export default function SizesTestPage() {
   const [selectedSize, setSelectedSize] = useState('')

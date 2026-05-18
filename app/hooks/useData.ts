@@ -7,7 +7,7 @@ import { createSWRConfig } from '@/lib/swr-config';
 import { dataService } from '@/lib/supabase';
 import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import { useLoading } from '@/components/loading/LoadingProvider';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { getOrdersListKey, getOrderKey } from '@/lib/cache-keys';

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { createClient } from '@/app/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 
 // Define the approval type
 type Approval = {

@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 /**
  * Updates the last_sign_in_at field in the profiles table
@@ -6,7 +6,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
  */
 export async function updateLastSignIn(userId: string): Promise<void> {
   try {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     
     const { error } = await supabase
       .from('profiles')

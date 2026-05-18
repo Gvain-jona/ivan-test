@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { SourceType, TransactionType } from '@/app/context/settings/types';
 
 /**
@@ -35,7 +35,7 @@ export async function allocateAmount(
   transactionType: TransactionType = 'credit'
 ): Promise<AllocationResult> {
   try {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     
     // Get active allocation rules for this source type
     const { data: rules, error } = await supabase
@@ -93,7 +93,7 @@ export async function createTransactionsForAllocations(
   }
   
   try {
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     
     // Create transactions
     const { error } = await supabase

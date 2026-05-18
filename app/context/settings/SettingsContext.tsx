@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/auth-context';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import {
   UserSettings,
   SettingsContextType,
@@ -25,7 +25,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { profile } = useAuth();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   // Load settings on mount or when user profile changes
   useEffect(() => {

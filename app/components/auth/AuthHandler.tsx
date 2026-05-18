@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 
 /**
  * AuthHandler component

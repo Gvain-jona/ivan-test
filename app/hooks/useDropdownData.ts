@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import { SmartComboboxOption } from '@/components/ui/smart-combobox';
 
 // Define the entity types

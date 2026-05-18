@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { SettingSection } from '@/components/settings';
 import { RolePermissionsSection } from './RolePermissionsSection';
 import { useAuth } from '@/app/context/auth-context';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,7 @@ interface AllowedEmail {
  */
 export function UserManagementTab() {
   const { isAdmin } = useAuth();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   // State for users
   const [users, setUsers] = useState<User[]>([]);
