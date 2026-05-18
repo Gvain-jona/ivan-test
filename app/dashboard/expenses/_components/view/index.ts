@@ -1,7 +1,5 @@
 // Re-export all view components
 export * from './ExpenseView';
-export * from './ExpenseViewImproved';
-export * from './ExpenseViewEnhanced';
 export * from './ExpenseViewSheet';
 export * from './ExpenseViewHeader';
 export * from './ExpenseViewGeneral';

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError } from '@/lib/api/error-handler';
 
@@ -19,8 +18,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Supabase client
-    const cookieStore = await cookies();
     const supabase = await createClient();
 
     // Get all active recurring expenses
