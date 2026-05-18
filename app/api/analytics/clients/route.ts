@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { parseAnalyticsDates } from '@/lib/cache/analytics-cache';
 
 /**
  * GET /api/analytics/clients
@@ -14,26 +15,10 @@ export async function GET(request: NextRequest) {
   try {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
-    const startDateParam = searchParams.get('startDate');
-    const endDateParam = searchParams.get('endDate');
     const limitParam = searchParams.get('limit');
     const limit = limitParam ? parseInt(limitParam, 10) : 10;
 
-    // Set default dates if not provided
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 29);
-
-    // Format dates as YYYY-MM-DD
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-    const startDate = startDateParam && startDateParam !== 'undefined'
-      ? startDateParam
-      : formatDate(thirtyDaysAgo);
-
-    const endDate = endDateParam && endDateParam !== 'undefined'
-      ? endDateParam
-      : formatDate(today);
+    const { startDate, endDate } = parseAnalyticsDates(searchParams);
 
     if (isNaN(limit) || limit < 1) {
       return NextResponse.json(

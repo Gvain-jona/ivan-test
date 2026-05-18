@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { parseAnalyticsDates } from '@/lib/cache/analytics-cache';
 
 /**
  * GET /api/analytics/expense-ratio
@@ -15,24 +16,8 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'month';
-    const startDateParam = searchParams.get('startDate');
-    const endDateParam = searchParams.get('endDate');
 
-    // Set default dates if not provided
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 29);
-
-    // Format dates as YYYY-MM-DD
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-    const startDate = startDateParam && startDateParam !== 'undefined'
-      ? startDateParam
-      : formatDate(thirtyDaysAgo);
-
-    const endDate = endDateParam && endDateParam !== 'undefined'
-      ? endDateParam
-      : formatDate(today);
+    const { startDate, endDate } = parseAnalyticsDates(searchParams);
 
     if (!['day', 'week', 'month', 'year'].includes(period)) {
       return NextResponse.json(
