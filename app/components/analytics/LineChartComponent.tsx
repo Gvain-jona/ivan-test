@@ -1,77 +1,75 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
-import { ChartData, ChartOptions } from 'chart.js';
-import { lineChartOptions, getGradient, chartColors } from '@/lib/chart-config';
+import React from 'react';
+import {
+  ComposedChart,
+  Line,
+  Bar,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+export interface ChartSeries {
+  key: string;
+  label?: string;
+  color: string;
+  type?: 'line' | 'bar' | 'area';
+  yAxisId?: 'left' | 'right';
+  dashed?: boolean;
+}
+
 interface LineChartProps {
+  data: Array<Record<string, string | number>>;
+  xDataKey: string;
+  series: ChartSeries[];
+  leftAxisFormatter?: (value: number) => string;
+  rightAxis?: { domain?: [number, number]; formatter?: (value: number) => string };
+  tooltipFormatter?: (value: number, name: string) => string;
+  height?: number;
   title?: string;
   description?: string;
-  data: ChartData<'line'>;
-  options?: Partial<ChartOptions<'line'>>;
-  height?: number;
   className?: string;
   isLoading?: boolean;
   showLegend?: boolean;
-  fillArea?: boolean;
 }
 
 export function LineChartComponent({
+  data,
+  xDataKey,
+  series,
+  leftAxisFormatter,
+  rightAxis,
+  tooltipFormatter,
+  height = 300,
   title,
   description,
-  data,
-  options = {},
-  height = 300,
   className,
   isLoading = false,
   showLegend = true,
-  fillArea = false,
 }: LineChartProps) {
-  const chartRef = useRef<any>(null);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    
-    if (chart && fillArea) {
-      const datasets = [...data.datasets];
-      
-      datasets.forEach((dataset, index) => {
-        const ctx = chart.ctx;
-        const chartArea = chart.chartArea;
-        const color = dataset.borderColor as string;
-        
-        if (chartArea && ctx) {
-          dataset.backgroundColor = getGradient(ctx, chartArea, color);
-          dataset.fill = true;
-        }
-      });
-      
-      chart.update();
-    }
-  }, [data, fillArea]);
-
-  const mergedOptions: ChartOptions<'line'> = {
-    ...lineChartOptions as ChartOptions<'line'>,
-    ...options,
-    plugins: {
-      ...lineChartOptions.plugins,
-      ...options.plugins,
-      legend: {
-        ...lineChartOptions.plugins?.legend,
-        ...options.plugins?.legend,
-        display: showLegend,
-      },
+  const hasRightAxis = series.some((s) => s.yAxisId === 'right');
+  const tickStyle = { fontSize: 12, fill: 'hsl(var(--muted-foreground))' };
+  const tooltipStyle = {
+    contentStyle: {
+      backgroundColor: 'hsl(var(--card))',
+      border: '1px solid hsl(var(--border))',
+      borderRadius: '6px',
     },
-    maintainAspectRatio: false,
+    labelStyle: { color: 'hsl(var(--card-foreground))' },
+    itemStyle: { color: 'hsl(var(--card-foreground))' },
   };
 
   if (isLoading) {
     return (
-      <Card className={cn("overflow-hidden", className)}>
+      <Card className={cn('overflow-hidden', className)}>
         {title && (
           <CardHeader className="pb-2">
             <Skeleton className="h-6 w-1/3" />
@@ -86,7 +84,7 @@ export function LineChartComponent({
   }
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn('overflow-hidden', className)}>
       {title && (
         <CardHeader className="pb-2">
           <CardTitle>{title}</CardTitle>
@@ -94,14 +92,90 @@ export function LineChartComponent({
         </CardHeader>
       )}
       <CardContent>
-        <div style={{ height: height }}>
-          <Line
-            ref={chartRef}
-            data={data}
-            options={mergedOptions}
-            height={height}
-          />
-        </div>
+        <ResponsiveContainer width="100%" height={height}>
+          <ComposedChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <XAxis
+              dataKey={xDataKey}
+              tick={tickStyle}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              yAxisId="left"
+              orientation="left"
+              tickFormatter={leftAxisFormatter}
+              tick={tickStyle}
+              tickLine={false}
+              axisLine={false}
+            />
+            {hasRightAxis && (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={rightAxis?.domain}
+                tickFormatter={rightAxis?.formatter}
+                tick={tickStyle}
+                tickLine={false}
+                axisLine={false}
+              />
+            )}
+            <Tooltip
+              {...tooltipStyle}
+              formatter={
+                tooltipFormatter
+                  ? (value: number, name: string) => [tooltipFormatter(value, name), name]
+                  : undefined
+              }
+            />
+            {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
+            {series.map((s) => {
+              const axisId = s.yAxisId ?? 'left';
+              const dash = s.dashed ? '5 5' : undefined;
+              if (s.type === 'bar') {
+                return (
+                  <Bar
+                    key={s.key}
+                    dataKey={s.key}
+                    name={s.label ?? s.key}
+                    fill={s.color}
+                    yAxisId={axisId}
+                    radius={[4, 4, 0, 0]}
+                  />
+                );
+              }
+              if (s.type === 'area') {
+                return (
+                  <Area
+                    key={s.key}
+                    dataKey={s.key}
+                    name={s.label ?? s.key}
+                    stroke={s.color}
+                    fill={`${s.color}20`}
+                    yAxisId={axisId}
+                    strokeDasharray={dash}
+                    type="monotone"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                );
+              }
+              return (
+                <Line
+                  key={s.key}
+                  dataKey={s.key}
+                  name={s.label ?? s.key}
+                  stroke={s.color}
+                  yAxisId={axisId}
+                  strokeDasharray={dash}
+                  type="monotone"
+                  dot={false}
+                  strokeWidth={2}
+                />
+              );
+            })}
+          </ComposedChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );

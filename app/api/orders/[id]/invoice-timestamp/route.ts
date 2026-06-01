@@ -1,57 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
+import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 
-/**
- * Updates the invoice_generated_at timestamp for an order
- * This is used to track when an invoice was first generated
- */
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Await params as required by Next.js 15
     const { id: orderId } = await params;
+    if (!orderId) return handleApiError('VALIDATION_ERROR', 'Order ID is required');
 
-    // Create Supabase client (async in Next.js 15)
     const supabase = await createClient();
-    
-    // Check if the order exists
-    const { data: order, error: orderError } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
+    const { data: order, error: fetchError } = await supabase
       .from('orders')
       .select('id, invoice_generated_at')
       .eq('id', orderId)
       .single();
-    
-    if (orderError) {
-      return NextResponse.json(
-        { error: 'Order not found', details: orderError.message },
-        { status: 404 }
-      );
-    }
-    
-    // Only update if invoice_generated_at is null
+
+    if (fetchError) return handleSupabaseError(fetchError);
+
     if (!order.invoice_generated_at) {
-      // Update the invoice_generated_at timestamp
       const { error: updateError } = await supabase
         .from('orders')
         .update({ invoice_generated_at: new Date().toISOString() })
         .eq('id', orderId);
-      
-      if (updateError) {
-        return NextResponse.json(
-          { error: 'Failed to update invoice timestamp', details: updateError.message },
-          { status: 500 }
-        );
-      }
+
+      if (updateError) return handleSupabaseError(updateError);
     }
-    
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating invoice timestamp:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error);
   }
 }

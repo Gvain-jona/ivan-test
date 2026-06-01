@@ -7,7 +7,7 @@
  * 2. Database functions for less frequent, ad hoc, or detailed analysis
  */
 
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import { DateRange } from '@/types/date-range';
 import { format, isWithinInterval, parseISO, subDays } from 'date-fns';
 

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { OrderPaymentFormValues, orderPaymentSchema } from '@/schemas/order-schema';
 import { OrderPayment, PaymentMethod } from '@/types/orders';
-import { formatCurrency } from '@/utils/formatting.utils';
+import { formatCurrency } from '@/lib/utils';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { X } from 'lucide-react';
 import {

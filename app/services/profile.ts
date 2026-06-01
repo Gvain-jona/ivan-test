@@ -1,7 +1,7 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { Profile } from '@/types/profile';
 
-const supabase = createClientComponentClient();
+const supabase = createClient();
 
 export const getProfile = async (userId: string): Promise<{ profile: Profile | null; error: Error | null }> => {
   try {

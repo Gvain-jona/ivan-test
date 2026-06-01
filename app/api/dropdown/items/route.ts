@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * GET /api/dropdown/items
@@ -9,7 +9,10 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
     
@@ -60,7 +63,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { label, parentId } = await request.json();
     
     if (!label) {

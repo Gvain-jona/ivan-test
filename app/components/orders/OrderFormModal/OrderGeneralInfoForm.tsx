@@ -8,7 +8,7 @@ import {
   SimpleSelectTrigger,
   SimpleSelectValue,
 } from '@/components/ui/simple-select';
-import { formatCurrency } from '@/utils/formatting.utils';
+import { formatCurrency } from '@/lib/utils';
 import { Order, OrderStatus, ClientType } from '@/types/orders';
 import { FormSection } from '@/components/ui/form/FormSection';
 import { ComboboxOption } from '@/components/ui/combobox';

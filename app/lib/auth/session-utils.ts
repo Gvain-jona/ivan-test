@@ -4,7 +4,7 @@
  */
 
 import { Session, User } from '@supabase/supabase-js';
-import { createClient } from '../../lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 
 // Session storage key in localStorage - matches Supabase's default
 export const SESSION_STORAGE_KEY = 'sb-auth';

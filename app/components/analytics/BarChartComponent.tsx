@@ -1,55 +1,58 @@
 'use client';
 
 import React from 'react';
-import { Bar } from 'react-chartjs-2';
-import { ChartData, ChartOptions } from 'chart.js';
-import { barChartOptions } from '@/lib/chart-config';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+export interface BarSeries {
+  key: string;
+  label?: string;
+  color: string;
+}
+
 interface BarChartProps {
+  data: Array<Record<string, string | number>>;
+  xDataKey: string;
+  bars: BarSeries[];
+  yTickFormatter?: (value: number) => string;
+  tooltipFormatter?: (value: number, name: string) => string;
+  horizontal?: boolean;
+  height?: number;
   title?: string;
   description?: string;
-  data: ChartData<'bar'>;
-  options?: Partial<ChartOptions<'bar'>>;
-  height?: number;
   className?: string;
   isLoading?: boolean;
   showLegend?: boolean;
-  horizontal?: boolean;
 }
 
 export function BarChartComponent({
+  data,
+  xDataKey,
+  bars,
+  yTickFormatter,
+  tooltipFormatter,
+  horizontal = false,
+  height = 300,
   title,
   description,
-  data,
-  options = {},
-  height = 300,
   className,
   isLoading = false,
   showLegend = true,
-  horizontal = false,
 }: BarChartProps) {
-  const mergedOptions: ChartOptions<'bar'> = {
-    ...barChartOptions as ChartOptions<'bar'>,
-    ...options,
-    indexAxis: horizontal ? 'y' : 'x',
-    plugins: {
-      ...barChartOptions.plugins,
-      ...options.plugins,
-      legend: {
-        ...barChartOptions.plugins?.legend,
-        ...options.plugins?.legend,
-        display: showLegend,
-      },
-    },
-    maintainAspectRatio: false,
-  };
-
   if (isLoading) {
     return (
-      <Card className={cn("overflow-hidden", className)}>
+      <Card className={cn('overflow-hidden', className)}>
         {title && (
           <CardHeader className="pb-2">
             <Skeleton className="h-6 w-1/3" />
@@ -63,8 +66,19 @@ export function BarChartComponent({
     );
   }
 
+  const tickStyle = { fontSize: 12, fill: 'hsl(var(--muted-foreground))' };
+  const tooltipStyle = {
+    contentStyle: {
+      backgroundColor: 'hsl(var(--card))',
+      border: '1px solid hsl(var(--border))',
+      borderRadius: '6px',
+    },
+    labelStyle: { color: 'hsl(var(--card-foreground))' },
+    itemStyle: { color: 'hsl(var(--card-foreground))' },
+  };
+
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn('overflow-hidden', className)}>
       {title && (
         <CardHeader className="pb-2">
           <CardTitle>{title}</CardTitle>
@@ -72,13 +86,36 @@ export function BarChartComponent({
         </CardHeader>
       )}
       <CardContent>
-        <div style={{ height: height }}>
-          <Bar
-            data={data}
-            options={mergedOptions}
-            height={height}
-          />
-        </div>
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} layout={horizontal ? 'vertical' : 'horizontal'}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            {horizontal ? (
+              <>
+                <XAxis type="number" tickFormatter={yTickFormatter} tick={tickStyle} tickLine={false} axisLine={false} />
+                <YAxis dataKey={xDataKey} type="category" width={120} tick={tickStyle} tickLine={false} axisLine={false} />
+              </>
+            ) : (
+              <>
+                <XAxis dataKey={xDataKey} tick={tickStyle} tickLine={false} axisLine={false} />
+                <YAxis tickFormatter={yTickFormatter} tick={tickStyle} tickLine={false} axisLine={false} />
+              </>
+            )}
+            <Tooltip
+              {...tooltipStyle}
+              formatter={tooltipFormatter ? (value: number, name: string) => [tooltipFormatter(value, name), name] : undefined}
+            />
+            {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
+            {bars.map((bar) => (
+              <Bar
+                key={bar.key}
+                dataKey={bar.key}
+                name={bar.label ?? bar.key}
+                fill={bar.color}
+                radius={[4, 4, 0, 0]}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );

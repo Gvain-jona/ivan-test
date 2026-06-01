@@ -2,7 +2,7 @@
 // Updated with optimized data fetching - 30 minute refresh interval to reduce API calls
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import type { Notification as NotificationType, NotificationStatus } from '@/types/notifications';
 import { format, subDays } from 'date-fns';
 import { useAuth } from '@/context/auth-context';

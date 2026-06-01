@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { KPICard } from '@/components/analytics/KPICard';
-import { LineChartComponent } from '@/components/analytics/LineChartComponent';
-import { BarChartComponent } from '@/components/analytics/BarChartComponent';
+import { LineChartComponent, ChartSeries } from '@/components/analytics/LineChartComponent';
 import { PieChartComponent } from '@/components/analytics/PieChartComponent';
 import { useAnalyticsContext } from '../_context/AnalyticsContext';
 import { useRevenueByPeriod, useClientPerformance, useCategoryPerformance } from '@/hooks/analytics/useAnalytics';
@@ -88,64 +87,34 @@ export function OrdersPanel() {
   
   // Prepare revenue chart data
   const revenueChartData = React.useMemo(() => {
-    if (!revenueData) return { labels: [], datasets: [] };
-    
-    // Format labels based on timeframe
+    if (!revenueData) return [];
+
     const formatLabel = (period: string) => {
       try {
         const date = new Date(period);
         switch (timeframe) {
-          case 'day':
-            return format(date, 'MMM d');
-          case 'week':
-            return `Week ${format(date, 'w')}`;
-          case 'month':
-            return format(date, 'MMM yyyy');
-          case 'year':
-            return format(date, 'yyyy');
-          default:
-            return period;
+          case 'day': return format(date, 'MMM d');
+          case 'week': return `Week ${format(date, 'w')}`;
+          case 'month': return format(date, 'MMM yyyy');
+          case 'year': return format(date, 'yyyy');
+          default: return period;
         }
-      } catch (error) {
+      } catch {
         return period;
       }
     };
-    
-    return {
-      labels: revenueData.map(item => formatLabel(item.period)),
-      datasets: [
-        {
-          label: 'Revenue',
-          data: revenueData.map(item => item.total_revenue),
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        },
-        {
-          label: 'Orders',
-          data: revenueData.map(item => item.total_orders * 10000), // Scale for visibility
-          borderColor: '#a855f7',
-          backgroundColor: 'rgba(168, 85, 247, 0.1)',
-          yAxisID: 'y1',
-        },
-      ],
-    };
+
+    return revenueData.map(item => ({
+      period: formatLabel(item.period),
+      revenue: item.total_revenue,
+      orders: item.total_orders,
+    }));
   }, [revenueData, timeframe]);
-  
-  // Prepare client performance chart data
-  const clientPerformanceData = React.useMemo(() => {
-    if (!clientPerformance) return { labels: [], datasets: [] };
-    
-    return {
-      labels: clientPerformance.map(client => client.client_name),
-      datasets: [
-        {
-          label: 'Revenue',
-          data: clientPerformance.map(client => client.total_revenue),
-          backgroundColor: '#3b82f6',
-        },
-      ],
-    };
-  }, [clientPerformance]);
+
+  const revenueSeries: ChartSeries[] = [
+    { key: 'revenue', label: 'Revenue', color: '#3b82f6', type: 'area', yAxisId: 'left' },
+    { key: 'orders', label: 'Orders', color: '#a855f7', type: 'line', yAxisId: 'right' },
+  ];
   
   // Prepare category performance chart data
   const categoryPerformanceData = React.useMemo(() => {
@@ -214,45 +183,15 @@ export function OrdersPanel() {
           title="Revenue & Order Trends"
           description={`Showing data by ${timeframe}`}
           data={revenueChartData}
+          xDataKey="period"
+          series={revenueSeries}
           isLoading={isLoadingRevenue}
           height={300}
-          fillArea={true}
-          options={{
-            scales: {
-              y: {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                ticks: {
-                  callback: (value) => formatCurrency(Number(value)),
-                },
-              },
-              y1: {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                grid: {
-                  drawOnChartArea: false,
-                },
-                ticks: {
-                  callback: (value) => formatNumber(Number(value) / 10000), // Unscale for display
-                },
-              },
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw as number;
-                    if (context.dataset.label === 'Orders') {
-                      return `${context.dataset.label}: ${formatNumber(value / 10000)}`; // Unscale for display
-                    }
-                    return `${context.dataset.label}: ${formatCurrency(value)}`;
-                  },
-                },
-              },
-            },
-          }}
+          leftAxisFormatter={(v) => formatCurrency(v)}
+          rightAxis={{ formatter: (v) => formatNumber(v) }}
+          tooltipFormatter={(value, name) =>
+            name === 'Orders' ? formatNumber(value) : formatCurrency(value)
+          }
         />
         
         <PieChartComponent

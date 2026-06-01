@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { KPICard } from '@/components/analytics/KPICard';
-import { LineChartComponent } from '@/components/analytics/LineChartComponent';
-import { BarChartComponent } from '@/components/analytics/BarChartComponent';
+import { LineChartComponent, ChartSeries } from '@/components/analytics/LineChartComponent';
 import { useAnalyticsContext } from '../_context/AnalyticsContext';
 import { useProfitByPeriod, useCashFlowAnalysis } from '@/hooks/analytics/useAnalytics';
 import { formatCurrency, formatNumber, formatPercentage } from '@/lib/chart-config';
@@ -80,121 +79,56 @@ export function FinancialsPanel() {
     };
   }, [profitData, cashFlowData]);
   
+  const formatLabel = (period: string, tf: string) => {
+    try {
+      const date = new Date(period);
+      switch (tf) {
+        case 'day': return format(date, 'MMM d');
+        case 'week': return `Week ${format(date, 'w')}`;
+        case 'month': return format(date, 'MMM yyyy');
+        case 'year': return format(date, 'yyyy');
+        default: return period;
+      }
+    } catch {
+      return period;
+    }
+  };
+
   // Prepare profit chart data
   const profitChartData = React.useMemo(() => {
-    if (!profitData) return { labels: [], datasets: [] };
-    
-    // Format labels based on timeframe
-    const formatLabel = (period: string) => {
-      try {
-        const date = new Date(period);
-        switch (timeframe) {
-          case 'day':
-            return format(date, 'MMM d');
-          case 'week':
-            return `Week ${format(date, 'w')}`;
-          case 'month':
-            return format(date, 'MMM yyyy');
-          case 'year':
-            return format(date, 'yyyy');
-          default:
-            return period;
-        }
-      } catch (error) {
-        return period;
-      }
-    };
-    
-    return {
-      labels: profitData.map(item => formatLabel(item.period)),
-      datasets: [
-        {
-          label: 'Revenue',
-          data: profitData.map(item => item.total_revenue),
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        },
-        {
-          label: 'Profit',
-          data: profitData.map(item => item.total_profit),
-          borderColor: '#22c55e',
-          backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        },
-        {
-          label: 'Profit Margin',
-          data: profitData.map(item => item.profit_margin * 100),
-          borderColor: '#a855f7',
-          backgroundColor: 'rgba(168, 85, 247, 0.1)',
-          type: 'line',
-          yAxisID: 'y1',
-          borderDash: [5, 5],
-        },
-      ],
-    };
+    if (!profitData) return [];
+    return profitData.map(item => ({
+      period: formatLabel(item.period, timeframe),
+      revenue: item.total_revenue,
+      profit: item.total_profit,
+      profitMargin: item.profit_margin * 100,
+    }));
   }, [profitData, timeframe]);
-  
+
+  const profitSeries: ChartSeries[] = [
+    { key: 'revenue', label: 'Revenue', color: '#3b82f6', type: 'line', yAxisId: 'left' },
+    { key: 'profit', label: 'Profit', color: '#22c55e', type: 'line', yAxisId: 'left' },
+    { key: 'profitMargin', label: 'Profit Margin', color: '#a855f7', type: 'line', yAxisId: 'right', dashed: true },
+  ];
+
   // Prepare cash flow chart data
   const cashFlowChartData = React.useMemo(() => {
-    if (!cashFlowData) return { labels: [], datasets: [] };
-    
-    // Format labels based on timeframe
-    const formatLabel = (period: string) => {
-      try {
-        const date = new Date(period);
-        switch (timeframe) {
-          case 'day':
-            return format(date, 'MMM d');
-          case 'week':
-            return `Week ${format(date, 'w')}`;
-          case 'month':
-            return format(date, 'MMM yyyy');
-          case 'year':
-            return format(date, 'yyyy');
-          default:
-            return period;
-        }
-      } catch (error) {
-        return period;
-      }
-    };
-    
-    return {
-      labels: cashFlowData.map(item => formatLabel(item.period)),
-      datasets: [
-        {
-          label: 'Inflow',
-          data: cashFlowData.map(item => item.inflow),
-          backgroundColor: '#22c55e',
-          borderColor: '#22c55e',
-          borderWidth: 1,
-          type: 'bar',
-        },
-        {
-          label: 'Outflow',
-          data: cashFlowData.map(item => item.outflow),
-          backgroundColor: '#ef4444',
-          borderColor: '#ef4444',
-          borderWidth: 1,
-          type: 'bar',
-        },
-        {
-          label: 'Net Flow',
-          data: cashFlowData.map(item => item.net_flow),
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          type: 'line',
-        },
-        {
-          label: 'Cumulative Flow',
-          data: cashFlowData.map(item => item.cumulative_flow),
-          borderColor: '#a855f7',
-          backgroundColor: 'rgba(168, 85, 247, 0.1)',
-          type: 'line',
-          borderDash: [5, 5],
-        },
-      ],
-    };
+    if (!cashFlowData) return [];
+    return cashFlowData.map(item => ({
+      period: formatLabel(item.period, timeframe),
+      inflow: item.inflow,
+      outflow: item.outflow,
+      netFlow: item.net_flow,
+      cumulativeFlow: item.cumulative_flow,
+    }));
   }, [cashFlowData, timeframe]);
+
+  const cashFlowSeries: ChartSeries[] = [
+    { key: 'inflow', label: 'Inflow', color: '#22c55e', type: 'bar', yAxisId: 'left' },
+    { key: 'outflow', label: 'Outflow', color: '#ef4444', type: 'bar', yAxisId: 'left' },
+    { key: 'netFlow', label: 'Net Flow', color: '#3b82f6', type: 'line', yAxisId: 'left' },
+    { key: 'cumulativeFlow', label: 'Cumulative Flow', color: '#a855f7', type: 'line', yAxisId: 'left', dashed: true },
+  ];
   
   return (
     <div className="space-y-6">
@@ -240,73 +174,27 @@ export function FinancialsPanel() {
           title="Profit Analysis"
           description={`Showing data by ${timeframe}`}
           data={profitChartData}
+          xDataKey="period"
+          series={profitSeries}
           isLoading={isLoadingProfit}
           height={300}
-          options={{
-            scales: {
-              y: {
-                type: 'linear',
-                display: true,
-                position: 'left',
-                ticks: {
-                  callback: (value) => formatCurrency(Number(value)),
-                },
-              },
-              y1: {
-                type: 'linear',
-                display: true,
-                position: 'right',
-                grid: {
-                  drawOnChartArea: false,
-                },
-                min: 0,
-                max: 100,
-                ticks: {
-                  callback: (value) => `${value}%`,
-                },
-              },
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw as number;
-                    if (context.dataset.label === 'Profit Margin') {
-                      return `${context.dataset.label}: ${value.toFixed(1)}%`;
-                    }
-                    return `${context.dataset.label}: ${formatCurrency(value)}`;
-                  },
-                },
-              },
-            },
-          }}
+          leftAxisFormatter={(v) => formatCurrency(v)}
+          rightAxis={{ domain: [0, 100], formatter: (v) => `${v}%` }}
+          tooltipFormatter={(value, name) =>
+            name === 'Profit Margin' ? `${value.toFixed(1)}%` : formatCurrency(value)
+          }
         />
-        
+
         <LineChartComponent
           title="Cash Flow Analysis"
           description={`Showing data by ${timeframe}`}
           data={cashFlowChartData}
+          xDataKey="period"
+          series={cashFlowSeries}
           isLoading={isLoadingCashFlow}
           height={300}
-          options={{
-            scales: {
-              y: {
-                ticks: {
-                  callback: (value) => formatCurrency(Number(value)),
-                },
-              },
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw as number;
-                    return `${context.dataset.label}: ${formatCurrency(value)}`;
-                  },
-                },
-              },
-            },
-          }}
+          leftAxisFormatter={(v) => formatCurrency(v)}
+          tooltipFormatter={(value) => formatCurrency(value)}
         />
       </div>
       

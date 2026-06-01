@@ -1,6 +1,6 @@
 'use client';
 
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import { InvoiceSettings, InvoiceSettingRecord } from '../types';
 import { emptyInvoiceSettings } from '../context/InvoiceContext';
 

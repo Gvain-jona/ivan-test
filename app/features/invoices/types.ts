@@ -134,3 +134,66 @@ export interface InvoiceContextValue {
   progress: number;
   generatePdf: () => Promise<void>;
 }
+
+/**
+ * Simplified invoice settings for the OrangeInvoiceTemplate
+ */
+export interface SimplifiedInvoiceSettings {
+  // Company
+  companyName: string;
+  companyLogo?: string;
+  logoSize: 'small' | 'medium' | 'large';
+  logoShowBorder: boolean;
+  logoZoom: number;
+  tagline: string;
+  phone: string;
+  email: string;
+  tin: string;
+
+  // Display options
+  vatPercentage?: number; // Display-only VAT percentage (e.g., 18 for "18% VAT Inc")
+
+  // Payment (now supports multiple entries)
+  bankDetails: Array<{
+    accountName: string;
+    bankName: string;
+    accountNumber: string;
+  }>;
+  mobileMoneyDetails: Array<{
+    provider: string;
+    phone: string;
+    name: string;
+  }>;
+}
+
+/**
+ * Adapter function to convert complex settings to simplified - no fallbacks
+ */
+export function toSimplifiedSettings(complex: InvoiceSettings): SimplifiedInvoiceSettings {
+  return {
+    companyName: complex.companyName || '',
+    companyLogo: complex.companyLogo,
+    logoSize: complex.logoSize || 'medium',
+    logoShowBorder: complex.logoShowBorder ?? false,
+    logoZoom: complex.logoZoom ?? 1.0,
+    tagline: complex.companyAddress || '',
+    phone: complex.companyPhone || '',
+    email: complex.companyEmail || '',
+    tin: complex.tinNumber || '',
+    vatPercentage: complex.vatPercentage ?? 18,
+    bankDetails: complex.bankDetails && complex.bankDetails.length > 0
+      ? complex.bankDetails.map(bd => ({
+          accountName: bd.accountName,
+          bankName: bd.bankName,
+          accountNumber: bd.accountNumber
+        }))
+      : [],
+    mobileMoneyDetails: complex.mobileMoneyDetails && complex.mobileMoneyDetails.length > 0
+      ? complex.mobileMoneyDetails.map(mmd => ({
+          provider: mmd.provider,
+          phone: mmd.phoneNumber,
+          name: mmd.contactName
+        }))
+      : []
+  };
+}

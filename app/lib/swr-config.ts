@@ -68,8 +68,8 @@ export function getSWRConfigForKey(key: string | null): SWRConfiguration {
     type = 'dropdown';
   } else if (key.includes('/api/dashboard')) {
     type = 'dashboard';
-  } else if (key.includes('/api/invoices/generate') || key.includes('/api/orders/') && key.includes('/invoice')) {
-    // Invoice generation endpoints
+  } else if (key.includes('/api/orders/') && key.includes('/invoice')) {
+    // Invoice endpoints
     type = 'invoice';
   } else if (key.includes('/api/orders/') || key.includes('/api/clients/')) {
     // Detail endpoints with IDs

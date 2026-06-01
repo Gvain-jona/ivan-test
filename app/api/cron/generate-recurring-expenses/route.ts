@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { handleApiError } from '@/lib/api/error-handler';
 
 /**
@@ -10,18 +9,15 @@ import { handleApiError } from '@/lib/api/error-handler';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authorization (in a real app, you'd use a secret token)
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return handleApiError(
         'AUTHENTICATION_ERROR',
-        'Authentication required to access this endpoint',
+        'Unauthorized',
         { status: 401 }
       );
     }
 
-    // Create Supabase client
-    const cookieStore = await cookies();
     const supabase = await createClient();
 
     // Get all active recurring expenses

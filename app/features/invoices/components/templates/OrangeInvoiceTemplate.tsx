@@ -1,6 +1,6 @@
 import React from 'react';
 import { Order, OrderItem } from '@/types/orders';
-import { SimplifiedInvoiceSettings } from './types';
+import { SimplifiedInvoiceSettings } from '@/features/invoices/types';
 
 interface OrangeInvoiceTemplateProps {
   order: Order | null;
@@ -23,22 +23,22 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
     medium: { width: '80px', height: '80px', fontSize: '16px' },
     large: { width: '100px', height: '100px', fontSize: '18px' }
   };
-  
+
   const currentLogoSize = logoSizes[settings.logoSize || 'medium'];
-  
+
   // Dynamic font sizing function to prevent text wrapping
   const getDynamicFontSize = (text: string, baseSize: number, maxWidth: number) => {
     if (!text) return baseSize;
-    
+
     // More accurate character width calculation
     // Average character widths vary by font size and weight
     const avgCharWidth = baseSize * 0.55; // Adjusted for bold font
     const textPixelWidth = text.length * avgCharWidth;
-    
+
     // Add some buffer for letter spacing
     const bufferMultiplier = 1.1;
     const estimatedWidth = textPixelWidth * bufferMultiplier;
-    
+
     if (estimatedWidth > maxWidth) {
       // Calculate the scale factor needed to fit
       const scaleFactor = maxWidth / estimatedWidth;
@@ -46,20 +46,20 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
       const newSize = Math.floor(baseSize * scaleFactor);
       return Math.max(newSize, 14); // Minimum 14px for readability
     }
-    
+
     return baseSize;
   };
-  
+
   // Calculate available width for header text
   // Total width (900px) - logo width - padding/margins (~100px)
   const logoWidth = parseInt(currentLogoSize.width) || 80;
   const paddingAndMargins = 100;
   const headerMaxWidth = 900 - logoWidth - paddingAndMargins;
-  
+
   // Calculate font sizes for header elements
   const companyNameFontSize = getDynamicFontSize(settings.companyName, 28, headerMaxWidth);
   const taglineFontSize = getDynamicFontSize(settings.tagline, 14, headerMaxWidth * 0.9); // Slightly smaller for tagline
-  
+
   if (!order) {
     return <div style={{ textAlign: 'center', padding: '32px' }}>No order data available</div>;
   }
@@ -77,29 +77,29 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
     tableBorderLight: '#f0f0f0'
   };
 
-  // Convert order amount to words 
+  // Convert order amount to words
   const numberToWords = (amount: number): string => {
     if (amount === 0) return 'ZERO SHILLINGS ONLY';
-    
+
     const units = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
     const teens = ['TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
     const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
-    
+
     const convertChunk = (num: number): string => {
       let result = '';
       const hundreds = Math.floor(num / 100);
       const remainder = num % 100;
-      
+
       if (hundreds > 0) {
         result += units[hundreds] + ' HUNDRED ';
       }
-      
+
       if (remainder >= 10 && remainder < 20) {
         result += teens[remainder - 10] + ' ';
       } else {
         const tensDigit = Math.floor(remainder / 10);
         const unitsDigit = remainder % 10;
-        
+
         if (tensDigit > 0) {
           result += tens[tensDigit] + ' ';
         }
@@ -107,33 +107,33 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
           result += units[unitsDigit] + ' ';
         }
       }
-      
+
       return result.trim();
     };
-    
+
     const millions = Math.floor(amount / 1000000);
     const thousands = Math.floor((amount % 1000000) / 1000);
     const hundreds = amount % 1000;
-    
+
     let words = '';
-    
+
     if (millions > 0) {
       words += convertChunk(millions) + ' MILLION ';
     }
-    
+
     if (thousands > 0) {
       words += convertChunk(thousands) + ' THOUSAND ';
     }
-    
+
     if (hundreds > 0) {
       words += convertChunk(hundreds) + ' ';
     }
-    
+
     return words.trim() + ' SHILLINGS ONLY';
   };
 
   return (
-    <div 
+    <div
       style={{ maxWidth: '900px', margin: '0 auto', backgroundColor: 'white', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', borderRadius: '4px', overflow: 'hidden' }}
       data-pdf-container="true"
     >
@@ -157,8 +157,8 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
                 padding: settings.logoShowBorder ? '0' : '4px',
                 position: 'relative'
               }}>
-                <img 
-                  src={settings.companyLogo} 
+                <img
+                  src={settings.companyLogo}
                   alt={settings.companyName}
                   style={{
                     maxWidth: '100%',
@@ -194,27 +194,27 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
                 </div>
               </div>
             )}
-            <div style={{ 
-              flex: 1, 
+            <div style={{
+              flex: 1,
               overflow: 'hidden',
               maxWidth: `${headerMaxWidth}px`
             }}>
-              <h1 style={{ 
-                fontSize: `${companyNameFontSize}px`, 
-                fontWeight: '800', 
-                color: styles.primaryGreen, 
-                margin: 0, 
-                letterSpacing: '0.5px', 
+              <h1 style={{
+                fontSize: `${companyNameFontSize}px`,
+                fontWeight: '800',
+                color: styles.primaryGreen,
+                margin: 0,
+                letterSpacing: '0.5px',
                 lineHeight: '1',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 transition: 'font-size 0.2s ease'
               }}>{settings.companyName}</h1>
-              <p style={{ 
-                fontSize: `${taglineFontSize}px`, 
-                color: '#6b7280', 
-                margin: '2px 0 0 0', 
+              <p style={{
+                fontSize: `${taglineFontSize}px`,
+                color: '#6b7280',
+                margin: '2px 0 0 0',
                 letterSpacing: '0.3px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -223,9 +223,9 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
               }}>{settings.tagline}</p>
             </div>
           </div>
-          
+
         </div>
-        
+
         {/* Invoice Details Grid - 2x2 layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '24px', rowGap: '16px', marginTop: '20px' }}>
           {/* Invoice Number */}
@@ -235,7 +235,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
               INV {order.order_number || order.id.substring(0, 3).toUpperCase()}
             </p>
           </div>
-          
+
           {/* Date */}
           <div>
             <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Date</p>
@@ -243,19 +243,19 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
               {customDate ? customDate.toLocaleDateString('en-GB').replace(/\//g, '-') : (order.created_at ? new Date(order.created_at).toLocaleDateString('en-GB').replace(/\//g, '-') : new Date().toLocaleDateString('en-GB').replace(/\//g, '-'))}
             </p>
           </div>
-          
+
           {/* Tel */}
           <div>
             <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Tel</p>
             <p style={{ fontSize: '16px', fontWeight: '500', margin: 0, color: '#000000' }}>{settings.phone}</p>
           </div>
-          
+
           {/* Email */}
           <div>
             <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Email</p>
             <p style={{ fontSize: '16px', fontWeight: '500', margin: 0, color: '#000000' }}>{settings.email}</p>
           </div>
-          
+
           {/* TIN */}
           <div>
             <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>TIN</p>
@@ -287,7 +287,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
       <div style={{ display: 'flex' }}>
         {/* Green Left Bar - Solid color */}
         <div style={{ backgroundColor: styles.primaryGreen, width: '12px', flexShrink: 0 }}></div>
-        
+
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px' }}>
           {/* Invoice Table Header - Improved alignment */}
           <div style={{ width: '100%', borderRadius: '6px 6px 0 0', overflow: 'hidden' }}>
@@ -382,7 +382,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
           <div style={{ padding: '8px', backgroundColor: styles.primaryGreen, color: 'white' }}>
             <p style={{ fontWeight: 'bold', fontSize: '12px', margin: 0 }}>PAYMENT INFORMATION</p>
           </div>
-          
+
           <div style={{ padding: '12px' }}>
             {/* Bank Details - Multiple accounts supported */}
             <div style={{ border: `1px solid ${styles.tableBorder}`, borderRadius: '4px', marginBottom: '12px' }}>
@@ -411,7 +411,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
                 </tbody>
               </table>
             </div>
-            
+
             {/* Mobile Money - Multiple accounts supported */}
             <div style={{ border: `1px solid ${styles.tableBorder}`, borderRadius: '4px', padding: '8px' }}>
               <p style={{ fontSize: '12px', fontWeight: '500', color: '#6b7280', marginBottom: '8px' }}>Mobile Money</p>
@@ -426,14 +426,14 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
                 </div>
               ))}
             </div>
-            
+
             {/* Space for additional payment methods */}
             <div style={{ marginTop: '12px', height: '24px' }}>
               {/* Reserved space for additional payment methods */}
             </div>
           </div>
         </div>
-        
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Authorized Signature</p>

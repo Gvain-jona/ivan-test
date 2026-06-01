@@ -41,7 +41,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { MaterialPaymentFormData, MaterialPayment } from '@/types/materials';
-import { useAddMaterialPayment } from '@/hooks/useMaterialPurchases';
+import { useMaterialPurchaseDetails } from '@/hooks/materials';
 import { Textarea } from '@/components/ui/textarea';
 
 // Form schema
@@ -76,7 +76,7 @@ export function MaterialPaymentForm({
   defaultValues
 }: MaterialPaymentFormProps) {
   const { toast } = useToast();
-  const { addPayment, isLoading } = useAddMaterialPayment(purchaseId);
+  const { addPayment, isSubmitting: isLoading } = useMaterialPurchaseDetails(purchaseId);
 
   // Initialize form with default values
   const form = useForm<FormValues>({

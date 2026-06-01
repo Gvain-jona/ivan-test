@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Save, Info, AlertTriangle, User, StickyNote } from 'lucide-react';
 import { OrderNote, NoteType } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 interface AddOrderNoteFormProps {
   orderId: string;
@@ -20,11 +21,17 @@ const AddOrderNoteForm: React.FC<AddOrderNoteFormProps> = ({
 }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  // Generate a UUID for the created_by field
+  const systemUserId = uuidv4();
+
   const [formData, setFormData] = useState<Partial<OrderNote>>({
     linked_item_id: orderId,
     linked_item_type: 'order',
     type: 'info',
     text: '',
+    // Add createdBy field to match the API expectations with a valid UUID
+    created_by: systemUserId, // Use a valid UUID
+    createdBy: systemUserId, // Also include the camelCase version for the API
   });
 
   // Handle textarea changes
@@ -77,7 +84,7 @@ const AddOrderNoteForm: React.FC<AddOrderNoteFormProps> = ({
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form
     if (!formData.text || formData.text.trim() === '') {
       toast({
@@ -87,7 +94,7 @@ const AddOrderNoteForm: React.FC<AddOrderNoteFormProps> = ({
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
       await onSubmit(formData);
@@ -149,7 +156,7 @@ const AddOrderNoteForm: React.FC<AddOrderNoteFormProps> = ({
           </SelectContent>
         </Select>
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="text">Note Text</Label>
         <Textarea
@@ -163,7 +170,7 @@ const AddOrderNoteForm: React.FC<AddOrderNoteFormProps> = ({
           required
         />
       </div>
-      
+
       <div className="flex justify-end gap-2 pt-4">
         <Button
           type="button"

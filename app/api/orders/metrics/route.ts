@@ -1,110 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { handleUnexpectedError } from '@/lib/api-error';
+import { createClient } from '@/utils/supabase/server';
+import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 
-/**
- * GET /api/orders/metrics
- * Retrieves metrics calculated from all orders with optional filtering
- */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Parse query parameters for filtering
+    const { searchParams } = new URL(request.url);
     const status = searchParams.getAll('status');
     const paymentStatus = searchParams.getAll('paymentStatus');
-    const startDate = searchParams.get('startDate') || null;
-    const endDate = searchParams.get('endDate') || null;
-    const search = searchParams.get('search') || null;
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const search = searchParams.get('search');
 
-    // Create Supabase client
-    const supabase = await createClient();
-
-    // Start building the query - don't use joins since we've denormalized the data
     let query = supabase
       .from('orders')
-      .select('*', { count: 'exact' });
+      .select('status, payment_status, total_amount, balance, client_id', { count: 'exact' });
 
-    // Apply filters
-    if (status && status.length > 0) {
-      query = query.in('status', status);
-    }
-
-    if (paymentStatus && paymentStatus.length > 0) {
-      query = query.in('payment_status', paymentStatus);
-    }
-
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
-
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
+    if (status.length) query = query.in('status', status);
+    if (paymentStatus.length) query = query.in('payment_status', paymentStatus);
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
     if (search) {
-      // Search in order number or client name - more efficient than searching by ID
       query = query.or(`order_number.ilike.%${search}%,client_name.ilike.%${search}%`);
     }
 
-    // Execute the query with a timeout
-    console.log('Executing Supabase query for order metrics');
-    const { data, error, count } = await query.abortSignal(AbortSignal.timeout(20000)); // 20 second timeout
+    const { data, error, count } = await query;
+    if (error) return handleSupabaseError(error);
 
-    if (error) {
-      console.error('Error fetching order metrics:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch order metrics' },
-        { status: 500 }
-      );
-    }
+    const orders = data ?? [];
+    const totalOrders = count ?? 0;
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+    const pendingOrders = orders.filter(o =>
+      o.status === 'pending' || o.status === 'in_progress',
+    ).length;
+    const completedOrders = orders.filter(o =>
+      o.status === 'completed' || o.status === 'delivered',
+    ).length;
+    const unpaidOrders = orders.filter(o =>
+      o.payment_status === 'unpaid' || o.payment_status === 'partially_paid',
+    ).length;
+    const unpaidTotal = orders
+      .filter(o => o.payment_status === 'unpaid' || o.payment_status === 'partially_paid')
+      .reduce((sum, o) => sum + (o.balance || 0), 0);
+    const activeClients = new Set(orders.map(o => o.client_id)).size;
 
-    // Calculate metrics from the complete dataset
-    const totalOrders = count || 0;
-    const totalRevenue = data?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-    const pendingOrders = data?.filter(order =>
-      order.status === 'pending' ||
-      order.status === 'in_progress' ||
-      order.status === 'draft'
-    ).length || 0;
-
-    // Calculate active clients (unique client IDs)
-    const activeClientsSet = new Set(data?.map(order => order.client_id) || []);
-    const activeClients = activeClientsSet.size;
-
-    // Calculate completed orders
-    const completedOrders = data?.filter(order =>
-      order.status === 'completed' ||
-      order.status === 'delivered'
-    ).length || 0;
-
-    // Calculate unpaid orders
-    const unpaidOrders = data?.filter(order =>
-      order.payment_status === 'unpaid' ||
-      order.payment_status === 'partially_paid'
-    ).length || 0;
-
-    // Calculate unpaid total
-    const unpaidTotal = data?.filter(order =>
-      order.payment_status === 'unpaid' ||
-      order.payment_status === 'partially_paid'
-    ).reduce((sum, order) => sum + (order.balance || 0), 0) || 0;
-
-    // Return the metrics
     return NextResponse.json({
       metrics: {
         totalOrders,
         totalRevenue,
         pendingOrders,
-        activeClients,
         completedOrders,
         unpaidOrders,
         unpaidTotal,
-        // Add any other metrics needed
-      }
+        activeClients,
+      },
     });
   } catch (error) {
-    console.error('Error in order metrics API:', error);
     return handleUnexpectedError(error);
   }
 }

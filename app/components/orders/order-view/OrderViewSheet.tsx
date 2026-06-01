@@ -8,7 +8,7 @@ import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { OrderViewSheetProps } from './types';
 import { OrderPayment } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
-import { useOrder } from '@/hooks/useData';
+import { useOrder } from '@/hooks/useOrders';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { createSWRConfig } from '@/lib/swr-config';
 import { invalidateOrderCache } from '@/lib/cache-utils';
@@ -23,9 +23,9 @@ import OrderPaymentsTab from './OrderPaymentsTab';
 import OrderNotesTab from './OrderNotesTab';
 
 // Import modal components
-import AddOrderItemModal from './AddOrderItemModal.simplified';
-import AddOrderPaymentModal from './AddOrderPaymentModal.simplified';
-import AddOrderNoteModal from './AddOrderNoteModal.simplified';
+import AddOrderItemModal from './AddOrderItemModal';
+import AddOrderPaymentModal from './AddOrderPaymentModal';
+import AddOrderNoteModal from './AddOrderNoteModal';
 
 // Import custom hooks
 import { useOrderUpdates } from './hooks/useOrderUpdates';

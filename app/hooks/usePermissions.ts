@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/auth-context';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 
 interface Permission {
   role: string;
@@ -16,7 +16,7 @@ interface Permission {
  */
 export function usePermissions() {
   const { profile } = useAuth();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   

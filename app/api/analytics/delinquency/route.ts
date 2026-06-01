@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * GET /api/analytics/delinquency
@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
 
     // Call the database function
     const { data, error } = await supabase.rpc('get_installment_delinquency_rate', {

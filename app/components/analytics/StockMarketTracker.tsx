@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Line } from 'react-chartjs-2';
 import { ChartData, ChartOptions } from 'chart.js';
 import { lineChartOptions } from '@/lib/chart-config';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { TrendingUp, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
@@ -117,16 +117,6 @@ export function StockMarketTracker({
       setStockData(mockData);
       setIsLoading(false);
     }, 500);
-  };
-
-  // Format currency
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
   };
 
   // Format percentage
@@ -273,7 +263,7 @@ export function StockMarketTracker({
         <div className="mb-3">
           <div className="flex items-baseline">
             <div className="text-2xl font-bold tracking-tight">
-              {isLoading ? '...' : formatCurrency(stockData?.currentPrice || 0)}
+              {isLoading ? '...' : formatCurrency(stockData?.currentPrice || 0, 'USD')}
             </div>
             <div className="ml-2">
               <span
@@ -357,7 +347,7 @@ export function StockMarketTracker({
                     transform: 'translateX(-50%)'
                   }}
                 >
-                  {formatCurrency(tooltipData.price)}
+                  {formatCurrency(tooltipData.price, 'USD')}
                 </div>
               )}
             </div>
@@ -369,15 +359,15 @@ export function StockMarketTracker({
           <div className="flex gap-4">
             <div>
               <span className="text-muted-foreground">Open</span>{' '}
-              <span className="text-foreground font-medium">{isLoading ? '...' : formatCurrency(stockData?.open || 0).replace('$', '')}</span>
+              <span className="text-foreground font-medium">{isLoading ? '...' : formatCurrency(stockData?.open || 0, 'USD').replace('$', '')}</span>
             </div>
             <div>
               <span className="text-muted-foreground">High</span>{' '}
-              <span className="text-foreground font-medium">{isLoading ? '...' : formatCurrency(stockData?.high || 0).replace('$', '')}</span>
+              <span className="text-foreground font-medium">{isLoading ? '...' : formatCurrency(stockData?.high || 0, 'USD').replace('$', '')}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Low</span>{' '}
-              <span className="text-foreground font-medium">{isLoading ? '...' : formatCurrency(stockData?.low || 0).replace('$', '')}</span>
+              <span className="text-foreground font-medium">{isLoading ? '...' : formatCurrency(stockData?.low || 0, 'USD').replace('$', '')}</span>
             </div>
           </div>
         </div>

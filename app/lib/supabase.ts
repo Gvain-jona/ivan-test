@@ -1,5 +1,5 @@
 // Import the createClient function from our centralized client file
-import { createClient as createSupabaseClient } from './supabase/client';
+import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 
 // Re-export the client creation function to maintain compatibility
 export const createClient = createSupabaseClient;

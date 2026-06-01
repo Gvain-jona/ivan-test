@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { formatDate } from '@/lib/utils';
 import { useOrdersPage } from '../_context';
 import { useLoading } from '@/components/loading';
-import { useOrders } from '@/hooks/useData';
+import { useOrders } from '@/hooks/useOrders';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
 import ClientPerformanceCard from './ClientPerformanceCard';
 import { formatCurrency } from '@/lib/utils';

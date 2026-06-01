@@ -1,33 +1,42 @@
 import React, { useState } from 'react';
-import { OrderPayment } from '@/types/orders';
+import { Order, OrderPayment } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import BottomOverlayForm from './BottomOverlayForm';
 import AddOrderPaymentForm from './AddOrderPaymentForm';
+import { invalidateOrderCache } from '@/lib/cache-utils';
+import { useOrder } from '@/hooks/useOrders';
+import { useNotifications } from '@/components/ui/notification';
 
 interface AddOrderPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string;
   onSuccess?: () => void;
+  order?: Order;
 }
 
 const AddOrderPaymentModal: React.FC<AddOrderPaymentModalProps> = ({
   isOpen,
   onClose,
   orderId,
-  onSuccess
+  onSuccess,
+  order: initialOrder
 }) => {
   const { toast } = useToast();
+  const { success: showSuccess, error: showError } = useNotifications();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch the order data if not provided
+  const { order: fetchedOrder } = useOrder(orderId ? `/api/orders/${orderId}` : null);
+
+  // Use the provided order or the fetched order
+  const order = initialOrder || fetchedOrder;
 
   // Handle form submission
   const handleSubmit = async (payment: Partial<OrderPayment>) => {
     if (!orderId) {
-      toast({
-        title: 'Error',
-        description: 'Order ID is required',
-        variant: 'destructive'
-      });
+      // Show error notification with improved styling
+      showError('Order ID is required', 'Error');
       return;
     }
 
@@ -52,17 +61,30 @@ const AddOrderPaymentModal: React.FC<AddOrderPaymentModalProps> = ({
       const result = await response.json();
       console.log('Payment added successfully:', result);
 
-      // Show success toast
-      toast({
-        title: 'Payment Added',
-        description: `Payment of ${new Intl.NumberFormat('en-UG', {
+      // Show success notification with improved styling
+      showSuccess(
+        `Payment of ${new Intl.NumberFormat('en-UG', {
           style: 'currency',
           currency: 'UGX',
           minimumFractionDigits: 0
         }).format(payment.amount || 0)} has been added to the order.`,
-      });
+        'Payment Added'
+      );
 
-      // Close the modal
+      // Create optimistic data for the order with the new payment
+      const optimisticData = {
+        id: orderId,
+        payments: [...(order?.payments || []), payment],
+        // Update the payment status and amount_paid
+        amount_paid: ((order?.amount_paid || 0) + (payment.amount || 0)),
+        payment_status: ((order?.amount_paid || 0) + (payment.amount || 0)) >= (order?.total_amount || 0) ? 'paid' : 'partially_paid'
+      };
+
+      // Invalidate the cache for this order with optimistic data
+      // This will update the UI immediately while the revalidation happens in the background
+      invalidateOrderCache(orderId, optimisticData);
+
+      // Close the modal immediately - the optimistic update will keep the UI updated
       onClose();
 
       // Call onSuccess callback if provided
@@ -71,11 +93,8 @@ const AddOrderPaymentModal: React.FC<AddOrderPaymentModalProps> = ({
       }
     } catch (error) {
       console.error('Error adding payment:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add payment',
-        variant: 'destructive'
-      });
+      // Show error notification with improved styling
+      showError(error instanceof Error ? error.message : 'Failed to add payment', 'Error');
     } finally {
       setIsSubmitting(false);
     }

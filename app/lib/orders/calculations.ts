@@ -1,5 +1,3 @@
-'use client';
-
 import { Order, OrderItem, OrderPayment, PaymentStatus } from '@/types/orders';
 
 /**
@@ -83,19 +81,4 @@ export function updateOrderCalculations(order: Partial<Order>): Partial<Order> {
     balance: balance,
     payment_status: paymentStatus
   };
-}
-
-/**
- * Format currency for display
- * 
- * @param amount The amount to format
- * @returns Formatted currency string
- */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-UG', {
-    style: 'currency',
-    currency: 'UGX',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
 }

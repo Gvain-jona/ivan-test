@@ -18,20 +18,6 @@ export const validateOrderItem = (item: Partial<OrderItem>): boolean => {
 };
 
 /**
- * Formats currency for display
- * @param amount The amount to format
- * @returns Formatted currency string
- */
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-UG', {
-    style: 'currency',
-    currency: 'UGX',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
-};
-
-/**
  * Calculates the total amount for an order
  * @param items Array of order items
  * @returns The total amount

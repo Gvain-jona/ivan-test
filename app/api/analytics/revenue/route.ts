@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getCachedData, getAnalyticsCacheKey } from '@/lib/cache/analytics-cache';
+import { createClient } from '@/utils/supabase/server';
+import { getCachedData, getAnalyticsCacheKey, parseAnalyticsDates } from '@/lib/cache/analytics-cache';
 import { analyticsService } from '@/lib/services/analytics-service';
 
 /**
@@ -19,27 +19,15 @@ import { analyticsService } from '@/lib/services/analytics-service';
  */
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'month';
-    const startDateParam = searchParams.get('startDate');
-    const endDateParam = searchParams.get('endDate');
 
-    // Set default dates if not provided
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 29);
-
-    // Format dates as YYYY-MM-DD
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-    const startDate = startDateParam && startDateParam !== 'undefined'
-      ? startDateParam
-      : formatDate(thirtyDaysAgo);
-
-    const endDate = endDateParam && endDateParam !== 'undefined'
-      ? endDateParam
-      : formatDate(today);
+    const { startDate, endDate } = parseAnalyticsDates(searchParams);
 
     if (!['day', 'week', 'month', 'year'].includes(period)) {
       return NextResponse.json(

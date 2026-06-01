@@ -1,7 +1,6 @@
 // Next.js API Route Handler for notifications
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase/unified-server';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * GET /api/notifications

@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui
 import { Skeleton } from '../../../components/ui/skeleton';
 import { formatCurrency, formatNumber } from '../../../lib/utils';
 import { useOrderMetrics } from '@/hooks/useOrderMetrics';
-import { OrdersFilters } from '@/hooks/useData';
+import { OrdersTableFilters } from '@/types/orders';
 
 // Define the metrics data interface for backward compatibility
 interface MetricsData {
@@ -26,7 +26,7 @@ interface OrderMetricsCardsProps {
   stats?: MetricsData;
   isLoading?: boolean;
   onFilterByStatus?: (status?: string[]) => void;
-  filters?: OrdersFilters;
+  filters?: OrdersTableFilters;
 }
 
 /**

@@ -1,33 +1,42 @@
 import React, { useState } from 'react';
-import { OrderItem } from '@/types/orders';
+import { Order, OrderItem } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import BottomOverlayForm from './BottomOverlayForm';
 import AddOrderItemForm from './AddOrderItemForm';
+import { invalidateOrderCache } from '@/lib/cache-utils';
+import { useOrder } from '@/hooks/useOrders';
+import { useNotifications } from '@/components/ui/notification';
 
 interface AddOrderItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string;
   onSuccess?: () => void;
+  order?: Order;
 }
 
 const AddOrderItemModal: React.FC<AddOrderItemModalProps> = ({
   isOpen,
   onClose,
   orderId,
-  onSuccess
+  onSuccess,
+  order: initialOrder
 }) => {
   const { toast } = useToast();
+  const { success: showSuccess, error: showError } = useNotifications();
+
+  // Fetch the order data if not provided
+  const { order: fetchedOrder } = useOrder(orderId ? `/api/orders/${orderId}` : null);
+
+  // Use the provided order or the fetched order
+  const order = initialOrder || fetchedOrder;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle form submission
   const handleSubmit = async (item: Partial<OrderItem>) => {
     if (!orderId) {
-      toast({
-        title: 'Error',
-        description: 'Order ID is required',
-        variant: 'destructive'
-      });
+      // Show error notification with improved styling
+      showError('Order ID is required', 'Error');
       return;
     }
 
@@ -52,13 +61,20 @@ const AddOrderItemModal: React.FC<AddOrderItemModalProps> = ({
       const result = await response.json();
       console.log('Item added successfully:', result);
 
-      // Show success toast
-      toast({
-        title: 'Item Added',
-        description: `${item.item_name} has been added to the order.`,
-      });
+      // Show success notification with improved styling
+      showSuccess(`${item.item_name} has been added to the order.`, 'Item Added');
 
-      // Close the modal
+      // Create optimistic data for the order with the new item
+      const optimisticData = {
+        id: orderId,
+        items: [...(order?.items || []), item]
+      };
+
+      // Invalidate the cache for this order with optimistic data
+      // This will update the UI immediately while the revalidation happens in the background
+      invalidateOrderCache(orderId, optimisticData);
+
+      // Close the modal immediately - the optimistic update will keep the UI updated
       onClose();
 
       // Call onSuccess callback if provided
@@ -67,11 +83,8 @@ const AddOrderItemModal: React.FC<AddOrderItemModalProps> = ({
       }
     } catch (error) {
       console.error('Error adding item:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add item',
-        variant: 'destructive'
-      });
+      // Show error notification with improved styling
+      showError(error instanceof Error ? error.message : 'Failed to add item', 'Error');
     } finally {
       setIsSubmitting(false);
     }

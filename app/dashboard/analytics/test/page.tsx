@@ -34,34 +34,28 @@ export default function AnalyticsTestPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
 
   // Sample data for charts
-  const lineChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [
-      {
-        label: 'Revenue',
-        data: [1200, 1900, 3000, 5000, 4000, 6000, 7000, 6500, 8000, 8500, 9000, 9500],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-      },
-      {
-        label: 'Profit',
-        data: [500, 800, 1200, 2000, 1800, 2500, 3000, 2800, 3500, 3800, 4000, 4200],
-        borderColor: '#22c55e',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-      },
-    ],
-  };
+  const lineChartData = [
+    { month: 'Jan', revenue: 1200, profit: 500 },
+    { month: 'Feb', revenue: 1900, profit: 800 },
+    { month: 'Mar', revenue: 3000, profit: 1200 },
+    { month: 'Apr', revenue: 5000, profit: 2000 },
+    { month: 'May', revenue: 4000, profit: 1800 },
+    { month: 'Jun', revenue: 6000, profit: 2500 },
+    { month: 'Jul', revenue: 7000, profit: 3000 },
+    { month: 'Aug', revenue: 6500, profit: 2800 },
+    { month: 'Sep', revenue: 8000, profit: 3500 },
+    { month: 'Oct', revenue: 8500, profit: 3800 },
+    { month: 'Nov', revenue: 9000, profit: 4000 },
+    { month: 'Dec', revenue: 9500, profit: 4200 },
+  ];
 
-  const barChartData = {
-    labels: ['Client A', 'Client B', 'Client C', 'Client D', 'Client E'],
-    datasets: [
-      {
-        label: 'Revenue',
-        data: [12000, 9000, 7500, 6000, 5000],
-        backgroundColor: '#3b82f6',
-      },
-    ],
-  };
+  const barChartData = [
+    { client: 'Client A', revenue: 12000 },
+    { client: 'Client B', revenue: 9000 },
+    { client: 'Client C', revenue: 7500 },
+    { client: 'Client D', revenue: 6000 },
+    { client: 'Client E', revenue: 5000 },
+  ];
 
   const pieChartData = {
     labels: ['Printing', 'Design', 'Packaging', 'Delivery', 'Other'],
@@ -162,28 +156,15 @@ export default function AnalyticsTestPage() {
           title="Revenue & Profit Trends"
           description="Monthly data for the current year"
           data={lineChartData}
+          xDataKey="month"
+          series={[
+            { key: 'revenue', label: 'Revenue', color: '#3b82f6', type: 'area', yAxisId: 'left' },
+            { key: 'profit', label: 'Profit', color: '#22c55e', type: 'line', yAxisId: 'left' },
+          ]}
           className="lg:col-span-2"
           height={300}
-          fillArea={true}
-          options={{
-            scales: {
-              y: {
-                ticks: {
-                  callback: (value) => formatCurrency(Number(value)),
-                },
-              },
-            },
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw as number;
-                    return `${context.dataset.label}: ${formatCurrency(value)}`;
-                  },
-                },
-              },
-            },
-          }}
+          leftAxisFormatter={(v) => formatCurrency(v)}
+          tooltipFormatter={(v) => formatCurrency(v)}
         />
 
         <PieChartComponent
@@ -211,26 +192,11 @@ export default function AnalyticsTestPage() {
         title="Top Clients by Revenue"
         description="Showing top 5 clients"
         data={barChartData}
+        xDataKey="client"
+        bars={[{ key: 'revenue', label: 'Revenue', color: '#3b82f6' }]}
         height={300}
-        options={{
-          scales: {
-            y: {
-              ticks: {
-                callback: (value) => formatCurrency(Number(value)),
-              },
-            },
-          },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const value = context.raw as number;
-                  return `${context.dataset.label}: ${formatCurrency(value)}`;
-                },
-              },
-            },
-          },
-        }}
+        yTickFormatter={(v) => formatCurrency(v)}
+        tooltipFormatter={(v) => formatCurrency(v)}
       />
     </div>
   );

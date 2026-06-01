@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { handleApiError, handleUnexpectedError } from '@/lib/api/error-handler';
 
 /**
@@ -9,6 +9,9 @@ import { handleApiError, handleUnexpectedError } from '@/lib/api/error-handler';
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { name, description, category_id, price, cost } = await request.json();
 
     // Validate required fields

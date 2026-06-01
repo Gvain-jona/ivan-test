@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SettingSection } from '@/components/settings';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ interface GroupedPermissions {
  * Role Permissions Section Component
  */
 export function RolePermissionsSection() {
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const [permissions, setPermissions] = useState<RolePermission[]>([]);
   const [groupedPermissions, setGroupedPermissions] = useState<GroupedPermissions>({});
   const [isLoading, setIsLoading] = useState(true);

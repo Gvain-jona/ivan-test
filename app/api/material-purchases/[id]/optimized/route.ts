@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
 import { createApiResponse } from '@/lib/api/response-handler';
 
@@ -31,6 +31,8 @@ export async function GET(
 
     // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     // Get material purchase
     const { data: purchase, error } = await supabase

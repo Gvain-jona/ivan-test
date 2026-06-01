@@ -8,7 +8,6 @@ import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { useOrdersPage } from '../_context';
-import { useOrdersData } from '@/hooks/useOrdersData';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import PaymentStatusBadge from '@/components/ui/payment-status-badge';
@@ -26,11 +25,7 @@ const InvoicesTab: React.FC = () => {
     handleGenerateInvoice
   } = useOrdersPage();
 
-  // Get loading state from the orders hook directly
-  const { isLoading: ordersLoading } = useOrdersData();
-
-  // Combined loading state - show skeleton if either context loading or SWR loading is true
-  const loading = contextLoading || ordersLoading;
+  const loading = contextLoading;
 
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('all');

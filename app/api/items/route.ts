@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * GET /api/items
@@ -14,6 +14,9 @@ export async function GET(request: Request) {
     
     // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     
     // Start building the query
     let query = supabase

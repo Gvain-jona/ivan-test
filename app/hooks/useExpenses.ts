@@ -1,7 +1,4 @@
-// This file is now a re-export from the expenses directory
-// For backward compatibility, we're keeping the same exports
-// but they now come from the modularized files
-
+// Re-export from the modularized expenses hooks for backward compatibility
 import {
   Expense,
   ExpenseFilters,
@@ -10,12 +7,9 @@ import {
   RecurringExpenseOccurrence,
   useExpensesList as useExpenses,
   useExpenseDetails as useExpense,
-  useExpenseCategories,
-  useExpenseStats,
   useRecurringExpenses
 } from './expenses';
 
-// Re-export all types and hooks
 export type {
   Expense,
   ExpenseFilters,
@@ -27,7 +21,5 @@ export type {
 export {
   useExpenses,
   useExpense,
-  useExpenseCategories,
-  useExpenseStats,
   useRecurringExpenses
 };
