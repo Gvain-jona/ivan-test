@@ -164,6 +164,15 @@ export async function DELETE(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (!profile || !['admin', 'manager'].includes(profile.role)) {
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete orders');
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

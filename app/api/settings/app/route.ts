@@ -1,34 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { handleApiError, handleUnexpectedError } from '@/lib/api/error-handler';
 
 /**
  * GET handler for fetching application settings
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // Get the application settings
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
     const { data, error } = await supabase
       .from('app_settings')
       .select('settings')
       .single();
-    
-    if (error) {
-      console.error('Error fetching app settings:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch app settings' },
-        { status: 500 }
-      );
-    }
-    
+
+    if (error) return handleApiError('DATABASE_ERROR', 'Failed to fetch app settings');
+
     return NextResponse.json({ settings: data?.settings || {} });
   } catch (error) {
-    console.error('Unexpected error:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error);
   }
 }
 

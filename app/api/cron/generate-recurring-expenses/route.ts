@@ -9,13 +9,13 @@ import { handleApiError } from '@/lib/api/error-handler';
  */
 export async function POST(request: NextRequest) {
   try {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      return handleApiError('INTERNAL_SERVER_ERROR', 'Cron endpoint not configured');
+    }
     const authHeader = request.headers.get('authorization');
-    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return handleApiError(
-        'AUTHENTICATION_ERROR',
-        'Unauthorized',
-        { status: 401 }
-      );
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return handleApiError('UNAUTHORIZED', 'Invalid cron secret');
     }
 
     const supabase = await createClient();
@@ -131,10 +131,6 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
-    return handleApiError(
-      'SERVER_ERROR',
-      'An unexpected error occurred',
-      { details: error instanceof Error ? error.message : 'Unknown error' }
-    );
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
