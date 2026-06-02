@@ -1,10 +1,5 @@
-'use server';
-
 import { NextResponse } from 'next/server';
 
-/**
- * Standard error types for API responses
- */
 export type ApiErrorType =
   | 'VALIDATION_ERROR'
   | 'NOT_FOUND'
@@ -14,20 +9,14 @@ export type ApiErrorType =
   | 'SUPABASE_ERROR'
   | 'INTERNAL_SERVER_ERROR';
 
-/**
- * Standard error response structure
- */
 export interface ApiErrorResponse {
   error: {
     type: ApiErrorType;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }
 
-/**
- * Map error types to HTTP status codes
- */
 const errorStatusCodes: Record<ApiErrorType, number> = {
   VALIDATION_ERROR: 400,
   NOT_FOUND: 404,
@@ -35,74 +24,45 @@ const errorStatusCodes: Record<ApiErrorType, number> = {
   FORBIDDEN: 403,
   DATABASE_ERROR: 500,
   SUPABASE_ERROR: 500,
-  INTERNAL_SERVER_ERROR: 500
+  INTERNAL_SERVER_ERROR: 500,
 };
 
-/**
- * Handle API errors in a standardized way
- *
- * @param type Error type
- * @param message Error message
- * @param details Additional error details
- * @returns NextResponse with appropriate status code and error details
- */
-export async function handleApiError(
+export function handleApiError(
   type: ApiErrorType,
   message: string,
-  details?: any
-): Promise<NextResponse<ApiErrorResponse>> {
-  // Log the error (except for validation errors which are expected)
+  details?: unknown,
+): NextResponse<ApiErrorResponse> {
   if (type !== 'VALIDATION_ERROR') {
-    console.error(`API Error [${type}]:`, message, details || '');
+    console.error(`API Error [${type}]:`, message, details ?? '');
   }
-
-  // Create the error response
-  const errorResponse: ApiErrorResponse = {
-    error: {
-      type,
-      message,
-      ...(details && { details })
-    }
-  };
-
-  // Return the response with the appropriate status code
   return NextResponse.json(
-    errorResponse,
-    { status: errorStatusCodes[type] }
+    { error: { type, message, ...(details != null && { details }) } },
+    { status: errorStatusCodes[type] },
   );
 }
 
-/**
- * Handle unexpected errors in API routes
- *
- * @param error The caught error
- * @returns NextResponse with error details
- */
-export async function handleUnexpectedError(error: unknown): Promise<NextResponse<ApiErrorResponse>> {
+export function handleUnexpectedError(error: unknown): NextResponse<ApiErrorResponse> {
   const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-
   console.error('Unexpected API error:', error);
-
   return handleApiError(
     'INTERNAL_SERVER_ERROR',
     errorMessage,
-    process.env.NODE_ENV === 'development' ? { stack: error instanceof Error ? error.stack : undefined } : undefined
+    process.env.NODE_ENV === 'development'
+      ? { stack: error instanceof Error ? error.stack : undefined }
+      : undefined,
   );
 }
 
-/**
- * Handle Supabase errors in API routes
- *
- * @param error The Supabase error
- * @returns NextResponse with error details
- */
-export async function handleSupabaseError(error: any): Promise<NextResponse<ApiErrorResponse>> {
-  // Check for specific error types and provide better error messages
+export function handleSupabaseError(error: {
+  message?: string;
+  code?: string;
+  details?: unknown;
+}): NextResponse<ApiErrorResponse> {
   if (error.message?.includes('foreign key constraint')) {
     return handleApiError(
       'VALIDATION_ERROR',
       'Foreign key constraint violation',
-      'One or more referenced items do not exist in the database. Check client_id, item_id, or category_id values.'
+      'One or more referenced items do not exist. Check client_id, item_id, or category_id values.',
     );
   }
 
@@ -110,69 +70,35 @@ export async function handleSupabaseError(error: any): Promise<NextResponse<ApiE
     return handleApiError(
       'VALIDATION_ERROR',
       'Check constraint violation',
-      'One or more values failed validation checks. Check status, payment_status, or client_type values.'
+      'One or more values failed validation. Check status, payment_status, or client_type values.',
     );
   }
 
   if (error.code === 'PGRST116') {
-    return handleApiError(
-      'NOT_FOUND',
-      'Resource not found',
-      error.message
-    );
+    return handleApiError('NOT_FOUND', 'Resource not found');
   }
 
   if (error.code === '42501') {
-    // RLS policy violation
-    return handleApiError(
-      'FORBIDDEN',
-      'Permission denied',
-      {
-        message: error.message,
-        details: 'This operation violates a row-level security policy. Make sure you are authenticated and have the necessary permissions.',
-        code: error.code
-      }
-    );
+    return handleApiError('FORBIDDEN', 'Permission denied');
   }
 
   if (error.code === '23505') {
-    return handleApiError(
-      'VALIDATION_ERROR',
-      'Unique constraint violation',
-      error.message
-    );
+    return handleApiError('VALIDATION_ERROR', 'Unique constraint violation');
   }
 
-  // Check for "record has no field" errors
-  if (error.code === '42703' && error.message?.includes('has no field')) {
-    return handleApiError(
-      'DATABASE_ERROR',
-      'Database schema mismatch',
-      {
-        message: error.message,
-        details: 'There is a mismatch between the database schema and the expected fields. This might be due to a trigger or constraint trying to access a field that doesn\'t exist.',
-        code: error.code
-      }
-    );
+  if (error.code === '42703') {
+    return handleApiError('DATABASE_ERROR', 'Database schema mismatch');
   }
 
-  // Check for ambiguous column reference errors
-  if (error.code === '42702' && error.message?.includes('ambiguous')) {
-    return handleApiError(
-      'DATABASE_ERROR',
-      'Ambiguous column reference',
-      {
-        message: error.message,
-        details: 'A column name is used in multiple tables without proper qualification. This is likely due to a database trigger or function that needs to be updated.',
-        code: error.code
-      }
-    );
+  if (error.code === '42702') {
+    return handleApiError('DATABASE_ERROR', 'Ambiguous column reference');
   }
 
-  // Generic Supabase error
   return handleApiError(
     'SUPABASE_ERROR',
     error.message || 'Database operation failed',
-    process.env.NODE_ENV === 'development' ? { code: error.code, details: error.details } : undefined
+    process.env.NODE_ENV === 'development'
+      ? { code: error.code, details: error.details }
+      : undefined,
   );
 }
