@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 
+const MAX_ANALYTICS_ROWS = 5000;
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -29,13 +31,19 @@ export async function GET(request: NextRequest) {
       query = query.or(`order_number.ilike.%${search}%,client_name.ilike.%${search}%`);
     }
 
+    // Hard cap: prevent unbounded memory growth on large datasets.
+    // TODO: replace with a database-level aggregate RPC once migrations are available.
+    query = query.range(0, MAX_ANALYTICS_ROWS - 1);
+
     const { data, error, count } = await query;
     if (error) return handleSupabaseError(error);
 
     const orders = data ?? [];
     const totalOrders = count ?? 0;
+    const truncated = totalOrders > MAX_ANALYTICS_ROWS;
+
     const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
 
     const pendingOrders = orders.filter(o =>
       o.status === 'pending' || o.status === 'in_progress',
@@ -43,7 +51,7 @@ export async function GET(request: NextRequest) {
     const completedOrders = orders.filter(o =>
       o.status === 'completed' || o.status === 'delivered',
     ).length;
-    const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
+    const completionRate = orders.length > 0 ? (completedOrders / orders.length) * 100 : 0;
 
     const unpaidOrders = orders.filter(o =>
       o.payment_status === 'unpaid' || o.payment_status === 'partially_paid',
@@ -88,6 +96,7 @@ export async function GET(request: NextRequest) {
         unpaidOrders,
         clientsWithDebt,
       },
+      ...(truncated && { warning: `Results capped at ${MAX_ANALYTICS_ROWS} rows. Apply date filters for accurate totals.` }),
     });
   } catch (error) {
     return handleUnexpectedError(error);

@@ -138,8 +138,9 @@ export async function POST(
       .single();
 
     if (updateError) {
-      console.error('Error updating material purchase:', updateError);
-      // Continue even if update fails, we'll return the payment
+      // Rollback: remove the payment we just inserted to keep amount_paid consistent
+      await supabase.from('material_payments').delete().eq('id', newPayment.id);
+      return handleSupabaseError(updateError);
     }
 
     return createApiResponse({
@@ -208,23 +209,13 @@ export async function DELETE(
       );
     }
 
-    // Delete the payment
-    const { error: deleteError } = await supabase
-      .from('material_payments')
-      .delete()
-      .eq('id', paymentId)
-      .eq('purchase_id', id);
-
-    if (deleteError) {
-      console.error('Error deleting payment:', deleteError);
-      return handleSupabaseError(deleteError);
-    }
-
-    // Update the material purchase with the new amount paid
+    // Update the purchase total BEFORE deleting the payment.
+    // This order ensures that if the update fails, the payment still exists and
+    // state remains consistent. A failed delete after a successful update is
+    // recoverable on retry; a failed update after a successful delete is not.
     const newAmountPaid = Math.max(0, Number(purchase.amount_paid) - Number(payment.amount));
     const totalAmount = Number(purchase.total_amount);
 
-    // Determine payment status
     let payment_status = 'unpaid';
     if (newAmountPaid >= totalAmount) {
       payment_status = 'paid';
@@ -237,20 +228,26 @@ export async function DELETE(
       .update({
         amount_paid: newAmountPaid,
         payment_status,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
       .single();
 
-    if (updateError) {
-      console.error('Error updating material purchase:', updateError);
-      // Continue even if update fails
-    }
+    if (updateError) return handleSupabaseError(updateError);
+
+    // Delete the payment only after the purchase total is successfully updated
+    const { error: deleteError } = await supabase
+      .from('material_payments')
+      .delete()
+      .eq('id', paymentId)
+      .eq('purchase_id', id);
+
+    if (deleteError) return handleSupabaseError(deleteError);
 
     return createApiResponse({
       message: 'Payment deleted successfully',
-      purchase: updatedPurchase || null
+      purchase: updatedPurchase,
     });
   } catch (error) {
     return handleUnexpectedError(error);
