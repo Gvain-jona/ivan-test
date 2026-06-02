@@ -3,6 +3,10 @@
 **Scope:** Full application — OWASP Top 10 + auth/authz deep dive  
 **Methodology:** Direct file reads, no static analysis tool (see methodology note)
 
+> **Remediation status (2026-06-02):** 11 of 13 findings fixed on branch `claude/codebase-review-security-perf-sRWF6`.  
+> 2 findings deferred pending SQL migrations: **SEC-05** (IDOR ownership) and **SEC-11** (allowed_emails RLS).  
+> See `docs/code-review/AUDIT_PROGRESS.md` for the full status table and deferred decision rationale.
+
 ---
 
 ## Executive Summary

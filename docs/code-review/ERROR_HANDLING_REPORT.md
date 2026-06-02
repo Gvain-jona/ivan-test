@@ -3,6 +3,10 @@
 **Scope:** Critical code paths — database calls, auth flows, background jobs, payment mutations  
 **Goal:** Identify paths that can crash the app, silently corrupt data, or surface raw errors to users
 
+> **Remediation status (2026-06-02):** All 9 findings fixed on branch `claude/codebase-review-security-perf-sRWF6`.  
+> 1 additional issue (ERR-10) caught during the revalidation pass and also fixed.  
+> See `docs/code-review/AUDIT_PROGRESS.md` for the full status table.
+
 ---
 
 ## Summary
