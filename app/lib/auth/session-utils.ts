@@ -26,46 +26,17 @@ export const AUTH_KEYS = [
  * Uses NEXT_PUBLIC_APP_URL from environment variables
  */
 export function getBaseUrl(): string {
-  // First check for explicit environment variable
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    const url = process.env.NEXT_PUBLIC_APP_URL.trim();
-    console.log('Using NEXT_PUBLIC_APP_URL:', url);
-    
-    // Always ensure we return HTTP for localhost to avoid SSL errors
-    if (url.includes('localhost')) {
-      console.log('Detected localhost, forcing HTTP protocol');
-      return url.replace('https://', 'http://');
-    }
-    
-    // For production, ensure HTTPS is used
-    if (!url.startsWith('https://') && !url.includes('localhost')) {
-      console.log('Non-localhost URL without HTTPS, adding HTTPS protocol');
-      return url.startsWith('http://') ? url.replace('http://', 'https://') : `https://${url}`;
-    }
-    
-    return url;
+    return process.env.NEXT_PUBLIC_APP_URL.trim();
   }
-  
-  // Fallback to window location in browser
   if (typeof window !== 'undefined') {
-    const origin = window.location.origin;
-    console.log('No NEXT_PUBLIC_APP_URL, using window.location.origin:', origin);
-    
-    // For localhost, always use HTTP to avoid SSL errors
-    if (origin.includes('localhost')) {
-      console.log('Detected localhost, forcing HTTP protocol');
-      return origin.replace('https://', 'http://');
-    }
-    return origin;
+    return window.location.origin;
   }
-  
-  // Environment-specific fallback
-  const fallbackUrl = process.env.NODE_ENV === 'production'
-    ? 'https://ivan-test.vercel.app'  // Production URL
-    : 'http://localhost:3000';        // Development URL (using HTTP, not HTTPS)
-  
-  console.log('Using environment-specific fallback URL:', fallbackUrl);
-  return fallbackUrl;
+  // Server-side fallback — NEXT_PUBLIC_APP_URL must be set in production
+  if (process.env.NODE_ENV === 'production') {
+    console.error('getBaseUrl: NEXT_PUBLIC_APP_URL is not set in production');
+  }
+  return 'http://localhost:3000';
 }
 
 /**
@@ -74,13 +45,8 @@ export function getBaseUrl(): string {
 export function getAuthCallbackUrl(customPath?: string): string {
   const baseUrl = getBaseUrl();
   const callbackPath = customPath || '/auth/callback';
-  
-  // Ensure path starts with a slash
   const normalizedPath = callbackPath.startsWith('/') ? callbackPath : `/${callbackPath}`;
-  
-  const fullUrl = `${baseUrl}${normalizedPath}`;
-  console.log('Generated auth callback URL:', fullUrl);
-  return fullUrl;
+  return `${baseUrl}${normalizedPath}`;
 }
 
 /**

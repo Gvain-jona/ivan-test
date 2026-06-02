@@ -1,5 +1,5 @@
 import { User } from '@supabase/supabase-js';
-import { createClient } from '../supabase/client';
+import { createClient } from '@/utils/supabase/server';
 
 export type Role = 'admin' | 'manager' | 'staff';
 
@@ -14,7 +14,7 @@ export interface AuthorizationResult {
  */
 export async function isAuthorizedEmail(email: string): Promise<AuthorizationResult> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     const { data: allowedEmail, error } = await supabase
       .from('allowed_emails')

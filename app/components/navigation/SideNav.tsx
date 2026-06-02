@@ -46,7 +46,7 @@ export default function SideNav({ className, onClose }: SideNavProps) {
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
 
   // Handle responsive behavior
   useEffect(() => {
@@ -308,14 +308,14 @@ export default function SideNav({ className, onClose }: SideNavProps) {
                   {profile?.full_name || 'Loading...'}
                 </p>
                 {/* Refresh button */}
-                {useAuth().refreshProfile && (
+                {refreshProfile && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 ml-1 hover:bg-secondary"
                     onClick={(e) => {
                       e.stopPropagation();
-                      useAuth().refreshProfile?.();
+                      refreshProfile();
                     }}
                     title="Refresh profile"
                   >
