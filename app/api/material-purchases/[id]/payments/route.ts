@@ -21,40 +21,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // In Next.js 15, params is now async and needs to be awaited
     const { id } = await params;
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Material purchase ID is required');
 
-    if (!id) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Material purchase ID is required',
-        { param: 'id' }
-      );
-    }
-
-    // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Get payments for the material purchase
     const { data, error } = await supabase
       .from('material_payments')
       .select('*')
       .eq('purchase_id', id)
       .order('date', { ascending: false });
 
-    if (error) {
-      return handleSupabaseError(error);
-    }
-
-    return createApiResponse({
-      payments: data || []
-    });
+    if (error) return handleSupabaseError(error);
+    return createApiResponse({ payments: data || [] });
   } catch (error) {
-    console.error('Error in GET /api/material-purchases/[id]/payments:', error);
-    return handleApiError(
-      'SERVER_ERROR',
-      'An unexpected error occurred while fetching material payments'
-    );
+    return handleUnexpectedError(error);
   }
 }
 
