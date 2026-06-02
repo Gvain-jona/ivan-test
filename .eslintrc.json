@@ -1,8 +1,82 @@
 {
-  "extends": "next/core-web-vitals",
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:react/recommended",
+    "eslint:recommended",
+    "prettier"
+  ],
+  "plugins": ["react", "react-hooks"],
   "rules": {
+    // ─── React ──────────────────────────────────────────────────────────────
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
-    "react-hooks/exhaustive-deps": "warn"
-  }
-} 
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+
+    // ─── React Hooks ────────────────────────────────────────────────────────
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+
+    // ─── TypeScript safety (enforced here since ignoreBuildErrors: true) ────
+    "no-explicit-any": "off",
+
+    // ─── Code quality ───────────────────────────────────────────────────────
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-unused-vars": "off",
+    "no-undef": "off",
+    "prefer-const": "error",
+    "no-var": "error",
+
+    // ─── Security ───────────────────────────────────────────────────────────
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-script-url": "error",
+
+    // ─── Complexity guards ──────────────────────────────────────────────────
+    "max-lines": ["warn", { "max": 200, "skipBlankLines": true, "skipComments": true }],
+    "complexity": ["warn", 10],
+    "max-depth": ["warn", 4],
+    "max-params": ["warn", 4]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "parser": "@typescript-eslint/parser",
+      "plugins": ["@typescript-eslint"],
+      "extends": ["plugin:@typescript-eslint/recommended"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn",
+        "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/no-non-null-assertion": "warn",
+        "@typescript-eslint/consistent-type-imports": ["error", { "prefer": "type-imports" }]
+      }
+    },
+    {
+      "files": ["app/api/**/*.ts"],
+      "rules": {
+        "no-console": "error"
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts"],
+      "rules": {
+        "no-console": "off",
+        "max-lines": "off"
+      }
+    }
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    ".next/",
+    "public/",
+    "supabase/",
+    "*.config.js",
+    "*.config.ts"
+  ]
+}
