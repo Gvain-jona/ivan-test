@@ -2,135 +2,111 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError } from '@/lib/api/error-handler';
 
-/**
- * POST /api/cron/generate-recurring-expenses
- * Generates occurrences for recurring expenses
- * This endpoint should be called by a cron job daily
- */
 export async function POST(request: NextRequest) {
   try {
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
       return handleApiError('INTERNAL_SERVER_ERROR', 'Cron endpoint not configured');
     }
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
       return handleApiError('UNAUTHORIZED', 'Invalid cron secret');
     }
 
     const supabase = await createClient();
+    const now = new Date();
+    const errors: Array<{ expense_id: string; error: string }> = [];
 
-    // Get all active recurring expenses
-    const { data: recurringExpenses, error } = await supabase
+    // Single query — select only the columns we actually use.
+    // .or() with comma-separated filters keeps the IS NULL / gte check in one
+    // predicate so operator precedence is correct.
+    const { data: expenses, error: fetchError } = await supabase
       .from('expenses')
-      .select('*')
+      .select('id, next_occurrence_date, item_name, total_amount, created_by, reminder_days')
       .eq('is_recurring', true)
-      .is('recurrence_end_date', null)
-      .or(`recurrence_end_date.gte.${new Date().toISOString()}`);
+      .or(`recurrence_end_date.is.null,recurrence_end_date.gte.${now.toISOString()}`);
 
-    if (error) {
-      return handleApiError(
-        'DATABASE_ERROR',
-        'Failed to fetch recurring expenses',
-        { details: error.message }
-      );
+    if (fetchError) {
+      return handleApiError('DATABASE_ERROR', 'Failed to fetch recurring expenses', {
+        details: fetchError.message,
+      });
     }
 
-    const generatedOccurrences = [];
-    const errors = [];
+    const allExpenses = expenses ?? [];
 
-    // Process each recurring expense
-    for (const expense of (recurringExpenses || [])) {
-      try {
-        // Check if it's time to generate a new occurrence
-        if (expense.next_occurrence_date && new Date(expense.next_occurrence_date) <= new Date()) {
-          // Create a new occurrence
-          const { data: occurrence, error: occurrenceError } = await supabase
-            .from('recurring_expense_occurrences')
-            .insert({
-              parent_expense_id: expense.id,
-              occurrence_date: expense.next_occurrence_date,
-              status: 'pending'
-            })
-            .select()
-            .single();
+    // ── Step 1: Batch INSERT all due occurrences (1 round-trip) ──────────────
+    const dueExpenses = allExpenses.filter(
+      e => e.next_occurrence_date && new Date(e.next_occurrence_date) <= now,
+    );
 
-          if (occurrenceError) {
-            errors.push({
-              expense_id: expense.id,
-              error: occurrenceError.message
-            });
-            continue;
+    let generatedOccurrences: unknown[] = [];
+
+    if (dueExpenses.length > 0) {
+      const { data: inserted, error: insertError } = await supabase
+        .from('recurring_expense_occurrences')
+        .insert(
+          dueExpenses.map(e => ({
+            parent_expense_id: e.id,
+            occurrence_date: e.next_occurrence_date,
+            status: 'pending',
+          })),
+        )
+        .select();
+
+      if (insertError) {
+        errors.push({ expense_id: 'batch_insert', error: insertError.message });
+      } else {
+        generatedOccurrences = inserted ?? [];
+
+        // ── Step 2: Update next_occurrence_date — parallel, not sequential ──
+        const rpcResults = await Promise.allSettled(
+          dueExpenses.map(e =>
+            supabase.rpc('calculate_next_occurrence', { expense_id: e.id }),
+          ),
+        );
+
+        rpcResults.forEach((result, i) => {
+          if (result.status === 'rejected') {
+            errors.push({ expense_id: dueExpenses[i].id, error: String(result.reason) });
+          } else if (result.value.error) {
+            errors.push({ expense_id: dueExpenses[i].id, error: result.value.error.message });
           }
-
-          generatedOccurrences.push(occurrence);
-
-          // Calculate and update the next occurrence date
-          const { error: updateError } = await supabase
-            .rpc('calculate_next_occurrence', {
-              expense_id: expense.id
-            });
-
-          if (updateError) {
-            errors.push({
-              expense_id: expense.id,
-              error: updateError.message
-            });
-          }
-        }
-      } catch (expenseError) {
-        errors.push({
-          expense_id: expense.id,
-          error: expenseError instanceof Error ? expenseError.message : 'Unknown error'
         });
       }
     }
 
-    // Send notifications for upcoming expenses with reminders
-    const today = new Date();
-    const { data: upcomingExpenses, error: upcomingError } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('is_recurring', true)
-      .not('reminder_days', 'is', null)
-      .not('next_occurrence_date', 'is', null);
+    // ── Step 3: Batch INSERT reminder notifications (1 round-trip) ───────────
+    const reminderRows = allExpenses
+      .filter(e => {
+        if (!e.next_occurrence_date || e.reminder_days == null) return false;
+        const daysUntil = Math.floor(
+          (new Date(e.next_occurrence_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return daysUntil === e.reminder_days;
+      })
+      .map(e => ({
+        user_id: e.created_by,
+        type: 'expense_reminder',
+        title: 'Upcoming Expense Reminder',
+        content: `Reminder: ${e.item_name} expense of ${e.total_amount} is due in ${e.reminder_days} days.`,
+        linked_item_type: 'expense',
+        linked_item_id: e.id,
+        is_read: false,
+      }));
 
-    if (!upcomingError && upcomingExpenses) {
-      for (const expense of upcomingExpenses) {
-        const nextOccurrence = new Date(expense.next_occurrence_date);
-        const daysUntilOccurrence = Math.floor((nextOccurrence.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (daysUntilOccurrence === expense.reminder_days) {
-          // Create a notification
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: expense.created_by,
-              type: 'expense_reminder',
-              title: 'Upcoming Expense Reminder',
-              content: `Reminder: ${expense.item_name} expense of ${expense.total_amount} is due in ${expense.reminder_days} days.`,
-              linked_item_type: 'expense',
-              linked_item_id: expense.id,
-              is_read: false
-            });
-
-          if (notificationError) {
-            errors.push({
-              expense_id: expense.id,
-              error: `Failed to create notification: ${notificationError.message}`
-            });
-          }
-        }
+    if (reminderRows.length > 0) {
+      const { error: notifError } = await supabase.from('notifications').insert(reminderRows);
+      if (notifError) {
+        errors.push({ expense_id: 'batch_notifications', error: notifError.message });
       }
     }
 
     return NextResponse.json({
       success: true,
       generated_occurrences: generatedOccurrences.length,
-      occurrences: generatedOccurrences,
-      errors: errors.length > 0 ? errors : undefined
+      reminder_notifications_sent: reminderRows.length,
+      ...(errors.length > 0 && { errors }),
     });
-  } catch (error) {
+  } catch {
     return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
