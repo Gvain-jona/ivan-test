@@ -1,22 +1,23 @@
+import { z } from 'zod';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
+import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 import { createApiResponse } from '@/lib/api/response-handler';
+import { PaymentMethodSchema } from '@/lib/orders/validators';
 
-/**
- * GET /api/expenses/[id]/payments
- * Retrieves all payments for a specific expense
- */
+const PaymentInputSchema = z.object({
+  amount: z.number().nonnegative('Amount cannot be negative'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  payment_method: PaymentMethodSchema,
+});
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-
-    if (!id) {
-      return handleApiError('VALIDATION_ERROR', 'Expense ID is required', { param: 'id' });
-    }
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Expense ID is required');
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -29,104 +30,76 @@ export async function GET(
       .order('date', { ascending: false });
 
     if (error) return handleSupabaseError(error);
-
     return createApiResponse({ payments: data || [] });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while fetching expense payments');
+    return handleUnexpectedError(error);
   }
 }
 
-/**
- * POST /api/expenses/[id]/payments
- * Adds a new payment to an expense
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { payment } = body;
-
-    if (!id) {
-      return handleApiError('VALIDATION_ERROR', 'Expense ID is required', { param: 'id' });
-    }
-
-    if (!payment.amount || !payment.date || !payment.payment_method) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Amount, payment date, and payment method are required',
-        { param: 'payment' }
-      );
-    }
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Expense ID is required');
 
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to add a payment');
+    const body = await request.json();
+    const parsed = PaymentInputSchema.safeParse(body?.payment);
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid payment data', parsed.error.flatten());
     }
 
     const { data: newPayment, error: paymentError } = await supabase
       .from('expense_payments')
       .insert({
         expense_id: id,
-        amount: payment.amount,
-        date: payment.date,
-        payment_method: payment.payment_method,
-        created_by: user.id
+        amount: parsed.data.amount,
+        date: parsed.data.date,
+        payment_method: parsed.data.payment_method,
+        created_by: user.id,
       })
       .select()
       .single();
 
     if (paymentError) return handleSupabaseError(paymentError);
-
     return createApiResponse({ payment: newPayment });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while adding the payment');
+    return handleUnexpectedError(error);
   }
 }
 
-/**
- * PUT /api/expenses/[id]/payments
- * Updates an existing payment
- */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { payment, paymentId } = body;
-
-    if (!id || !paymentId) {
-      return handleApiError('VALIDATION_ERROR', 'Expense ID and Payment ID are required', { param: 'id' });
-    }
-
-    if (!payment.amount || !payment.date || !payment.payment_method) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Amount, payment date, and payment method are required',
-        { param: 'payment' }
-      );
-    }
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Expense ID is required');
 
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to update a payment');
+    const body = await request.json();
+    const { paymentId } = body;
+    if (!paymentId) return handleApiError('VALIDATION_ERROR', 'Payment ID is required');
+
+    const parsed = PaymentInputSchema.safeParse(body?.payment);
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid payment data', parsed.error.flatten());
     }
 
     const { data: updatedPayment, error: paymentError } = await supabase
       .from('expense_payments')
       .update({
-        amount: payment.amount,
-        date: payment.date,
-        payment_method: payment.payment_method,
-        updated_at: new Date().toISOString()
+        amount: parsed.data.amount,
+        date: parsed.data.date,
+        payment_method: parsed.data.payment_method,
       })
       .eq('id', paymentId)
       .eq('expense_id', id)
@@ -134,17 +107,12 @@ export async function PUT(
       .single();
 
     if (paymentError) return handleSupabaseError(paymentError);
-
     return createApiResponse({ payment: updatedPayment });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while updating the payment');
+    return handleUnexpectedError(error);
   }
 }
 
-/**
- * DELETE /api/expenses/[id]/payments
- * Deletes a payment from an expense (admin/manager only)
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -155,15 +123,12 @@ export async function DELETE(
     const paymentId = searchParams.get('paymentId');
 
     if (!id || !paymentId) {
-      return handleApiError('VALIDATION_ERROR', 'Expense ID and Payment ID are required', { param: 'id' });
+      return handleApiError('VALIDATION_ERROR', 'Expense ID and Payment ID are required');
     }
 
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to delete a payment');
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -171,8 +136,8 @@ export async function DELETE(
       .eq('id', user.id)
       .single();
 
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
-      return handleApiError('AUTHORIZATION_ERROR', 'Only admins and managers can delete payments');
+    if (!profile || !['admin', 'manager'].includes(profile.role)) {
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete payments');
     }
 
     const { error: deleteError } = await supabase
@@ -182,9 +147,8 @@ export async function DELETE(
       .eq('expense_id', id);
 
     if (deleteError) return handleSupabaseError(deleteError);
-
     return createApiResponse({ success: true, message: 'Payment deleted successfully' });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while deleting the payment');
+    return handleUnexpectedError(error);
   }
 }
