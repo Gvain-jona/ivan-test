@@ -8,11 +8,16 @@ import { createClient } from '../../../utils/supabase/server'
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 
-/**
- * Auth callback route handler
- * Processes authentication callbacks from Supabase (magic links, OAuth)
- * Following Supabase's recommended pattern for Next.js App Router
- */
+function getSameOriginPath(next: string, requestUrl: string): string {
+  try {
+    const base = new URL(requestUrl)
+    const resolved = new URL(next, base)
+    if (resolved.origin !== base.origin) return '/dashboard/orders'
+    return resolved.pathname + resolved.search
+  } catch {
+    return '/dashboard/orders'
+  }
+}
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -141,22 +146,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // If we get here, authentication was successful
-
-    // Ensure the next path is properly formatted
-    const formattedNext = next.startsWith('/') ? next : `/${next}`
-
-    // Get the environment-specific base URL
-    const baseUrl = getBaseUrl()
-
-    // Construct the full redirect URL
-    const redirectUrl = `${baseUrl}${formattedNext}`
-
-    // Redirect to the requested page or default dashboard
-    console.log('Auth successful, redirecting to:', redirectUrl)
-
-    // Use Next.js redirect for server components as recommended by Supabase
-    return redirect(redirectUrl)
+    // Validate next is same-origin before redirecting
+    const safePath = getSameOriginPath(next, request.url)
+    return redirect(`${getBaseUrl()}${safePath}`)
   } catch (error) {
     console.error('Exception in auth callback:', error)
     return NextResponse.redirect(

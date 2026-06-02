@@ -216,9 +216,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setIsLoading(true)
 
-        // In development mode, we can create a mock user and profile
-        const isDevelopment = process.env.NODE_ENV === 'development';
-
         // Get current user from Supabase
         const currentUser = await getCurrentUser()
 
@@ -239,37 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (usedCache) {
             setIsLoading(false)
           }
-        } else if (isDevelopment) {
-          // In development mode, create a mock user and profile
-          console.log('No user found, but in development mode - creating mock user')
-
-          // Create a mock user with a valid UUID
-          const mockUserId = '00000000-0000-0000-0000-000000000000'; // Valid UUID format
-          const mockUser = {
-            id: mockUserId,
-            email: 'dev@example.com',
-            user_metadata: { full_name: 'Development User' }
-          } as User;
-
-          // Create a mock profile with the same valid UUID
-          const mockProfile = {
-            id: mockUserId,
-            email: 'dev@example.com',
-            full_name: 'Development User',
-            role: 'admin',
-            status: 'active',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          } as Profile;
-
-          setUser(mockUser);
-          setProfile(mockProfile);
-          setIsLoading(false);
-
-          // Trigger data prefetch
-          triggerPrefetch();
         } else {
-          console.log('No user found')
           setUser(null)
           setProfile(null)
           setIsLoading(false)
