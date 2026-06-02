@@ -79,28 +79,12 @@ function OrderRow(props: OrderRowProps) {
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onClick={(e) => {
-          // Only trigger if the click wasn't on an interactive element
-          // Use a more comprehensive check for interactive elements
           const target = e.target as HTMLElement;
-          const isInteractive = (
-            // Check for dropdown elements
-            target.closest('button, .interactive-element, [role="button"], a, input, select, textarea, [data-dropdown-trigger], [data-dropdown-content], [data-dropdown-item]') ||
-            target.tagName.toLowerCase() === 'button' ||
-            target.getAttribute('role') === 'button' ||
-            target.classList.contains('interactive-element') ||
-            // Check for any dropdown-related data attributes
-            target.hasAttribute('data-dropdown-trigger') ||
-            target.hasAttribute('data-dropdown-content') ||
-            target.hasAttribute('data-dropdown-item') ||
-            // Check for any parent with interactive-element class
-            !!Array.from(target.parentElement?.querySelectorAll('.interactive-element') || []).length ||
-            // Check if any dropdown is currently open
-            !!document.querySelector('[data-dropdown-content]')
+          const isInteractive = !!target.closest(
+            'button, .interactive-element, [role="button"], a, input, select, textarea, [data-dropdown-trigger], [data-dropdown-content], [data-dropdown-item]'
           );
 
           if (!isInteractive) {
-            // Add a larger delay to ensure dropdowns have time to open if clicked
-            // and to prevent accidental row clicks
             setTimeout(() => {
               onView(order);
             }, 200);
