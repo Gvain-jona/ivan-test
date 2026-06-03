@@ -5,8 +5,8 @@
  * It includes common CRUD operations, error handling, and connection pooling.
  */
 
-import { createClient } from '../supabase/client';
-import { createClient as createServerClient } from '../supabase/server';
+import { createClient } from '@/utils/supabase/client';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 
 // Error handling

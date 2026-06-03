@@ -1,4 +1,4 @@
-import { createClient } from '../supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import { MigrationRecord } from '../auth/types';
 
 export const migrations = {

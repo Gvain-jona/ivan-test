@@ -1,5 +1,5 @@
 import { AuthError, ErrorLog, PerformanceMetric } from '../auth/types';
-import { createClient } from '../supabase/client';
+import { createClient } from '@/utils/supabase/client';
 
 class AuthMonitor {
   private static instance: AuthMonitor;

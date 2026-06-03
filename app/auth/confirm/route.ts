@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
 import { getBaseUrl } from '@/app/lib/auth/session-utils'
 import { getAllAuthCookieNames } from '@/app/lib/auth/cookie-utils'
-import { createClient } from '../../../utils/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 

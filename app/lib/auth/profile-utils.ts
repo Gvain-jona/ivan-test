@@ -4,7 +4,7 @@
  */
 
 import { User } from '@supabase/supabase-js';
-import { createClient } from '../supabase/client';
+import { createClient } from '@/utils/supabase/client';
 
 export type Profile = {
   id: string
