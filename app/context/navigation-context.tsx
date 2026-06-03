@@ -23,7 +23,7 @@ const NAVIGATION_TIMEOUT = 20000; // 20 seconds - increased to accommodate compl
  */
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
 
   // Core state management
   const [isNavigating, setIsNavigating] = useState(false);

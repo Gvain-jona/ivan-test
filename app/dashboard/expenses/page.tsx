@@ -17,7 +17,7 @@ export default function ExpensesPage() {
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const expensesTabRef = useRef<{ handleAddExpense?: (values: any) => Promise<any> }>({});
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
 
   // Set active tab based on query parameter
   useEffect(() => {

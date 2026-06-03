@@ -73,7 +73,7 @@ type FooterNavProps = {
 };
 
 function FooterNavComponent({ className }: FooterNavProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { isNavigating, navigationError, cancelNavigation } = useNavigation();
   const { unreadCount } = useNotifications();
 

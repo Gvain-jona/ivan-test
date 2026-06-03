@@ -9,7 +9,7 @@ import { NavItemType } from './useTabNavigation';
  * Enhanced hook to handle route prefetching with improved efficiency
  */
 export function useRoutePrefetching(navigationItems: NavItemType[]) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const router = useRouter();
 
   // Use a ref to track which routes have already been prefetched

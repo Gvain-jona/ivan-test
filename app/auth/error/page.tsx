@@ -12,7 +12,7 @@ import Link from 'next/link'
 // Component to handle the actual error display logic
 function ErrorContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams()!
   const [error, setError] = useState<string>('')
   const [countdown, setCountdown] = useState(5)
 

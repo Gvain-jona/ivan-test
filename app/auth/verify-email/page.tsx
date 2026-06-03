@@ -14,7 +14,7 @@ import { Progress } from '@/components/ui/progress'
 function VerifyEmailContent() {
   const { user, profile, isLoading } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams()!
   const redirect = searchParams.get('redirect') || '/dashboard/orders'
 
   const [verificationCode, setVerificationCode] = useState('')
