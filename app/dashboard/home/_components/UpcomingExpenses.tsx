@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { format, addDays } from 'date-fns';
 import { Calendar, Check, Clock, X } from 'lucide-react';
-import { useRecurringExpenses } from '@/hooks/useExpenses';
+import { useRecurringExpenses, type RecurringExpenseOccurrence } from '@/hooks/useExpenses';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -76,7 +76,7 @@ export function UpcomingExpenses() {
           </div>
         ) : (
           <div className="space-y-4">
-            {occurrences.slice(0, 5).map((occurrence) => {
+            {occurrences.slice(0, 5).map((occurrence: RecurringExpenseOccurrence & { expense?: Record<string, unknown> }) => {
               const expense = occurrence.expense || {};
               return (
                 <div key={occurrence.id} className="flex items-start gap-4">

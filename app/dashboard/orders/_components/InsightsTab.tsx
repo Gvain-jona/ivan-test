@@ -5,6 +5,7 @@ import { formatDate } from '@/lib/utils';
 import { useOrdersPage } from '../_context';
 import { useLoading } from '@/components/loading';
 import { useOrders } from '@/hooks/useOrders';
+import type { Order } from '@/types/orders';
 import OrderAnalyticsCard from './OrderAnalyticsCard';
 import ClientPerformanceCard from './ClientPerformanceCard';
 import { formatCurrency } from '@/lib/utils';
@@ -156,23 +157,23 @@ const InsightsTab: React.FC = () => {
       .filter(client => {
         // Calculate total debt for this client
         const clientDebt = client.orders
-          .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
-          .reduce((sum, order) => sum + (order.balance || 0), 0);
+          .filter((order: Order) => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+          .reduce((sum: number, order: Order) => sum + (order.balance || 0), 0);
 
         return clientDebt > 0;
       })
       .map(client => {
         // Calculate total debt for this client
         const clientDebt = client.orders
-          .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
-          .reduce((sum, order) => sum + (order.balance || 0), 0);
+          .filter((order: Order) => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+          .reduce((sum: number, order: Order) => sum + (order.balance || 0), 0);
 
         return {
           id: client.id,
           name: client.name,
           debt: clientDebt,
           orderCount: client.orders
-            .filter(order => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
+            .filter((order: Order) => order.payment_status === 'unpaid' || order.payment_status === 'partially_paid')
             .length
         };
       })

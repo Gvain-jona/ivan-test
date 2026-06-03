@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRecurringExpenses } from '@/hooks/useExpenses';
+import { useRecurringExpenses, type RecurringExpenseOccurrence } from '@/hooks/useExpenses';
 import { formatCurrency } from '@/lib/utils';
 import { RecurringExpenseCalendarView } from './RecurringExpenseCalendarView';
 
@@ -30,7 +30,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
   );
 
   // Group occurrences by date
-  const occurrencesByDate = occurrences.reduce((acc, occurrence) => {
+  const occurrencesByDate = occurrences.reduce((acc: Record<string, RecurringExpenseOccurrence[]>, occurrence: RecurringExpenseOccurrence) => {
     const date = new Date(occurrence.occurrence_date);
     const dateKey = format(date, 'yyyy-MM-dd');
 
@@ -86,7 +86,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
             <p className="text-muted-foreground">No recurring expenses for this date.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {selectedDateOccurrences.map((occurrence) => {
+              {selectedDateOccurrences.map((occurrence: RecurringExpenseOccurrence & { expense?: Record<string, unknown> }) => {
                 const expense = occurrence.expense || {};
                 return (
                   <Card key={occurrence.id}>

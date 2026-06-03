@@ -105,7 +105,7 @@ export function useProfitByPeriod(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_PROFIT}?period=${period}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch profit by period: ${response.status}`);
@@ -232,7 +232,7 @@ export function useCashFlowAnalysis(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_CASH_FLOW}?period=${period}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch cash flow analysis: ${response.status}`);

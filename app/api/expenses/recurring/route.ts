@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Helper function to calculate the next date based on frequency
-    function calculateNextDate(date, frequency, options) {
+    function calculateNextDate(date: string | Date, frequency: string, options: { monthlyRecurrenceType?: string; dayOfMonth?: number }) {
       const nextDate = new Date(date);
 
       switch (frequency) {

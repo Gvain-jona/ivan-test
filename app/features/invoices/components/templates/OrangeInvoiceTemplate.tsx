@@ -1,6 +1,6 @@
 import React from 'react';
 import { Order, OrderItem } from '@/types/orders';
-import { SimplifiedInvoiceSettings } from '@/features/invoices/types';
+import { SimplifiedInvoiceSettings, BankDetail, MobileMoneyDetail } from '@/features/invoices/types';
 
 interface OrangeInvoiceTemplateProps {
   order: Order | null;
@@ -395,7 +395,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {settings.bankDetails.map((bank, index) => (
+                  {settings.bankDetails.map((bank: BankDetail, index: number) => (
                     <tr key={index} style={{ borderTop: index > 0 ? '1px solid #e5e7eb' : 'none' }}>
                       <td style={{ padding: '8px', fontWeight: 'bold', color: styles.purple }}>
                         {bank.accountName}
@@ -415,7 +415,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
             {/* Mobile Money - Multiple accounts supported */}
             <div style={{ border: `1px solid ${styles.tableBorder}`, borderRadius: '4px', padding: '8px' }}>
               <p style={{ fontSize: '12px', fontWeight: '500', color: '#6b7280', marginBottom: '8px' }}>Mobile Money</p>
-              {settings.mobileMoneyDetails.map((mobile, index) => (
+              {settings.mobileMoneyDetails.map((mobile: MobileMoneyDetail, index: number) => (
                 <div key={index} style={{ marginBottom: index < settings.mobileMoneyDetails.length - 1 ? '6px' : '0' }}>
                   <p style={{ fontSize: '12px', fontWeight: 'bold', color: styles.purple, margin: 0 }}>
                     {mobile.provider}: {mobile.phone}

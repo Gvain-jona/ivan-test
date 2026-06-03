@@ -37,11 +37,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    type CategoryRow = { total_revenue: number | string; [key: string]: unknown };
+    const rows = data as CategoryRow[];
     // Calculate total revenue for percentage calculations
-    const totalRevenue = data.reduce((sum, category) => sum + Number(category.total_revenue), 0);
+    const totalRevenue = rows.reduce((sum: number, category: CategoryRow) => sum + Number(category.total_revenue), 0);
 
     // Add percentage of total revenue to each category
-    const categoriesWithPercentage = data.map(category => ({
+    const categoriesWithPercentage = rows.map((category: CategoryRow) => ({
       ...category,
       percentage: totalRevenue > 0 ? (Number(category.total_revenue) / totalRevenue) * 100 : 0
     }));

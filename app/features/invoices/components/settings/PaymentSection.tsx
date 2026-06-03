@@ -136,7 +136,7 @@ const PaymentSection: React.FC<SettingsSectionProps> = ({ control }) => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Existing Bank Details */}
-          {control._formValues.bankDetails?.map((bank, index) => (
+          {control._formValues.bankDetails?.map((bank: BankDetail, index: number) => (
             <div key={bank.id} className="p-4 border border-[#2B2B40] rounded-md bg-card/30 relative">
               <Button
                 variant="ghost"
@@ -222,7 +222,7 @@ const PaymentSection: React.FC<SettingsSectionProps> = ({ control }) => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Existing Mobile Money Details */}
-          {control._formValues.mobileMoneyDetails?.map((mobile, index) => (
+          {control._formValues.mobileMoneyDetails?.map((mobile: MobileMoneyDetail, index: number) => (
             <div key={mobile.id} className="p-4 border border-[#2B2B40] rounded-md bg-card/30 relative">
               <Button
                 variant="ghost"

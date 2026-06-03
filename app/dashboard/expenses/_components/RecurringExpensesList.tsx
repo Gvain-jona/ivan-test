@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Check, Clock, X } from 'lucide-react';
-import { useRecurringExpenses } from '@/hooks/useExpenses';
+import { useRecurringExpenses, type RecurringExpenseOccurrence } from '@/hooks/useExpenses';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +92,7 @@ export function RecurringExpensesList({ isActive = false }) {
         <h2 className="text-xl font-semibold">Upcoming Recurring Expenses</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {occurrences.map((occurrence) => {
+        {occurrences.map((occurrence: RecurringExpenseOccurrence & { expense?: Record<string, unknown> }) => {
           const expense = occurrence.expense || {};
           return (
             <Card key={occurrence.id} className="overflow-hidden">

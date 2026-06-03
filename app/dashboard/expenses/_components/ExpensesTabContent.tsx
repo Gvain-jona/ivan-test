@@ -436,7 +436,7 @@ export function ExpensesTabContent() {
                   <TableCell className="py-3.5 px-4 text-right align-middle whitespace-nowrap">{formatCurrency(expense.balance)}</TableCell>
                   <TableCell className="py-3.5 px-4 align-middle">
                     <Badge variant="outline" className={getPaymentStatusColor(expense.payment_status)}>
-                      {expense.payment_status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {expense.payment_status.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                     </Badge>
                     {expense.is_recurring && (
                       <Badge variant="outline" className="ml-1 bg-blue-500/10 text-blue-500 border-blue-500/20">

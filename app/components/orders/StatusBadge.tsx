@@ -55,7 +55,7 @@ function StatusBadge({ status, size = 'md', onClick, showDropdownIndicator = fal
       default:
         return {
           icon: <Clock className="h-4 w-4 mr-1.5" />,
-          label: status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+          label: status.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
           className: 'bg-slate-500/15 text-slate-400 border-slate-500/30 dark:bg-slate-800/20 dark:text-slate-300 dark:border-slate-700/30'
         };
     }

@@ -30,7 +30,7 @@ const OrderSheet = memo(function OrderSheet({
   showCloseButton = true,
   onClose,
   customHeader
-}) {
+}: OrderSheetProps) {
   // Map size to width class
   const getSizeClass = () => {
     switch (size) {

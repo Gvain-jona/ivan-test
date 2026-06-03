@@ -427,7 +427,7 @@ export function ExpenseView({
         <PaymentForm
           open={isAddingPayment}
           onOpenChange={setIsAddingPayment}
-          onSubmit={async (values) => {
+          onSubmit={async (values: Parameters<typeof addPayment>[0]) => {
             await addPayment(values);
             setIsAddingPayment(false);
           }}
@@ -438,7 +438,7 @@ export function ExpenseView({
         <NoteForm
           open={isAddingNote}
           onOpenChange={setIsAddingNote}
-          onSubmit={async (values) => {
+          onSubmit={async (values: Parameters<typeof addNote>[0]) => {
             await addNote(values);
             setIsAddingNote(false);
           }}

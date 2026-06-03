@@ -120,7 +120,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
         entityForMessage = entityData;
       } else if (actionType === 'edit') {
         // For edit, find and replace the entity in the array
-        const entityIndex = currentEntities.findIndex(e => e.id === entityData.id);
+        const entityIndex = currentEntities.findIndex((e: { id: string }) => e.id === entityData.id);
         if (entityIndex === -1) {
           throw new Error(`${entityType} not found`);
         }
@@ -129,12 +129,12 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
         entityForMessage = entityData;
       } else if (actionType === 'delete') {
         // For delete, find the entity for the success message
-        entityForMessage = currentEntities.find(e => e.id === entityId);
+        entityForMessage = currentEntities.find((e: { id: string }) => e.id === entityId);
         if (!entityForMessage) {
           throw new Error(`${entityType} not found`);
         }
         // Filter out the entity to be deleted
-        updatedEntities = currentEntities.filter(e => e.id !== entityId);
+        updatedEntities = currentEntities.filter((e: { id: string }) => e.id !== entityId);
       }
 
       // Create a new order object with the updated entities

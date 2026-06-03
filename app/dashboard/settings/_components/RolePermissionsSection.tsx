@@ -253,7 +253,7 @@ export function RolePermissionsSection() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {resourcesByType[resourceType].map(resource => (
+                    {resourcesByType[resourceType].map((resource: string) => (
                       <TableRow key={resource}>
                         <TableCell className="font-medium">
                           {formatResourceName(resource.replace(/_/g, ' '))}

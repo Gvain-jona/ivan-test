@@ -137,7 +137,7 @@ export async function generatePdf(
       windowHeight: 297 * 3.78, // A4 height in pixels
       x: 0,
       y: 0,
-      onclone: (clonedDoc) => {
+      onclone: (clonedDoc: Document) => {
         // Ensure the template container has the correct dimensions
         const container = clonedDoc.querySelector('[data-pdf-container="true"]');
         if (container && container instanceof HTMLElement) {
@@ -204,14 +204,14 @@ export async function generatePdf(
 
       // Output as blob
       worker.output('blob')
-        .then((blob) => {
+        .then((blob: Blob) => {
           // Final progress
           if (onProgress) {
             onProgress(100);
           }
           resolve(blob);
         })
-        .catch((error) => {
+        .catch((error: Error) => {
           console.error('Error generating PDF:', error);
           reject(error);
         });

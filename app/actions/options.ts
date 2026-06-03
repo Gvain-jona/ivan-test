@@ -144,7 +144,7 @@ export async function fetchDropdownOptions({
     }
 
     // Transform data to options format
-    const options = data?.map(item => ({
+    const options = data?.map((item: { id: string | number; name: string; [key: string]: unknown }) => ({
       value: item.id.toString(),
       label: item.name,
       ...item // Include all original data
