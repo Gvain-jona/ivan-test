@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
-import { DashboardSkeleton } from '@/components/skeletons';
 import { DashboardStats } from './DashboardStats';
 import { RecentActivity } from './RecentActivity';
 import { DashboardCharts } from './DashboardCharts';
 import { dataService } from '@/lib/supabase';
 import { logError } from '@/lib/utils/error-handler';
+import type { Order, Task } from '@/types/orders';
 
 const EMPTY_STATS = { totalOrders: 0, totalRevenue: 0, totalExpenses: 0, pendingTasks: 0 };
 
@@ -58,8 +58,8 @@ async function DashboardChartsContainer() {
 }
 
 async function RecentActivityContainer() {
-  let orders: any[] = [];
-  let tasks: any[] = [];
+  let orders: Order[] = [];
+  let tasks: Task[] = [];
 
   try {
     [orders, tasks] = await Promise.all([
