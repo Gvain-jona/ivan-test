@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { SWRConfig } from 'swr';
+import { SWRConfig, type Revalidator, type RevalidatorOptions, type SWRConfiguration, type SWRHook, type Key, type BareFetcher } from 'swr';
 import { createSWRConfig, DataFetchType, getSWRConfigForKey } from '@/lib/swr-config';
 
 // Create a context to track slow loading requests
@@ -168,7 +168,7 @@ const DEFAULT_SWR_CONFIG = {
     return cache;
   },
   // Custom error retry function with exponential backoff
-  onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+  onErrorRetry: (error: Error & { status?: number }, key: string, config: SWRConfiguration, revalidate: Revalidator, { retryCount }: Required<RevalidatorOptions>) => {
     // Don't retry on 404s
     if (error.status === 404) return;
     // Don't retry on aborted requests
@@ -180,13 +180,13 @@ const DEFAULT_SWR_CONFIG = {
     setTimeout(() => revalidate({ retryCount }), delay);
   },
   // Log errors and slow loading only in development
-  onLoadingSlow: function(key) {
+  onLoadingSlow: function(key: string) {
     if (process.env.NODE_ENV !== 'production') {
       console.log(`Slow loading: ${key}`);
     }
   },
   // Only log success for important data in development
-  onSuccess: function(data, key) {
+  onSuccess: function(data: unknown, key: string) {
     if (process.env.NODE_ENV !== 'production') {
       // Only log success for important data to reduce console spam
       if (key.includes('/api/orders') || key.includes('/api/dashboard') || key.includes('/api/clients')) {
@@ -194,11 +194,11 @@ const DEFAULT_SWR_CONFIG = {
       }
     }
   },
-  onError: function(error, key) {
+  onError: function(error: Error, key: string) {
     console.error(`Error loading ${key}:`, error);
   },
   // Use a comparison function that ignores undefined values
-  compare: function(a, b) {
+  compare: function(a: unknown, b: unknown) {
     if (a === b) return true;
     if (!a || !b) return false;
     if (Array.isArray(a) && Array.isArray(b)) {
@@ -261,8 +261,8 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     ...DEFAULT_SWR_CONFIG,
     provider: () => sharedCache,
     use: [
-      (useSWRNext) => {
-        return (key, fetcher, config) => {
+      ((useSWRNext: SWRHook) => {
+        return (key: Key, fetcher: BareFetcher<unknown> | null, config: SWRConfiguration<unknown>) => {
           // Use the next middleware
           const swr = useSWRNext(key, fetcher, config);
 
@@ -288,7 +288,7 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
 
           return swr;
         };
-      },
+      }) as unknown as import('swr').Middleware,
     ],
   };
 
