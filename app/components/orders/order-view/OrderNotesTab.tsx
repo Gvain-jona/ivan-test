@@ -11,6 +11,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const formatNoteType = (type: string) => {
+  switch (type) {
+    case 'client_follow_up': return 'Follow Up';
+    case 'urgent': return 'Urgent';
+    case 'internal': return 'Internal';
+    case 'info':
+    default: return 'Info';
+  }
+};
+
 /**
  * NoteEditForm component for inline editing of notes
  */
@@ -263,21 +273,6 @@ const OrderNotesTab: React.FC<OrderNotesTabProps> = ({
     }
   };
 
-  // Format note type for display
-  const formatNoteType = (type: string) => {
-    switch (type) {
-      case 'client_follow_up':
-        return 'Follow Up';
-      case 'urgent':
-        return 'Urgent';
-      case 'internal':
-        return 'Internal';
-      case 'info':
-      default:
-        return 'Info';
-    }
-  };
-
   const handleAddNote = (note: Partial<OrderNote>) => {
     const newNote: OrderNote = {
       id: `note-${Date.now()}`,
@@ -289,11 +284,6 @@ const OrderNotesTab: React.FC<OrderNotesTabProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
-    // Call the onAddNote prop if it exists
-    if (onAddNote) {
-      onAddNote(newNote);
-    }
 
     // Close the form
     setShowNoteForm(false);

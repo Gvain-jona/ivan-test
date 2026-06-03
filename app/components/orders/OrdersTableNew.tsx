@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
+import { Order, OrderStatus, PaymentStatus, ClientType } from '@/types/orders';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import OrderRow from './OrderRow';
 import { Button } from '@/app/components/ui/button';
 import {

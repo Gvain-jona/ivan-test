@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GlobalSmartCombobox } from '@/components/ui/global-smart-combobox';
+import type { ComboboxOption } from '@/components/ui/combobox';
 import { OrderItemFormValues, orderItemSchema } from '@/schemas/order-schema';
 import { OrderItem } from '@/types/orders';
 import { formatCurrency } from '@/lib/utils';
