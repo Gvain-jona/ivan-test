@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import AuthHandlerWrapper from './components/auth/AuthHandlerWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,8 +20,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
-          {/* Add AuthHandlerWrapper to handle authentication */}
-          <AuthHandlerWrapper />
           {children}
         </Providers>
       </body>
