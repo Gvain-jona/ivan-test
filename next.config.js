@@ -28,8 +28,8 @@ const { withSentryConfig } = require("@sentry/nextjs");
 module.exports = withSentryConfig(
   module.exports,
   {
-    org: "gavinjona",
-    project: "javascript-nextjs",
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
     silent: !process.env.CI,
     widenClientFileUpload: true,
     disableLogger: true,

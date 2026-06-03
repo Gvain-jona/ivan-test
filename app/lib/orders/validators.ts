@@ -57,6 +57,14 @@ export const CreateOrderSchema = z.object({
   notes: z.array(OrderNoteInputSchema).optional().default([]),
 });
 
+export const UpdateOrderSchema = z.object({
+  id: z.string().uuid('Order ID must be a valid UUID'),
+  clientId: z.string().uuid('Client ID must be a valid UUID'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  status: OrderStatusSchema,
+  items: z.array(OrderItemInputSchema).min(1, 'At least one item is required'),
+});
+
 export const UpdateOrderStatusSchema = z.object({
   status: OrderStatusSchema,
 });

@@ -1,7 +1,16 @@
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
+import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 import { createApiResponse } from '@/lib/api/response-handler';
+import { PaymentMethodSchema } from '@/lib/orders/validators';
+
+const PaymentInputSchema = z.object({
+  amount: z.number().nonnegative('Amount cannot be negative'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  payment_method: PaymentMethodSchema,
+  notes: z.string().max(500).optional(),
+});
 
 /**
  * GET /api/material-purchases/[id]/payments
@@ -12,40 +21,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // In Next.js 15, params is now async and needs to be awaited
     const { id } = await params;
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Material purchase ID is required');
 
-    if (!id) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Material purchase ID is required',
-        { param: 'id' }
-      );
-    }
-
-    // Create Supabase client
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Get payments for the material purchase
     const { data, error } = await supabase
       .from('material_payments')
       .select('*')
       .eq('purchase_id', id)
       .order('date', { ascending: false });
 
-    if (error) {
-      return handleSupabaseError(error);
-    }
-
-    return createApiResponse({
-      payments: data || []
-    });
+    if (error) return handleSupabaseError(error);
+    return createApiResponse({ payments: data || [] });
   } catch (error) {
-    console.error('Error in GET /api/material-purchases/[id]/payments:', error);
-    return handleApiError(
-      'SERVER_ERROR',
-      'An unexpected error occurred while fetching material payments'
-    );
+    return handleUnexpectedError(error);
   }
 }
 
@@ -61,37 +53,17 @@ export async function POST(
     // In Next.js 15, params is now async and needs to be awaited
     const { id } = await params;
     const body = await request.json();
-    const { payment } = body;
 
-    if (!id) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Material purchase ID is required',
-        { param: 'id' }
-      );
+    if (!id) return handleApiError('VALIDATION_ERROR', 'Material purchase ID is required');
+
+    const parsed = PaymentInputSchema.safeParse(body?.payment);
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid payment data', parsed.error.flatten());
     }
 
-    // Check for required fields
-    if (!payment.amount || !payment.date || !payment.payment_method) {
-      return handleApiError(
-        'VALIDATION_ERROR',
-        'Amount, payment date, and payment method are required',
-        { param: 'payment' }
-      );
-    }
-
-    // Create Supabase client
     const supabase = await createClient();
-
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return handleApiError(
-        'AUTHENTICATION_ERROR',
-        'Authentication required to add a payment'
-      );
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     // Check if the material purchase exists
     const { data: purchase, error: purchaseError } = await supabase
@@ -108,18 +80,15 @@ export async function POST(
       );
     }
 
-    // Add the payment
     const { data: newPayment, error: paymentError } = await supabase
       .from('material_payments')
       .insert({
         purchase_id: id,
-        amount: payment.amount,
-        date: payment.date,
-        payment_method: payment.payment_method,
-        notes: payment.notes || null,
+        amount: parsed.data.amount,
+        date: parsed.data.date,
+        payment_method: parsed.data.payment_method,
+        notes: parsed.data.notes ?? null,
         created_by: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
       })
       .select()
       .single();
@@ -129,8 +98,7 @@ export async function POST(
       return handleSupabaseError(paymentError);
     }
 
-    // Update the material purchase with the new amount paid
-    const newAmountPaid = Number(purchase.amount_paid) + Number(payment.amount);
+    const newAmountPaid = Number(purchase.amount_paid) + Number(parsed.data.amount);
     const totalAmount = Number(purchase.total_amount);
 
     // Determine payment status
@@ -153,8 +121,9 @@ export async function POST(
       .single();
 
     if (updateError) {
-      console.error('Error updating material purchase:', updateError);
-      // Continue even if update fails, we'll return the payment
+      // Rollback: remove the payment we just inserted to keep amount_paid consistent
+      await supabase.from('material_payments').delete().eq('id', newPayment.id);
+      return handleSupabaseError(updateError);
     }
 
     return createApiResponse({
@@ -163,11 +132,7 @@ export async function POST(
       message: 'Payment added successfully'
     });
   } catch (error) {
-    console.error('Error in POST /api/material-purchases/[id]/payments:', error);
-    return handleApiError(
-      'SERVER_ERROR',
-      'An unexpected error occurred while adding the payment'
-    );
+    return handleUnexpectedError(error);
   }
 }
 
@@ -227,23 +192,13 @@ export async function DELETE(
       );
     }
 
-    // Delete the payment
-    const { error: deleteError } = await supabase
-      .from('material_payments')
-      .delete()
-      .eq('id', paymentId)
-      .eq('purchase_id', id);
-
-    if (deleteError) {
-      console.error('Error deleting payment:', deleteError);
-      return handleSupabaseError(deleteError);
-    }
-
-    // Update the material purchase with the new amount paid
+    // Update the purchase total BEFORE deleting the payment.
+    // This order ensures that if the update fails, the payment still exists and
+    // state remains consistent. A failed delete after a successful update is
+    // recoverable on retry; a failed update after a successful delete is not.
     const newAmountPaid = Math.max(0, Number(purchase.amount_paid) - Number(payment.amount));
     const totalAmount = Number(purchase.total_amount);
 
-    // Determine payment status
     let payment_status = 'unpaid';
     if (newAmountPaid >= totalAmount) {
       payment_status = 'paid';
@@ -256,26 +211,28 @@ export async function DELETE(
       .update({
         amount_paid: newAmountPaid,
         payment_status,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
       .single();
 
-    if (updateError) {
-      console.error('Error updating material purchase:', updateError);
-      // Continue even if update fails
-    }
+    if (updateError) return handleSupabaseError(updateError);
+
+    // Delete the payment only after the purchase total is successfully updated
+    const { error: deleteError } = await supabase
+      .from('material_payments')
+      .delete()
+      .eq('id', paymentId)
+      .eq('purchase_id', id);
+
+    if (deleteError) return handleSupabaseError(deleteError);
 
     return createApiResponse({
       message: 'Payment deleted successfully',
-      purchase: updatedPurchase || null
+      purchase: updatedPurchase,
     });
   } catch (error) {
-    console.error('Error in DELETE /api/material-purchases/[id]/payments:', error);
-    return handleApiError(
-      'SERVER_ERROR',
-      'An unexpected error occurred while deleting the payment'
-    );
+    return handleUnexpectedError(error);
   }
 }

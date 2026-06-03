@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
-import { CreateOrderSchema } from '@/lib/orders/validators';
+import { CreateOrderSchema, UpdateOrderSchema } from '@/lib/orders/validators';
 
 export async function GET(request: NextRequest) {
   try {
@@ -130,17 +130,11 @@ export async function PUT(request: NextRequest) {
     if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     const body = await request.json();
-    const { id, clientId, date, status, items } = body as {
-      id?: string;
-      clientId?: string;
-      date?: string;
-      status?: string;
-      items?: unknown[];
-    };
-
-    if (!id || !clientId || !date || !status || !items) {
-      return handleApiError('VALIDATION_ERROR', 'Missing required fields: id, clientId, date, status, items');
+    const parsed = UpdateOrderSchema.safeParse(body);
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
+    const { id, clientId, date, status, items } = parsed.data;
 
     const { error } = await supabase.rpc('update_order', {
       p_order_id: id,
@@ -163,6 +157,15 @@ export async function DELETE(request: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (!profile || !['admin', 'manager'].includes(profile.role)) {
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete orders');
+    }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

@@ -1,14 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 
-/**
- * Updates the Supabase session in middleware
- * This function handles cookie management for authentication
- * 
- * @param request - The Next.js request object
- * @returns A NextResponse with updated session cookies
- */
-export async function updateSession(request: NextRequest) {
+export async function updateSession(
+  request: NextRequest,
+): Promise<{ response: NextResponse; user: User | null }> {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -36,13 +32,14 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refresh the session if it exists
-  // This is important for keeping the user's session alive
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
 
-  // If there's no user and the route is protected, redirect to sign-in
-  // This is handled by the middleware.ts file, so we just return the response here
-  
-  return response
+  if (authError) {
+    console.error('middleware: session check failed', authError.message)
+  }
+
+  return { response, user }
 }
-

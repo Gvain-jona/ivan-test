@@ -36,9 +36,10 @@ export async function GET(
       return handleSupabaseError(orderError);
     }
 
-    if (itemsError) console.error('GET /api/orders/[id]: items fetch failed', itemsError);
-    if (paymentsError) console.error('GET /api/orders/[id]: payments fetch failed', paymentsError);
-    if (notesError) console.error('GET /api/orders/[id]: notes fetch failed', notesError);
+    const warnings: string[] = [];
+    if (itemsError) { console.error('GET /api/orders/[id]: items fetch failed', itemsError); warnings.push('items_unavailable'); }
+    if (paymentsError) { console.error('GET /api/orders/[id]: payments fetch failed', paymentsError); warnings.push('payments_unavailable'); }
+    if (notesError) { console.error('GET /api/orders/[id]: notes fetch failed', notesError); warnings.push('notes_unavailable'); }
 
     const orderDetails = {
       id: order.id,
@@ -93,7 +94,10 @@ export async function GET(
       })),
     };
 
-    return NextResponse.json({ order: orderDetails });
+    return NextResponse.json({
+      order: orderDetails,
+      ...(warnings.length > 0 && { warnings }),
+    });
   } catch (error) {
     return handleUnexpectedError(error);
   }
