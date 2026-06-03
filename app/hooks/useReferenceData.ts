@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import { ComboboxOption } from '@/components/ui/combobox';
+import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 
 // Enhanced fetcher with error handling
 const fetcher = async (url: string) => {
@@ -22,7 +23,7 @@ const fetcher = async (url: string) => {
 // Shared SWR configuration
 const swrConfig = {
   revalidateOnFocus: false,
-  dedupingInterval: 300000, // 5 minutes
+  dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE,
   focusThrottleInterval: 300000, // 5 minutes
   revalidateOnReconnect: false
 };

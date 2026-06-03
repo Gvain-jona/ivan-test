@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useLoadingSWR } from '../useLoadingSWR';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
+import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { createMaterialSWRConfig } from './swr-config';
@@ -64,8 +65,7 @@ export function useMaterialPurchasesList(
     revalidateOnFocus: true,
     revalidateIfStale: true,
     revalidateOnReconnect: true,
-    // Reduce deduping interval to ensure fresher data
-    dedupingInterval: 5 * 60 * 1000, // 5 minutes
+    dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE,
     // Add a fallback to ensure we always have data
     fallbackData: { purchases: [], total: 0, page: 1, limit: 10 }
   };
@@ -452,9 +452,8 @@ export function useMaterialPurchaseDetails(id?: string) {
     revalidateOnFocus: true,
     revalidateIfStale: true,
     revalidateOnReconnect: true,
-    errorRetryCount: 3,
-    // Reduce deduping interval to ensure fresher data
-    dedupingInterval: 5 * 60 * 1000 // 5 minutes
+    errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
+    dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE
   };
 
   // Create a cache key
@@ -1081,7 +1080,7 @@ export function useMaterialInstallments(purchaseId: string) {
         }
       },
       {
-        dedupingInterval: 5 * 60 * 1000, // 5 minutes
+        dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE,
         revalidateOnFocus: true,
         revalidateIfStale: true
       }

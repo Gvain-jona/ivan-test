@@ -3,7 +3,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useLoadingSWR, useFetch } from './useLoadingSWR';
 import { SWRConfiguration } from 'swr';
-import { createSWRConfig } from '@/lib/swr-config';
+import { createSWRConfig, SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { dataService } from '@/lib/supabase';
 import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
@@ -35,10 +35,8 @@ const DEFAULT_CONFIG: SWRConfiguration = {
   revalidateOnReconnect: false,
   // Keep previous data while fetching new data to prevent flashing
   keepPreviousData: true,
-  // Cache data for 30 minutes to reduce unnecessary requests
-  dedupingInterval: 30 * 60 * 1000, // 30 minutes - increased to reduce API calls
-  // Retry failed requests up to 2 times
-  errorRetryCount: 2,
+  dedupingInterval: SWR_CACHE_TIMES.STATS_DEDUPE,
+  errorRetryCount: SWR_RETRY.LIST_COUNT,
   // Set a 5 second timeout for loading states
   loadingTimeout: 5000, // 5 seconds
   // Throttle focus events to reduce unnecessary revalidations
@@ -54,7 +52,7 @@ const DROPDOWN_CONFIG: SWRConfiguration = {
 // Configuration for dashboard data (longer cache time)
 const DASHBOARD_CONFIG: SWRConfiguration = {
   ...DEFAULT_CONFIG,
-  dedupingInterval: 300000, // 5 minutes
+  dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE,
 };
 
 // Define response types

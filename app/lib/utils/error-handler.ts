@@ -1,10 +1,6 @@
-/**
- * Global error handler utility
- *
- * This file provides functions for handling and logging errors globally.
- */
+import * as Sentry from '@sentry/nextjs';
 
-// Log an error with detailed information
+// Log an error with detailed information and forward to Sentry
 export function logError(error: Error | unknown, context?: Record<string, any>) {
   console.error('===== GLOBAL ERROR HANDLER =====');
 
@@ -54,6 +50,13 @@ export function logError(error: Error | unknown, context?: Record<string, any>) 
   }
 
   console.error('================================');
+
+  // Forward to Sentry for production visibility
+  if (error instanceof Error) {
+    Sentry.captureException(error, { extra: context });
+  } else if (error) {
+    Sentry.captureMessage(String(error), { extra: context });
+  }
 }
 
 // Initialize global error handlers

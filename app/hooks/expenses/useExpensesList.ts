@@ -3,7 +3,7 @@ import { useLoadingSWR } from '../useLoadingSWR';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { toast } from 'sonner';
 import { Expense, ExpenseFilters, ExpenseNote, ExpensePayment } from './types';
-import { createSWRConfig } from '@/lib/swr-config';
+import { createSWRConfig, SWR_RETRY } from '@/lib/swr-config';
 import {
   calculateAmountPaid,
   calculateBalance,
@@ -54,7 +54,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
     ...EXPENSE_SWR_CONFIG,
     fallbackData: { expenses: [], count: 0, limit: 50, offset: 0 },
     dedupingInterval: 60 * 1000,
-    errorRetryCount: 3,
+    errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
     errorRetryInterval: 2000,
     keepPreviousData: true,
   };
