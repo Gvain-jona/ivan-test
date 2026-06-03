@@ -75,7 +75,7 @@ export async function fetchDropdownOptions({
     const supabase = await createClient()
 
     // Determine which table to query based on entity type
-    let table = ''
+    let table: 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes' = 'clients'
     let columns = 'id, name'
     let orderBy = 'name'
     let whereClause = ''
@@ -191,7 +191,7 @@ export async function createDropdownOption({
     const supabase = await createClient()
 
     // Determine which table to insert into
-    let table = ''
+    let table: 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes' = 'clients'
     let data: any = { name: label.trim() }
 
     switch (entityType) {

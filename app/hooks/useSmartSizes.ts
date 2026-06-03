@@ -27,8 +27,7 @@ export function useSmartSizes(): UseSmartSizesReturn {
     refreshOptions: refreshSizes
   } = useSmartDropdown({
     entityType: 'sizes',
-    cacheKey: 'sizes',
-    initialOptions: [], // Explicitly set initialOptions to empty array to prevent hardcoded values
+    initialOptions: [],
   })
 
   // Create a new size

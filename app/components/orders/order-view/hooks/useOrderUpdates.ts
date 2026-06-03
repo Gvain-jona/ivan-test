@@ -464,7 +464,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, editPayment: updatedPayment.id }));
 
       // Find the payment index in the order payments array
-      const paymentIndex = order.payments.findIndex(payment => payment.id === updatedPayment.id);
+      const paymentIndex = (order.payments ?? []).findIndex(payment => payment.id === updatedPayment.id);
       if (paymentIndex === -1) {
         throw new Error('Payment not found');
       }
@@ -535,13 +535,13 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, deletePayment: paymentId }));
 
       // Find the payment to be deleted (for the success message)
-      const paymentToDelete = order.payments.find(payment => payment.id === paymentId);
+      const paymentToDelete = (order.payments ?? []).find(payment => payment.id === paymentId);
       if (!paymentToDelete) {
         throw new Error('Payment not found');
       }
 
       // Filter out the payment to be deleted
-      const updatedPayments = order.payments.filter(payment => payment.id !== paymentId);
+      const updatedPayments = (order.payments ?? []).filter(payment => payment.id !== paymentId);
 
       // Create a new order object with the updated payments
       const updatedOrder = {
@@ -684,7 +684,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, editNote: updatedNote.id }));
 
       // Find the note index in the order notes array
-      const noteIndex = order.notes.findIndex(note => note.id === updatedNote.id);
+      const noteIndex = (order.notes ?? []).findIndex(note => note.id === updatedNote.id);
       if (noteIndex === -1) {
         throw new Error('Note not found');
       }
@@ -755,13 +755,13 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, deleteNote: noteId }));
 
       // Find the note to be deleted
-      const noteToDelete = order.notes.find(note => note.id === noteId);
+      const noteToDelete = (order.notes ?? []).find(note => note.id === noteId);
       if (!noteToDelete) {
         throw new Error('Note not found');
       }
 
       // Filter out the note to be deleted
-      const updatedNotes = order.notes.filter(note => note.id !== noteId);
+      const updatedNotes = (order.notes ?? []).filter(note => note.id !== noteId);
 
       // Create a new order object with the updated notes
       const updatedOrder = {

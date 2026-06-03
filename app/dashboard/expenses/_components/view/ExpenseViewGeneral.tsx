@@ -80,7 +80,7 @@ export function ExpenseViewGeneral({ expense }: ExpenseViewGeneralProps) {
                 <p className="text-sm font-medium">{expense.responsible}</p>
               </div>
             )}
-            {expense.vat > 0 && (
+            {(expense.vat ?? 0) > 0 && (
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground flex items-center">
                   <Tag className="h-4 w-4 mr-2" />

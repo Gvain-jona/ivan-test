@@ -54,7 +54,7 @@ export function useTabNavigation({
   activeMenu,
   contextMenuOpen
 }: UseTabNavigationProps): UseTabNavigationReturn {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { startNavigation } = useNavigation();
 
   // State for active tab

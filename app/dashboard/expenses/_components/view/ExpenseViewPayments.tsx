@@ -33,7 +33,7 @@ export function ExpenseViewPayments({
           Payments
           {hasPayments && (
             <Badge variant="outline" className="ml-2 bg-muted">
-              {expense.payments.length}
+              {expense.payments!.length}
             </Badge>
           )}
         </h3>
@@ -50,7 +50,7 @@ export function ExpenseViewPayments({
 
       {hasPayments ? (
         <div className="space-y-3">
-          {expense.payments.map((payment: ExpensePayment) => (
+          {expense.payments!.map((payment: ExpensePayment) => (
             <PaymentCard
               key={payment.id}
               payment={payment}
