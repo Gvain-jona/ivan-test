@@ -9,6 +9,8 @@ import { createClient } from '@/utils/supabase/client';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import type { Order, OrderItem, OrderPayment, OrderNote, Task } from '@/types/orders';
+import type { Database } from '@/types/supabase';
+import { z } from 'zod';
 
 // Error handling
 export class DatabaseError extends Error {
@@ -38,25 +40,7 @@ export async function getDbClient(serverSide = false) {
 }
 
 // Generic types for database operations
-type TableName =
-  | 'profiles'
-  | 'clients'
-  | 'categories'
-  | 'items'
-  | 'orders'
-  | 'order_items'
-  | 'order_payments'
-  | 'suppliers'
-  | 'expenses'
-  | 'expense_payments'
-  | 'material_purchases'
-  | 'material_purchase_payments'
-  | 'tasks'
-  | 'notes'
-  | 'notifications'
-  | 'settings'
-  | 'approvals'
-  | 'sessions';
+type TableName = keyof Database['public']['Tables'];
 
 type OrderDirection = 'asc' | 'desc';
 
@@ -394,7 +378,7 @@ export const db = {
         throw new DatabaseError(error.message, 500, error.code);
       }
 
-      return data as string;
+      return data as unknown as string;
     } catch (error) {
       if (error instanceof DatabaseError) {
         throw error;
@@ -476,7 +460,7 @@ export const db = {
       const supabase = await getDbClient(serverSide);
 
       const { data, error } = await supabase
-        .rpc(funcName, params);
+        .rpc(funcName as Parameters<typeof supabase.rpc>[0], params as never);
 
       if (error) {
         throw new DatabaseError(
@@ -640,7 +624,7 @@ export const ordersService = {
       // Update order items if provided
       if (orderData.items && orderData.items.length > 0) {
         // Delete existing items first
-        const supabase = getDbClient(serverSide);
+        const supabase = await getDbClient(serverSide);
         await supabase.from('order_items').delete().eq('order_id', id);
 
         // Create new items
