@@ -22,7 +22,7 @@ interface OrdersResponse {
   pageSize: number;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   try {
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(

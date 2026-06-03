@@ -244,9 +244,9 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
             status: order.status || 'pending',
             payment_status: order.payment_status || 'unpaid',
             total_amount: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
-            amount_paid: payments.reduce((sum, payment) => sum + payment.amount, 0),
-            balance: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0) -
-                     payments.reduce((sum, payment) => sum + payment.amount, 0),
+            amount_paid: payments.reduce((sum: number, payment: OrderPayment) => sum + payment.amount, 0),
+            balance: items.reduce((sum: number, item: OrderItem) => sum + (item.quantity * item.unit_price), 0) -
+                     payments.reduce((sum: number, payment: OrderPayment) => sum + payment.amount, 0),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             items: items,
