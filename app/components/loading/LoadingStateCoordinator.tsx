@@ -1,8 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '@/app/context/auth-context';
 import { PageSkeleton, LoadingError } from '@/components/ui/loading';
+import { useGlobalDropdownCache } from '@/context/GlobalDropdownCache';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { DashboardSkeleton } from '@/components/skeletons';
 
 interface LoadingStateCoordinatorProps {
   children: React.ReactNode;
