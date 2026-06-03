@@ -8,6 +8,7 @@
 import { createClient } from '@/utils/supabase/client';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
+import type { Order, OrderItem, OrderPayment, OrderNote, Task } from '@/types/orders';
 
 // Error handling
 export class DatabaseError extends Error {
@@ -506,7 +507,7 @@ export const ordersService = {
     pagination: PaginationParams = { page: 1, pageSize: 10 },
     serverSide = false
   ) {
-    return db.query<z.Order>(
+    return db.query<Order>(
       'orders',
       filters,
       pagination,
@@ -518,7 +519,7 @@ export const ordersService = {
   },
 
   async getById(id: string, serverSide = false) {
-    const order = await db.getById<z.Order>(
+    const order = await db.getById<Order>(
       'orders',
       id,
       { columns: '*' },
@@ -526,13 +527,13 @@ export const ordersService = {
     );
 
     // No need to format the order since client_name is directly in the orders table
-    const formattedOrder: z.Order = {
+    const formattedOrder: Order = {
       ...order,
       client_name: order.client_name || 'Unknown Client'
     };
 
     // Fetch order items - no need to join with items and categories tables
-    const { data: items } = await db.query<z.OrderItem>(
+    const { data: items } = await db.query<OrderItem>(
       'order_items',
       { order_id: id },
       { page: 1, pageSize: 100 },
@@ -546,7 +547,7 @@ export const ordersService = {
     formattedOrder.items = items;
 
     // Fetch order payments
-    const { data: payments } = await db.query<z.OrderPayment>(
+    const { data: payments } = await db.query<OrderPayment>(
       'order_payments',
       { order_id: id },
       { page: 1, pageSize: 100 },
@@ -559,7 +560,7 @@ export const ordersService = {
     formattedOrder.payments = payments;
 
     // Fetch order notes
-    const { data: notes } = await db.query<z.Note>(
+    const { data: notes } = await db.query<OrderNote>(
       'notes',
       { linked_item_id: id, linked_item_type: 'order' },
       { page: 1, pageSize: 100 },
@@ -574,21 +575,19 @@ export const ordersService = {
     return formattedOrder;
   },
 
-  async create(order: Omit<z.Order, 'id' | 'created_at' | 'updated_at'>, serverSide = false) {
+  async create(order: Omit<Order, 'id' | 'created_at' | 'updated_at'>, serverSide = false) {
     try {
-      // Validate the order data
-      z.validateOrder(order);
 
       // Begin a transaction
       await db.beginTransaction(serverSide);
 
       // Create the order
-      const newOrder = await db.create<z.Order>('orders', order, serverSide);
+      const newOrder = await db.create<Order>('orders', order, serverSide);
 
       // Create order items if provided
       if (order.items && order.items.length > 0) {
         for (const item of order.items) {
-          await db.create<z.OrderItem>(
+          await db.create<OrderItem>(
             'order_items',
             {
               ...item,
@@ -602,7 +601,7 @@ export const ordersService = {
       // Create order payments if provided
       if (order.payments && order.payments.length > 0) {
         for (const payment of order.payments) {
-          await db.create<z.OrderPayment>(
+          await db.create<OrderPayment>(
             'order_payments',
             {
               ...payment,
@@ -627,18 +626,16 @@ export const ordersService = {
 
   async update(
     id: string,
-    orderData: Partial<z.Order>,
+    orderData: Partial<Order>,
     serverSide = false
   ) {
     try {
-      // Validate the order data
-      z.validateOrderUpdate(orderData);
 
       // Begin a transaction
       await db.beginTransaction(serverSide);
 
       // Update the order
-      await db.update<z.Order>('orders', id, orderData, serverSide);
+      await db.update<Order>('orders', id, orderData, serverSide);
 
       // Update order items if provided
       if (orderData.items && orderData.items.length > 0) {
@@ -648,7 +645,7 @@ export const ordersService = {
 
         // Create new items
         for (const item of orderData.items) {
-          await db.create<z.OrderItem>(
+          await db.create<OrderItem>(
             'order_items',
             {
               ...item,
@@ -664,7 +661,7 @@ export const ordersService = {
         for (const payment of orderData.payments) {
           if (payment.id) {
             // Update existing payment
-            await db.update<z.OrderPayment>(
+            await db.update<OrderPayment>(
               'order_payments',
               payment.id,
               payment,
@@ -672,7 +669,7 @@ export const ordersService = {
             );
           } else {
             // Create new payment
-            await db.create<z.OrderPayment>(
+            await db.create<OrderPayment>(
               'order_payments',
               {
                 ...payment,
@@ -709,7 +706,7 @@ export const tasksService = {
     pagination: PaginationParams = { page: 1, pageSize: 10 },
     serverSide = false
   ) {
-    return db.query<z.Task>(
+    return db.query<Task>(
       'tasks',
       filters,
       pagination,
@@ -721,7 +718,7 @@ export const tasksService = {
   },
 
   async getById(id: string, serverSide = false) {
-    const task = await db.getById<z.Task>(
+    const task = await db.getById<Task>(
       'tasks',
       id,
       { columns: '*, assigned_user:assigned_to(name), creator:created_by(name)' },
@@ -737,20 +734,16 @@ export const tasksService = {
     };
   },
 
-  async create(task: Omit<z.Task, 'id' | 'created_at' | 'updated_at'>, serverSide = false) {
-    // Validate the task data
-    z.validateTask(task);
+  async create(task: Omit<Task, 'id' | 'created_at' | 'updated_at'>, serverSide = false) {
 
     // Create the task
-    return db.create<z.Task>('tasks', task, serverSide);
+    return db.create<Task>('tasks', task, serverSide);
   },
 
-  async update(id: string, task: Partial<z.Task>, serverSide = false) {
-    // Validate the task data
-    z.validateTaskUpdate(task);
+  async update(id: string, task: Partial<Task>, serverSide = false) {
 
     // Update the task
-    return db.update<z.Task>('tasks', id, task, serverSide);
+    return db.update<Task>('tasks', id, task, serverSide);
   },
 
   async delete(id: string, serverSide = false) {

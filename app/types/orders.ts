@@ -51,9 +51,11 @@ export interface OrderPayment {
   id: string;
   order_id: string;
   amount: number;
-  // Use date as the primary field to match the database schema
   date: string;
+  /** @deprecated alias for date — prefer date */
+  payment_date?: string;
   payment_method: PaymentMethod;
+  payment_type?: string;
   created_at: string;
   updated_at: string;
 }
@@ -117,6 +119,9 @@ export interface Task {
   linked_item_type: string;
   linked_item_id: string;
   recurring: boolean;
+  recurrence_frequency?: string | null;
+  recurrence_start_date?: string | null;
+  recurrence_end_date?: string | null;
   assigned_to: string;
   assigned_to_name: string;
   created_by: string;

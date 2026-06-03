@@ -15,6 +15,7 @@ export interface Notification {
   title: string;
   message: string;
   timestamp: string; // ISO string
+  created_at?: string | null;
   status: NotificationStatus;
   sender: {
     id: string;

@@ -51,6 +51,12 @@ export interface Expense {
   recurrence_end_date?: string;
   next_occurrence_date?: string;
   reminder_days?: number;
+  recurrence_day_of_month?: number | null;
+  recurrence_day_of_week?: number | null;
+  recurrence_week_of_month?: number | null;
+  recurrence_month_of_year?: number | null;
+  recurrence_time?: string | null;
+  monthly_recurrence_type?: string | null;
   notes?: ExpenseNote[];
   created_by?: string | { id: string; full_name: string };
   created_at?: string;
