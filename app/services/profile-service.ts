@@ -2,7 +2,7 @@
 
 import { User } from '@supabase/supabase-js'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { Profile } from '@/app/types/auth'
+import { Profile } from '@/lib/auth/types'
 
 /**
  * Service for handling profile-related operations
