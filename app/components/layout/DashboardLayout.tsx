@@ -33,10 +33,7 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
       {/* Performance monitor disabled */}
       <div className="flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <TopHeader
-          onMenuClick={toggleMobileMenu}
-          isMobileMenuVisible={isMobileMenuOpen}
-        />
+        <TopHeader />
 
         {/* Page Content with Error Boundary, LoadingStateCoordinator, and Suspense */}
         <main className={cn(

@@ -84,10 +84,9 @@ export function useLoadingSWR<Data = any, Error = any>(
         console.error(`SWR Error for key ${key}:`, err);
         // Call the original onError handler if provided
         if (config?.onError) {
-          config.onError(err, key, config);
+          config.onError(err, key, config as never);
         } else if (baseConfig.onError) {
-          // Fall back to the base config's onError handler
-          baseConfig.onError(err, key, baseConfig);
+          baseConfig.onError(err, key, baseConfig as never);
         }
       },
       // Provide a fallback empty object to prevent null errors if not provided
@@ -199,7 +198,7 @@ export function useFetch<Data = any, Error = any>(
         console.error(`Error fetching ${url}:`, error);
 
         // Check if it's an abort error (timeout)
-        if (error.name === 'AbortError') {
+        if (error instanceof Error && error.name === 'AbortError') {
           console.error(`Fetch request timed out for ${url}`);
         }
 

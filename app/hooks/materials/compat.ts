@@ -138,6 +138,7 @@ export function useMaterialInstallments(purchaseId: string) {
           setIsDirectFetching(false);
         }
       },
+      'installments',
       {
         dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE,
         revalidateOnFocus: true,

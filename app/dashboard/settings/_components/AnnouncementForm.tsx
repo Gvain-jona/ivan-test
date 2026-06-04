@@ -44,7 +44,7 @@ import { cn } from '@/lib/utils';
 
 // Form schema
 const announcementFormSchema = z.object({
-  tag: z.enum(ANNOUNCEMENT_TAGS, {
+  tag: z.enum(ANNOUNCEMENT_TAGS as [string, ...string[]], {
     errorMap: () => ({ message: 'Please select a valid tag' })
   }),
   message: z.string().min(1, 'Message is required').max(100, 'Message must be 100 characters or less'),
@@ -71,7 +71,7 @@ interface AnnouncementFormProps {
 export function AnnouncementForm({ announcement, onSave, onCancel }: AnnouncementFormProps) {
   // Initialize form with default values or existing announcement
   const form = useForm<AnnouncementFormValues>({
-    resolver: zodResolver(announcementFormSchema),
+    resolver: zodResolver(announcementFormSchema) as any,
     defaultValues: {
       tag: announcement?.tag || 'Announcement', // Use a valid default from ANNOUNCEMENT_TAGS
       message: announcement?.message || '',
@@ -108,12 +108,14 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
     }
   };
 
+  const formControl = form.control as any;
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
-            control={form.control}
+            control={formControl}
             name="tag"
             render={({ field }) => (
               <FormItem>
@@ -141,7 +143,7 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
           />
 
           <FormField
-            control={form.control}
+            control={formControl}
             name="variant"
             render={({ field }) => (
               <FormItem>
@@ -207,7 +209,7 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
         </div>
 
         <FormField
-          control={form.control}
+          control={formControl}
           name="message"
           render={({ field }) => (
             <FormItem>
@@ -228,7 +230,7 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
         />
 
         <FormField
-          control={form.control}
+          control={formControl}
           name="link"
           render={({ field }) => (
             <FormItem>
@@ -266,7 +268,7 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
-            control={form.control}
+            control={formControl}
             name="start_date"
             render={({ field }) => (
               <FormItem className="flex flex-col">
@@ -312,7 +314,7 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
           />
 
           <FormField
-            control={form.control}
+            control={formControl}
             name="end_date"
             render={({ field }) => (
               <FormItem className="flex flex-col">
@@ -359,7 +361,7 @@ export function AnnouncementForm({ announcement, onSave, onCancel }: Announcemen
         </div>
 
         <FormField
-          control={form.control}
+          control={formControl}
           name="is_active"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">

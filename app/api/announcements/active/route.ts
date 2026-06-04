@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const dataArr = data as unknown as unknown[];
     // If no active announcement, return null
-    if (!data || data.length === 0) {
+    if (!dataArr || dataArr.length === 0) {
       return NextResponse.json(null);
     }
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const headers = new Headers();
     headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400'); // Cache for 1 hour, stale for 1 day
 
-    return NextResponse.json(data[0], { headers });
+    return NextResponse.json(dataArr[0], { headers });
   } catch (error) {
     console.error('Unexpected error:', error);
     return NextResponse.json(

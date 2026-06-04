@@ -18,7 +18,7 @@ interface Task {
   clientName: string;
   clientType: ClientType;
   dueDate: string;
-  productionStatus: OrderStatus;
+  productionStatus: string;
   priority: TaskPriority;
   status: TaskStatus;
   items: {

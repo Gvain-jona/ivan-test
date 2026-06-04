@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in GET /api/material-purchases/optimized:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while fetching material purchases'
     );
   }

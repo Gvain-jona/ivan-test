@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in GET /api/material-purchases:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while fetching material purchases'
     );
   }
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     if (userError || !user) {
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to create a material purchase'
       );
     }
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in POST /api/material-purchases:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while creating the material purchase'
     );
   }

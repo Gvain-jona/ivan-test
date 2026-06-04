@@ -16,8 +16,8 @@ export const HOME_METRICS_DATA = {
 };
 
 // Recent orders data (derived from sample orders)
-export const RECENT_ORDERS = SAMPLE_ORDERS
-  .sort((a: { date: string }, b: { date: string }) => new Date(b.date).getTime() - new Date(a.date).getTime())
+export const RECENT_ORDERS = (SAMPLE_ORDERS as { date: string }[])
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   .slice(0, 5);
 
 // Upcoming tasks data

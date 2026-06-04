@@ -1,22 +1,11 @@
 "use server"
 
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { OrderItem, OrderNote } from '@/types/orders';
 
 // Create a Supabase client
 const getSupabase = async () => {
-  // Use await with cookies() as it's now async in Next.js 15
-  const cookieStore = await cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-    },
-  });
+  return createClient();
 };
 
 /**

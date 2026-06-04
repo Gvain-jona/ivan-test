@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     // Get existing occurrences for these expenses
     const expenseIds = expenses?.map(expense => expense.id) || [];
 
-    let occurrences = [];
+    let occurrences: unknown[] = [];
     if (expenseIds.length > 0) {
       // Try to use join syntax first
       const { data: joinOccurrences, error: joinError } = await supabase
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Unauthorized', { status: 401 });
+      return handleApiError('UNAUTHORIZED', 'Unauthorized', { status: 401 });
     }
 
     const supabase = await createClient();
@@ -195,11 +195,20 @@ export async function POST(request: NextRequest) {
           await supabase.rpc('calculate_next_occurrence', { expense_id: expense.id });
 
           // Get the updated expense with the new next_occurrence_date
-          const { data: updatedExpense, error: fetchError } = await supabase
+          const { data: rawUpdatedExpense, error: fetchError } = await supabase
             .from('expenses')
-            .select('next_occurrence_date, recurrence_frequency, recurrence_day_of_month, recurrence_day_of_week, recurrence_week_of_month, recurrence_month_of_year, monthly_recurrence_type')
+            .select('*')
             .eq('id', expense.id)
             .single();
+          const updatedExpense = rawUpdatedExpense as typeof rawUpdatedExpense & {
+            next_occurrence_date?: string;
+            recurrence_frequency?: string;
+            recurrence_day_of_month?: number;
+            recurrence_day_of_week?: number;
+            recurrence_week_of_month?: number;
+            recurrence_month_of_year?: number;
+            monthly_recurrence_type?: string;
+          } | null;
 
           if (fetchError || !updatedExpense) {
             errors.push({
@@ -232,11 +241,8 @@ export async function POST(request: NextRequest) {
               currentDate,
               updatedExpense.recurrence_frequency,
               {
-                dayOfMonth: updatedExpense.recurrence_day_of_month,
-                dayOfWeek: updatedExpense.recurrence_day_of_week,
-                weekOfMonth: updatedExpense.recurrence_week_of_month,
-                monthOfYear: updatedExpense.recurrence_month_of_year,
-                monthlyRecurrenceType: updatedExpense.monthly_recurrence_type
+                dayOfMonth: updatedExpense.recurrence_day_of_month ?? undefined,
+                monthlyRecurrenceType: updatedExpense.monthly_recurrence_type ?? undefined
               }
             );
 
@@ -323,7 +329,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );

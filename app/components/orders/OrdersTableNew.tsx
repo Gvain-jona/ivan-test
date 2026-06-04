@@ -428,7 +428,7 @@ export default function OrdersTable(props: OrdersTableProps) {
               <div className="flex items-center gap-1">
                 <span className="text-sm text-muted-foreground">Date:</span>
                 <Badge variant="outline" className="text-xs">
-                  {format(dateRange.from, "MMM dd, yyyy")}
+                  {dateRange.from ? format(dateRange.from, "MMM dd, yyyy") : ''}
                   {dateRange.to && ` - ${format(dateRange.to, "MMM dd, yyyy")}`}
                   <span
                     className="ml-1 hover:text-foreground cursor-pointer"

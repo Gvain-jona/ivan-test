@@ -97,7 +97,7 @@ const RecentOrdersTab: React.FC = () => {
               ))
             ) : (
               // Actual data
-              recentOrders.map((order: Order) => (
+              (recentOrders as unknown as Order[]).map((order: Order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.id}</TableCell>
                   <TableCell>{order.client_name}</TableCell>

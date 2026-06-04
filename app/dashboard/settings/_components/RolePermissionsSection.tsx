@@ -79,11 +79,11 @@ export function RolePermissionsSection() {
 
         if (error) throw error;
 
-        setPermissions(data || []);
+        setPermissions((data || []) as unknown as RolePermission[]);
 
         // Group permissions by role, resource_type, and resource
         const grouped: GroupedPermissions = {};
-        (data || []).forEach(permission => {
+        ((data || []) as unknown as RolePermission[]).forEach(permission => {
           if (!grouped[permission.role]) {
             grouped[permission.role] = {};
           }
@@ -168,7 +168,7 @@ export function RolePermissionsSection() {
       // Upsert permissions
       const { error } = await supabase
         .from('role_permissions')
-        .upsert(permissionsToSave, { onConflict: 'role,resource_type,resource' });
+        .upsert(permissionsToSave as never, { onConflict: 'role,resource_type,resource' });
 
       if (error) throw error;
 
@@ -253,7 +253,7 @@ export function RolePermissionsSection() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {resourcesByType[resourceType].map((resource: string) => (
+                    {(resourcesByType as Record<string, string[]>)[resourceType].map((resource: string) => (
                       <TableRow key={resource}>
                         <TableCell className="font-medium">
                           {formatResourceName(resource.replace(/_/g, ' '))}

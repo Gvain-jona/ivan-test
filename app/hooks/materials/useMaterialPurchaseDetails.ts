@@ -162,7 +162,7 @@ export function useMaterialPurchaseDetails(id?: string) {
         }
       }
     },
-    cacheKey,
+    cacheKey ?? undefined,
     swrConfig
   );
 
@@ -202,7 +202,7 @@ export function useMaterialPurchaseDetails(id?: string) {
             : 'unpaid';
 
       // Optimistically update the UI
-      mutate(prevData => {
+      mutate((prevData) => {
         if (!prevData || !prevData.purchase) return prevData;
 
         const updatedPurchase = {
@@ -216,7 +216,7 @@ export function useMaterialPurchaseDetails(id?: string) {
         return {
           ...prevData,
           purchase: updatedPurchase
-        };
+        } as MaterialPurchaseResponse;
       }, false);
 
       // Make the API request
@@ -286,7 +286,7 @@ export function useMaterialPurchaseDetails(id?: string) {
             : 'unpaid';
 
       // Optimistically update the UI
-      mutate(prevData => {
+      mutate((prevData) => {
         if (!prevData || !prevData.purchase) return prevData;
 
         const updatedPurchase = {
@@ -300,7 +300,7 @@ export function useMaterialPurchaseDetails(id?: string) {
         return {
           ...prevData,
           purchase: updatedPurchase
-        };
+        } as MaterialPurchaseResponse;
       }, false);
 
       // Make the API request

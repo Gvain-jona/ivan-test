@@ -222,7 +222,7 @@ export function InstallmentPlanView({ purchase, refreshPurchase }: InstallmentPl
         toast({
           title: "No installments found",
           description: "The purchase has an installment plan but no installments were found",
-          variant: "warning"
+          variant: "default"
         });
         return;
       }

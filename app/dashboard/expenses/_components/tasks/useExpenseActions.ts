@@ -31,27 +31,15 @@ export function useExpenseActions({
   const handleStatusUpdate = async (occurrenceId: string, status: OccurrenceStatus) => {
     try {
       // Use the context function for all status updates
-      const result = await updateOccurrenceStatus(occurrenceId, status);
+      await updateOccurrenceStatus(occurrenceId, status);
 
-      // Show appropriate success message based on the response
-      if (result && result.message) {
-        toast.success(result.message);
-
-        // If a regular expense was created, show additional info
-        if (status === 'completed' && result.expense) {
-          // Show a simple toast notification without the view option
-          toast.success(`Regular expense created and payment recorded.`, {
-            duration: 3000
-          });
-        }
-      } else {
-        const message = status === 'completed'
-          ? 'Expense completed successfully'
-          : status === 'skipped'
-            ? 'Expense skipped successfully'
-            : 'Expense status reset successfully';
-        toast.success(message);
-      }
+      // Show appropriate success message based on the status
+      const message = status === 'completed'
+        ? 'Expense completed successfully'
+        : status === 'skipped'
+          ? 'Expense skipped successfully'
+          : 'Expense status reset successfully';
+      toast.success(message);
 
       // Refresh the data to reflect the changes
       await refreshData();

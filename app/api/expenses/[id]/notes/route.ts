@@ -44,7 +44,7 @@ export async function GET(
   } catch (error) {
     console.error('Unexpected error in GET /api/expenses/[id]/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while fetching expense notes'
     );
   }
@@ -101,7 +101,7 @@ export async function POST(
 
     if (userError || !user) {
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to add a note'
       );
     }
@@ -142,7 +142,7 @@ export async function POST(
   } catch (error) {
     console.error('Unexpected error in POST /api/expenses/[id]/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while adding the note'
     );
   }
@@ -199,7 +199,7 @@ export async function PUT(
 
     if (userError || !user) {
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to update a note'
       );
     }
@@ -241,7 +241,7 @@ export async function PUT(
   } catch (error) {
     console.error('Unexpected error in PUT /api/expenses/[id]/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while updating the note'
     );
   }
@@ -276,7 +276,7 @@ export async function DELETE(
 
     if (userError || !user) {
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to delete a note'
       );
     }
@@ -296,7 +296,7 @@ export async function DELETE(
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'manager' && note?.created_by !== user.id)) {
       return handleApiError(
-        'AUTHORIZATION_ERROR',
+        'FORBIDDEN',
         'You do not have permission to delete this note'
       );
     }
@@ -333,7 +333,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Unexpected error in DELETE /api/expenses/[id]/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while deleting the note'
     );
   }

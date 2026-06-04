@@ -27,6 +27,7 @@ export type NavSeparator = {
   href?: never;
   isContextMenu?: never;
   menuType?: never;
+  disabled?: never;
 };
 
 export type NavItemType = NavItem | NavSeparator;

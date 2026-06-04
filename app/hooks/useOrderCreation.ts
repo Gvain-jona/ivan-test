@@ -23,7 +23,7 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
     const ordersPageContext = useOrdersPage();
     // Convert the handleLoadMore function to a Promise if it's not already
     handleLoadMore = async (showToast: boolean = true) => {
-      await Promise.resolve(ordersPageContext.handleLoadMore(showToast));
+      await Promise.resolve(ordersPageContext.handleLoadMore());
     };
   } catch (error) {
     // The hook is being used outside the OrdersPage context, which is fine
@@ -117,23 +117,26 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
       });
 
       // Call the optimized database function with client_name parameter
-      const { data, error } = await supabase.rpc('create_complete_order', {
+      const { data: rawData, error } = await supabase.rpc('create_complete_order', {
         p_client_id: clientId,
-        p_client_name: order.client_name, // Pass client name for reference
+        p_client_name: order.client_name,
         p_date: order.date || new Date().toISOString().split('T')[0],
         p_status: order.status || 'pending',
         p_payment_status: order.payment_status || 'unpaid',
         p_client_type: order.client_type || 'regular',
         p_items: items,
         p_payments: payments,
-        p_notes: order.notes || []
+        p_notes: (order.notes || []) as unknown as never
       });
+      const data = rawData as { success: boolean; error?: string; order_id?: string; order_number?: string } | null;
 
       if (error) {
         console.error('Error creating order:', error);
         showError(`Failed to create order: ${error.message}`, 'Error');
         return null;
       }
+
+      if (!data) return null;
 
       // Check if the function returned success
       if (!data.success) {
@@ -182,8 +185,8 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
 
             // Show a push notification if permission is granted
             if (Notification.permission === 'granted') {
-              showNotification('New Order Created', {
-                body: `New order created for ${clientName} with ${items.length} item(s)`,
+              showNotification('New Order Created', `New order created for ${clientName} with ${items.length} item(s)`, {
+                
                 data: {
                   url: `/dashboard/orders?id=${data.order_id}`,
                   orderId: data.order_id,
@@ -194,8 +197,8 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
               // Request permission if not already denied
               requestNotificationPermission().then(permission => {
                 if (permission === 'granted') {
-                  showNotification('New Order Created', {
-                    body: `New order created for ${clientName} with ${items.length} item(s)`,
+                  showNotification('New Order Created', `New order created for ${clientName} with ${items.length} item(s)`, {
+                    
                     data: {
                       url: `/dashboard/orders?id=${data.order_id}`,
                       orderId: data.order_id,
@@ -245,8 +248,8 @@ export const useOrderCreation = ({ onSuccess }: UseOrderCreationProps = {}) => {
             payment_status: order.payment_status || 'unpaid',
             total_amount: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
             amount_paid: payments.reduce((sum: number, payment: OrderPayment) => sum + payment.amount, 0),
-            balance: items.reduce((sum: number, item: OrderItem) => sum + (item.quantity * item.unit_price), 0) -
-                     payments.reduce((sum: number, payment: OrderPayment) => sum + payment.amount, 0),
+            balance: (items.reduce((sum: number, item: { quantity: number; unit_price: number }) => sum + (item.quantity * item.unit_price), 0)) -
+                     (payments.reduce((sum: number, payment: OrderPayment) => sum + payment.amount, 0)),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             items: items,

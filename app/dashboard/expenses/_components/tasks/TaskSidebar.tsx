@@ -76,7 +76,7 @@ export function TaskSidebar() {
       ) : (
         <div className="space-y-4">
           {occurrences.map((occurrence) => {
-            const expense = occurrence.expense || {};
+            const expense = (occurrence.expense || {}) as { category?: string; item_name?: string; amount?: number };
             return (
               <Card
                 key={occurrence.id}

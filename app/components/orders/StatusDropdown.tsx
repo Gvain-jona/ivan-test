@@ -55,7 +55,7 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
       default:
         return {
           icon: <Clock className="h-4 w-4 mr-2" />,
-          label: status.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+          label: (status as string).split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
           className: 'text-slate-400 hover:bg-slate-500/10 focus:bg-slate-500/10'
         };
     }

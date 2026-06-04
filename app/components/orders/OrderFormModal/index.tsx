@@ -206,7 +206,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
               active={activeTab === 'general'}
               order={order}
               updateOrderField={updateOrderField}
-              isEditing={false}
             />
 
             {/* Items Tab */}
@@ -230,7 +229,6 @@ const OrderFormModal: React.FC<OrderFormModalProps> = ({
               updateOrderFields={updateOrderFields}
               openDeleteDialog={openDeleteDialog}
               recalculateOrder={recalculateOrder}
-              toast={toast}
               formState={formState.paymentForms}
               partialData={formState.partialData.payments}
               onAddForm={() => addForm('payments')}

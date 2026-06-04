@@ -47,13 +47,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Transform the data to ensure timestamp field exists
-    const transformedData = data.map((notification: { 
-      id: string; 
-      timestamp?: string; 
-      created_at: string;
-      [key: string]: any;
-    }) => ({
+    const transformedData = data.map((notification) => ({
       ...notification,
       timestamp: notification.timestamp || notification.created_at
     }));

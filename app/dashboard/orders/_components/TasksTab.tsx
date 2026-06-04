@@ -174,14 +174,11 @@ const TasksTab: React.FC = () => {
   };
 
   // Function to get order items for a task
-  const getOrderItems = (taskId: string) => {
-    // This would be replaced with a real API call in the future
+  const getOrderItems = (_taskId: string): { type: string; category: string; size: string; quantity: number }[] => {
     return [];
   };
 
-  // Function to get notes for a task
-  const getTaskNotes = (taskId: string) => {
-    // This would be replaced with a real API call in the future
+  const getTaskNotes = (_taskId: string): { type: string; text: string }[] => {
     return [];
   };
 
@@ -745,7 +742,7 @@ const TasksTab: React.FC = () => {
                       }
 
                       // Group tasks by due date
-                      const groupedByDate = upcomingTasks.reduce((acc, task) => {
+                      const groupedByDate = upcomingTasks.reduce((acc: Record<string, Task[]>, task) => {
                         const dueDate = new Date(task.due_date);
                         dueDate.setHours(0, 0, 0, 0);
                         const dateStr = dueDate.toISOString().split('T')[0];

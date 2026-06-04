@@ -89,7 +89,7 @@ export async function GET(
   } catch (error) {
     console.error('Error in GET /api/material-purchases/[id]:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while fetching the material purchase'
     );
   }
@@ -229,7 +229,7 @@ export async function PUT(
   } catch (error) {
     console.error('Error in PUT /api/material-purchases/[id]:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while updating the material purchase'
     );
   }
@@ -290,7 +290,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Error in DELETE /api/material-purchases/[id]:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred while deleting the material purchase'
     );
   }

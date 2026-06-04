@@ -536,7 +536,7 @@ export function ExpensesTabContent({ onRegisterHandleAddExpense }: ExpensesTabCo
           onOpenChange={setIsViewOpen}
           onEdit={handleEditExpense}
           onDelete={handleDeleteExpense}
-          refreshExpense={() => mutate()}
+          refreshExpense={async () => { await mutate(); }}
         />
       )}
 

@@ -15,13 +15,13 @@ import { createClient } from '@/utils/supabase/client';
 // Define the approval type
 type Approval = {
   id: string;
-  requester_id: string;
+  requester_id: string | null;
   approver_id: string | null;
   action: string;
   item_type: string;
   item_id: string;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
+  status: string;
+  created_at: string | null;
   requester_name?: string;
   item_name?: string;
 };
@@ -74,7 +74,7 @@ export default function ApprovalsPage() {
             const { data: requesterData } = await supabase
               .from('profiles')
               .select('full_name')
-              .eq('id', approval.requester_id)
+              .eq('id', approval.requester_id ?? '')
               .single();
               
             // Get item name based on type
@@ -82,10 +82,10 @@ export default function ApprovalsPage() {
             if (approval.item_type === 'item') {
               const { data: itemData } = await supabase
                 .from('order_items')
-                .select('name')
+                .select('item_name')
                 .eq('id', approval.item_id)
                 .single();
-              itemName = itemData?.name || 'Order Item';
+              itemName = itemData?.item_name || 'Order Item';
             } else if (approval.item_type === 'payment') {
               const { data: paymentData } = await supabase
                 .from('order_payments')
@@ -253,7 +253,7 @@ export default function ApprovalsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Date:</span>
-                        <span>{new Date(approval.created_at).toLocaleDateString()}</span>
+                        <span>{new Date(approval.created_at ?? '').toLocaleDateString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Action:</span>
@@ -319,7 +319,7 @@ export default function ApprovalsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Date:</span>
-                        <span>{new Date(approval.created_at).toLocaleDateString()}</span>
+                        <span>{new Date(approval.created_at ?? '').toLocaleDateString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Action:</span>
@@ -365,7 +365,7 @@ export default function ApprovalsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Date:</span>
-                        <span>{new Date(approval.created_at).toLocaleDateString()}</span>
+                        <span>{new Date(approval.created_at ?? '').toLocaleDateString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Action:</span>

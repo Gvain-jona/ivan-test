@@ -124,8 +124,8 @@ export function MaterialPaymentForm({
   // If children are provided, render them as a trigger for the sheet
   if (children) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
+      <Sheet open={open ?? false} onOpenChange={onOpenChange ?? (() => {})}>
+        <SheetTrigger>
           {children}
         </SheetTrigger>
         <SheetContent className="sm:max-w-md">

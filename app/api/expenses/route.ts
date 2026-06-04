@@ -78,14 +78,16 @@ export async function GET(request: NextRequest) {
     ]);
 
     const paymentsByExpenseId = (paymentsResult.data || []).reduce((acc, payment) => {
-      if (!acc[payment.expense_id]) acc[payment.expense_id] = [];
-      acc[payment.expense_id].push(payment);
+      const key = payment.expense_id ?? '';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(payment);
       return acc;
     }, {} as Record<string, any[]>);
 
     const expenseNotesByExpenseId = (expenseNotesResult.data || []).reduce((acc, note) => {
-      if (!acc[note.expense_id]) acc[note.expense_id] = [];
-      acc[note.expense_id].push(note);
+      const key = (note as Record<string, unknown>)['expense_id'] as string ?? '';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(note);
       return acc;
     }, {} as Record<string, any[]>);
 
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     return createApiResponse({ expenses: expensesWithDetails, count: count || 0, limit, offset });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while fetching expenses');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while fetching expenses');
   }
 }
 
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to create an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to create an expense');
     }
 
     if (!expense.date) {
@@ -257,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     return createApiResponse({ expense: completeExpense });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while creating the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while creating the expense');
   }
 }
 
@@ -279,7 +281,7 @@ export async function PUT(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to update an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to update an expense');
     }
 
     const {
@@ -346,7 +348,7 @@ export async function PUT(request: NextRequest) {
 
     return createApiResponse({ expense: completeExpense });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while updating the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while updating the expense');
   }
 }
 
@@ -367,7 +369,7 @@ export async function DELETE(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to delete an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to delete an expense');
     }
 
     const { data: profile } = await supabase
@@ -377,7 +379,7 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
-      return handleApiError('AUTHORIZATION_ERROR', 'Only admins and managers can delete expenses');
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete expenses');
     }
 
     const { error: deleteError } = await supabase
@@ -389,6 +391,6 @@ export async function DELETE(request: NextRequest) {
 
     return createApiResponse({ success: true, message: 'Expense deleted successfully' });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
   }
 }

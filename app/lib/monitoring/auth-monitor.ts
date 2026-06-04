@@ -102,12 +102,12 @@ class AuthMonitor {
 
     try {
       const { error } = await supabase
-        .from('auth_error_logs')
+        .from('auth_error_logs' as never)
         .insert(errors.map(error => ({
           ...error,
           severity: 'error',
           resolved: false
-        })));
+        })) as never);
 
       if (error) {
         console.error('Failed to flush error buffer:', error);
@@ -130,8 +130,8 @@ class AuthMonitor {
 
     try {
       const { error } = await supabase
-        .from('auth_performance_metrics')
-        .insert(metrics);
+        .from('auth_performance_metrics' as never)
+        .insert(metrics as never);
 
       if (error) {
         console.error('Failed to flush metrics buffer:', error);
@@ -146,7 +146,7 @@ class AuthMonitor {
   }
 
   public destroy(): void {
-    clearInterval(this.flushInterval);
+    clearInterval(this.flushInterval as unknown as ReturnType<typeof setInterval>);
   }
 }
 

@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
           clientDebtMap.set(order.client_id, {
             id: order.client_id,
             name: order.client_name || 'Unknown Client',
-            debt: order.balance,
+            debt: order.balance ?? 0,
             orderCount: 1,
           });
         }

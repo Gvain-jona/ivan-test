@@ -45,7 +45,7 @@ export async function GET(
     return NextResponse.json({ occurrence });
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );
@@ -110,7 +110,7 @@ export async function PATCH(
       const { data: parentExpense, error: parentError } = await supabase
         .from('expenses')
         .select('*')
-        .eq('id', updatedOccurrence.parent_expense_id)
+        .eq('id', updatedOccurrence.parent_expense_id ?? '')
         .single();
 
       if (parentError) {
@@ -175,7 +175,7 @@ export async function PATCH(
         .update({
           linked_expense_id: newExpense.id,
           completed_date: new Date().toISOString()
-        })
+        } as never)
         .eq('id', id);
 
       if (linkError) {
@@ -198,7 +198,7 @@ export async function PATCH(
     });
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );

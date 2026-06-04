@@ -69,8 +69,8 @@ const OrderViewModal: React.FC<OrderViewModalProps> = ({
       order_id: order.id,
       amount: parseFloat(paymentAmount),
       payment_method: paymentMethod as any, // Type cast
-      payment_date: new Date().toISOString(),
-
+      payment_date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -302,13 +302,13 @@ const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     {order.payments?.map((payment) => (
                       <tr key={payment.id} className="bg-gray-900 hover:bg-gray-850">
                         <td className="px-4 py-3 text-sm text-gray-300">
-                          {new Date(payment.payment_date).toLocaleDateString()}
+                          {new Date(payment.payment_date || payment.date).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-300">
                           {(payment.payment_method || payment.payment_type || '').replace(/_/g, ' ')}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium">{formatCurrency(payment.amount)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-300">{payment.notes || ''}</td>
+                        <td className="px-4 py-3 text-sm text-gray-300">{(payment as any).notes || ''}</td>
                       </tr>
                     ))}
                   </tbody>

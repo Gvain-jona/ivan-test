@@ -46,11 +46,11 @@ export interface PaginationParams {
 
 // Reference data fetchers
 const fetchers = {
-  clients: async () => await dataService.getClients(),
-  categories: async () => await dataService.getCategories(),
-  items: async (categoryId: string) => await dataService.getItems(categoryId),
-  sizes: async () => await dataService.getSizes(),
-  suppliers: async () => await dataService.getSuppliers(),
+  clients: async () => { const r = await fetch(API_ENDPOINTS.CLIENTS); return r.ok ? r.json() : []; },
+  categories: async () => { const r = await fetch(API_ENDPOINTS.CATEGORIES); return r.ok ? r.json() : []; },
+  items: async (categoryId: string) => { const r = await fetch(`${API_ENDPOINTS.ITEMS}?categoryId=${categoryId}`); return r.ok ? r.json() : []; },
+  sizes: async () => { const r = await fetch(API_ENDPOINTS.SIZES); return r.ok ? r.json() : []; },
+  suppliers: async () => { const r = await fetch(API_ENDPOINTS.SUPPLIERS); return r.ok ? r.json() : []; },
 };
 
 export function useClients(config?: SWRConfiguration) {

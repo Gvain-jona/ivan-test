@@ -41,9 +41,9 @@ export function RecurringExpenseDetails({ expense }: RecurringExpenseDetailsProp
         return 'Every day';
 
       case 'weekly':
-        if (expense.recurrence_day_of_week !== undefined) {
+        if (expense.recurrence_day_of_week != null) {
           const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          return `Every ${days[expense.recurrence_day_of_week]}`;
+          return `Every ${days[expense.recurrence_day_of_week ?? 0]}`;
         }
         return 'Every week';
 
@@ -51,11 +51,11 @@ export function RecurringExpenseDetails({ expense }: RecurringExpenseDetailsProp
         if (expense.monthly_recurrence_type === 'day_of_month' && expense.recurrence_day_of_month) {
           return `On day ${expense.recurrence_day_of_month} of each month`;
         } else if (expense.monthly_recurrence_type === 'day_of_week' &&
-                  expense.recurrence_day_of_week !== undefined &&
+                  expense.recurrence_day_of_week != null &&
                   expense.recurrence_week_of_month) {
           const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           const weeks = ['first', 'second', 'third', 'fourth', 'last'];
-          return `On the ${weeks[expense.recurrence_week_of_month - 1]} ${days[expense.recurrence_day_of_week]} of each month`;
+          return `On the ${weeks[(expense.recurrence_week_of_month ?? 1) - 1]} ${days[expense.recurrence_day_of_week ?? 0]} of each month`;
         }
         return 'Every month';
 

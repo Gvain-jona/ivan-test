@@ -152,7 +152,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           user_id: profile.id,
           settings: updatedSettings,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        } as never, { onConflict: 'user_id' });
 
       if (error) {
         console.error('Database error updating settings:', error);

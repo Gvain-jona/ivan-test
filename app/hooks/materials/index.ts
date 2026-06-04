@@ -10,3 +10,4 @@ export * from '@/types/materials';
 export * from './useMaterialPurchases';
 export * from './swr-config';
 export * from './useCreateInstallmentPlan';
+export * from './useDeleteMaterialPurchase';

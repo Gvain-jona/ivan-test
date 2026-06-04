@@ -105,7 +105,7 @@ export function RecurringExpenseCalendarView({
       </div>
       <DayPicker
         mode="single"
-        selected={selectedDate}
+        selected={selectedDate ?? undefined}
         onSelect={(day) => day && onDateSelect(day)}
         month={month}
         onMonthChange={onMonthChange}
@@ -114,9 +114,8 @@ export function RecurringExpenseCalendarView({
         components={components}
         modifiers={modifiers}
         modifiersStyles={modifiersStyles}
-        captionLayout="dropdown-buttons"
+        captionLayout="dropdown"
         fixedWeeks
-        renderDay={renderDay}
       />
     </div>
   );

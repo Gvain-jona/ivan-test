@@ -55,7 +55,7 @@ export default function CreateProfilePage() {
       const { data: allowedEmail, error: allowedEmailError } = await supabase
         .from('allowed_emails')
         .select('role')
-        .eq('email', user.email)
+        .eq('email', user.email ?? '')
         .maybeSingle()
 
       // Use the role from allowed_emails if available, otherwise default to 'staff'
@@ -67,7 +67,7 @@ export default function CreateProfilePage() {
         .from('profiles')
         .insert({
           id: user.id,
-          email: user.email,
+          email: user.email ?? '',
           full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
           role: userRole, // Use role from allowed_emails
           status: 'active',
@@ -131,7 +131,7 @@ export default function CreateProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>

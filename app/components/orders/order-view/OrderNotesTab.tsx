@@ -335,7 +335,7 @@ const OrderNotesTab: React.FC<OrderNotesTabProps> = ({
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3 text-muted-foreground" />
-                          <span className={`text-xs ${loadingStates.editNote === note.id ? 'text-primary/70 animate-pulse' : 'text-muted-foreground'}`}>{note.created_by_name || note.created_by || 'Staff'}</span>
+                          <span className={`text-xs ${loadingStates.editNote === note.id ? 'text-primary/70 animate-pulse' : 'text-muted-foreground'}`}>{(note as any).created_by_name || note.created_by || 'Staff'}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />

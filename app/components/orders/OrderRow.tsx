@@ -190,7 +190,7 @@ function OrderRow(props: OrderRowProps) {
               userRole={userRole}
               onView={onView}
               onEdit={onEdit}
-              onDelete={onDelete}
+              onDelete={async (order) => { onDelete(order); return true; }}
               onDuplicate={onDuplicate}
               onInvoice={onInvoice}
               onStatusChange={onStatusChange}

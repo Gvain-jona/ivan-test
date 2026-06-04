@@ -63,7 +63,7 @@ export async function allocateAmount(
       const ruleAmount = (amount * rule.percentage) / 100;
       
       return {
-        accountId: rule.account_id,
+        accountId: rule.account_id ?? '',
         amount: ruleAmount,
         transactionType,
         sourceType,

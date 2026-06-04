@@ -38,7 +38,7 @@ export function usePermissions() {
         
         if (error) throw error;
         
-        setPermissions(data || []);
+        setPermissions((data as unknown as Permission[]) || []);
       } catch (error) {
         console.error('Error fetching permissions:', error);
       } finally {

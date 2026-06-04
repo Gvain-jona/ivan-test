@@ -54,7 +54,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
   };
 
   // Convert occurrences to the format expected by FullScreenCalendar
-  type OccurrenceWithExpense = RecurringExpenseOccurrence & { expense?: { item_name?: string; category?: string } };
+  type OccurrenceWithExpense = RecurringExpenseOccurrence & { expense?: { item_name?: string; category?: string; total_amount?: number; recurrence_frequency?: string; description?: string } };
   const calendarData = occurrences.reduce((acc: Array<{day: Date, events: Array<{id: number, name: string, time: string, datetime: string}>}>, occurrence: OccurrenceWithExpense) => {
     const date = new Date(occurrence.occurrence_date);
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -153,7 +153,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {selectedDateOccurrences.map((occurrence: OccurrenceWithExpense) => {
-                const expense = occurrence.expense || {};
+                const expense = occurrence.expense ?? {};
                 return (
                   <Card
                     key={occurrence.id}
@@ -202,7 +202,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Amount:</span>
-                          <span className="font-medium">{formatCurrency(expense.total_amount)}</span>
+                          <span className="font-medium">{formatCurrency(expense.total_amount ?? 0)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Frequency:</span>

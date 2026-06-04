@@ -27,14 +27,14 @@ export async function GET(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to view installments'
         );
       }
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to view installments'
       );
     }
@@ -59,7 +59,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Error in GET /api/material-purchases/:id/installments:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while fetching installments'
     );
   }
@@ -88,7 +88,7 @@ export async function POST(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to create installment plan'
         );
       }
@@ -97,7 +97,7 @@ export async function POST(
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to create installment plan'
       );
     }
@@ -189,7 +189,7 @@ export async function POST(
       p_payment_frequency: payment_frequency,
       p_next_payment_date: first_payment_date,
       p_reminder_days: reminder_days
-    });
+    } as never);
 
     if (error) {
       console.error('Error creating installment plan:', error);
@@ -217,7 +217,7 @@ export async function POST(
   } catch (error: any) {
     console.error('Error in POST /api/material-purchases/:id/installments:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while creating installment plan'
     );
   }

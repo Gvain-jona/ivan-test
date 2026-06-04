@@ -193,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const tokenRefreshHeader = { 'x-token-refresh': 'true' };
 
             // Apply this header to the Supabase client for future requests
-            supabase.realtime.setAuth(session.access_token, tokenRefreshHeader);
+            supabase.realtime.setAuth(session.access_token);
           }
         }
       } else if (event === 'SIGNED_OUT') {
@@ -405,7 +405,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // because it would cause unnecessary re-renders
   ]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value as AuthContextType}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

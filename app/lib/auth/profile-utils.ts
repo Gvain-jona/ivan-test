@@ -14,6 +14,7 @@ export type Profile = {
   status: 'active' | 'inactive' | 'locked'
   created_at: string
   updated_at: string
+  avatar_url?: string | null
 }
 
 /**
@@ -42,7 +43,7 @@ export async function fetchUserProfile(userId: string): Promise<{ profile: Profi
       console.log('No profile found for user ID:', userId);
     }
 
-    return { profile: data, error: null };
+    return { profile: data as Profile | null, error: null };
   } catch (error) {
     console.error('Exception fetching profile:', error);
     return { profile: null, error };
@@ -76,7 +77,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
 
     if (existingProfile) {
       console.log('Profile already exists, returning existing profile:', existingProfile);
-      return { profile: existingProfile, error: null };
+      return { profile: existingProfile as Profile, error: null };
     }
 
     // Default to staff role if allowed_emails check fails
@@ -147,7 +148,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
             .maybeSingle();
 
           if (existingProfile) {
-            return { profile: existingProfile, error: null };
+            return { profile: existingProfile as Profile, error: null };
           }
         }
 
@@ -163,7 +164,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
       }
 
       console.log('Profile created successfully:', data);
-      return { profile: data, error: null };
+      return { profile: data as Profile, error: null };
     } catch (insertError) {
       console.error('Exception during profile insert:', insertError);
 
@@ -200,7 +201,7 @@ async function createProfileWithServiceRole(user: User): Promise<{ profile: Prof
 
     if (existingProfile) {
       console.log('Profile already exists, returning existing profile:', existingProfile);
-      return { profile: existingProfile, error: null };
+      return { profile: existingProfile as Profile, error: null };
     }
 
     // Prepare the user data to send to the API

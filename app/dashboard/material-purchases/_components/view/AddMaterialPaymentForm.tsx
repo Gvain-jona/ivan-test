@@ -31,7 +31,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface AddMaterialPaymentFormProps {
   purchase: MaterialPurchase;
-  onSubmit: (payment: Omit<MaterialPayment, 'id' | 'material_purchase_id'>) => Promise<boolean>;
+  onSubmit: (payment: { amount: number; date: string; payment_method: string; notes?: string }) => Promise<boolean>;
   onClose: () => void;
   isSubmitting: boolean;
 }
@@ -104,7 +104,7 @@ export function AddMaterialPaymentForm({
         </div>
 
         {formError && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="error" className="mb-4">
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
         )}

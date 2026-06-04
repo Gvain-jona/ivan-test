@@ -132,7 +132,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
     const tempId = `temp-${Date.now()}`;
 
     const totalAmount = expense.total_amount || 0;
-    const amountPaid = calculateAmountPaid(payments);
+    const amountPaid = calculateAmountPaid(payments as { amount: number | string }[]);
     const balance = calculateBalance(totalAmount, amountPaid);
     const paymentStatus = calculatePaymentStatus(totalAmount, amountPaid);
 

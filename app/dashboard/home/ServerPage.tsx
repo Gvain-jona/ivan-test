@@ -82,11 +82,11 @@ async function RecentActivityContainer() {
       type: 'task',
       id: task.id,
       title: task.title,
-      date: task.dueDate,
+      date: task.due_date,
       data: task
     }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
    .slice(0, 5);
 
-  return <RecentActivity activities={activities} />;
+  return <RecentActivity activities={activities as any} />;
 }

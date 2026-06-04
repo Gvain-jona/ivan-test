@@ -79,7 +79,7 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const getActiveFilterCount = () => {
     let count = 0;
     if (filters.startDate || filters.endDate) count++;
-    if (filters.client) count++;
+    if (filters.clientName) count++;
     if (filters.status && filters.status.length > 0) count++;
     if (filters.paymentStatus && filters.paymentStatus.length > 0) count++;
     if (filters.search) count++;
@@ -162,8 +162,8 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
             <div>
               <label className="text-sm font-medium mb-1 block">Client</label>
               <Select
-                value={filters.client || "all"}
-                onValueChange={(value) => onFilterChange({ ...filters, client: value === "all" ? undefined : value })}
+                value={filters.clientName || "all"}
+                onValueChange={(value) => onFilterChange({ ...filters, clientName: value === "all" ? undefined : value })}
               >
                 <SelectTrigger className="border-gray-800 bg-gray-900 text-gray-300">
                   <SelectValue placeholder="All clients" />

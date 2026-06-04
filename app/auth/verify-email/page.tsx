@@ -87,7 +87,7 @@ function VerifyEmailContent() {
           <CardContent className="space-y-4">
             {/* Error message */}
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="error">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>

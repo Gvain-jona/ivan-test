@@ -29,7 +29,7 @@ export async function getInvoiceSettings(): Promise<InvoiceSettingRecord[]> {
     throw error;
   }
 
-  return data || [];
+  return (data || []) as unknown as InvoiceSettingRecord[];
 }
 
 /**
@@ -128,7 +128,7 @@ export async function getDefaultInvoiceSettings(): Promise<InvoiceSettings> {
     throw error;
   }
 
-  return data.settings;
+  return data.settings as unknown as InvoiceSettings;
 }
 
 /**
@@ -151,7 +151,7 @@ export async function createDefaultInvoiceSettings(): Promise<InvoiceSettings> {
     .insert({
       name: 'Default Settings',
       is_default: true,
-      settings: emptyInvoiceSettings,
+      settings: emptyInvoiceSettings as unknown as never,
       user_id: user.id
     })
     .select()
@@ -162,7 +162,7 @@ export async function createDefaultInvoiceSettings(): Promise<InvoiceSettings> {
     throw error;
   }
 
-  return data.settings;
+  return data.settings as unknown as InvoiceSettings;
 }
 
 /**
@@ -209,7 +209,7 @@ export async function saveInvoiceSettings(
       .update({
         name,
         is_default: isDefault,
-        settings,
+        settings: settings as unknown as never,
         updated_at: new Date().toISOString(),
         user_id: user.id // Track who made the last update
       })
@@ -222,7 +222,7 @@ export async function saveInvoiceSettings(
       throw error;
     }
 
-    return data;
+    return data as unknown as InvoiceSettingRecord;
   } else {
     // Create new settings
     const { data, error } = await supabase
@@ -230,7 +230,7 @@ export async function saveInvoiceSettings(
       .insert({
         name,
         is_default: isDefault,
-        settings,
+        settings: settings as unknown as never,
         user_id: user.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -243,6 +243,6 @@ export async function saveInvoiceSettings(
       throw error;
     }
 
-    return data;
+    return data as unknown as InvoiceSettingRecord;
   }
 }

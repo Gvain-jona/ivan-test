@@ -62,7 +62,7 @@ export async function GET(
       expense: { ...data, payments: payments || [], notes }
     });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while fetching the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while fetching the expense');
   }
 }
 
@@ -87,7 +87,7 @@ export async function PUT(
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to update an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to update an expense');
     }
 
     const { balance, ...expenseToUpdate } = expense;
@@ -119,7 +119,7 @@ export async function PUT(
 
     return createApiResponse({ expense: updatedExpense });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while updating the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while updating the expense');
   }
 }
 
@@ -142,7 +142,7 @@ export async function DELETE(
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to delete an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to delete an expense');
     }
 
     const { data: profile } = await supabase
@@ -152,7 +152,7 @@ export async function DELETE(
       .single();
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
-      return handleApiError('AUTHORIZATION_ERROR', 'Only admins and managers can delete expenses');
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete expenses');
     }
 
     // Delete legacy linked notes (no CASCADE from this table)
@@ -171,6 +171,6 @@ export async function DELETE(
 
     return createApiResponse({ success: true, message: 'Expense deleted successfully' });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
   }
 }

@@ -99,13 +99,7 @@ export function CalendarWithSidebar() {
       </div>
 
       {/* Sidebar Section */}
-      <TaskSidebar
-        selectedDate={selectedDate}
-        occurrences={selectedDateOccurrences}
-        isLoading={isLoading}
-        onStatusUpdate={handleStatusUpdate}
-        isDarkMode={isDarkMode}
-      />
+      <TaskSidebar />
     </div>
   );
 }

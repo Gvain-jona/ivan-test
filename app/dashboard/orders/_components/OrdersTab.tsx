@@ -69,7 +69,7 @@ const OrdersTab: React.FC = () => {
             handleFilterChange(newFilters);
           }}
           onResetFilters={resetFilters}
-          initialFilters={filters}
+          initialFilters={filters as FilterTypes}
         />
       )}
 
@@ -84,10 +84,10 @@ const OrdersTab: React.FC = () => {
             userRole={userRole}
             onView={handleViewOrder}
             onEdit={handleViewOrder}
-            onDelete={handleDeleteOrder}
+            onDelete={(order) => { handleDeleteOrder(order.id); }}
             onDuplicate={handleDuplicateOrder}
             onInvoice={handleGenerateInvoice}
-            onStatusChange={handleOrderStatusChange}
+            onStatusChange={(order, status) => { handleOrderStatusChange(order.id, status); }}
             onLoadMore={handleLoadMore}
             loading={loading}
             currentPage={currentPage}

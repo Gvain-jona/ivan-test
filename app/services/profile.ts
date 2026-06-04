@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
-import { Profile } from '@/types/profile';
+type Profile = Record<string, unknown>;
 
 const supabase = createClient();
 
@@ -24,7 +24,7 @@ export const createProfile = async (profile: Partial<Profile>): Promise<{ profil
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .insert([profile])
+      .insert([profile] as never)
       .select()
       .single();
 

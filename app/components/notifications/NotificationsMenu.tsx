@@ -60,18 +60,20 @@ export function NotificationsMenu() {
         </div>
       ) : recentNotifications.length > 0 ? (
         <div className="space-y-3 mb-3 w-full">
-          {recentNotifications.map(notification => (
+          {recentNotifications.map(notification => {
+            const n = notification as typeof notification & { sender?: { avatar?: string; name?: string } };
+            return (
             <div
               key={notification.id}
               className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/20 cursor-pointer transition-colors"
               onClick={() => markAsRead(notification.id)}
             >
               <Avatar className="h-8 w-8">
-                {notification.sender.avatar ? (
-                  <AvatarImage src={notification.sender.avatar} alt={notification.sender.name} />
+                {n.sender?.avatar ? (
+                  <AvatarImage src={n.sender.avatar} alt={n.sender.name} />
                 ) : (
                   <AvatarFallback>
-                    {notification.sender.name.charAt(0)}
+                    {n.sender?.name?.charAt(0) ?? notification.title.charAt(0)}
                   </AvatarFallback>
                 )}
               </Avatar>
@@ -86,7 +88,7 @@ export function NotificationsMenu() {
 
               <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
             </div>
-          ))}
+          )})}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-6 text-center w-full">

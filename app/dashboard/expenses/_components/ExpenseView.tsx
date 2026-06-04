@@ -222,7 +222,7 @@ export function ExpenseView({
                         <Tag className="h-4 w-4 mr-2" />
                         VAT
                       </p>
-                      <p className="text-sm font-medium">{formatCurrency(expense.vat)}</p>
+                      <p className="text-sm font-medium">{formatCurrency(expense.vat ?? 0)}</p>
                     </div>
                   )}
                 </div>

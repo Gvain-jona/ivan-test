@@ -8,7 +8,7 @@ import { SWRConfiguration } from 'swr';
  * - dashboard: For fetching dashboard metrics
  * - invoice: For fetching invoice data
  */
-export type DataFetchType = 'list' | 'detail' | 'dropdown' | 'dashboard' | 'invoice';
+export type DataFetchType = 'list' | 'detail' | 'dropdown' | 'dashboard' | 'invoice' | 'analytics' | 'metrics';
 
 /**
  * Global SWR configuration constants
@@ -209,6 +209,20 @@ export function createSWRConfig(
       loadingTimeout: 15000, // 15 seconds
 
       // Use consistent retry count
+      errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
+    },
+
+    analytics: {
+      dedupingInterval: SWR_CACHE_TIMES.DASHBOARD_DEDUPE,
+      revalidateIfStale: true,
+      loadingTimeout: 10000,
+      errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
+    },
+
+    metrics: {
+      dedupingInterval: SWR_CACHE_TIMES.DASHBOARD_DEDUPE,
+      revalidateIfStale: true,
+      loadingTimeout: 10000,
       errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
     },
   };

@@ -49,6 +49,7 @@ function optimizeForPdf(element: HTMLElement): void {
   });
 
   // Ensure all colors are properly rendered
+  // @ts-ignore
   element.style.WebkitPrintColorAdjust = 'exact';
   element.style.printColorAdjust = 'exact';
 
@@ -194,8 +195,9 @@ export async function generatePdf(
       // Create the worker
       const worker = html2pdf()
         .from(clone)
-        .set(pdfOptions)
-        .save();
+        .set(pdfOptions);
+
+      worker.save();
 
       // Set 50% progress after save
       if (onProgress) {

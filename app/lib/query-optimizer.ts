@@ -225,7 +225,7 @@ export class QueryOptimizer {
           query,
           this.timeoutMs,
           `Query timeout after ${this.timeoutMs}ms for table ${this.table}`
-        );
+        ) as { data: unknown[] | null; error: unknown; count: number | null };
 
         // Log count details for debugging
         console.log(`QueryOptimizer: Query result for ${this.table}`, {

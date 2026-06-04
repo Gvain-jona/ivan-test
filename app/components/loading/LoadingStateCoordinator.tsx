@@ -203,7 +203,7 @@ export function LoadingStateCoordinator({ children }: LoadingStateCoordinatorPro
         <div className="relative">
           {/* Error toast that doesn't block content */}
           <div className="sticky top-2 mx-auto max-w-md z-50 mb-4 transform transition-all duration-300 ease-in-out">
-            <Alert variant="destructive" className="shadow-lg border border-destructive/20">
+            <Alert variant="error" className="shadow-lg border border-destructive/20">
               <AlertTitle className="text-sm font-medium">Error loading data</AlertTitle>
               <AlertDescription className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span className="text-xs">

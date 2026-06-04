@@ -7,7 +7,7 @@ export const migrations = {
     const supabase = createClient();
 
     // Create error logs table
-    await supabase.rpc('create_auth_monitoring_tables', {
+    await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)('create_auth_monitoring_tables', {
       sql: `
         -- Error logs table
         CREATE TABLE IF NOT EXISTS auth_error_logs (
@@ -56,7 +56,7 @@ export const migrations = {
   async updateProfilesTable() {
     const supabase = createClient();
 
-    await supabase.rpc('update_profiles_table', {
+    await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)('update_profiles_table', {
       sql: `
         -- Add new columns to profiles
         ALTER TABLE profiles
@@ -80,7 +80,7 @@ export const migrations = {
   async addMonitoringPolicies() {
     const supabase = createClient();
 
-    await supabase.rpc('add_monitoring_policies', {
+    await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)('add_monitoring_policies', {
       sql: `
         -- Error logs policies
         ALTER TABLE auth_error_logs ENABLE ROW LEVEL SECURITY;
@@ -125,7 +125,7 @@ export async function runMigration(name: string, migrationFn: () => Promise<void
       .eq('name', name)
       .single();
 
-    if (existingMigration?.successful) {
+    if ((existingMigration as unknown as { successful?: boolean })?.successful) {
       console.log(`Migration ${name} already completed successfully`);
       return;
     }

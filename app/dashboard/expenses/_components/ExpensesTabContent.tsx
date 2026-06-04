@@ -519,7 +519,7 @@ export function ExpensesTabContent() {
         <ExpenseForm
           open={isEditOpen}
           onOpenChange={setIsEditOpen}
-          onSubmit={handleUpdateExpense}
+          onSubmit={async (values) => { await handleUpdateExpense(values); }}
           defaultValues={editExpense}
           isSubmitting={isSubmitting}
         />
@@ -529,7 +529,7 @@ export function ExpensesTabContent() {
       <ExpenseForm
         open={isAddingExpense}
         onOpenChange={setIsAddingExpense}
-        onSubmit={handleAddExpense}
+        onSubmit={async (values) => { await handleAddExpense(values); }}
         isSubmitting={isSubmitting}
       />
     </div>

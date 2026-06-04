@@ -430,7 +430,7 @@ export function useSpendingSummary(
   const { metrics, isLoading: isLoadingSummary, isError: isErrorSummary } = useSummaryMetrics(dateRange);
 
   // Calculate total spend and spending limit
-  const totalSpend = (metrics?.totalExpenses || 0) + (metrics?.totalMaterials || 0);
+  const totalSpend = (metrics?.total_expenses || 0) + (metrics?.total_materials || 0);
 
   // For spending limit, we'll use a simple calculation based on historical data
   // In a real app, this would come from a budget setting

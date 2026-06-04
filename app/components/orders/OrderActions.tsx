@@ -174,7 +174,7 @@ function OrderActions(props: OrderActionsProps) {
           <CustomDropdownItem
             className={cn(
               "focus:bg-table-hover p-0",
-              order.latest_invoice_id || order.invoice_generated_at
+              (order as any).latest_invoice_id || order.invoice_generated_at
                 ? "text-green-500 focus:text-green-500"
                 : "text-white focus:text-white"
             )}
@@ -184,7 +184,7 @@ function OrderActions(props: OrderActionsProps) {
               order={order}
               variant="ghost"
               size="sm"
-              label={order.latest_invoice_id || order.invoice_generated_at ? "View Invoice" : "Generate Invoice"}
+              label={(order as any).latest_invoice_id || order.invoice_generated_at ? "View Invoice" : "Generate Invoice"}
               className="w-full justify-start text-inherit hover:text-inherit"
               showIcon={true}
               useContextHandler={true}

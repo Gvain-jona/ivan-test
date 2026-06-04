@@ -29,7 +29,7 @@ const InvoiceButton: React.FC<InvoiceButtonProps> = ({
   const [open, setOpen] = useState(false);
 
   // Handle button click
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     // If there's an onClick prop, call it first
     if (props.onClick) {
       props.onClick(e);

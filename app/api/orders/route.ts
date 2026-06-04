@@ -57,8 +57,9 @@ export async function GET(request: NextRequest) {
         console.error('GET /api/orders: failed to fetch order items', itemsError);
       } else {
         itemsMap = (allItems ?? []).reduce<Record<string, unknown[]>>((acc, item) => {
-          if (!acc[item.order_id]) acc[item.order_id] = [];
-          acc[item.order_id].push(item);
+          const key = item.order_id ?? '';
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(item);
           return acc;
         }, {});
       }
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
       p_items: items,
       p_payments: payments,
       p_notes: notes,
-      p_delivery_date: deliveryDate ?? null,
+      p_delivery_date: deliveryDate ?? undefined,
       p_is_delivered: isDelivered,
     });
 
@@ -138,11 +139,10 @@ export async function PUT(request: NextRequest) {
 
     const { error } = await supabase.rpc('update_order', {
       p_order_id: id,
-      p_client_id: clientId,
       p_date: date,
       p_status: status,
       p_items: items,
-    });
+    } as never);
 
     if (error) return handleSupabaseError(error);
 

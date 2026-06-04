@@ -44,7 +44,7 @@ const useDropdownCacheStore = create<DropdownCacheState>((set, get) => ({
       return state.items[parentId] || [];
     }
     
-    return state[entityType] || [];
+    return (state as unknown as Record<string, SmartComboboxOption[]>)[entityType] || [];
   },
   
   // Check if entity is loading
@@ -104,7 +104,7 @@ const useDropdownCacheStore = create<DropdownCacheState>((set, get) => ({
       });
     } else {
       set(state => {
-        const currentOptions = state[entityType] || [];
+        const currentOptions = (state as unknown as Record<string, SmartComboboxOption[]>)[entityType] || [];
         return {
           [entityType]: [option, ...currentOptions]
         };

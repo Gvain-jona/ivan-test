@@ -111,7 +111,7 @@ export function PaymentsSection() {
       {showAddForm && (
         <AddMaterialPaymentForm
           purchase={purchase}
-          onSubmit={handleAddPayment}
+          onSubmit={handleAddPayment as any}
           onClose={() => setShowAddForm(false)}
           isSubmitting={loadingStates.addPayment}
         />
@@ -121,9 +121,10 @@ export function PaymentsSection() {
       {editingPayment && (
         <EditMaterialPaymentForm
           payment={editingPayment}
-          onSubmit={(updatedPayment) => {
+          onSubmit={async (updatedPayment) => {
             handleEditPayment(updatedPayment);
             setEditingPayment(null);
+            return true;
           }}
           onClose={() => setEditingPayment(null)}
           isSubmitting={loadingStates.editPayment === editingPayment.id}

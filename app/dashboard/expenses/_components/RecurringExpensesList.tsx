@@ -62,7 +62,7 @@ export function RecurringExpensesList({ isActive = false }) {
 
   if (isError) {
     return (
-      <Alert variant="destructive">
+      <Alert variant="error">
         <AlertTitle>Error</AlertTitle>
         <AlertDescription>
           Failed to load recurring expenses. Please try again later.
@@ -98,7 +98,7 @@ export function RecurringExpensesList({ isActive = false }) {
             <Card key={occurrence.id} className="overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{expense.item_name}</CardTitle>
+                  <CardTitle className="text-base">{expense.item_name as string}</CardTitle>
                   <Badge variant={expense.category === 'fixed' ? 'secondary' : 'outline'}>
                     {expense.category === 'fixed' ? 'Fixed' : 'Variable'}
                   </Badge>
@@ -112,7 +112,7 @@ export function RecurringExpensesList({ isActive = false }) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Category:</span>
-                    <span>{expense.category}</span>
+                    <span>{expense.category as string}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Amount:</span>
@@ -121,12 +121,12 @@ export function RecurringExpensesList({ isActive = false }) {
                         style: 'currency',
                         currency: 'UGX',
                         minimumFractionDigits: 0,
-                      }).format(expense.total_amount || 0)}
+                      }).format((expense.total_amount as number) || 0)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Frequency:</span>
-                    <span className="capitalize">{expense.recurrence_frequency}</span>
+                    <span className="capitalize">{expense.recurrence_frequency as string}</span>
                   </div>
                 </div>
               </CardContent>

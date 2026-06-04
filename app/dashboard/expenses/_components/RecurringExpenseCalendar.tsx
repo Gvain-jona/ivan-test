@@ -87,7 +87,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {selectedDateOccurrences.map((occurrence: RecurringExpenseOccurrence & { expense?: Record<string, unknown> }) => {
-                const expense = occurrence.expense || {};
+                const expense = (occurrence.expense || {}) as { item_name?: string; category?: string; total_amount?: number; recurrence_frequency?: string; description?: string };
                 return (
                   <Card key={occurrence.id}>
                     <CardHeader className="pb-2">
@@ -105,7 +105,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Amount:</span>
-                          <span className="font-medium">{formatCurrency(expense.total_amount)}</span>
+                          <span className="font-medium">{formatCurrency(expense.total_amount ?? 0)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Frequency:</span>

@@ -47,7 +47,7 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({
             <Truck className="h-4 w-4 text-[#6D6D80] mt-0.5" />
             <div>
               <p className="text-xs text-[#6D6D80]">Delivery Method</p>
-              <p className="text-sm text-white font-medium">{order.delivery_method || 'Pickup'}</p>
+              <p className="text-sm text-white font-medium">{(order as any).delivery_method || 'Pickup'}</p>
             </div>
           </div>
 

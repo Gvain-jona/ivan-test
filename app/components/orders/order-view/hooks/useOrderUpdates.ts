@@ -109,7 +109,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       }
 
       // Get the current entities array
-      const currentEntities = order[entityKey] || [];
+      const currentEntities = ((order as unknown as Record<string, Array<{ id: string }>>)[entityKey] || []) as Array<{ id: string }>;
       let updatedEntities;
       let entityForMessage;
 
@@ -393,7 +393,9 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
         id: tempId,
         order_id: order.id,
         amount: newPayment.amount || 0,
+        date: newPayment.date || newPayment.payment_date || new Date().toISOString().split('T')[0],
         payment_date: newPayment.payment_date || new Date().toISOString().split('T')[0],
+        payment_method: (newPayment.payment_method || 'cash') as OrderPayment['payment_method'],
         payment_type: newPayment.payment_type || 'cash',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -470,7 +472,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       }
 
       // Create a new array with the updated payment
-      const updatedPayments = [...order.payments];
+      const updatedPayments = [...(order.payments ?? [])];
       updatedPayments[paymentIndex] = updatedPayment;
 
       // Create a new order object with the updated payments
@@ -690,7 +692,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       }
 
       // Create a new array with the updated note
-      const updatedNotes = [...order.notes];
+      const updatedNotes = [...(order.notes ?? [])];
       updatedNotes[noteIndex] = updatedNote;
 
       // Create a new order object with the updated notes

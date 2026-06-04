@@ -62,6 +62,7 @@ export function NotesSection({
             <ItemCard
               key={note.id}
               id={note.id}
+              title={note.type || 'Note'}
               badges={[
                 <span key="type" className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">
                   {note.type}

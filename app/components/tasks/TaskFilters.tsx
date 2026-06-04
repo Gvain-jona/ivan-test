@@ -181,8 +181,8 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
             <div>
               <Label className="text-sm text-gray-400 mb-2 block">Due Date Range</Label>
               <DateRangePicker
-                dateRange={dateRange}
-                onDateRangeChange={handleDateChange}
+                dateRange={dateRange as import('react-day-picker').DateRange | undefined}
+                onDateRangeChange={(range) => handleDateChange(range ?? {})}
                 className="w-full border-gray-700 bg-gray-900 hover:bg-gray-800"
                 align="start"
               />
