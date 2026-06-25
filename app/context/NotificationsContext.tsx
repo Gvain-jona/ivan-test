@@ -114,7 +114,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -194,7 +194,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
@@ -235,7 +235,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
@@ -270,7 +270,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
@@ -305,7 +305,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {

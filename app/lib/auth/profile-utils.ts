@@ -28,7 +28,7 @@ export async function fetchUserProfile(userId: string): Promise<{ profile: Profi
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', userId)
       .maybeSingle();
 
@@ -71,7 +71,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
     // First check if profile already exists to avoid 409 conflicts
     const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -130,7 +130,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
       const { data, error } = await supabase
         .from('profiles')
         .insert(profileData)
-        .select('*')
+        .select('created_at, email, full_name, id, role, status, updated_at')
         .single();
 
       if (error) {
@@ -143,7 +143,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
           // Fetch the existing profile
           const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('created_at, email, full_name, id, role, status, updated_at')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -195,7 +195,7 @@ async function createProfileWithServiceRole(user: User): Promise<{ profile: Prof
     const supabase = createClient();
     const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', user.id)
       .maybeSingle();
 

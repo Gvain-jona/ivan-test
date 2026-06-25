@@ -26,7 +26,7 @@ export const useRealNotifications = () => {
       // Fetch notifications for the current user
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
         .eq('user_id', user.id)
         .order('timestamp', { ascending: false });
 

@@ -65,7 +65,7 @@ export function UserManagementTab() {
         // Fetch allowed emails
         const { data: emails, error: emailsError } = await supabase
           .from('allowed_emails')
-          .select('*')
+          .select('access_code, created_at, email, id, role, updated_at')
           .order('created_at', { ascending: false });
 
         if (emailsError) throw emailsError;

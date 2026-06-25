@@ -39,7 +39,7 @@ export default function CreateProfilePage() {
       // First, check if the profile already exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('created_at, email, full_name, id, role, status, updated_at')
         .eq('id', user.id)
         .maybeSingle()
 

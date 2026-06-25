@@ -60,7 +60,7 @@ export default function ApprovalsPage() {
         // Get approvals based on user role
         const { data, error } = await supabase
           .from('approvals')
-          .select('*')
+          .select('id, requester_id, approver_id, action, item_type, item_id, status, created_at')
           .order('created_at', { ascending: false });
           
         if (error) {

@@ -89,7 +89,7 @@ export async function getUserProfile(user: User): Promise<any | null> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', user.id)
       .single();
 

@@ -72,7 +72,7 @@ export function RolePermissionsSection() {
       try {
         const { data, error } = await supabase
           .from('role_permissions')
-          .select('*')
+          .select('id, role, resource, actions, created_at, updated_at')
           .order('role', { ascending: true })
           .order('resource_type', { ascending: true })
           .order('resource', { ascending: true });

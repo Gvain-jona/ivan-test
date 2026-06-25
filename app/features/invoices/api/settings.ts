@@ -21,7 +21,7 @@ export async function getInvoiceSettings(): Promise<InvoiceSettingRecord[]> {
 
   const { data, error } = await supabase
     .from('invoice_settings')
-    .select('*')
+    .select('created_at, id, is_default, name, settings, updated_at, user_id')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -114,7 +114,7 @@ export async function getDefaultInvoiceSettings(): Promise<InvoiceSettings> {
 
   const { data, error } = await supabase
     .from('invoice_settings')
-    .select('*')
+    .select('created_at, id, is_default, name, settings, updated_at, user_id')
     .eq('is_default', true)
     .single();
 
@@ -198,7 +198,7 @@ export async function saveInvoiceSettings(
   // Check if default settings exist (company-wide)
   const { data: existingData } = await supabase
     .from('invoice_settings')
-    .select('*')
+    .select('created_at, id, is_default, name, settings, updated_at, user_id')
     .eq('is_default', true)
     .maybeSingle();
 
