@@ -95,6 +95,8 @@ const supabase = createClient()
 
 **Component structure**: props interface at the top, single responsibility, complex logic extracted to a hook. New files should target well under 200 lines — but `max-lines` in `.eslintrc.json` is a **warning, not a build-blocking error**, and it is widely exceeded today (`MaterialPurchaseForm.tsx` is 1293 lines, `AccountsSettingsTab.tsx` 1124, `analytics-service.ts` 929). Don't assume a file under that size is "fine" or one over it is "broken" — use it as guidance for new/refactored code, not as a correctness signal for existing files.
 
+**New UI components — log responsiveness status**: when you create a new component under `app/components/` (or anywhere else in `app/`), add one row to `docs/mobile-responsiveness/COMPONENT_REGISTRY.md` — just the component name/path and a `Yes` / `No` / `Partial` on whether it holds up across breakpoints (~375px phone through desktop). This is a visibility log, not a gate: a `No` is a perfectly valid entry. It does not require fixing the component, does not block the work, and isn't a request for a write-up — one line is enough. The point is being able to see how much of the app actually scales as it grows, not enforcing that every component must.
+
 ## Known architecture debt
 
 `docs/code-review/AUDIT_PROGRESS.md` is the live tracker (security, error-handling, dependency findings with ✅ FIXED / ⏸ DEFERRED / 🔲 OPEN status and commit hashes) — check it before assuming an issue is unaddressed or before re-auditing something already covered. Two items are explicitly deferred and flagged "do before first external user access":
