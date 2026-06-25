@@ -4,6 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 For a human-oriented setup guide (local dev, env vars, deployment), see `README.md` — it is accurate and actively maintained. This file focuses on conventions, gotchas, and ground truth that matter specifically for an AI assistant editing this code.
 
+## Think before coding
+
+Don't assume, and don't hide confusion. Before implementing:
+- State assumptions explicitly rather than silently picking one.
+- If multiple reasonable interpretations exist, present them instead of guessing.
+- If a simpler approach exists than the one implied by the request, say so — push back when warranted.
+- If something is genuinely unclear, stop and name what's confusing rather than coding around it.
+
 ## Project Overview
 
 Ivan Prints — a business management system for a print shop. Manages orders, expenses, material purchases, invoicing, and analytics with role-based access control (`admin` / `manager` / `staff`). Next.js 15 (App Router) + TypeScript + Supabase (Postgres + Auth) + Shadcn UI.
