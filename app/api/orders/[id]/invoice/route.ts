@@ -29,7 +29,7 @@ export async function GET(
     // Get invoices for the order
     const { data, error } = await supabase
       .from('invoices')
-      .select('*')
+      .select('id, order_id, file_url, storage_path, settings, is_proforma, invoice_number, invoice_date, created_by, created_at, updated_at')
       .eq('order_id', id)
       .order('invoice_date', { ascending: false });
 

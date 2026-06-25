@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('is_active');
     
     // Build query
-    let query = supabase.from('accounts').select('*');
+    let query = supabase.from('accounts').select('id, name, description, account_type, balance, is_active, created_at, updated_at');
     
     // Apply filters if provided
     if (accountType) {

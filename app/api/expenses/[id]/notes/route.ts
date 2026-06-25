@@ -29,7 +29,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('expense_notes')
-      .select('*')
+      .select('id, expense_id, type, text, created_by, created_at, updated_at')
       .eq('expense_id', id)
       .order('created_at', { ascending: false });
 
@@ -126,7 +126,7 @@ export async function POST(
     // Get all notes for the expense
     const { data: notes, error: notesError } = await supabase
       .from('expense_notes')
-      .select('*')
+      .select('id, expense_id, type, text, created_by, created_at, updated_at')
       .eq('expense_id', id)
       .order('created_at', { ascending: false });
 
@@ -225,7 +225,7 @@ export async function PUT(
     // Get all notes for the expense
     const { data: notes, error: notesError } = await supabase
       .from('expense_notes')
-      .select('*')
+      .select('id, expense_id, type, text, created_by, created_at, updated_at')
       .eq('expense_id', id)
       .order('created_at', { ascending: false });
 
@@ -316,7 +316,7 @@ export async function DELETE(
     // Get all notes for the expense
     const { data: notes, error: notesError } = await supabase
       .from('expense_notes')
-      .select('*')
+      .select('id, expense_id, type, text, created_by, created_at, updated_at')
       .eq('expense_id', id)
       .order('created_at', { ascending: false });
 

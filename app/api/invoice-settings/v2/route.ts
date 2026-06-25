@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('invoice_settings')
-      .select('*');
+      .select('created_at, id, is_default, name, settings, updated_at, user_id');
     
     // If a specific setting ID is requested
     if (settingId) {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       if (!settings && isDefault !== undefined) {
         const { data: existingSettings, error: fetchError } = await supabase
           .from('invoice_settings')
-          .select('*')
+          .select('created_at, id, is_default, name, settings, updated_at, user_id')
           .eq('id', id)
           .single();
         

@@ -30,7 +30,7 @@ export async function GET(
     // Get occurrence
     const { data: occurrence, error } = await supabase
       .from('recurring_expense_occurrences')
-      .select('*, expense:parent_expense_id(*)')
+      .select('created_at, id, occurrence_date, parent_expense_id, status, updated_at, expense:parent_expense_id(amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat)')
       .eq('id', id)
       .single();
 
@@ -109,7 +109,7 @@ export async function PATCH(
       // Get the parent expense details
       const { data: parentExpense, error: parentError } = await supabase
         .from('expenses')
-        .select('*')
+        .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
         .eq('id', updatedOccurrence.parent_expense_id ?? '')
         .single();
 

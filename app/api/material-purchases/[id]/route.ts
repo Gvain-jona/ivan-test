@@ -31,7 +31,7 @@ export async function GET(
     // Get material purchase
     const { data, error } = await supabase
       .from('material_purchases')
-      .select('*')
+      .select('amount_paid, balance, created_at, created_by, date, id, notes, payment_status, supplier_id, total_amount, updated_at')
       .eq('id', id)
       .single();
 
@@ -51,17 +51,17 @@ export async function GET(
     const [paymentsResult, notesResult, installmentsResult] = await Promise.all([
       supabase
         .from('material_payments')
-        .select('*')
+        .select('amount, created_at, created_by, date, id, payment_method, purchase_id, updated_at')
         .eq('purchase_id', id)
         .order('date', { ascending: false }),
       supabase
         .from('material_purchase_notes')
-        .select('*')
+        .select('id, purchase_id, note_text, created_by, created_at, updated_at')
         .eq('purchase_id', id)
         .order('created_at', { ascending: false }),
       supabase
         .from('material_installments')
-        .select('*')
+        .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
         .eq('purchase_id', id)
         .order('installment_number', { ascending: true })
     ]);

@@ -41,7 +41,7 @@ export async function GET(
     // Get the installment
     const { data: installment, error } = await supabase
       .from('material_installments')
-      .select('*')
+      .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
       .eq('id', installmentId)
       .eq('purchase_id', id)
       .single();

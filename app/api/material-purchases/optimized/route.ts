@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Fetch purchases with pagination and filtering
     let query = supabase
       .from('material_purchases')
-      .select('*', { count: 'exact' });
+      .select('amount_paid, balance, created_at, created_by, date, id, notes, payment_status, supplier_id, total_amount, updated_at', { count: 'exact' });
 
     // Apply filters if provided
     if (supplier) {
@@ -76,21 +76,21 @@ export async function GET(request: NextRequest) {
       includePayments 
         ? supabase
             .from('material_payments')
-            .select('*')
+            .select('amount, created_at, created_by, date, id, payment_method, purchase_id, updated_at')
             .in('purchase_id', purchaseIds)
             .order('date', { ascending: false })
         : { data: [] },
       includeNotes
         ? supabase
             .from('material_purchase_notes')
-            .select('*')
+            .select('id, purchase_id, note_text, created_by, created_at, updated_at')
             .in('purchase_id', purchaseIds)
             .order('created_at', { ascending: false })
         : { data: [] },
       includeInstallments
         ? supabase
             .from('material_installments')
-            .select('*')
+            .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
             .in('purchase_id', purchaseIds)
             .order('installment_number', { ascending: true })
         : { data: [] }

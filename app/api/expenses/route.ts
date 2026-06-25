@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('expenses')
-      .select('*', { count: 'exact' });
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat', { count: 'exact' });
 
     if (expenseType && expenseType.length > 0 && expenseType[0] !== 'all') {
       query = query.in('expense_type', expenseType);
@@ -61,17 +61,17 @@ export async function GET(request: NextRequest) {
     const [paymentsResult, expenseNotesResult, linkedNotesResult] = await Promise.all([
       supabase
         .from('expense_payments')
-        .select('*')
+        .select('amount, created_at, created_by, date, expense_id, id, payment_method, updated_at')
         .in('expense_id', expenseIds)
         .order('date', { ascending: false }),
       supabase
         .from('expense_notes')
-        .select('*')
+        .select('id, expense_id, type, text, created_by, created_at, updated_at')
         .in('expense_id', expenseIds)
         .order('created_at', { ascending: false }),
       supabase
         .from('notes')
-        .select('*')
+        .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
         .eq('linked_item_type', 'expense')
         .in('linked_item_id', expenseIds)
         .order('created_at', { ascending: false })
@@ -248,9 +248,9 @@ export async function POST(request: NextRequest) {
     const { data: completeExpense, error: fetchError } = await supabase
       .from('expenses')
       .select(`
-        *,
-        payments:expense_payments(*),
-        notes:expense_notes(*)
+        amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat,
+        payments:expense_payments(amount, created_at, created_by, date, expense_id, id, payment_method, updated_at),
+        notes:expense_notes(id, expense_id, type, text, created_by, created_at, updated_at)
       `)
       .eq('id', newExpense.id)
       .single();
@@ -337,9 +337,9 @@ export async function PUT(request: NextRequest) {
     const { data: completeExpense, error: fetchError } = await supabase
       .from('expenses')
       .select(`
-        *,
-        payments:expense_payments(*),
-        notes:expense_notes(*)
+        amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat,
+        payments:expense_payments(amount, created_at, created_by, date, expense_id, id, payment_method, updated_at),
+        notes:expense_notes(id, expense_id, type, text, created_by, created_at, updated_at)
       `)
       .eq('id', id)
       .single();

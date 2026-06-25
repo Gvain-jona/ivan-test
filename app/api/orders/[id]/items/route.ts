@@ -19,7 +19,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('order_items')
-      .select('*')
+      .select('id, order_id, item_id, category_id, item_name, category_name, size, quantity, unit_price, total_amount, profit_amount, labor_amount, created_at, updated_at')
       .eq('order_id', orderId)
       .order('created_at', { ascending: true });
 
@@ -70,7 +70,7 @@ export async function POST(
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .select('*')
+      .select('id, order_id, item_id, category_id, item_name, category_name, size, quantity, unit_price, total_amount, profit_amount, labor_amount, created_at, updated_at')
       .single();
 
     if (error) return handleSupabaseError(error);
@@ -127,7 +127,7 @@ export async function PUT(
       })
       .eq('id', itemId)
       .eq('order_id', orderId)
-      .select('*')
+      .select('id, order_id, item_id, category_id, item_name, category_name, size, quantity, unit_price, total_amount, profit_amount, labor_amount, created_at, updated_at')
       .single();
 
     if (error) return handleSupabaseError(error);

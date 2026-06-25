@@ -44,7 +44,7 @@ export async function GET(
     // Get installments for the material purchase
     const { data: installments, error } = await supabase
       .from('material_installments')
-      .select('*')
+      .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
       .eq('purchase_id', id)
       .order('installment_number', { ascending: true });
 
@@ -120,7 +120,7 @@ export async function POST(
     // Get the material purchase
     const { data: purchase, error: purchaseError } = await supabase
       .from('material_purchases')
-      .select('*')
+      .select('amount_paid, balance, created_at, created_by, date, id, notes, payment_status, supplier_id, total_amount, updated_at')
       .eq('id', id)
       .single();
 
@@ -201,7 +201,7 @@ export async function POST(
     // Get the created installments
     const { data: createdInstallments, error: installmentsError } = await supabase
       .from('material_installments')
-      .select('*')
+      .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
       .eq('purchase_id', id)
       .order('installment_number', { ascending: true });
 

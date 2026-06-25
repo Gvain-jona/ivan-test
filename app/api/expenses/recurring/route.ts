@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Get recurring expenses with upcoming occurrences
     const { data: expenses, error: expensesError } = await supabase
       .from('expenses')
-      .select('*')
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
       .eq('is_recurring', true)
       .order('next_occurrence_date', { ascending: true });
 
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       // Try to use join syntax first
       const { data: joinOccurrences, error: joinError } = await supabase
         .from('recurring_expense_occurrences')
-        .select('*, expense:parent_expense_id(*)')
+        .select('created_at, id, occurrence_date, parent_expense_id, status, updated_at, expense:parent_expense_id(amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat)')
         .in('parent_expense_id', expenseIds)
         .gte('occurrence_date', startDate)
         .lte('occurrence_date', endDate)
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         // Join failed, fall back to separate queries
         const { data: simpleOccurrences, error: occurrencesError } = await supabase
           .from('recurring_expense_occurrences')
-          .select('*')
+          .select('created_at, id, occurrence_date, parent_expense_id, status, updated_at')
           .in('parent_expense_id', expenseIds)
           .gte('occurrence_date', startDate)
           .lte('occurrence_date', endDate)
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     // Get all active recurring expenses
     const { data: recurringExpenses, error } = await supabase
       .from('expenses')
-      .select('*')
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
       .eq('is_recurring', true);
 
     if (error) {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       // Refresh the recurring expenses list
       const { data: refreshedExpenses } = await supabase
         .from('expenses')
-        .select('*')
+        .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
         .eq('is_recurring', true);
 
       if (refreshedExpenses) {
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
           // Get the updated expense with the new next_occurrence_date
           const { data: rawUpdatedExpense, error: fetchError } = await supabase
             .from('expenses')
-            .select('*')
+            .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
             .eq('id', expense.id)
             .single();
           const updatedExpense = rawUpdatedExpense as typeof rawUpdatedExpense & {

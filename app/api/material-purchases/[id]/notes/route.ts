@@ -44,7 +44,7 @@ export async function GET(
     // Get notes for the material purchase
     const { data: notes, error } = await supabase
       .from('material_purchase_notes')
-      .select('*')
+      .select('id, purchase_id, note_text, created_by, created_at, updated_at')
       .eq('purchase_id', id)
       .order('created_at', { ascending: false });
 

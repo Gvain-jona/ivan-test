@@ -34,7 +34,7 @@ export async function GET(
     // Get the rule
     const { data: rule, error } = await supabase
       .from('account_allocation_rules')
-      .select('*, accounts(name)')
+      .select('id, source_type, account_id, percentage, is_active, created_at, updated_at, accounts(name)')
       .eq('id', id)
       .single();
 
@@ -109,7 +109,7 @@ export async function PUT(
     // Get the current rule
     const { data: currentRule, error: ruleError } = await supabase
       .from('account_allocation_rules')
-      .select('*')
+      .select('id, source_type, account_id, percentage, is_active, created_at, updated_at')
       .eq('id', id)
       .single();
 

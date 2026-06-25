@@ -17,7 +17,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('notes')
-      .select('*')
+      .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
       .eq('linked_item_type', 'order')
       .eq('linked_item_id', id)
       .order('created_at', { ascending: false });
@@ -61,7 +61,7 @@ export async function POST(
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .select('*')
+      .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
       .single();
 
     if (error) return handleSupabaseError(error);

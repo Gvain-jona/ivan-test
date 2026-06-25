@@ -34,7 +34,7 @@ export async function GET(
     // Get the account
     const { data: account, error } = await supabase
       .from('accounts')
-      .select('*')
+      .select('id, name, description, account_type, balance, is_active, created_at, updated_at')
       .eq('id', id)
       .single();
 
