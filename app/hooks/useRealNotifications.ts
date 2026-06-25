@@ -26,7 +26,7 @@ export const useRealNotifications = () => {
       // Fetch notifications for the current user
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
         .eq('user_id', user.id)
         .order('timestamp', { ascending: false });
 
@@ -37,24 +37,20 @@ export const useRealNotifications = () => {
       }
 
       // Transform the data to match the Notification interface
-      const transformedNotifications: Notification[] = data.map((notification) => {
-        // Parse the data field if it exists
-        const parsedData = notification.data ? notification.data : {};
+      const transformedNotifications: NotificationType[] = data.map((notification) => {
+        const parsedData = (notification.data ?? {}) as { order_id?: string; client_name?: string };
 
         return {
           id: notification.id,
-          type: notification.type,
-          title: notification.title,
-          message: notification.message,
-          timestamp: notification.timestamp || notification.created_at,
-          status: notification.status as NotificationStatus,
-          sender: {
-            id: 'system',
-            name: 'System',
-          },
+          type: (notification.type || 'comment') as NotificationType['type'],
+          title: notification.title || '',
+          message: notification.message || '',
+          timestamp: notification.timestamp ?? notification.created_at ?? new Date().toISOString(),
+          status: (notification.status || 'unread') as NotificationStatus,
+          sender: { id: 'system', name: 'System' },
           target: {
             id: parsedData.order_id || '',
-            type: 'order',
+            type: 'order' as const,
             title: parsedData.client_name ? `${parsedData.client_name}'s Order` : 'Order',
           },
         };
@@ -270,8 +266,8 @@ export const useRealNotifications = () => {
   }, [user?.id, notifications]);
 
   // Helper function to group notifications by date
-  const groupNotificationsByDate = useCallback((notifications: Notification[]) => {
-    const groups: Record<string, Notification[]> = {};
+  const groupNotificationsByDate = useCallback((notifications: NotificationType[]) => {
+    const groups: Record<string, NotificationType[]> = {};
 
     notifications.forEach(notification => {
       const date = new Date(notification.timestamp);
@@ -374,20 +370,17 @@ export const useRealNotifications = () => {
 
           console.log('Parsed notification data:', parsedData);
 
-          const transformedNotification: Notification = {
+          const transformedNotification: NotificationType = {
             id: newNotification.id,
-            type: newNotification.type,
-            title: newNotification.title,
-            message: newNotification.message,
-            timestamp: newNotification.timestamp || newNotification.created_at,
-            status: newNotification.status as NotificationStatus,
-            sender: {
-              id: 'system',
-              name: 'System',
-            },
+            type: (newNotification.type || 'comment') as NotificationType['type'],
+            title: newNotification.title || '',
+            message: newNotification.message || '',
+            timestamp: newNotification.timestamp ?? newNotification.created_at ?? new Date().toISOString(),
+            status: (newNotification.status || 'unread') as NotificationStatus,
+            sender: { id: 'system', name: 'System' },
             target: {
               id: parsedData.order_id || '',
-              type: 'order',
+              type: 'order' as const,
               title: parsedData.client_name ? `${parsedData.client_name}'s Order` : 'Order',
             },
           };

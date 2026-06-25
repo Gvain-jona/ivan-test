@@ -26,7 +26,7 @@ export type SmartComboboxOption = {
   [key: string]: any // Allow for additional metadata
 }
 
-interface SmartComboboxProps {
+export interface SmartComboboxProps {
   options: SmartComboboxOption[]
   value: string
   onChange: (value: string) => void

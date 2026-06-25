@@ -46,7 +46,7 @@ export function ExpenseViewHeader({
           <div className="flex justify-between items-start">
             {customHeader}
             <div className="flex gap-2">
-              <SheetClose asChild>
+              <SheetClose>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -76,7 +76,7 @@ export function ExpenseViewHeader({
           <div className="flex justify-between items-center">
             <SheetTitle>Expense Details</SheetTitle>
             <div className="flex gap-2">
-              <SheetClose asChild>
+              <SheetClose>
                 <Button
                   variant="ghost"
                   size="icon"

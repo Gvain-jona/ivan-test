@@ -57,7 +57,7 @@ export async function PATCH(
     return response;
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );

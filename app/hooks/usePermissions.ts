@@ -33,12 +33,12 @@ export function usePermissions() {
       try {
         const { data, error } = await supabase
           .from('role_permissions')
-          .select('*')
+          .select('id, role, resource, actions, created_at, updated_at')
           .eq('role', profile.role);
         
         if (error) throw error;
         
-        setPermissions(data || []);
+        setPermissions((data as unknown as Permission[]) || []);
       } catch (error) {
         console.error('Error fetching permissions:', error);
       } finally {

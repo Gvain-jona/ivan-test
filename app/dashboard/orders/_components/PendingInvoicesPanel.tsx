@@ -154,7 +154,7 @@ const PendingInvoicesPanel: React.FC<PendingInvoicesPanelProps> = ({
               </Select>
             </div>
             <div className="flex-1 flex gap-2">
-              <Select value={sortBy} onValueChange={setSortBy} className="flex-1">
+              <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="h-10 bg-muted/50">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>

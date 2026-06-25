@@ -33,7 +33,7 @@ export function ExpenseViewNotes({
           Notes
           {hasNotes && (
             <Badge variant="outline" className="ml-2 bg-muted">
-              {expense.notes.length}
+              {expense.notes!.length}
             </Badge>
           )}
         </h3>
@@ -50,7 +50,7 @@ export function ExpenseViewNotes({
 
       {hasNotes ? (
         <div className="space-y-3">
-          {expense.notes.map((note: ExpenseNote) => (
+          {expense.notes!.map((note: ExpenseNote) => (
             <NoteCard
               key={note.id}
               note={note}

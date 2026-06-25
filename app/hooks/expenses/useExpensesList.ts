@@ -3,7 +3,7 @@ import { useLoadingSWR } from '../useLoadingSWR';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { toast } from 'sonner';
 import { Expense, ExpenseFilters, ExpenseNote, ExpensePayment } from './types';
-import { createSWRConfig } from '@/lib/swr-config';
+import { createSWRConfig, SWR_RETRY } from '@/lib/swr-config';
 import {
   calculateAmountPaid,
   calculateBalance,
@@ -54,7 +54,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
     ...EXPENSE_SWR_CONFIG,
     fallbackData: { expenses: [], count: 0, limit: 50, offset: 0 },
     dedupingInterval: 60 * 1000,
-    errorRetryCount: 3,
+    errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
     errorRetryInterval: 2000,
     keepPreviousData: true,
   };
@@ -132,7 +132,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
     const tempId = `temp-${Date.now()}`;
 
     const totalAmount = expense.total_amount || 0;
-    const amountPaid = calculateAmountPaid(payments);
+    const amountPaid = calculateAmountPaid(payments as { amount: number | string }[]);
     const balance = calculateBalance(totalAmount, amountPaid);
     const paymentStatus = calculatePaymentStatus(totalAmount, amountPaid);
 
@@ -207,7 +207,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
 
           if (!prev) return { expenses: [createdExpense], count: 1, limit: 50, offset: 0 };
 
-          const updatedExpenses = prev.expenses.map(exp =>
+          const updatedExpenses = prev.expenses.map((exp: Expense) =>
             exp.id === tempId ? createdExpense : exp
           );
 
@@ -231,7 +231,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
           if (!prev) return { expenses: [], count: 0, limit: 50, offset: 0 };
           return {
             ...prev,
-            expenses: prev.expenses.filter(exp => exp.id !== tempId),
+            expenses: prev.expenses.filter((exp: Expense) => exp.id !== tempId),
             count: prev.count > 0 ? prev.count - 1 : 0
           };
         },
@@ -259,7 +259,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
 
     try {
       const currentData = data || { expenses: [], count: 0, limit: 50, offset: 0 };
-      const currentExpense = currentData.expenses.find(exp => exp.id === id);
+      const currentExpense = currentData.expenses.find((exp: Expense) => exp.id === id);
 
       if (!currentExpense) {
         throw new Error('Expense not found in cache');
@@ -274,7 +274,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
       mutate(
         prev => {
           if (!prev) return currentData;
-          const updatedExpenses = prev.expenses.map(exp => exp.id === id ? optimisticExpense : exp);
+          const updatedExpenses = prev.expenses.map((exp: Expense) => exp.id === id ? optimisticExpense : exp);
           return { ...prev, expenses: updatedExpenses };
         },
         { revalidate: false }
@@ -304,7 +304,7 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
 
           if (!prev) return currentData;
 
-          const updatedExpenses = prev.expenses.map(exp => exp.id === id ? updatedExpense : exp);
+          const updatedExpenses = prev.expenses.map((exp: Expense) => exp.id === id ? updatedExpense : exp);
           return { ...prev, expenses: updatedExpenses };
         },
         { revalidate: false }
@@ -349,13 +349,13 @@ export function useExpensesList(filters?: ExpenseFilters | null) {
 
     try {
       const currentData = data || { expenses: [], count: 0, limit: 50, offset: 0 };
-      deletedExpense = currentData.expenses.find(exp => exp.id === id);
+      deletedExpense = currentData.expenses.find((exp: Expense) => exp.id === id);
 
       mutate(
         prev => {
           if (!prev) return currentData;
           optimisticUpdateApplied = true;
-          const updatedExpenses = prev.expenses.filter(exp => exp.id !== id);
+          const updatedExpenses = prev.expenses.filter((exp: Expense) => exp.id !== id);
           return { ...prev, expenses: updatedExpenses, count: prev.count > 0 ? prev.count - 1 : 0 };
         },
         { revalidate: false }

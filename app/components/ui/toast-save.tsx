@@ -77,7 +77,7 @@ export function ToastSave({
       initial={false}
       animate={{ width: "auto" }}
       transition={springConfig}
-      {...props}
+      {...(props as any)}
     >
       <div className="flex h-full items-center justify-between px-3">
         <AnimatePresence mode="wait">

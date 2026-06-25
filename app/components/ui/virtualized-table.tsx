@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 
 interface Column<T> {
   header: string;
@@ -78,7 +78,7 @@ export function VirtualizedTable<T>({
           <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             <td colSpan={columns.length} className="p-0">
               <div className="relative">
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
                   const item = data[virtualRow.index];
                   return (
                     <tr

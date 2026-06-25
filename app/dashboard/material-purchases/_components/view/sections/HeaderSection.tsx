@@ -59,7 +59,7 @@ export function HeaderSection() {
             </div>
           </div>
           <div className="flex gap-2">
-            <SheetClose asChild>
+            <SheetClose>
               <Button
                 variant="ghost"
                 size="icon"

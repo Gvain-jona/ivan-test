@@ -118,9 +118,10 @@ export function NotesSection() {
       {editingNote && (
         <EditMaterialNoteForm
           note={editingNote}
-          onSubmit={(updatedNote) => {
+          onSubmit={async (updatedNote) => {
             handleEditNote(updatedNote);
             setEditingNote(null);
+            return true;
           }}
           onClose={() => setEditingNote(null)}
           isSubmitting={loadingStates.editNote === editingNote.id}

@@ -144,7 +144,7 @@ export function PaymentForm({
               : 'Enter the payment details below'}
           </p>
           {formError && (
-            <Alert variant="destructive" className="mt-4">
+            <Alert variant="error" className="mt-4">
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}

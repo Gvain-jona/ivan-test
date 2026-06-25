@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Get recurring expenses with upcoming occurrences
     const { data: expenses, error: expensesError } = await supabase
       .from('expenses')
-      .select('*')
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
       .eq('is_recurring', true)
       .order('next_occurrence_date', { ascending: true });
 
@@ -34,12 +34,12 @@ export async function GET(request: NextRequest) {
     // Get existing occurrences for these expenses
     const expenseIds = expenses?.map(expense => expense.id) || [];
 
-    let occurrences = [];
+    let occurrences: unknown[] = [];
     if (expenseIds.length > 0) {
       // Try to use join syntax first
       const { data: joinOccurrences, error: joinError } = await supabase
         .from('recurring_expense_occurrences')
-        .select('*, expense:parent_expense_id(*)')
+        .select('created_at, id, occurrence_date, parent_expense_id, status, updated_at, expense:parent_expense_id(amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat)')
         .in('parent_expense_id', expenseIds)
         .gte('occurrence_date', startDate)
         .lte('occurrence_date', endDate)
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         // Join failed, fall back to separate queries
         const { data: simpleOccurrences, error: occurrencesError } = await supabase
           .from('recurring_expense_occurrences')
-          .select('*')
+          .select('created_at, id, occurrence_date, parent_expense_id, status, updated_at')
           .in('parent_expense_id', expenseIds)
           .gte('occurrence_date', startDate)
           .lte('occurrence_date', endDate)
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Unauthorized', { status: 401 });
+      return handleApiError('UNAUTHORIZED', 'Unauthorized', { status: 401 });
     }
 
     const supabase = await createClient();
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     // Get all active recurring expenses
     const { data: recurringExpenses, error } = await supabase
       .from('expenses')
-      .select('*')
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
       .eq('is_recurring', true);
 
     if (error) {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       // Refresh the recurring expenses list
       const { data: refreshedExpenses } = await supabase
         .from('expenses')
-        .select('*')
+        .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
         .eq('is_recurring', true);
 
       if (refreshedExpenses) {
@@ -195,11 +195,20 @@ export async function POST(request: NextRequest) {
           await supabase.rpc('calculate_next_occurrence', { expense_id: expense.id });
 
           // Get the updated expense with the new next_occurrence_date
-          const { data: updatedExpense, error: fetchError } = await supabase
+          const { data: rawUpdatedExpense, error: fetchError } = await supabase
             .from('expenses')
-            .select('next_occurrence_date, recurrence_frequency, recurrence_day_of_month, recurrence_day_of_week, recurrence_week_of_month, recurrence_month_of_year, monthly_recurrence_type')
+            .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
             .eq('id', expense.id)
             .single();
+          const updatedExpense = rawUpdatedExpense as typeof rawUpdatedExpense & {
+            next_occurrence_date?: string;
+            recurrence_frequency?: string;
+            recurrence_day_of_month?: number;
+            recurrence_day_of_week?: number;
+            recurrence_week_of_month?: number;
+            recurrence_month_of_year?: number;
+            monthly_recurrence_type?: string;
+          } | null;
 
           if (fetchError || !updatedExpense) {
             errors.push({
@@ -232,11 +241,8 @@ export async function POST(request: NextRequest) {
               currentDate,
               updatedExpense.recurrence_frequency,
               {
-                dayOfMonth: updatedExpense.recurrence_day_of_month,
-                dayOfWeek: updatedExpense.recurrence_day_of_week,
-                weekOfMonth: updatedExpense.recurrence_week_of_month,
-                monthOfYear: updatedExpense.recurrence_month_of_year,
-                monthlyRecurrenceType: updatedExpense.monthly_recurrence_type
+                dayOfMonth: updatedExpense.recurrence_day_of_month ?? undefined,
+                monthlyRecurrenceType: updatedExpense.monthly_recurrence_type ?? undefined
               }
             );
 
@@ -278,7 +284,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Helper function to calculate the next date based on frequency
-    function calculateNextDate(date, frequency, options) {
+    function calculateNextDate(date: string | Date, frequency: string, options: { monthlyRecurrenceType?: string; dayOfMonth?: number }) {
       const nextDate = new Date(date);
 
       switch (frequency) {
@@ -323,7 +329,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       'An unexpected error occurred',
       { details: error instanceof Error ? error.message : 'Unknown error' }
     );

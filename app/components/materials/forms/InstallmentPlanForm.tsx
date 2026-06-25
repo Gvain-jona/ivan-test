@@ -242,8 +242,8 @@ export function InstallmentPlanForm({
   // If children are provided, render them as a trigger for the sheet
   if (children) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
+      <Sheet open={open ?? false} onOpenChange={onOpenChange ?? (() => {})}>
+        <SheetTrigger>
           {children}
         </SheetTrigger>
         <SheetContent className="sm:max-w-md">
@@ -408,8 +408,8 @@ export function InstallmentPlanForm({
 
   // If no children are provided, still use the Sheet component but with a hidden trigger
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
+    <Sheet open={open ?? false} onOpenChange={onOpenChange ?? (() => {})}>
+      <SheetTrigger>
         <span className="hidden" />
       </SheetTrigger>
       <SheetContent className="sm:max-w-md">

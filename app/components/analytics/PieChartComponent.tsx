@@ -56,18 +56,15 @@ export function PieChartComponent({
   if (centerText && type === 'doughnut') {
     mergedOptions.plugins = {
       ...mergedOptions.plugins,
-      doughnutLabel: {
+      ...({ doughnutLabel: {
         labels: [
           {
             text: centerText,
-            font: {
-              size: '16',
-              weight: 'bold',
-            },
+            font: { size: '16', weight: 'bold' },
             color: 'rgb(var(--foreground))',
           },
         ],
-      },
+      } } as any),
     };
   }
 
@@ -99,14 +96,14 @@ export function PieChartComponent({
         <div style={{ height: height, position: 'relative' }}>
           {type === 'pie' ? (
             <Pie
-              data={data}
-              options={mergedOptions}
+              data={data as ChartData<'pie'>}
+              options={mergedOptions as ChartOptions<'pie'>}
               height={height}
             />
           ) : (
             <Doughnut
-              data={data}
-              options={mergedOptions}
+              data={data as ChartData<'doughnut'>}
+              options={mergedOptions as ChartOptions<'doughnut'>}
               height={height}
             />
           )}

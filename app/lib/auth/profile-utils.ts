@@ -4,7 +4,7 @@
  */
 
 import { User } from '@supabase/supabase-js';
-import { createClient } from '../supabase/client';
+import { createClient } from '@/utils/supabase/client';
 
 export type Profile = {
   id: string
@@ -14,6 +14,7 @@ export type Profile = {
   status: 'active' | 'inactive' | 'locked'
   created_at: string
   updated_at: string
+  avatar_url?: string | null
 }
 
 /**
@@ -27,7 +28,7 @@ export async function fetchUserProfile(userId: string): Promise<{ profile: Profi
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', userId)
       .maybeSingle();
 
@@ -42,7 +43,7 @@ export async function fetchUserProfile(userId: string): Promise<{ profile: Profi
       console.log('No profile found for user ID:', userId);
     }
 
-    return { profile: data, error: null };
+    return { profile: data as Profile | null, error: null };
   } catch (error) {
     console.error('Exception fetching profile:', error);
     return { profile: null, error };
@@ -70,13 +71,13 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
     // First check if profile already exists to avoid 409 conflicts
     const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', user.id)
       .maybeSingle();
 
     if (existingProfile) {
       console.log('Profile already exists, returning existing profile:', existingProfile);
-      return { profile: existingProfile, error: null };
+      return { profile: existingProfile as Profile, error: null };
     }
 
     // Default to staff role if allowed_emails check fails
@@ -129,7 +130,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
       const { data, error } = await supabase
         .from('profiles')
         .insert(profileData)
-        .select('*')
+        .select('created_at, email, full_name, id, role, status, updated_at')
         .single();
 
       if (error) {
@@ -142,12 +143,12 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
           // Fetch the existing profile
           const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('created_at, email, full_name, id, role, status, updated_at')
             .eq('id', user.id)
             .maybeSingle();
 
           if (existingProfile) {
-            return { profile: existingProfile, error: null };
+            return { profile: existingProfile as Profile, error: null };
           }
         }
 
@@ -163,7 +164,7 @@ export async function createUserProfile(user: User): Promise<{ profile: Profile 
       }
 
       console.log('Profile created successfully:', data);
-      return { profile: data, error: null };
+      return { profile: data as Profile, error: null };
     } catch (insertError) {
       console.error('Exception during profile insert:', insertError);
 
@@ -194,13 +195,13 @@ async function createProfileWithServiceRole(user: User): Promise<{ profile: Prof
     const supabase = createClient();
     const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', user.id)
       .maybeSingle();
 
     if (existingProfile) {
       console.log('Profile already exists, returning existing profile:', existingProfile);
-      return { profile: existingProfile, error: null };
+      return { profile: existingProfile as Profile, error: null };
     }
 
     // Prepare the user data to send to the API

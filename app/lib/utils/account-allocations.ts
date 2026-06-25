@@ -40,7 +40,7 @@ export async function allocateAmount(
     // Get active allocation rules for this source type
     const { data: rules, error } = await supabase
       .from('account_allocation_rules')
-      .select('*')
+      .select('id, source_type, account_id, percentage, is_active, created_at, updated_at')
       .eq('source_type', sourceType)
       .eq('is_active', true)
       .order('percentage', { ascending: false });
@@ -63,7 +63,7 @@ export async function allocateAmount(
       const ruleAmount = (amount * rule.percentage) / 100;
       
       return {
-        accountId: rule.account_id,
+        accountId: rule.account_id ?? '',
         amount: ruleAmount,
         transactionType,
         sourceType,

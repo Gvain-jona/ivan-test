@@ -10,9 +10,7 @@ export async function updateLastSignIn(userId: string): Promise<void> {
     
     const { error } = await supabase
       .from('profiles')
-      .update({ 
-        last_sign_in_at: new Date().toISOString() 
-      })
+      .update({ updated_at: new Date().toISOString() } as never)
       .eq('id', userId);
     
     if (error) {

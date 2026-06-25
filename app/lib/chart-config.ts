@@ -15,7 +15,8 @@ import {
   ChartData,
   ChartDataset
 } from 'chart.js';
-import { _DeepPartialObject } from 'chart.js/dist/types/utils';
+// Inline definition to avoid missing module error
+type _DeepPartialObject<T> = { [K in keyof T]?: T[K] extends object ? _DeepPartialObject<T[K]> : T[K] };
 import 'chart.js/auto';
 
 // Register Chart.js components

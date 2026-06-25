@@ -56,7 +56,7 @@ const AddOrderPaymentForm: React.FC<AddOrderPaymentFormProps> = ({
   const handleSelectChange = (value: string) => {
     setFormData({
       ...formData,
-      payment_method: value
+      payment_method: value as import('@/types/orders').PaymentMethod
     });
   };
 

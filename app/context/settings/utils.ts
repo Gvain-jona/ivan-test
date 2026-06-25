@@ -43,11 +43,11 @@ export function mergeWithDefaultSettings(userSettings?: Partial<UserSettings>): 
       ...defaultSettings.profit,
       ...userSettings.profit,
       overrides: userSettings.profit?.overrides || defaultSettings.profit?.overrides || [],
-    },
+    } as import('./types').ProfitSettings,
     accounts: {
       ...defaultSettings.accounts,
       ...userSettings.accounts,
-    },
+    } as import('./types').AccountsSettings,
   };
 }
 

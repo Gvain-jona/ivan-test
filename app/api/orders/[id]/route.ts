@@ -20,12 +20,12 @@ export async function GET(
       { data: orderPayments, error: paymentsError },
       { data: orderNotes, error: notesError },
     ] = await Promise.all([
-      supabase.from('orders').select('*').eq('id', id).single(),
-      supabase.from('order_items').select('*').eq('order_id', id).order('created_at', { ascending: true }),
-      supabase.from('order_payments').select('*').eq('order_id', id).order('date', { ascending: false }),
+      supabase.from('orders').select('id, order_number, client_id, client_name, client_type, date, status, payment_status, total_amount, amount_paid, balance, delivery_date, is_delivered, invoice_generated_at, created_by, created_at, updated_at').eq('id', id).single(),
+      supabase.from('order_items').select('id, order_id, item_id, category_id, item_name, category_name, size, quantity, unit_price, total_amount, profit_amount, labor_amount, created_at, updated_at').eq('order_id', id).order('created_at', { ascending: true }),
+      supabase.from('order_payments').select('id, order_id, amount, date, payment_method, created_at, updated_at').eq('order_id', id).order('date', { ascending: false }),
       supabase
         .from('notes')
-        .select('*')
+        .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
         .eq('linked_item_type', 'order')
         .eq('linked_item_id', id)
         .order('created_at', { ascending: false }),

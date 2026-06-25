@@ -17,6 +17,8 @@ export interface AppearanceSettings {
   theme: ThemeOption;
   companyName: string;
   companyLogo: string;
+  accentColor?: AccentColorOption;
+  highContrast?: boolean;
 }
 
 export interface LayoutSettings {

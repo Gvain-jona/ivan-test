@@ -191,7 +191,7 @@ export function NotificationsDrawer() {
                   </Button>
                 </div>
                 {groupedNotifications.map(group => (
-                  <NotificationGroup key={group.date} group={group} />
+                  <NotificationGroup key={group.date} group={group as any} />
                 ))}
               </>
             ) : (
@@ -230,7 +230,7 @@ export function NotificationsDrawer() {
               </div>
             ) : readCount > 0 ? (
               groupedNotifications.map(group => (
-                <NotificationGroup key={group.date} group={group} />
+                <NotificationGroup key={group.date} group={group as any} />
               ))
             ) : (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -313,7 +313,7 @@ export function NotificationsDrawer() {
                   </Button>
                 </div>
                 {groupedNotifications.map(group => (
-                  <NotificationGroup key={group.date} group={group} />
+                  <NotificationGroup key={group.date} group={group as any} />
                 ))}
               </>
             ) : (

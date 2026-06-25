@@ -81,8 +81,8 @@ export function AnalyticsFilterBar({
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <DateRangeAdapter
-        dateRange={dateRange}
-        onDateRangeChange={onDateRangeChange}
+        dateRange={dateRange ?? { startDate: '', endDate: '' }}
+        onDateRangeChange={(range) => onDateRangeChange(range)}
         showCompare={showCompare}
         compareRange={compareRange}
         onCompareRangeChange={onCompareRangeChange}

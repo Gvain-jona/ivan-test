@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     // Get notifications for the user
     const { data, error } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -47,13 +47,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Transform the data to ensure timestamp field exists
-    const transformedData = data.map((notification: { 
-      id: string; 
-      timestamp?: string; 
-      created_at: string;
-      [key: string]: any;
-    }) => ({
+    const transformedData = data.map((notification) => ({
       ...notification,
       timestamp: notification.timestamp || notification.created_at
     }));

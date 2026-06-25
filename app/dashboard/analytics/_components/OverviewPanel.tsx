@@ -185,7 +185,7 @@ export function OverviewPanel() {
     if (!normalizedCategoryPerformance || normalizedCategoryPerformance.length === 0) return [];
 
     return normalizedCategoryPerformance.map(category => ({
-      name: category.normalized_category_name,
+      name: (category as unknown as Record<string, unknown>).normalized_category_name as string || category.category_name,
       products: category.item_count,
       revenue: category.total_revenue,
       profit: category.total_profit,
@@ -726,7 +726,7 @@ export function OverviewPanel() {
             <div className="md:col-span-7 space-y-2">
               <KPICardWithChart
                 title="Revenue Growth"
-                value={summaryMetrics ? formatCurrency(summaryMetrics.totalRevenue).replace('UGX', 'USh') : 'Loading...'}
+                value={summaryMetrics ? formatCurrency(summaryMetrics.total_revenue).replace('UGX', 'USh') : 'Loading...'}
                 change={7.2}
                 changeLabel="vs last month"
                 className="bg-card border-border shadow-sm"
@@ -742,7 +742,7 @@ export function OverviewPanel() {
 
               <KPICardWithChart
                 title="Monthly Expenses"
-                value={summaryMetrics ? formatCurrency(summaryMetrics.totalExpenses) : 'Loading...'}
+                value={summaryMetrics ? formatCurrency(summaryMetrics.total_expenses) : 'Loading...'}
                 change={-2.5}
                 changeLabel="vs last month"
                 icon={<BanknoteIcon className="h-5 w-5 text-primary" />}

@@ -12,7 +12,7 @@ interface DashboardData {
   lowStockItems?: any[];
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   try {
     // Create a Supabase client with the Auth context of the logged in user
     const supabaseClient = createClient(
@@ -122,14 +122,14 @@ serve(async (req) => {
     // Process the data
     const totalOrders = totalOrdersData?.count || 0;
 
-    const totalEarnings = totalEarningsData?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-    
-    const pendingPayments = pendingPaymentsData?.reduce((sum, order) => sum + (order.balance || 0), 0) || 0;
+    const totalEarnings = totalEarningsData?.reduce((sum: number, order: { total_amount?: number }) => sum + (order.total_amount || 0), 0) || 0;
+
+    const pendingPayments = pendingPaymentsData?.reduce((sum: number, order: { balance?: number }) => sum + (order.balance || 0), 0) || 0;
     
     // Process orders by status
     const ordersByStatus: Record<string, number> = {};
     if (ordersByStatusData) {
-      ordersByStatusData.forEach(order => {
+      ordersByStatusData.forEach((order: { status: string }) => {
         const status = order.status;
         ordersByStatus[status] = (ordersByStatus[status] || 0) + 1;
       });
@@ -138,7 +138,7 @@ serve(async (req) => {
     // Process monthly revenue
     const monthlyRevenue: Record<string, number> = {};
     if (monthlyRevenueData) {
-      monthlyRevenueData.forEach(payment => {
+      monthlyRevenueData.forEach((payment: { created_at?: string; amount?: number }) => {
         const month = new Date(payment.payment_date).toLocaleString('default', { month: 'short' });
         monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (payment.amount || 0);
       });

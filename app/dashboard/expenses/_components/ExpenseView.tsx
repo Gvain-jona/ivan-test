@@ -216,13 +216,13 @@ export function ExpenseView({
                       <p className="text-sm font-medium">{expense.responsible}</p>
                     </div>
                   )}
-                  {expense.vat > 0 && (
+                  {(expense.vat ?? 0) > 0 && (
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground flex items-center">
                         <Tag className="h-4 w-4 mr-2" />
                         VAT
                       </p>
-                      <p className="text-sm font-medium">{formatCurrency(expense.vat)}</p>
+                      <p className="text-sm font-medium">{formatCurrency(expense.vat ?? 0)}</p>
                     </div>
                   )}
                 </div>
@@ -427,7 +427,7 @@ export function ExpenseView({
         <PaymentForm
           open={isAddingPayment}
           onOpenChange={setIsAddingPayment}
-          onSubmit={async (values) => {
+          onSubmit={async (values: Parameters<typeof addPayment>[0]) => {
             await addPayment(values);
             setIsAddingPayment(false);
           }}
@@ -438,7 +438,7 @@ export function ExpenseView({
         <NoteForm
           open={isAddingNote}
           onOpenChange={setIsAddingNote}
-          onSubmit={async (values) => {
+          onSubmit={async (values: Parameters<typeof addNote>[0]) => {
             await addNote(values);
             setIsAddingNote(false);
           }}

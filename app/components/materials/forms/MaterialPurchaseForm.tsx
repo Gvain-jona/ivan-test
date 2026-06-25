@@ -130,7 +130,7 @@ export function MaterialPurchaseForm({
 
   // Initialize form with default values or existing purchase data
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       supplier_name: purchase?.supplier_name || '',
       material_name: purchase?.material_name || '',
@@ -411,11 +411,13 @@ export function MaterialPurchaseForm({
     payments
   ]);
 
+  const formControl = form.control as any;
+
   // If children are provided, render them as a trigger for the sheet
   if (children) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
+      <Sheet open={open ?? false} onOpenChange={onOpenChange ?? (() => {})}>
+        <SheetTrigger>
           {children}
         </SheetTrigger>
         <SheetContent className="sm:max-w-md md:max-w-xl lg:max-w-2xl flex flex-col p-0">
@@ -438,7 +440,7 @@ export function MaterialPurchaseForm({
           </SheetHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+            <form onSubmit={form.handleSubmit(onSubmit as any)} className="flex flex-col h-full">
               <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-20">
                 {/* Purchase Details Section */}
                 <div className="space-y-6">
@@ -450,7 +452,7 @@ export function MaterialPurchaseForm({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Material Name - Moved to top for better hierarchy */}
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="material_name"
                       render={({ field }) => (
                         <FormItem className="col-span-full">
@@ -465,7 +467,7 @@ export function MaterialPurchaseForm({
 
                     {/* Supplier Name */}
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="supplier_name"
                       render={({ field }) => (
                         <FormItem>
@@ -480,7 +482,7 @@ export function MaterialPurchaseForm({
 
                     {/* Date */}
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="date"
                       render={({ field }) => (
                         <FormItem className="space-y-2">
@@ -516,7 +518,7 @@ export function MaterialPurchaseForm({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Quantity */}
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="quantity"
                       render={({ field }) => (
                         <FormItem>
@@ -540,7 +542,7 @@ export function MaterialPurchaseForm({
 
                     {/* Unit */}
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="unit"
                       render={({ field }) => (
                         <FormItem>
@@ -558,7 +560,7 @@ export function MaterialPurchaseForm({
 
                     {/* Unit Price */}
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="unit_price"
                       render={({ field }) => (
                         <FormItem>
@@ -586,7 +588,7 @@ export function MaterialPurchaseForm({
 
                   {/* Total Amount (calculated) */}
                   <FormField
-                    control={form.control}
+                    control={formControl}
                     name="total_amount"
                     render={({ field }) => (
                       <FormItem>
@@ -638,7 +640,7 @@ export function MaterialPurchaseForm({
 
                   {/* Installment Plan Toggle */}
                   <FormField
-                    control={form.control}
+                    control={formControl}
                     name="installment_plan"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
@@ -699,7 +701,7 @@ export function MaterialPurchaseForm({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Number of Installments */}
                       <FormField
-                        control={form.control}
+                        control={formControl}
                         name="total_installments"
                         render={({ field }) => (
                           <FormItem>
@@ -722,7 +724,7 @@ export function MaterialPurchaseForm({
 
                       {/* Payment Frequency */}
                       <FormField
-                        control={form.control}
+                        control={formControl}
                         name="payment_frequency"
                         render={({ field }) => (
                           <FormItem>
@@ -749,7 +751,7 @@ export function MaterialPurchaseForm({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* First Payment Date */}
                       <FormField
-                        control={form.control}
+                        control={formControl}
                         name="first_payment_date"
                         render={({ field }) => (
                           <FormItem className="space-y-2">
@@ -776,7 +778,7 @@ export function MaterialPurchaseForm({
 
                       {/* Reminder Days */}
                       <FormField
-                        control={form.control}
+                        control={formControl}
                         name="reminder_days"
                         render={({ field }) => (
                           <FormItem>
@@ -977,7 +979,7 @@ export function MaterialPurchaseForm({
 
                   {showNotes && (
                     <FormField
-                      control={form.control}
+                      control={formControl}
                       name="notes"
                       render={({ field }) => (
                         <FormItem>
@@ -1032,8 +1034,8 @@ export function MaterialPurchaseForm({
 
   // If no children are provided, still use the Sheet component but with a hidden trigger
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
+    <Sheet open={open ?? false} onOpenChange={onOpenChange ?? (() => {})}>
+      <SheetTrigger>
         <span className="hidden" />
       </SheetTrigger>
       <SheetContent className="sm:max-w-md md:max-w-xl lg:max-w-2xl flex flex-col p-0">
@@ -1056,12 +1058,12 @@ export function MaterialPurchaseForm({
         </SheetHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+          <form onSubmit={form.handleSubmit(onSubmit as any)} className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Supplier Name */}
                 <FormField
-                  control={form.control}
+                  control={formControl}
                   name="supplier_name"
                   render={({ field }) => (
                     <FormItem>
@@ -1076,7 +1078,7 @@ export function MaterialPurchaseForm({
 
                 {/* Date */}
                 <FormField
-                  control={form.control}
+                  control={formControl}
                   name="date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
@@ -1120,7 +1122,7 @@ export function MaterialPurchaseForm({
 
               {/* Material Name */}
               <FormField
-                control={form.control}
+                control={formControl}
                 name="material_name"
                 render={({ field }) => (
                   <FormItem>
@@ -1136,7 +1138,7 @@ export function MaterialPurchaseForm({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Quantity */}
                 <FormField
-                  control={form.control}
+                  control={formControl}
                   name="quantity"
                   render={({ field }) => (
                     <FormItem>
@@ -1158,7 +1160,7 @@ export function MaterialPurchaseForm({
 
                 {/* Unit Price */}
                 <FormField
-                  control={form.control}
+                  control={formControl}
                   name="unit_price"
                   render={({ field }) => (
                     <FormItem>
@@ -1185,7 +1187,7 @@ export function MaterialPurchaseForm({
 
               {/* Total Amount (calculated) */}
               <FormField
-                control={form.control}
+                control={formControl}
                 name="total_amount"
                 render={({ field }) => (
                   <FormItem className="col-span-full">
@@ -1236,7 +1238,7 @@ export function MaterialPurchaseForm({
 
                 {showNotes && (
                   <FormField
-                    control={form.control}
+                    control={formControl}
                     name="notes"
                     render={({ field }) => (
                       <FormItem>

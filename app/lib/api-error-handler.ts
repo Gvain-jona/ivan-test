@@ -14,10 +14,7 @@ import {
 } from './api/error-handler';
 
 // Re-export the error handling functions and types
-export { 
-  ApiErrorType,
-  ApiErrorResponse
-};
+export type { ApiErrorType, ApiErrorResponse };
 
 export const handleApiError = _handleApiError;
 export const handleSupabaseError = _handleSupabaseError;

@@ -83,7 +83,7 @@ function Calendar({
         className={cn("w-full", className)}
         classNames={mergedClassNames}
         components={mergedComponents}
-        captionLayout="dropdown-buttons"
+        captionLayout="dropdown"
         fixedWeeks
         {...props}
       />

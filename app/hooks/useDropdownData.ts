@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
+import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { createClient } from '@/utils/supabase/client';
 import { SmartComboboxOption } from '@/components/ui/smart-combobox';
 
@@ -266,10 +267,10 @@ export function useDropdownData(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 60 * 60 * 1000, // 60 minutes - increased to reduce API calls
+      dedupingInterval: SWR_CACHE_TIMES.DROPDOWN_DEDUPE,
       keepPreviousData: true,
-      refreshInterval: 0, // Don't automatically refresh
-      errorRetryCount: 2, // Reduced retry count to prevent excessive retries
+      refreshInterval: 0,
+      errorRetryCount: SWR_RETRY.LIST_COUNT,
       errorRetryInterval: 5000, // 5 seconds between retries - increased to reduce API calls
       suspense: false, // Don't use suspense
       revalidateIfStale: false, // Don't revalidate stale data automatically

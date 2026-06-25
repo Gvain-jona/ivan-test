@@ -81,4 +81,5 @@ export interface Profile {
   updated_at: string;
   last_sign_in?: string;
   provider?: string;
+  avatar_url?: string | null;
 }

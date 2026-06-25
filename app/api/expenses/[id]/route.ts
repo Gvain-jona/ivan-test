@@ -24,7 +24,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('expenses')
-      .select('*')
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat')
       .eq('id', id)
       .single();
 
@@ -32,7 +32,7 @@ export async function GET(
 
     const { data: payments, error: paymentsError } = await supabase
       .from('expense_payments')
-      .select('*')
+      .select('amount, created_at, created_by, date, expense_id, id, payment_method, updated_at')
       .eq('expense_id', id)
       .order('date', { ascending: false });
 
@@ -42,7 +42,7 @@ export async function GET(
     let notes: any[] = [];
     const { data: expenseNotes, error: expenseNotesError } = await supabase
       .from('expense_notes')
-      .select('*')
+      .select('id, expense_id, type, text, created_by, created_at, updated_at')
       .eq('expense_id', id)
       .order('created_at', { ascending: false });
 
@@ -51,7 +51,7 @@ export async function GET(
     } else {
       const { data: linkedNotes } = await supabase
         .from('notes')
-        .select('*')
+        .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
         .eq('linked_item_type', 'expense')
         .eq('linked_item_id', id)
         .order('created_at', { ascending: false });
@@ -62,7 +62,7 @@ export async function GET(
       expense: { ...data, payments: payments || [], notes }
     });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while fetching the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while fetching the expense');
   }
 }
 
@@ -87,7 +87,7 @@ export async function PUT(
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to update an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to update an expense');
     }
 
     const { balance, ...expenseToUpdate } = expense;
@@ -119,7 +119,7 @@ export async function PUT(
 
     return createApiResponse({ expense: updatedExpense });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while updating the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while updating the expense');
   }
 }
 
@@ -142,7 +142,7 @@ export async function DELETE(
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to delete an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to delete an expense');
     }
 
     const { data: profile } = await supabase
@@ -152,7 +152,7 @@ export async function DELETE(
       .single();
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
-      return handleApiError('AUTHORIZATION_ERROR', 'Only admins and managers can delete expenses');
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete expenses');
     }
 
     // Delete legacy linked notes (no CASCADE from this table)
@@ -171,6 +171,6 @@ export async function DELETE(
 
     return createApiResponse({ success: true, message: 'Expense deleted successfully' });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
   }
 }

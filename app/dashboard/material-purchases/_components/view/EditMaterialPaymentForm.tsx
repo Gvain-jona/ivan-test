@@ -104,7 +104,7 @@ export function EditMaterialPaymentForm({
         </div>
 
         {formError && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="error" className="mb-4">
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
         )}

@@ -31,9 +31,10 @@ export function useNoteManagement() {
       // Create a new note with a temporary ID
       const newNote: MaterialNote = {
         id: uuidv4(), // Temporary ID
-        material_purchase_id: purchase.id,
+        purchase_id: purchase.id,
         text: noteData.text,
         type: 'material_purchase',
+        created_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };

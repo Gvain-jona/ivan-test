@@ -142,10 +142,7 @@ export function ExpandableTabs({
             aria-selected={selected === index || activeContextMenuIndex === index || initialSelectedIndex === index}
           >
             <div className="relative inline-flex items-center justify-center">
-              {typeof Icon === 'function' && typeof Icon({}).type === 'undefined' ?
-                <Icon /> :
-                <Icon size={20} />
-              }
+              <Icon size={20} />
               {tab.badge !== undefined && !tab.disabled && (
                 <span
                   className={`absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground ${tab.badge === 0 ? 'opacity-0' : ''}`}

@@ -27,7 +27,7 @@ const AddOrderPaymentModal: React.FC<AddOrderPaymentModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch the order data if not provided
-  const { order: fetchedOrder } = useOrder(orderId ? `/api/orders/${orderId}` : null);
+  const { order: fetchedOrder } = useOrder(orderId ? `/api/orders/${orderId}` : undefined);
 
   // Use the provided order or the fetched order
   const order = initialOrder || fetchedOrder;

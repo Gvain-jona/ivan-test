@@ -8,7 +8,7 @@ import { createClient } from '@/utils/supabase/client';
 
 function LoginRedirectContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()!;
 
   useEffect(() => {
     // Get any query parameters

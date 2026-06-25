@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { format, addDays } from 'date-fns';
 import { Calendar, Check, Clock, X } from 'lucide-react';
-import { useRecurringExpenses } from '@/hooks/useExpenses';
+import { useRecurringExpenses, type RecurringExpenseOccurrence } from '@/hooks/useExpenses';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -76,8 +76,8 @@ export function UpcomingExpenses() {
           </div>
         ) : (
           <div className="space-y-4">
-            {occurrences.slice(0, 5).map((occurrence) => {
-              const expense = occurrence.expense || {};
+            {occurrences.slice(0, 5).map((occurrence: RecurringExpenseOccurrence & { expense?: Record<string, unknown> }) => {
+              const expense = (occurrence.expense || {}) as { item_name?: string; expense_type?: string; total_amount?: number };
               return (
                 <div key={occurrence.id} className="flex items-start gap-4">
                   <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
@@ -98,7 +98,7 @@ export function UpcomingExpenses() {
                       <Clock className="h-3 w-3 mr-1" />
                       <span>{format(new Date(occurrence.occurrence_date), 'MMM d, yyyy')}</span>
                       <span className="mx-2">•</span>
-                      <span>{formatCurrency(expense.total_amount)}</span>
+                      <span>{formatCurrency(expense.total_amount ?? 0)}</span>
                     </div>
                   </div>
                   <div className="flex gap-1">

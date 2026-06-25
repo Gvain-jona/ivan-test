@@ -1,4 +1,4 @@
-import { Order, OrderPayment } from '@/types/orders';
+import { Order, OrderPayment, OrderItem } from '@/types/orders';
 
 /**
  * Props for the main OrderViewSheet component

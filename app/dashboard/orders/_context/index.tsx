@@ -1,7 +1,7 @@
 'use client';
 
 import React, { ReactNode } from 'react';
-import { OrderStatus } from '@/types/orders';
+import { OrderStatus, Task } from '@/types/orders';
 import { OrdersStoreProvider, useOrdersStore } from './OrdersStoreContext';
 import { OrdersUIProvider, useOrdersUI } from './OrdersUIContext';
 import { OrdersInvoiceSettingsProvider, useOrdersInvoiceSettings } from './OrdersInvoiceSettingsContext';
@@ -104,7 +104,7 @@ export function useOrdersPage() {
     isLoadingInvoiceSettings: invoiceSettings.isLoadingInvoiceSettings,
 
     // Tasks (moved to TasksTab, stubs for compat)
-    filteredTasks: [],
+    filteredTasks: [] as Task[],
     taskFilters: {},
     handleTaskFilterChange: () => {},
     handleCompleteTask: () => {},

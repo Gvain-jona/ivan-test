@@ -75,7 +75,7 @@ export async function fetchDropdownOptions({
     const supabase = await createClient()
 
     // Determine which table to query based on entity type
-    let table = ''
+    let table: 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes' = 'clients'
     let columns = 'id, name'
     let orderBy = 'name'
     let whereClause = ''
@@ -128,12 +128,12 @@ export async function fetchDropdownOptions({
       query = query.eq(filterField, filterValue)
     }
 
-    // Execute the query with timeout
-    const { data, error } = await withTimeout(
-      query,
+    const result = await withTimeout(
+      query as unknown as Promise<unknown>,
       REQUEST_TIMEOUT,
       `Request timeout fetching ${entityType}`
-    )
+    );
+    const { data, error } = result as { data: unknown[]; error: { message: string } | null }
 
     if (error) {
       console.error(`[Server] Error fetching ${entityType}:`, error)
@@ -144,7 +144,7 @@ export async function fetchDropdownOptions({
     }
 
     // Transform data to options format
-    const options = data?.map(item => ({
+    const options = (data as { id: string | number; name: string; [key: string]: unknown }[] | null)?.map((item) => ({
       value: item.id.toString(),
       label: item.name,
       ...item // Include all original data
@@ -191,7 +191,7 @@ export async function createDropdownOption({
     const supabase = await createClient()
 
     // Determine which table to insert into
-    let table = ''
+    let table: 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes' = 'clients'
     let data: any = { name: label.trim() }
 
     switch (entityType) {

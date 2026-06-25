@@ -29,9 +29,7 @@ const AddOrderNoteForm: React.FC<AddOrderNoteFormProps> = ({
     linked_item_type: 'order',
     type: 'info',
     text: '',
-    // Add createdBy field to match the API expectations with a valid UUID
-    created_by: systemUserId, // Use a valid UUID
-    createdBy: systemUserId, // Also include the camelCase version for the API
+    created_by: systemUserId,
   });
 
   // Handle textarea changes

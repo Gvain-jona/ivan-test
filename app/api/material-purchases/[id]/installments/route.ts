@@ -27,14 +27,14 @@ export async function GET(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to view installments'
         );
       }
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to view installments'
       );
     }
@@ -44,7 +44,7 @@ export async function GET(
     // Get installments for the material purchase
     const { data: installments, error } = await supabase
       .from('material_installments')
-      .select('*')
+      .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
       .eq('purchase_id', id)
       .order('installment_number', { ascending: true });
 
@@ -59,7 +59,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Error in GET /api/material-purchases/:id/installments:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while fetching installments'
     );
   }
@@ -88,7 +88,7 @@ export async function POST(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to create installment plan'
         );
       }
@@ -97,7 +97,7 @@ export async function POST(
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to create installment plan'
       );
     }
@@ -120,7 +120,7 @@ export async function POST(
     // Get the material purchase
     const { data: purchase, error: purchaseError } = await supabase
       .from('material_purchases')
-      .select('*')
+      .select('amount_paid, balance, created_at, created_by, date, id, notes, payment_status, supplier_id, total_amount, updated_at')
       .eq('id', id)
       .single();
 
@@ -189,7 +189,7 @@ export async function POST(
       p_payment_frequency: payment_frequency,
       p_next_payment_date: first_payment_date,
       p_reminder_days: reminder_days
-    });
+    } as never);
 
     if (error) {
       console.error('Error creating installment plan:', error);
@@ -201,7 +201,7 @@ export async function POST(
     // Get the created installments
     const { data: createdInstallments, error: installmentsError } = await supabase
       .from('material_installments')
-      .select('*')
+      .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
       .eq('purchase_id', id)
       .order('installment_number', { ascending: true });
 
@@ -217,7 +217,7 @@ export async function POST(
   } catch (error: any) {
     console.error('Error in POST /api/material-purchases/:id/installments:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while creating installment plan'
     );
   }

@@ -96,7 +96,7 @@ export async function PUT(request: NextRequest) {
           p_default_profit_percentage: settings.defaultProfitPercentage,
           p_include_labor: settings.includeLabor,
           p_labor_percentage: settings.laborPercentage
-        });
+        } as never);
 
       if (updateError) {
         console.error('Error updating profit settings:', updateError);
@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest) {
 
       // Handle overrides - first get current overrides to compare
       const { data: currentSettings } = await supabase.rpc('get_profit_settings');
-      const currentOverrides = currentSettings?.overrides || [];
+      const currentOverrides = (currentSettings as { overrides?: unknown[] } | null)?.overrides || [];
 
       // Batch process overrides
       const processingPromises = [];
@@ -121,7 +121,7 @@ export async function PUT(request: NextRequest) {
             p_type: override.type,
             p_name: override.name,
             p_profit_percentage: override.profitPercentage,
-            p_labor_percentage: override.laborPercentage
+            p_labor_percentage: override.laborPercentage ?? 0
           })
         );
       }
@@ -179,13 +179,13 @@ export async function PUT(request: NextRequest) {
             p_type: override.type,
             p_name: override.name,
             p_profit_percentage: override.profitPercentage,
-            p_labor_percentage: override.laborPercentage
+            p_labor_percentage: override.laborPercentage ?? 0
           })
         );
       }
 
       // Identify overrides to delete
-      const currentOverrideIds = currentSettings.overrides.map((o: any) => o.id);
+      const currentOverrideIds = ((currentSettings as { overrides?: { id: string }[] } | null)?.overrides || []).map((o) => o.id);
       const newOverrideIds = settings.overrides.map(o => o.id).filter(Boolean);
 
       const overridesToDelete = currentOverrideIds.filter(

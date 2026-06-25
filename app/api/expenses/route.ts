@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('expenses')
-      .select('*', { count: 'exact' });
+      .select('amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat', { count: 'exact' });
 
     if (expenseType && expenseType.length > 0 && expenseType[0] !== 'all') {
       query = query.in('expense_type', expenseType);
@@ -61,31 +61,33 @@ export async function GET(request: NextRequest) {
     const [paymentsResult, expenseNotesResult, linkedNotesResult] = await Promise.all([
       supabase
         .from('expense_payments')
-        .select('*')
+        .select('amount, created_at, created_by, date, expense_id, id, payment_method, updated_at')
         .in('expense_id', expenseIds)
         .order('date', { ascending: false }),
       supabase
         .from('expense_notes')
-        .select('*')
+        .select('id, expense_id, type, text, created_by, created_at, updated_at')
         .in('expense_id', expenseIds)
         .order('created_at', { ascending: false }),
       supabase
         .from('notes')
-        .select('*')
+        .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
         .eq('linked_item_type', 'expense')
         .in('linked_item_id', expenseIds)
         .order('created_at', { ascending: false })
     ]);
 
     const paymentsByExpenseId = (paymentsResult.data || []).reduce((acc, payment) => {
-      if (!acc[payment.expense_id]) acc[payment.expense_id] = [];
-      acc[payment.expense_id].push(payment);
+      const key = payment.expense_id ?? '';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(payment);
       return acc;
     }, {} as Record<string, any[]>);
 
     const expenseNotesByExpenseId = (expenseNotesResult.data || []).reduce((acc, note) => {
-      if (!acc[note.expense_id]) acc[note.expense_id] = [];
-      acc[note.expense_id].push(note);
+      const key = (note as Record<string, unknown>)['expense_id'] as string ?? '';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(note);
       return acc;
     }, {} as Record<string, any[]>);
 
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     return createApiResponse({ expenses: expensesWithDetails, count: count || 0, limit, offset });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while fetching expenses');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while fetching expenses');
   }
 }
 
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to create an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to create an expense');
     }
 
     if (!expense.date) {
@@ -246,9 +248,9 @@ export async function POST(request: NextRequest) {
     const { data: completeExpense, error: fetchError } = await supabase
       .from('expenses')
       .select(`
-        *,
-        payments:expense_payments(*),
-        notes:expense_notes(*)
+        amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat,
+        payments:expense_payments(amount, created_at, created_by, date, expense_id, id, payment_method, updated_at),
+        notes:expense_notes(id, expense_id, type, text, created_by, created_at, updated_at)
       `)
       .eq('id', newExpense.id)
       .single();
@@ -257,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     return createApiResponse({ expense: completeExpense });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while creating the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while creating the expense');
   }
 }
 
@@ -279,7 +281,7 @@ export async function PUT(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to update an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to update an expense');
     }
 
     const {
@@ -335,9 +337,9 @@ export async function PUT(request: NextRequest) {
     const { data: completeExpense, error: fetchError } = await supabase
       .from('expenses')
       .select(`
-        *,
-        payments:expense_payments(*),
-        notes:expense_notes(*)
+        amount_paid, balance, category, created_at, created_by, date, description, id, is_recurring, item_name, next_occurrence_date, notes, payment_status, quantity, recurrence_end_date, recurrence_frequency, recurrence_start_date, reminder_days, responsible, total_amount, unit_cost, updated_at, vat,
+        payments:expense_payments(amount, created_at, created_by, date, expense_id, id, payment_method, updated_at),
+        notes:expense_notes(id, expense_id, type, text, created_by, created_at, updated_at)
       `)
       .eq('id', id)
       .single();
@@ -346,7 +348,7 @@ export async function PUT(request: NextRequest) {
 
     return createApiResponse({ expense: completeExpense });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while updating the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while updating the expense');
   }
 }
 
@@ -367,7 +369,7 @@ export async function DELETE(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return handleApiError('AUTHENTICATION_ERROR', 'Authentication required to delete an expense');
+      return handleApiError('UNAUTHORIZED', 'Authentication required to delete an expense');
     }
 
     const { data: profile } = await supabase
@@ -377,7 +379,7 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'manager')) {
-      return handleApiError('AUTHORIZATION_ERROR', 'Only admins and managers can delete expenses');
+      return handleApiError('FORBIDDEN', 'Only admins and managers can delete expenses');
     }
 
     const { error: deleteError } = await supabase
@@ -389,6 +391,6 @@ export async function DELETE(request: NextRequest) {
 
     return createApiResponse({ success: true, message: 'Expense deleted successfully' });
   } catch (error) {
-    return handleApiError('SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
+    return handleApiError('INTERNAL_SERVER_ERROR', 'An unexpected error occurred while deleting the expense');
   }
 }

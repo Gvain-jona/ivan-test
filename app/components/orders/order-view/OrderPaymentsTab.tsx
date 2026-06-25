@@ -38,7 +38,7 @@ const PaymentEditForm: React.FC<PaymentEditFormProps> = ({ payment, onSave, onCa
   const handleSelectChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
-      payment_method: value
+      payment_method: value as 'cash' | 'bank_transfer' | 'credit_card' | 'cheque' | 'mobile_payment'
     }));
   };
 
@@ -186,9 +186,7 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
 
   // Handle save edited payment
   const handleSavePayment = (updatedPayment: OrderPayment) => {
-    // Call the onEdit function to update the payment
-    if (onEdit) {
-      // Create a new order object with the updated payment
+    if (onEdit && order) {
       const updatedOrder = { ...order };
       if (updatedOrder.payments) {
         const paymentIndex = updatedOrder.payments.findIndex(p => p.id === updatedPayment.id);
@@ -201,16 +199,12 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
     setEditingPaymentId(null);
   };
 
-  // Handle cancel edit
   const handleCancelEdit = () => {
     setEditingPaymentId(null);
   };
 
-  // Handle delete button click
   const handleDeletePayment = (paymentId: string) => {
-    // Call the onEdit function to delete the payment
-    if (onEdit) {
-      // Create a new order object without the deleted payment
+    if (onEdit && order) {
       const updatedOrder = { ...order };
       if (updatedOrder.payments) {
         updatedOrder.payments = updatedOrder.payments.filter(p => p.id !== paymentId);
@@ -237,13 +231,14 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
   }, [order]);
 
   // Log payment data for debugging - only when order ID changes
+  const safeOrderId = 'id' in safeOrder ? safeOrder.id : undefined;
   useEffect(() => {
-    if (safeOrder.id) {
-      console.log('OrderPaymentsTab - order ID:', safeOrder.id);
+    if (safeOrderId) {
+      console.log('OrderPaymentsTab - order ID:', safeOrderId);
       console.log('OrderPaymentsTab - normalized payments:', normalizedPayments);
       console.log('OrderPaymentsTab - payments count:', normalizedPayments.length);
     }
-  }, [safeOrder.id]);
+  }, [safeOrderId]);
   return (
     <div>
       <div className="mb-4">

@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     // Check if profile already exists
     const { data: existingProfile, error: existingProfileError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('created_at, email, full_name, id, role, status, updated_at')
       .eq('id', userData.id)
       .maybeSingle()
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .from('profiles')
         .insert([profileData]) // Pass as array to fix TypeScript error
-        .select('*')
+        .select('created_at, email, full_name, id, role, status, updated_at')
         .single()
 
       if (error) {
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
           // Fetch the existing profile
           const { data: existingProfile, error: fetchError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('created_at, email, full_name, id, role, status, updated_at')
             .eq('id', userData.id)
             .maybeSingle()
 

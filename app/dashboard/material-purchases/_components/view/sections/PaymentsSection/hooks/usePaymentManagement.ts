@@ -22,7 +22,7 @@ export function usePaymentManagement() {
   });
 
   // Add a new payment
-  const handleAddPayment = useCallback(async (paymentData: Omit<MaterialPayment, 'id' | 'material_purchase_id'>) => {
+  const handleAddPayment = useCallback(async (paymentData: Omit<MaterialPayment, 'id' | 'purchase_id'>) => {
     if (!purchase) return false;
 
     try {
@@ -31,7 +31,7 @@ export function usePaymentManagement() {
       // Create a new payment with a temporary ID
       const newPayment: MaterialPayment = {
         id: uuidv4(), // Temporary ID
-        material_purchase_id: purchase.id,
+        purchase_id: purchase.id,
         ...paymentData
       };
 
@@ -60,7 +60,7 @@ export function usePaymentManagement() {
         payments: [...currentPayments, newPayment],
         amount_paid: newAmountPaid,
         balance: newBalance,
-        payment_status: newPaymentStatus
+        payment_status: newPaymentStatus as 'unpaid' | 'partially_paid' | 'paid'
       };
 
       // Optimistically update the local data
@@ -154,7 +154,7 @@ export function usePaymentManagement() {
         payments: updatedPayments,
         amount_paid: newAmountPaid,
         balance: newBalance,
-        payment_status: newPaymentStatus
+        payment_status: newPaymentStatus as 'unpaid' | 'partially_paid' | 'paid'
       };
 
       // Optimistically update the local data
@@ -247,7 +247,7 @@ export function usePaymentManagement() {
         payments: updatedPayments,
         amount_paid: newAmountPaid,
         balance: newBalance,
-        payment_status: newPaymentStatus
+        payment_status: newPaymentStatus as 'unpaid' | 'partially_paid' | 'paid'
       };
 
       // Optimistically update the local data

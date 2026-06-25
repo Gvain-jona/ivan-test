@@ -196,8 +196,6 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ name = 'companyLogo' }) => 
                                 src={field.value}
                                 alt="Logo Preview"
                                 style={{
-                                  maxWidth: 'none',
-                                  maxHeight: 'none',
                                   width: 'auto',
                                   height: 'auto',
                                   objectFit: 'contain',

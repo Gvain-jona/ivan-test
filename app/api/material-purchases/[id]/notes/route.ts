@@ -27,7 +27,7 @@ export async function GET(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to view notes'
         );
       }
@@ -36,7 +36,7 @@ export async function GET(
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to view notes'
       );
     }
@@ -44,7 +44,7 @@ export async function GET(
     // Get notes for the material purchase
     const { data: notes, error } = await supabase
       .from('material_purchase_notes')
-      .select('*')
+      .select('id, purchase_id, note_text, created_by, created_at, updated_at')
       .eq('purchase_id', id)
       .order('created_at', { ascending: false });
 
@@ -57,7 +57,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Error in GET /api/material-purchases/:id/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while fetching notes'
     );
   }
@@ -86,7 +86,7 @@ export async function POST(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to create note'
         );
       }
@@ -95,7 +95,7 @@ export async function POST(
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to create note'
       );
     }
@@ -121,7 +121,7 @@ export async function POST(
         type,
         text,
         created_by: user.id
-      })
+      } as never)
       .select()
       .single();
 
@@ -137,7 +137,7 @@ export async function POST(
   } catch (error: any) {
     console.error('Error in POST /api/material-purchases/:id/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while creating the note'
     );
   }
@@ -175,7 +175,7 @@ export async function DELETE(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to delete note'
         );
       }
@@ -184,7 +184,7 @@ export async function DELETE(
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to delete note'
       );
     }
@@ -207,7 +207,7 @@ export async function DELETE(
   } catch (error: any) {
     console.error('Error in DELETE /api/material-purchases/:id/notes:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while deleting the note'
     );
   }

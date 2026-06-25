@@ -76,7 +76,7 @@ export async function generateExactPdf(
       width: width,
       height: height,
       // Improve rendering quality
-      letterRendering: true,
+      // letterRendering: true, // removed: not in html2canvas types
       imageTimeout: 30000, // Reasonable timeout
       // Don't use foreignObject as it can cause blank PDFs in some browsers
       foreignObjectRendering: false,

@@ -9,6 +9,15 @@ import { toast } from '@/components/ui/use-toast';
 // Define the entity types we'll cache
 export type EntityType = 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes';
 
+// Explicit column lists per entity type (suppliers has no status column)
+const ENTITY_COLUMNS: Record<EntityType, string> = {
+  clients: 'id, name, address, client_type, email, notes, phone, status, created_at, created_by, updated_at',
+  categories: 'id, name, description, status, created_at, created_by, updated_at',
+  items: 'id, name, category_id, cost, description, price, status, created_at, created_by, updated_at',
+  suppliers: 'id, name, address, contact_person, email, notes, phone, created_at, created_by, updated_at',
+  sizes: 'id, name, description, is_default, status, created_at, updated_at',
+};
+
 // Define the cache structure
 interface DropdownCache {
   [entityType: string]: {
@@ -191,7 +200,7 @@ export function DropdownCacheProvider({ children }: { children: React.ReactNode 
       }
 
       // Build the query based on entity type and parent ID
-      let query = supabase.from(entityType).select('*');
+      let query = supabase.from(entityType).select(ENTITY_COLUMNS[entityType]);
 
       // Add filters for parent ID if needed
       if (parentId && entityType === 'items') {
@@ -210,7 +219,7 @@ export function DropdownCacheProvider({ children }: { children: React.ReactNode 
           console.log(`[DropdownCache] Retrying ${entityType} query without status filter...`);
           let retryQuery = supabase
             .from(entityType)
-            .select('*')
+            .select(ENTITY_COLUMNS[entityType])
             .order('name')
             .limit(100);
 

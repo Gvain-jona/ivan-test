@@ -96,7 +96,7 @@ export function GlobalDropdownCacheProvider({ children }: { children: React.Reac
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Refs for tracking fetch operations
-  const pendingFetches = useRef<Record<string, boolean>>({});
+  const pendingFetches = useRef<Record<string, number>>({});
   const fetchTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Helper to get cache key

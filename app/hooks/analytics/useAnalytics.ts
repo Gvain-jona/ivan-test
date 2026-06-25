@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: SWRConfiguration = {
 export function useSummaryMetrics(dateRange: DateRange, config?: SWRConfiguration) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_SUMMARY}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch summary metrics: ${response.status}`);
@@ -72,7 +72,7 @@ export function useRevenueByPeriod(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_REVENUE}?period=${period}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch revenue by period: ${response.status}`);
@@ -105,7 +105,7 @@ export function useProfitByPeriod(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_PROFIT}?period=${period}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch profit by period: ${response.status}`);
@@ -138,7 +138,7 @@ export function useClientPerformance(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_CLIENTS}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&limit=${limit}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch client performance: ${response.status}`);
@@ -166,7 +166,7 @@ export function useClientPerformance(
 export function useExpensesByCategory(dateRange: DateRange, config?: SWRConfiguration) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_EXPENSES}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch expenses by category: ${response.status}`);
@@ -199,7 +199,7 @@ export function useMaterialsBySupplier(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_MATERIALS}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&limit=${limit}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch materials by supplier: ${response.status}`);
@@ -232,7 +232,7 @@ export function useCashFlowAnalysis(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_CASH_FLOW}?period=${period}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch cash flow analysis: ${response.status}`);
@@ -260,7 +260,7 @@ export function useCashFlowAnalysis(
 export function useCategoryPerformance(dateRange: DateRange, config?: SWRConfiguration) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_CATEGORIES}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch category performance: ${response.status}`);
@@ -291,7 +291,7 @@ export function useCategoryPerformance(dateRange: DateRange, config?: SWRConfigu
 export function useNormalizedCategoryPerformance(dateRange: DateRange, config?: SWRConfiguration) {
   const { data, error, isLoading, mutate } = useSWR(
     `${ANALYTICS_NORMALIZED_CATEGORIES}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch normalized category performance: ${response.status}`);
@@ -324,7 +324,7 @@ export function useClientRetentionRate(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_RETENTION}?currentStartDate=${currentRange.startDate}&currentEndDate=${currentRange.endDate}&previousStartDate=${previousRange.startDate}&previousEndDate=${previousRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch client retention rate: ${response.status}`);
@@ -357,7 +357,7 @@ export function useExpenseToRevenueRatio(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_EXPENSE_RATIO}?period=${period}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch expense to revenue ratio: ${response.status}`);
@@ -388,7 +388,7 @@ export function useInstallmentDelinquencyRate(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     `${API_ENDPOINTS.ANALYTICS_DELINQUENCY}?asOfDate=${asOfDate}`,
-    async (url) => {
+    async (url: string) => {
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch installment delinquency rate: ${response.status}`);
@@ -430,7 +430,7 @@ export function useSpendingSummary(
   const { metrics, isLoading: isLoadingSummary, isError: isErrorSummary } = useSummaryMetrics(dateRange);
 
   // Calculate total spend and spending limit
-  const totalSpend = (metrics?.totalExpenses || 0) + (metrics?.totalMaterials || 0);
+  const totalSpend = (metrics?.total_expenses || 0) + (metrics?.total_materials || 0);
 
   // For spending limit, we'll use a simple calculation based on historical data
   // In a real app, this would come from a budget setting

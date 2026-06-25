@@ -14,7 +14,7 @@ import { Progress } from '@/components/ui/progress'
 function VerifyEmailContent() {
   const { user, profile, isLoading } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams()!
   const redirect = searchParams.get('redirect') || '/dashboard/orders'
 
   const [verificationCode, setVerificationCode] = useState('')
@@ -87,7 +87,7 @@ function VerifyEmailContent() {
           <CardContent className="space-y-4">
             {/* Error message */}
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="error">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>

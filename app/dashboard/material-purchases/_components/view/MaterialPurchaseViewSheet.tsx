@@ -39,12 +39,7 @@ export function MaterialPurchaseViewSheet({
     isLoading,
     isError,
     mutate: refreshPurchase
-  } = useMaterialPurchaseDetails(purchaseId, {
-    fallbackData: initialPurchase,
-    revalidateOnMount: true, // Always revalidate on mount to ensure we have the latest data
-    revalidateOnFocus: false, // Don't revalidate on focus to avoid unnecessary API calls
-    dedupingInterval: 10000, // 10 seconds - reduce duplicate requests
-  });
+  } = useMaterialPurchaseDetails(purchaseId);
 
   // Use the fetched purchase if available, otherwise fall back to the initial purchase
   const purchase = fetchedPurchase || initialPurchase;
@@ -108,7 +103,7 @@ export function MaterialPurchaseViewSheet({
             <FinancialSummarySection />
 
             {/* Installments Section - Only showing settings, cards are temporarily hidden */}
-            {(normalizedPurchase.installment_plan || normalizedPurchase.enable_installments) && (
+            {(normalizedPurchase.installment_plan || normalizedPurchase.total_installments) && (
               <InstallmentsSection />
             )}
 

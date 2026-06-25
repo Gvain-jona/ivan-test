@@ -361,10 +361,11 @@ function NavLink({ href, icon, label, isActive, className, onClick, isCollapsed 
 
   // Use a div instead of Link for disabled items to prevent navigation
   const Component = disabled ? 'div' : Link;
+  const hrefProp = disabled ? {} : { href: href as string };
 
   return (
     <Component
-      href={disabled ? undefined : href}
+      {...(hrefProp as any)}
       className={cn(
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all",
         isActive ?

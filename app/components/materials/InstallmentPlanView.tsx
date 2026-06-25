@@ -222,7 +222,7 @@ export function InstallmentPlanView({ purchase, refreshPurchase }: InstallmentPl
         toast({
           title: "No installments found",
           description: "The purchase has an installment plan but no installments were found",
-          variant: "warning"
+          variant: "default"
         });
         return;
       }
@@ -483,7 +483,7 @@ export function InstallmentPlanView({ purchase, refreshPurchase }: InstallmentPl
             {getStatusBadge(
               installmentsPaid === totalInstallments
                 ? 'paid'
-                : installments.some(i => i.status === 'overdue')
+                : installments.some((i: MaterialInstallment) => i.status === 'overdue')
                   ? 'overdue'
                   : 'pending'
             )}
@@ -575,7 +575,7 @@ export function InstallmentPlanView({ purchase, refreshPurchase }: InstallmentPl
                   </TableCell>
                 </TableRow>
               ) : (
-                installments.map((installment) => (
+                installments.map((installment: MaterialInstallment) => (
                   <TableRow key={installment.id}>
                     <TableCell>{installment.installment_number}</TableCell>
                     <TableCell>

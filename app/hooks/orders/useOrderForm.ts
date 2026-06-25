@@ -80,7 +80,7 @@ export const useOrderForm = ({ initialOrder }: UseOrderFormProps = {}): UseOrder
       payments: [],
       notes: []
     };
-    setOrder(freshOrder);
+    setOrder(freshOrder as Partial<Order>);
 
     // Ensure calculations are reset
     setTimeout(() => {

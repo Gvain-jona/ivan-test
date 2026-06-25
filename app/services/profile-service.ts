@@ -2,7 +2,7 @@
 
 import { User } from '@supabase/supabase-js'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { Profile } from '@/app/types/auth'
+import { Profile } from '@/lib/auth/types'
 
 /**
  * Service for handling profile-related operations
@@ -21,7 +21,7 @@ export class ProfileService {
     try {
       const { data, error } = await this.supabase
         .from('profiles')
-        .select('*')
+        .select('created_at, email, full_name, id, role, status, updated_at')
         .eq('id', userId)
         .single()
 
@@ -147,7 +147,7 @@ export class ProfileService {
           is_verified: false, // They need to set up a PIN
           failed_attempts: 0
         })
-        .select('*')
+        .select('created_at, email, full_name, id, role, status, updated_at')
         .single()
 
       if (insertError) {

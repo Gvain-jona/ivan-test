@@ -82,7 +82,7 @@ export function EditMaterialPurchaseDetailsForm({ purchase, onClose }: EditMater
       };
 
       // Call the onEdit function from context
-      await onEdit(updatedPurchase);
+      await onEdit(updatedPurchase as MaterialPurchase);
 
       // Refresh the purchase data
       await refreshPurchase();
@@ -117,7 +117,7 @@ export function EditMaterialPurchaseDetailsForm({ purchase, onClose }: EditMater
         </div>
 
         {formError && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="error" className="mb-4">
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
         )}

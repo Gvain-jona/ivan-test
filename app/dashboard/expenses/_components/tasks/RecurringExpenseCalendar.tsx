@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRecurringExpenses } from '@/hooks/useExpenses';
+import { useRecurringExpenses, type RecurringExpenseOccurrence } from '@/hooks/useExpenses';
 import { formatCurrency, cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { FullScreenCalendar } from '@/components/ui/fullscreen-calendar';
@@ -54,7 +54,8 @@ export function RecurringExpenseCalendar({ isActive = false }) {
   };
 
   // Convert occurrences to the format expected by FullScreenCalendar
-  const calendarData = occurrences.reduce((acc, occurrence) => {
+  type OccurrenceWithExpense = RecurringExpenseOccurrence & { expense?: { item_name?: string; category?: string; total_amount?: number; recurrence_frequency?: string; description?: string } };
+  const calendarData = occurrences.reduce((acc: Array<{day: Date, events: Array<{id: number, name: string, time: string, datetime: string}>}>, occurrence: OccurrenceWithExpense) => {
     const date = new Date(occurrence.occurrence_date);
     const dateKey = format(date, 'yyyy-MM-dd');
 
@@ -88,7 +89,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
   // This function is no longer used - we use handleCalendarDaySelect instead
 
   // Group occurrences by date for the detail view
-  const occurrencesByDate = occurrences.reduce((acc, occurrence) => {
+  const occurrencesByDate = occurrences.reduce((acc: Record<string, OccurrenceWithExpense[]>, occurrence: OccurrenceWithExpense) => {
     const date = new Date(occurrence.occurrence_date);
     const dateKey = format(date, 'yyyy-MM-dd');
 
@@ -98,7 +99,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
 
     acc[dateKey].push(occurrence);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, OccurrenceWithExpense[]>);
 
   // Get occurrences for selected date
   const selectedDateOccurrences = selectedDate
@@ -151,8 +152,8 @@ export function RecurringExpenseCalendar({ isActive = false }) {
             <p className="text-muted-foreground">No recurring expenses for this date.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {selectedDateOccurrences.map((occurrence) => {
-                const expense = occurrence.expense || {};
+              {selectedDateOccurrences.map((occurrence: OccurrenceWithExpense) => {
+                const expense = occurrence.expense ?? {};
                 return (
                   <Card
                     key={occurrence.id}
@@ -201,7 +202,7 @@ export function RecurringExpenseCalendar({ isActive = false }) {
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Amount:</span>
-                          <span className="font-medium">{formatCurrency(expense.total_amount)}</span>
+                          <span className="font-medium">{formatCurrency(expense.total_amount ?? 0)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Frequency:</span>

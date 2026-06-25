@@ -461,10 +461,10 @@ export function ExpenseViewSheet({
                     startDate,
                     mergedExpense.recurrence_frequency || 'monthly',
                     {
-                      dayOfMonth: mergedExpense.recurrence_day_of_month,
-                      dayOfWeek: mergedExpense.recurrence_day_of_week,
-                      weekOfMonth: mergedExpense.recurrence_week_of_month,
-                      monthOfYear: mergedExpense.recurrence_month_of_year,
+                      dayOfMonth: mergedExpense.recurrence_day_of_month ?? undefined,
+                      dayOfWeek: mergedExpense.recurrence_day_of_week ?? undefined,
+                      weekOfMonth: mergedExpense.recurrence_week_of_month ?? undefined,
+                      monthOfYear: mergedExpense.recurrence_month_of_year ?? undefined,
                       monthlyRecurrenceType: mergedExpense.monthly_recurrence_type as 'day_of_month' | 'day_of_week'
                     }
                   );

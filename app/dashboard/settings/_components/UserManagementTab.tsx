@@ -59,18 +59,18 @@ export function UserManagementTab() {
         // Fetch profiles with last_sign_in_at
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, email, role, created_at, last_sign_in_at')
+          .select('id, email, role, created_at')
           .order('created_at', { ascending: false });
 
         // Fetch allowed emails
         const { data: emails, error: emailsError } = await supabase
           .from('allowed_emails')
-          .select('*')
+          .select('access_code, created_at, email, id, role, updated_at')
           .order('created_at', { ascending: false });
 
         if (emailsError) throw emailsError;
 
-        setUsers(profiles || []);
+        setUsers((profiles as any) || []);
         setAllowedEmails(emails || []);
       } catch (error) {
         console.error('Error fetching users:', error);

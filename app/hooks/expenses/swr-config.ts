@@ -4,6 +4,7 @@
  */
 
 import { SWRConfiguration } from 'swr';
+import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 
 /**
  * Data types for SWR configuration
@@ -17,71 +18,45 @@ export type SWRDataType = 'list' | 'detail' | 'stats' | 'recurring';
  */
 export const createExpenseSWRConfig = (type: SWRDataType): SWRConfiguration => {
   const baseConfig: SWRConfiguration = {
-    // Keep previous data while fetching new data to prevent UI flashing
     keepPreviousData: true,
-
-    // Retry failed requests up to 3 times
-    errorRetryCount: 3,
-
-    // Disable automatic refresh interval (we'll manually trigger refreshes)
+    errorRetryCount: SWR_RETRY.DEFAULT_COUNT,
     refreshInterval: 0,
-
-    // Throttle focus events to reduce unnecessary revalidations
-    focusThrottleInterval: 5000,
   };
 
-  // Customize based on the type of data
   switch (type) {
     case 'list':
       return {
         ...baseConfig,
-        // Cache list data for 30 minutes - increased to reduce API calls
-        dedupingInterval: 30 * 60 * 1000,
-        // Disable automatic revalidation on window focus for lists
-        // to prevent unnecessary API calls when switching tabs
+        dedupingInterval: SWR_CACHE_TIMES.STATS_DEDUPE,
         revalidateOnFocus: false,
-        // Only revalidate stale data when explicitly triggered
         revalidateIfStale: false,
-        // Disable revalidation when reconnecting to reduce API calls
         revalidateOnReconnect: false,
       };
 
     case 'detail':
       return {
         ...baseConfig,
-        // Cache detail data for 15 minutes - increased to reduce API calls
-        dedupingInterval: 15 * 60 * 1000,
-        // Disable revalidation on focus to reduce API calls
+        dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE,
         revalidateOnFocus: false,
-        // Don't revalidate stale data automatically
         revalidateIfStale: false,
-        // Disable revalidation when reconnecting to reduce API calls
         revalidateOnReconnect: false,
       };
 
     case 'stats':
       return {
         ...baseConfig,
-        // Cache stats data for 30 minutes - increased to reduce API calls
-        dedupingInterval: 30 * 60 * 1000,
-        // Disable automatic revalidation on window focus for stats
+        dedupingInterval: SWR_CACHE_TIMES.STATS_DEDUPE,
         revalidateOnFocus: false,
-        // Only revalidate stale data when explicitly triggered
         revalidateIfStale: false,
-        // Disable revalidation when reconnecting to reduce API calls
         revalidateOnReconnect: false,
       };
 
     case 'recurring':
       return {
         ...baseConfig,
-        // Cache recurring data for 30 minutes - increased to reduce API calls
-        dedupingInterval: 30 * 60 * 1000,
-        // Disable automatic revalidation on window focus
+        dedupingInterval: SWR_CACHE_TIMES.RECURRING_DEDUPE,
         revalidateOnFocus: false,
-        // Only revalidate stale data when explicitly triggered
         revalidateIfStale: false,
-        // Disable revalidation when reconnecting to reduce API calls
         revalidateOnReconnect: false,
       };
 

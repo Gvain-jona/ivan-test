@@ -100,8 +100,9 @@ export function ExpenseForm({
 
   // Initialize form with default values
   const form = useForm<ExpenseFormValues>({
-    resolver: zodResolver(expenseFormSchema),
-    defaultValues: formDefaultValues,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(expenseFormSchema) as any,
+    defaultValues: formDefaultValues as Partial<ExpenseFormValues>,
   });
 
   // Field arrays for payments and notes
@@ -189,22 +190,13 @@ export function ExpenseForm({
       // Submit the form - the parent component will handle the loading state and success toast
       // We await the result to ensure we don't proceed until the API call is complete
       console.log('Submitting expense form to parent component...');
-      const result = await onSubmit(formattedValues);
-      console.log('Form submission completed with result:', result);
+      await onSubmit(formattedValues as ExpenseFormValues);
+      console.log('Form submission completed');
 
-      // Only reset the form if the submission was successful
-      // The parent component should return a truthy value to indicate success
-      if (result) {
-        console.log('Submission successful, resetting form');
-
-        // Reset the form for a new entry if this is a create operation
-        if (!defaultValues) {
-          form.reset(formDefaultValues);
-        }
-
-        // Note: We don't show a success toast here anymore
-        // The parent component (useExpensesList hook) will handle that
-        // This prevents duplicate success notifications
+      // Reset the form for a new entry if this is a create operation
+      if (!defaultValues) {
+        console.log('Resetting form after submission');
+        form.reset(formDefaultValues as ExpenseFormValues);
       }
 
       // Important: Don't close the form automatically
@@ -260,7 +252,7 @@ export function ExpenseForm({
 
   // Memoize form reset handler to prevent unnecessary re-renders
   const handleReset = useCallback(() => {
-    form.reset(formDefaultValues);
+    form.reset(formDefaultValues as ExpenseFormValues);
     setFormError(null);
   }, [form, formDefaultValues]);
 
@@ -293,7 +285,7 @@ export function ExpenseForm({
                 : 'Enter the expense details below'}
             </p>
             {formError && (
-              <Alert variant="destructive" className="mt-4">
+              <Alert variant="error" className="mt-4">
                 <AlertDescription>{formError}</AlertDescription>
               </Alert>
             )}
@@ -399,7 +391,7 @@ export function ExpenseForm({
                           <ExpenseFormPayments
                             control={form.control}
                             paymentFields={paymentFields}
-                            appendPayment={appendPayment}
+                            appendPayment={appendPayment as any}
                             removePayment={removePayment}
                           />
                         </div>
@@ -440,7 +432,7 @@ export function ExpenseForm({
                           <ExpenseFormNotes
                             control={form.control}
                             noteFields={noteFields}
-                            appendNote={appendNote}
+                            appendNote={appendNote as any}
                             removeNote={removeNote}
                           />
                         </div>

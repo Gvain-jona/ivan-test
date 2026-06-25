@@ -248,7 +248,7 @@ export function DateRangePicker({
                 showOutsideDays={true}
                 fixedWeeks={true}
                 ISOWeek={false}
-                captionLayout="buttons"
+                captionLayout="dropdown"
                 styles={{
                   month: { width: '100%' },
                   caption: { display: 'flex', justifyContent: 'space-between', padding: '0 8px', marginBottom: '8px' },

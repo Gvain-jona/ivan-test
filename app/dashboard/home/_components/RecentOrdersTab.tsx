@@ -22,6 +22,7 @@ import { Badge } from '../../../components/ui/badge';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { formatCurrency } from '../../../lib/utils';
 import { useHomePage } from '../_context/HomePageContext';
+import type { Order } from '@/types/orders';
 
 /**
  * Tab content for the Recent Orders tab in the Home page
@@ -96,7 +97,7 @@ const RecentOrdersTab: React.FC = () => {
               ))
             ) : (
               // Actual data
-              recentOrders.map((order) => (
+              (recentOrders as unknown as Order[]).map((order: Order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">{order.id}</TableCell>
                   <TableCell>{order.client_name}</TableCell>

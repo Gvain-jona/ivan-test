@@ -54,7 +54,7 @@ export function InlinePaymentForm({
     if (initialData) {
       return {
         amount: initialData.amount ?? 0,
-        payment_date: initialData.payment_date || new Date().toISOString().split('T')[0],
+        date: initialData.date || new Date().toISOString().split('T')[0],
         payment_method: initialData.payment_method || 'cash',
       };
     }
@@ -63,7 +63,7 @@ export function InlinePaymentForm({
     if (existingPayment) {
       return {
         amount: existingPayment.amount || 0,
-        payment_date: existingPayment.payment_date || new Date().toISOString().split('T')[0],
+        date: existingPayment.payment_date ?? existingPayment.date ?? new Date().toISOString().split('T')[0],
         payment_method: existingPayment.payment_method || 'cash',
       };
     }
@@ -71,26 +71,26 @@ export function InlinePaymentForm({
     // Default values if nothing is found
     return {
       amount: 0,
-      payment_date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0],
       payment_method: 'cash',
     };
   };
 
   const form = useForm<OrderPaymentFormValues>({
     mode: 'onChange',
-    resolver: zodResolver(orderPaymentSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(orderPaymentSchema) as any,
     defaultValues: {
       ...loadSavedFormData(),
-      // Always ensure payment_date has a default value
-      payment_date: loadSavedFormData().payment_date || new Date().toISOString().split('T')[0]
-    },
+      date: loadSavedFormData().date || new Date().toISOString().split('T')[0]
+    } as Partial<OrderPaymentFormValues>,
   });
 
 
   // Use existing payment ID if available, otherwise track a new one
   const [savedPaymentId, setSavedPaymentId] = useState<string | null>(existingPayment?.id || null);
   const amount = form.watch('amount');
-  const paymentDate = form.watch('payment_date');
+  const paymentDate = form.watch('date');
   const paymentMethod = form.watch('payment_method');
 
   // Refs to track form state and prevent issues
@@ -107,7 +107,7 @@ export function InlinePaymentForm({
     return (
       formData.amount &&
       formData.amount > 0 &&
-      formData.payment_date &&
+      formData.date &&
       formData.payment_method
     );
   }, [form]);
@@ -117,8 +117,8 @@ export function InlinePaymentForm({
     // Ensure amount is a number
     const amount = typeof formData.amount === 'number' ? formData.amount : parseFloat(formData.amount as any) || 0;
 
-    // Ensure payment_date is set - this is critical for database compatibility
-    const payment_date = formData.payment_date || new Date().toISOString().split('T')[0];
+    // Ensure date is set - this is critical for database compatibility
+    const payment_date = formData.date || new Date().toISOString().split('T')[0];
 
     // Create a new formData object with the validated payment_date
     const validatedFormData = {
@@ -146,6 +146,7 @@ export function InlinePaymentForm({
       const newPayment: OrderPayment = {
         id: paymentId,
         amount: amount,
+        date: payment_date,
         payment_date: payment_date,
         payment_method: formData.payment_method as PaymentMethod,
         order_id: existingPayment?.order_id || '',
@@ -201,7 +202,7 @@ export function InlinePaymentForm({
       // For existing payments, only save if there are actual changes
       else if (existingPayment && (
         existingPayment.amount !== formData.amount ||
-        existingPayment.payment_date !== formData.payment_date ||
+        (existingPayment.payment_date ?? existingPayment.date) !== formData.date ||
         existingPayment.payment_method !== formData.payment_method
       )) {
         console.log('Auto-saving updated payment with valid data:', formData);
@@ -344,7 +345,7 @@ export function InlinePaymentForm({
 
             <FormField
               control={form.control}
-              name="payment_date"
+              name="date"
               render={({ field }) => (
                 <FormItem className="space-y-2">
                   <FormLabel className="text-sm font-medium">Payment Date</FormLabel>
@@ -352,7 +353,7 @@ export function InlinePaymentForm({
                     <Input
                       type="date"
                       {...field}
-                      className={`${form.formState.errors.payment_date ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                      className={`${form.formState.errors.date ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                       value={field.value || new Date().toISOString().split('T')[0]}
                       onFocus={(e) => {
                         // If empty, set to today's date when focused

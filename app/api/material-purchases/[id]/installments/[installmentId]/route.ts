@@ -26,14 +26,14 @@ export async function GET(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to view installment'
         );
       }
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to view installment'
       );
     }
@@ -41,7 +41,7 @@ export async function GET(
     // Get the installment
     const { data: installment, error } = await supabase
       .from('material_installments')
-      .select('*')
+      .select('id, purchase_id, installment_number, amount, due_date, status, payment_id, created_at, updated_at')
       .eq('id', installmentId)
       .eq('purchase_id', id)
       .single();
@@ -55,7 +55,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Error in GET /api/material-purchases/:id/installments/:installmentId:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while fetching the installment'
     );
   }
@@ -83,14 +83,14 @@ export async function PUT(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to update installment'
         );
       }
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to update installment'
       );
     }
@@ -126,7 +126,7 @@ export async function PUT(
   } catch (error: any) {
     console.error('Error in PUT /api/material-purchases/:id/installments/:installmentId:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while updating the installment'
     );
   }
@@ -154,14 +154,14 @@ export async function DELETE(
       if (error || !data.user) {
         console.error('Error getting authenticated user:', error);
         return handleApiError(
-          'AUTHENTICATION_ERROR',
+          'UNAUTHORIZED',
           'Authentication required to delete installment'
         );
       }
     } catch (authError) {
       console.error('Exception getting authenticated user:', authError);
       return handleApiError(
-        'AUTHENTICATION_ERROR',
+        'UNAUTHORIZED',
         'Authentication required to delete installment'
       );
     }
@@ -184,7 +184,7 @@ export async function DELETE(
   } catch (error: any) {
     console.error('Error in DELETE /api/material-purchases/:id/installments/:installmentId:', error);
     return handleApiError(
-      'SERVER_ERROR',
+      'INTERNAL_SERVER_ERROR',
       error.message || 'An error occurred while deleting the installment'
     );
   }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { useInvoiceContext } from '../context/InvoiceContext';
 import OrangeInvoiceTemplate from './templates/OrangeInvoiceTemplate';
-import { toSimplifiedSettings } from '@/features/invoices/types';
+import { toSimplifiedSettings } from '../types';
 import { generateExactPdf } from '../utils/exactPdfGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import { QualitySelector, InvoiceQuality } from './QualitySelectorFixed';

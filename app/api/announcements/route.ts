@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       // Get a specific announcement
       const { data, error } = await supabase
         .from('announcements')
-        .select('*')
+        .select('id, tag, message, link, variant, is_active, start_date, end_date, created_by, created_at, updated_at')
         .eq('id', id)
         .single();
 
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       // Get all announcements
       const { data, error } = await supabase
         .from('announcements')
-        .select('*')
+        .select('id, tag, message, link, variant, is_active, start_date, end_date, created_by, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) {

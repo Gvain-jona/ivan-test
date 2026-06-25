@@ -131,13 +131,13 @@ export async function PUT(
       p_order_id: orderId,
     });
 
-    if (fetchError) return handleSupabaseError(fetchError);
+    if (fetchError || !orderDetails) return handleSupabaseError(fetchError ?? new Error('Order not found'));
 
     const transformedOrder = {
-      ...orderDetails.order,
-      items: orderDetails.items ?? [],
-      payments: orderDetails.payments ?? [],
-      notes: orderDetails.notes ?? [],
+      ...(orderDetails as any).order,
+      items: (orderDetails as any).items ?? [],
+      payments: (orderDetails as any).payments ?? [],
+      notes: (orderDetails as any).notes ?? [],
     };
 
     return createApiResponse({ success: true, order: transformedOrder });

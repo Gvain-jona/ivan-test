@@ -181,7 +181,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as SummaryMetrics;
+      return data as unknown as SummaryMetrics;
     } catch (error) {
       console.error('Error in getSummaryMetrics:', error);
       throw error;
@@ -210,7 +210,7 @@ export const analyticsService = {
           console.log('Using materialized view for daily revenue data');
           const { data, error } = await supabase
             .from('analytics_daily_revenue')
-            .select('date as period, total_revenue, total_orders')
+            .select('date, total_revenue, total_orders')
             .gte('date', dateRange.startDate)
             .lte('date', dateRange.endDate)
             .order('date');
@@ -220,9 +220,9 @@ export const analyticsService = {
             // Fall back to the function if there's an error
           } else if (data && data.length > 0) {
             return data.map(item => ({
-              period: format(new Date(item.period), 'yyyy-MM-dd'),
-              total_revenue: item.total_revenue,
-              total_orders: item.total_orders
+              period: format(new Date(item.date ?? ''), 'yyyy-MM-dd'),
+              total_revenue: item.total_revenue ?? 0,
+              total_orders: item.total_orders ?? 0
             }));
           }
         }
@@ -233,7 +233,7 @@ export const analyticsService = {
         console.log('Using summary table for monthly revenue data');
         const { data, error } = await supabase
           .from('analytics_monthly_revenue')
-          .select('month_key as period, total_revenue, total_orders')
+          .select('month_key, total_revenue, total_orders')
           .gte('month_key', dateRange.startDate.substring(0, 7))
           .lte('month_key', dateRange.endDate.substring(0, 7))
           .order('month_key');
@@ -242,7 +242,7 @@ export const analyticsService = {
           console.error('Error fetching from summary table:', error);
           // Fall back to the function if there's an error
         } else if (data && data.length > 0) {
-          return data;
+          return data.map(item => ({ period: item.month_key ?? '', total_revenue: item.total_revenue ?? 0, total_orders: item.total_orders ?? 0 }));
         }
       }
 
@@ -255,7 +255,7 @@ export const analyticsService = {
 
         const { data, error } = await supabase
           .from('analytics_weekly_revenue')
-          .select('week_key as period, total_revenue, total_orders')
+          .select('week_key, total_revenue, total_orders')
           .gte('week_key', startWeek)
           .lte('week_key', endWeek)
           .order('week_key');
@@ -264,7 +264,7 @@ export const analyticsService = {
           console.error('Error fetching from summary table:', error);
           // Fall back to the function if there's an error
         } else if (data && data.length > 0) {
-          return data;
+          return data.map(item => ({ period: item.week_key ?? '', total_revenue: item.total_revenue ?? 0, total_orders: item.total_orders ?? 0 }));
         }
       }
 
@@ -281,7 +281,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as RevenueByPeriod[];
+      return data as unknown as RevenueByPeriod[];
     } catch (error) {
       console.error('Error in getRevenueByPeriod:', error);
       throw error;
@@ -310,7 +310,7 @@ export const analyticsService = {
           console.log('Using materialized view for daily profit data');
           const { data, error } = await supabase
             .from('analytics_daily_profit')
-            .select('date as period, total_profit, total_revenue, profit_margin')
+            .select('date, total_profit, total_revenue, profit_margin')
             .gte('date', dateRange.startDate)
             .lte('date', dateRange.endDate)
             .order('date');
@@ -320,10 +320,10 @@ export const analyticsService = {
             // Fall back to the function if there's an error
           } else if (data && data.length > 0) {
             return data.map(item => ({
-              period: format(new Date(item.period), 'yyyy-MM-dd'),
-              total_profit: item.total_profit,
-              total_revenue: item.total_revenue,
-              profit_margin: item.profit_margin
+              period: format(new Date(item.date ?? ''), 'yyyy-MM-dd'),
+              total_profit: item.total_profit ?? 0,
+              total_revenue: item.total_revenue ?? 0,
+              profit_margin: item.profit_margin ?? 0
             }));
           }
         }
@@ -334,7 +334,7 @@ export const analyticsService = {
         console.log('Using summary table for monthly profit data');
         const { data, error } = await supabase
           .from('analytics_monthly_profit')
-          .select('month_key as period, total_profit, total_revenue, profit_margin')
+          .select('month_key, total_profit, total_revenue, profit_margin')
           .gte('month_key', dateRange.startDate.substring(0, 7))
           .lte('month_key', dateRange.endDate.substring(0, 7))
           .order('month_key');
@@ -343,7 +343,7 @@ export const analyticsService = {
           console.error('Error fetching from summary table:', error);
           // Fall back to the function if there's an error
         } else if (data && data.length > 0) {
-          return data;
+          return data.map(item => ({ period: item.month_key ?? '', total_profit: item.total_profit ?? 0, total_revenue: item.total_revenue ?? 0, profit_margin: item.profit_margin ?? 0 }));
         }
       }
 
@@ -360,7 +360,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as ProfitByPeriod[];
+      return data as unknown as ProfitByPeriod[];
     } catch (error) {
       console.error('Error in getProfitByPeriod:', error);
       throw error;
@@ -390,7 +390,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as ClientPerformance[];
+      return data as unknown as ClientPerformance[];
     } catch (error) {
       console.error('Error in getClientPerformance:', error);
       throw error;
@@ -436,7 +436,7 @@ export const analyticsService = {
 
           monthlyData.forEach(item => {
             const currentAmount = categoryMap.get(item.category) || 0;
-            categoryMap.set(item.category, currentAmount + item.total_amount);
+            categoryMap.set(item.category, currentAmount + (item.total_amount ?? 0));
           });
 
           // Calculate total amount
@@ -475,8 +475,9 @@ export const analyticsService = {
           const categoryMap = new Map<string, number>();
 
           dailyData.forEach(item => {
-            const currentAmount = categoryMap.get(item.category) || 0;
-            categoryMap.set(item.category, currentAmount + item.total_amount);
+            const cat = item.category ?? '';
+            const currentAmount = categoryMap.get(cat) || 0;
+            categoryMap.set(cat, currentAmount + (item.total_amount ?? 0));
           });
 
           // Calculate total amount
@@ -505,7 +506,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as ExpensesByCategory[];
+      return data as unknown as ExpensesByCategory[];
     } catch (error) {
       console.error('Error in getExpensesByCategory:', error);
       throw error;
@@ -556,20 +557,21 @@ export const analyticsService = {
           }>();
 
           monthlyData.forEach(item => {
-            const current = segmentMap.get(item.segment) || {
-              segment: item.segment,
+            const seg = item.segment ?? '';
+            const current = segmentMap.get(seg) || {
+              segment: seg,
               client_count: 0,
               order_count: 0,
               total_revenue: 0,
-              color: item.color
+              color: item.color ?? ''
             };
 
-            segmentMap.set(item.segment, {
-              segment: item.segment,
-              client_count: current.client_count + item.client_count,
-              order_count: current.order_count + item.order_count,
-              total_revenue: current.total_revenue + item.total_revenue,
-              color: item.color
+            segmentMap.set(seg, {
+              segment: seg,
+              client_count: current.client_count + (item.client_count ?? 0),
+              order_count: current.order_count + (item.order_count ?? 0),
+              total_revenue: current.total_revenue + (item.total_revenue ?? 0),
+              color: item.color ?? ''
             });
           });
 
@@ -602,7 +604,15 @@ export const analyticsService = {
         console.error('Error fetching from client segments materialized view:', viewError);
         // Fall back to the function if there's an error
       } else if (viewData && viewData.length > 0) {
-        return viewData;
+        return viewData.map(item => ({
+          segment: item.segment ?? '',
+          client_count: item.client_count ?? 0,
+          order_count: item.order_count ?? 0,
+          total_revenue: item.total_revenue ?? 0,
+          percentage: item.percentage ?? 0,
+          avg_order_value: item.avg_order_value ?? 0,
+          color: item.color ?? '',
+        }));
       }
 
       // Fall back to the database function
@@ -617,7 +627,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as ClientSegment[];
+      return data as unknown as ClientSegment[];
     } catch (error) {
       console.error('Error in getClientSegments:', error);
       throw error;
@@ -647,7 +657,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as OrderFrequency[];
+      return data as unknown as OrderFrequency[];
     } catch (error) {
       console.error('Error in getClientOrderFrequency:', error);
       throw error;
@@ -704,7 +714,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as MaterialsBySupplier[];
+      return data as unknown as MaterialsBySupplier[];
     } catch (error) {
       console.error('Error in getMaterialsBySupplier:', error);
       throw error;
@@ -734,7 +744,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as CashFlowAnalysis[];
+      return data as unknown as CashFlowAnalysis[];
     } catch (error) {
       console.error('Error in getCashFlowAnalysis:', error);
       throw error;
@@ -762,7 +772,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as CategoryPerformance[];
+      return data as unknown as CategoryPerformance[];
     } catch (error) {
       console.error('Error in getCategoryPerformance:', error);
       throw error;
@@ -793,7 +803,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as ClientRetentionRate;
+      return data as unknown as ClientRetentionRate;
     } catch (error) {
       console.error('Error in getClientRetentionRate:', error);
       throw error;
@@ -823,7 +833,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as LateDeliveries;
+      return data as unknown as LateDeliveries;
     } catch (error) {
       console.error('Error in getLateDeliveries:', error);
       throw error;
@@ -850,7 +860,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as InstallmentDelinquencyRate;
+      return data as unknown as InstallmentDelinquencyRate;
     } catch (error) {
       console.error('Error in getInstallmentDelinquencyRate:', error);
       throw error;
@@ -880,7 +890,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as ExpenseToRevenueRatio[];
+      return data as unknown as ExpenseToRevenueRatio[];
     } catch (error) {
       console.error('Error in getExpenseToRevenueRatio:', error);
       throw error;
@@ -910,7 +920,7 @@ export const analyticsService = {
         throw error;
       }
 
-      return data as OrderFrequency[];
+      return data as unknown as OrderFrequency[];
     } catch (error) {
       console.error('Error in getOrderFrequency:', error);
       throw error;

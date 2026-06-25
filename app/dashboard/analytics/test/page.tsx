@@ -99,7 +99,7 @@ export default function AnalyticsTestPage() {
 
       <AnalyticsFilterBar
         dateRange={dateRange}
-        onDateRangeChange={setDateRange}
+        onDateRangeChange={(range) => { if (range) setDateRange(range); }}
         compareRange={compareRange}
         onCompareRangeChange={setCompareRange}
         showCompare={true}

@@ -13,7 +13,7 @@ import { StatusBadge } from '../StatusBadge';
 export function InstallmentsSection() {
   const { purchase } = useMaterialPurchaseView();
 
-  if (!purchase || (!purchase.installment_plan && !purchase.enable_installments)) return null;
+  if (!purchase || (!purchase.installment_plan && !purchase.total_installments)) return null;
 
   const installments = purchase.installments || [];
 
@@ -48,11 +48,11 @@ export function InstallmentsSection() {
 
   // Calculate installment plan details
   const totalInstallmentAmount = installments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
-  const paidInstallments = installments.filter(inst => inst.is_paid).length;
+  const paidInstallments = installments.filter(inst => inst.status === 'paid').length;
   const overdueInstallments = installments.filter(inst => {
     const dueDate = new Date(inst.due_date);
     const today = new Date();
-    return !inst.is_paid && dueDate < today;
+    return inst.status !== 'paid' && dueDate < today;
   }).length;
 
   // Format payment frequency for display

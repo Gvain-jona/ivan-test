@@ -10,7 +10,6 @@ import { OrderPayment } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrder } from '@/hooks/useOrders';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
-import { createSWRConfig } from '@/lib/swr-config';
 import { invalidateOrderCache } from '@/lib/cache-utils';
 
 // Import shared components
@@ -77,13 +76,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   }, [open, orderId]);
 
   // Fetch order data only when the sheet is open and we have an orderId
-  const { order: fetchedOrder, isLoading, isError, mutate: refreshOrderBase } = useOrder(orderKey, {
-    fallbackData: initialOrder, // Use initialOrder as fallback data
-    ...createSWRConfig('detail', {
-      // Only revalidate on mount if we don't have complete data in initialOrder
-      revalidateOnMount: !initialOrder?.items || initialOrder.items.length === 0,
-    }),
-  });
+  const { order: fetchedOrder, isLoading, isError, mutate: refreshOrderBase } = useOrder(orderKey ?? undefined);
 
   // Use the fetched order if available, otherwise fall back to the initial order
   const order = fetchedOrder || initialOrder;
@@ -198,13 +191,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
           'addItem', 'editItem', 'deleteItem',
           'addPayment', 'editPayment', 'deletePayment',
           'addNote', 'editNote', 'deleteNote'
-        ].some(key => {
-          const status = loadingStates[key]?.status;
-          return status === 'processing' ||
-                 status === 'submitting' ||
-                 status === 'preparing' ||
-                 status === 'loading';
-        });
+        ].some(key => !!(loadingStates as unknown as Record<string, unknown>)[key]);
 
         const anyOperationInProgress = globalApiCallInProgress || anyLoadingStateInProgress;
         const invoiceModalOpen = activeModal === 'invoice';
@@ -326,10 +313,6 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             />
             {order && <OrderItemsTab
               order={order}
-              onEdit={onEdit}
-              refreshOrder={refreshOrder}
-              isLoading={isLoading}
-              isError={isError}
               canEdit={true}
               onAddItem={handleAddItem}
               onEditItem={handleEditItem}
@@ -355,7 +338,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             />
             <OrderPaymentsTab
               order={order}
-              onEdit={onEdit}
+              onEdit={(o) => Promise.resolve(onEdit(o))}
               refreshOrder={refreshOrder}
               isLoading={isLoading}
               isError={isError}
@@ -379,7 +362,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             />
             {order && <OrderNotesTab
               order={order}
-              onEdit={onEdit}
+              onEdit={(o) => Promise.resolve(onEdit(o))}
               refreshOrder={refreshOrder}
               isLoading={isLoading}
               isError={isError}
@@ -404,7 +387,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
         isOpen={showAddItemModal}
         onClose={() => setShowAddItemModal(false)}
         orderId={order?.id || ''}
-        order={order}
+        order={order ?? undefined}
         onSuccess={() => {
           // Refresh the order data and invalidate the orders list cache
           refreshOrder();
@@ -419,7 +402,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
         isOpen={showAddPaymentModal}
         onClose={() => setShowAddPaymentModal(false)}
         orderId={order?.id || ''}
-        order={order}
+        order={order ?? undefined}
         onSuccess={() => {
           // Refresh the order data and invalidate the orders list cache
           refreshOrder();
@@ -434,7 +417,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
         isOpen={showAddNoteModal}
         onClose={() => setShowAddNoteModal(false)}
         orderId={order?.id || ''}
-        order={order}
+        order={order ?? undefined}
         onSuccess={() => {
           // Refresh the order data and invalidate the orders list cache
           refreshOrder();

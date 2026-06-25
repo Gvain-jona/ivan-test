@@ -51,7 +51,7 @@ export function CachedSmartCombobox({
     try {
       const { option, error } = await createDropdownOption({
         entityType,
-        name,
+        label: name,
         parentId
       });
 

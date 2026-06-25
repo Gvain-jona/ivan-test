@@ -20,8 +20,10 @@ interface ExpensesTabContentProps {
 
 export function ExpensesTabContent({ onRegisterHandleAddExpense }: ExpensesTabContentProps = {}) {
   const [viewExpense, setViewExpense] = useState<Expense | null>(null);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
@@ -534,7 +536,7 @@ export function ExpensesTabContent({ onRegisterHandleAddExpense }: ExpensesTabCo
           onOpenChange={setIsViewOpen}
           onEdit={handleEditExpense}
           onDelete={handleDeleteExpense}
-          refreshExpense={() => mutate()}
+          refreshExpense={async () => { await mutate(); }}
         />
       )}
 

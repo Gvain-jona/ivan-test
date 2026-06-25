@@ -25,7 +25,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('expense_payments')
-      .select('*')
+      .select('amount, created_at, created_by, date, expense_id, id, payment_method, updated_at')
       .eq('expense_id', id)
       .order('date', { ascending: false });
 

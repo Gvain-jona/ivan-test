@@ -46,7 +46,7 @@ export function ProfitSettingsTab() {
   };
 
   // Local state for form values
-  const [localSettings, setLocalSettings] = useState<ProfitSettings>(profitSettings);
+  const [localSettings, setLocalSettings] = useState<ProfitSettings>(profitSettings as ProfitSettings);
 
   // State for override dialog
   const [isOverrideDialogOpen, setIsOverrideDialogOpen] = useState(false);

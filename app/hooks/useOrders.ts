@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import useSWR from 'swr';
+import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { Order, OrderStatus, OrdersTableFilters, PaginationParams, OrdersResponse } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -55,9 +56,9 @@ export function useOrders(
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 5 * 60 * 1000,
+      dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE,
       keepPreviousData: true,
-      errorRetryCount: 2,
+      errorRetryCount: SWR_RETRY.LIST_COUNT,
       errorRetryInterval: 3000,
       onError: () => {
         toast({

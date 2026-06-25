@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest) {
         user_id: user.id,
         settings,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      } as never, { onConflict: 'user_id' });
     
     if (error) {
       console.error('Error updating settings:', error);

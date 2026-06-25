@@ -76,7 +76,7 @@ export function AnnouncementsTab() {
       toast({
         title: 'Success',
         description: `Announcement ${isEditing ? 'updated' : 'created'} successfully.`,
-        variant: 'success',
+        variant: 'default',
       });
     } catch (error: any) {
       console.error('Error saving announcement:', error);
@@ -108,7 +108,7 @@ export function AnnouncementsTab() {
       toast({
         title: 'Success',
         description: 'Announcement deleted successfully.',
-        variant: 'success',
+        variant: 'default',
       });
     } catch (error) {
       console.error('Error deleting announcement:', error);

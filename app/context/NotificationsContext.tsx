@@ -58,7 +58,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     const groups: Record<string, Notification[]> = {};
 
     notifications.forEach(notification => {
-      const date = new Date(notification.timestamp || notification.created_at);
+      const date = new Date(notification.timestamp);
       const today = new Date();
       const yesterday = subDays(today, 1);
 
@@ -83,7 +83,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     return Object.entries(groups).map(([date, notifications]) => ({
       date,
       notifications: notifications.sort((a, b) =>
-        new Date(b.timestamp || b.created_at).getTime() - new Date(a.timestamp || a.created_at).getTime()
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       ),
     })).sort((a, b) => {
       if (a.date === 'Today') return -1;
@@ -93,6 +93,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
   }, []);
+
+  const toNotification = useCallback((item: { id: string; title: string; message: string; status: string; timestamp: string | null; created_at: string | null; [key: string]: unknown }): Notification => ({
+    id: item.id,
+    title: item.title || 'Notification',
+    message: item.message || '',
+    status: (item.status || 'unread') as NotificationStatus,
+    timestamp: (item.timestamp ?? item.created_at ?? new Date().toISOString()) as string,
+  }), []);
 
   const fetchNotifications = useCallback(async () => {
     // Prevent multiple simultaneous fetches
@@ -106,7 +114,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -114,27 +122,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         throw error;
       }
 
-      // Transform the data to match our expected format
-      const transformedData = (data || []).map(item => ({
-        ...item,
-        id: item.id || `temp-${Math.random().toString(36).substring(2, 9)}`,
-        type: item.type || 'comment',
-        title: item.title || 'Notification',
-        message: item.message || '',
-        status: item.status || (item.read ? 'read' : 'unread'),
-        timestamp: item.timestamp || item.created_at || new Date().toISOString(),
-        sender: item.sender || {
-          id: 'system',
-          name: 'System',
-          avatar: null
-        },
-        target: item.target || {
-          id: 'system',
-          type: 'order',
-          title: 'Unknown'
-        }
-      }));
-
+      const transformedData = (data || []).map(toNotification);
       setNotifications(transformedData);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -206,11 +194,11 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
-            setNotifications(data);
+            setNotifications(data.map(toNotification));
           }
         } catch (fetchError) {
           console.error('Error fetching notifications after failed update:', fetchError);
@@ -247,11 +235,11 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
-            setNotifications(data);
+            setNotifications(data.map(toNotification));
           }
         } catch (fetchError) {
           console.error('Error fetching notifications after failed update:', fetchError);
@@ -282,11 +270,11 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
-            setNotifications(data);
+            setNotifications(data.map(toNotification));
           }
         } catch (fetchError) {
           console.error('Error fetching notifications after failed delete:', fetchError);
@@ -317,11 +305,11 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         try {
           const { data, error: fetchError } = await supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
             .order('created_at', { ascending: false });
 
           if (!fetchError && data) {
-            setNotifications(data);
+            setNotifications(data.map(toNotification));
           }
         } catch (fetchError) {
           console.error('Error fetching notifications after failed bulk delete:', fetchError);

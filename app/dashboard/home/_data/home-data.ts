@@ -16,7 +16,7 @@ export const HOME_METRICS_DATA = {
 };
 
 // Recent orders data (derived from sample orders)
-export const RECENT_ORDERS = SAMPLE_ORDERS
+export const RECENT_ORDERS = (SAMPLE_ORDERS as { date: string }[])
   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   .slice(0, 5);
 

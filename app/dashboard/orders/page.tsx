@@ -70,7 +70,7 @@ const OrdersPageContent: React.FC = () => {
       <OrderMetricsCards
         stats={stats}
         isLoading={initialLoading}
-        onFilterByStatus={filterByStatus}
+        onFilterByStatus={(statuses) => filterByStatus(statuses as any)}
         filters={filters}
       />
 

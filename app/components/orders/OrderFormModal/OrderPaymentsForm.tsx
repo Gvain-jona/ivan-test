@@ -46,10 +46,7 @@ const OrderPaymentsForm: React.FC<OrderPaymentsFormProps> = ({
   const { success: showSuccess, error: showError } = useNotifications();
   // Debug order payments
   console.log('OrderPaymentsForm received order:', order);
-  console.log('OrderPaymentsForm received order.payments:', (order as any).payments);
-
-  // Get payments from order, handling potentially missing field in type
-  const payments = (order as any).payments || [];
+  const payments: OrderPayment[] = order.payments ?? [];
 
   // Debug payments after initialization
   console.log('OrderPaymentsForm payments after initialization:', payments);

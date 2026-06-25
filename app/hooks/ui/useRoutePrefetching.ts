@@ -9,7 +9,7 @@ import { NavItemType } from './useTabNavigation';
  * Enhanced hook to handle route prefetching with improved efficiency
  */
 export function useRoutePrefetching(navigationItems: NavItemType[]) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const router = useRouter();
 
   // Use a ref to track which routes have already been prefetched
@@ -30,7 +30,7 @@ export function useRoutePrefetching(navigationItems: NavItemType[]) {
 
     if (currentIndex !== -1) {
       // Determine which routes to prefetch - previous, next, and common routes
-      const routesToPrefetch = [];
+      const routesToPrefetch: number[] = [];
 
       // Add previous and next routes
       if (currentIndex > 0) {
@@ -45,7 +45,7 @@ export function useRoutePrefetching(navigationItems: NavItemType[]) {
       const commonRouteIndices = navigationItems.reduce((indices, item, index) => {
         if (
           'href' in item &&
-          (item.href.includes('/orders') || item.href.includes('/expenses')) &&
+          ((item.href ?? '').includes('/orders') || (item.href ?? '').includes('/expenses')) &&
           !routesToPrefetch.includes(index) &&
           index !== currentIndex
         ) {
@@ -64,7 +64,7 @@ export function useRoutePrefetching(navigationItems: NavItemType[]) {
           index < navigationItems.length &&
           'href' in navigationItems[index] &&
           navigationItems[index].href !== '#' &&
-          !navigationItems[index].href.includes('/feature-in-development')
+          !(navigationItems[index].href ?? '').includes('/feature-in-development')
         ) {
           const href = navigationItems[index].href as string;
 

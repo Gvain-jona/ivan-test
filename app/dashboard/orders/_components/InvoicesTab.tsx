@@ -8,6 +8,7 @@ import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { useOrdersPage } from '../_context';
+import type { Order } from '@/types/orders';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import PaymentStatusBadge from '@/components/ui/payment-status-badge';
@@ -99,7 +100,7 @@ const InvoicesTab: React.FC = () => {
           totalAmount: totalAmount,
           amountPaid: amountPaid,
           paymentPercentage: paymentPercentage,
-          dueDate: order.date || formatDate(new Date()),
+          dueDate: order.date || formatDate(new Date().toISOString()),
           status: order.payment_status === 'unpaid' ? 'unpaid' : 'partially_paid',
           orderNumber: order.order_number || order.id.substring(0, 8),
           items: formattedItems,
@@ -513,7 +514,7 @@ const InvoicesTab: React.FC = () => {
                               className="text-xs h-6 px-2 text-foreground/70 hover:text-foreground hover:bg-foreground/5"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleViewOrder({ id: invoice.id });
+                                handleViewOrder({ id: invoice.id } as Order);
                               }}
                             >
                               + {invoice.totalItems - 3} more items
@@ -540,7 +541,7 @@ const InvoicesTab: React.FC = () => {
                           className="flex-1 h-9 bg-transparent border-foreground/20 text-foreground hover:bg-foreground/5 hover:text-foreground"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewOrder({ id: invoice.id });
+                            handleViewOrder({ id: invoice.id } as Order);
                           }}
                         >
                           View Order

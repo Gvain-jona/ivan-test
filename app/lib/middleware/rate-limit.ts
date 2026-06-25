@@ -80,7 +80,7 @@ export function rateLimitMiddleware(
   type: keyof typeof RATE_LIMIT_CONFIG = 'api'
 ): NextResponse | null {
   // Get IP address
-  const ip = req.ip || 'unknown';
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
   
   // Get rate limit configuration
   const config = RATE_LIMIT_CONFIG[type];

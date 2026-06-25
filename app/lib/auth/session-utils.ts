@@ -5,21 +5,7 @@
 
 import { Session, User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
-
-// Session storage key in localStorage - matches Supabase's default
-export const SESSION_STORAGE_KEY = 'sb-auth';
-
-// Auth-related localStorage keys
-export const AUTH_KEYS = [
-  'auth_completed',
-  'auth_timestamp',
-  'auth_user_id',
-  'auth_in_progress',
-  'auth_email',
-  'auth_email_temp',
-  'cached_user_profile',  // Add profile cache
-  SESSION_STORAGE_KEY
-];
+import { clearAuthStorage } from '@/lib/storage-keys';
 
 /**
  * Get the base URL for the current environment
@@ -72,32 +58,25 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 /**
- * Sign out the current user
- * This will clear the session from both cookies and localStorage
+ * Sign out the current user.
+ * Clears the Supabase session and all auth/profile localStorage keys.
  */
 export async function signOut(): Promise<{ success: boolean, error?: Error }> {
   try {
     const supabase = createClient();
     const { error } = await supabase.auth.signOut();
-    
+
     if (error) {
       throw error;
     }
-    
-    // Clear any local storage items we might have set
-    AUTH_KEYS.forEach(key => {
-      try {
-        localStorage.removeItem(key);
-      } catch (e) {
-        // Ignore errors when clearing localStorage
-      }
-    });
-    
+
+    clearAuthStorage();
+
     return { success: true };
   } catch (error) {
     console.error('Error signing out:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error instanceof Error ? error : new Error('Failed to sign out')
     };
   }

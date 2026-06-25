@@ -325,7 +325,7 @@ export function LoadingError({
   className?: string;
 }) {
   return (
-    <Alert variant="destructive" className={cn('shadow-sm', className)}>
+    <Alert variant="error" className={cn('shadow-sm', className)}>
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

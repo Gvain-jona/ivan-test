@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             parent_expense_id: e.id,
             occurrence_date: e.next_occurrence_date,
             status: 'pending',
-          })),
+          })) as never,
         )
         .select();
 
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       }));
 
     if (reminderRows.length > 0) {
-      const { error: notifError } = await supabase.from('notifications').insert(reminderRows);
+      const { error: notifError } = await supabase.from('notifications').insert(reminderRows as never);
       if (notifError) {
         errors.push({ expense_id: 'batch_notifications', error: notifError.message });
       }

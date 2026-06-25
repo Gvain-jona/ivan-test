@@ -109,7 +109,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       }
 
       // Get the current entities array
-      const currentEntities = order[entityKey] || [];
+      const currentEntities = ((order as unknown as Record<string, Array<{ id: string }>>)[entityKey] || []) as Array<{ id: string }>;
       let updatedEntities;
       let entityForMessage;
 
@@ -120,7 +120,7 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
         entityForMessage = entityData;
       } else if (actionType === 'edit') {
         // For edit, find and replace the entity in the array
-        const entityIndex = currentEntities.findIndex(e => e.id === entityData.id);
+        const entityIndex = currentEntities.findIndex((e: { id: string }) => e.id === entityData.id);
         if (entityIndex === -1) {
           throw new Error(`${entityType} not found`);
         }
@@ -129,12 +129,12 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
         entityForMessage = entityData;
       } else if (actionType === 'delete') {
         // For delete, find the entity for the success message
-        entityForMessage = currentEntities.find(e => e.id === entityId);
+        entityForMessage = currentEntities.find((e: { id: string }) => e.id === entityId);
         if (!entityForMessage) {
           throw new Error(`${entityType} not found`);
         }
         // Filter out the entity to be deleted
-        updatedEntities = currentEntities.filter(e => e.id !== entityId);
+        updatedEntities = currentEntities.filter((e: { id: string }) => e.id !== entityId);
       }
 
       // Create a new order object with the updated entities
@@ -393,7 +393,9 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
         id: tempId,
         order_id: order.id,
         amount: newPayment.amount || 0,
+        date: newPayment.date || newPayment.payment_date || new Date().toISOString().split('T')[0],
         payment_date: newPayment.payment_date || new Date().toISOString().split('T')[0],
+        payment_method: (newPayment.payment_method || 'cash') as OrderPayment['payment_method'],
         payment_type: newPayment.payment_type || 'cash',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -464,13 +466,13 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, editPayment: updatedPayment.id }));
 
       // Find the payment index in the order payments array
-      const paymentIndex = order.payments.findIndex(payment => payment.id === updatedPayment.id);
+      const paymentIndex = (order.payments ?? []).findIndex(payment => payment.id === updatedPayment.id);
       if (paymentIndex === -1) {
         throw new Error('Payment not found');
       }
 
       // Create a new array with the updated payment
-      const updatedPayments = [...order.payments];
+      const updatedPayments = [...(order.payments ?? [])];
       updatedPayments[paymentIndex] = updatedPayment;
 
       // Create a new order object with the updated payments
@@ -535,13 +537,13 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, deletePayment: paymentId }));
 
       // Find the payment to be deleted (for the success message)
-      const paymentToDelete = order.payments.find(payment => payment.id === paymentId);
+      const paymentToDelete = (order.payments ?? []).find(payment => payment.id === paymentId);
       if (!paymentToDelete) {
         throw new Error('Payment not found');
       }
 
       // Filter out the payment to be deleted
-      const updatedPayments = order.payments.filter(payment => payment.id !== paymentId);
+      const updatedPayments = (order.payments ?? []).filter(payment => payment.id !== paymentId);
 
       // Create a new order object with the updated payments
       const updatedOrder = {
@@ -684,13 +686,13 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, editNote: updatedNote.id }));
 
       // Find the note index in the order notes array
-      const noteIndex = order.notes.findIndex(note => note.id === updatedNote.id);
+      const noteIndex = (order.notes ?? []).findIndex(note => note.id === updatedNote.id);
       if (noteIndex === -1) {
         throw new Error('Note not found');
       }
 
       // Create a new array with the updated note
-      const updatedNotes = [...order.notes];
+      const updatedNotes = [...(order.notes ?? [])];
       updatedNotes[noteIndex] = updatedNote;
 
       // Create a new order object with the updated notes
@@ -755,13 +757,13 @@ export function useOrderUpdates({ order, onEdit, refreshOrder }: UseOrderUpdates
       setLoadingStates(prev => ({ ...prev, deleteNote: noteId }));
 
       // Find the note to be deleted
-      const noteToDelete = order.notes.find(note => note.id === noteId);
+      const noteToDelete = (order.notes ?? []).find(note => note.id === noteId);
       if (!noteToDelete) {
         throw new Error('Note not found');
       }
 
       // Filter out the note to be deleted
-      const updatedNotes = order.notes.filter(note => note.id !== noteId);
+      const updatedNotes = (order.notes ?? []).filter(note => note.id !== noteId);
 
       // Create a new order object with the updated notes
       const updatedOrder = {

@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { validateCsrfToken } from '../utils/csrf';
+import { validateCSRFToken as validateCsrfToken } from '../utils/csrf';
 
 /**
  * Validate CSRF token in request

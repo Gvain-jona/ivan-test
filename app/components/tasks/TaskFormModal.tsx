@@ -224,7 +224,6 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               <SelectTrigger
                 id="linked_order"
                 className="bg-gray-900 border-gray-800 mt-1"
-                icon={<Link className="h-4 w-4" />}
               >
                 <SelectValue placeholder="Link to an order (optional)" />
               </SelectTrigger>

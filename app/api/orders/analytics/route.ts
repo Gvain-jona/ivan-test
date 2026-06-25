@@ -64,18 +64,18 @@ export async function GET(request: NextRequest) {
     for (const order of orders) {
       if (
         (order.payment_status === 'unpaid' || order.payment_status === 'partially_paid') &&
-        order.balance > 0 &&
+        (order.balance ?? 0) > 0 &&
         order.client_id
       ) {
         const existing = clientDebtMap.get(order.client_id);
         if (existing) {
-          existing.debt += order.balance;
+          existing.debt += order.balance ?? 0;
           existing.orderCount += 1;
         } else {
           clientDebtMap.set(order.client_id, {
             id: order.client_id,
             name: order.client_name || 'Unknown Client',
-            debt: order.balance,
+            debt: order.balance ?? 0,
             orderCount: 1,
           });
         }

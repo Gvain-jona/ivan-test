@@ -428,7 +428,7 @@ export function MaterialPurchasesProvider({ children }: { children: ReactNode })
   ]);
 
   return (
-    <MaterialPurchasesContext.Provider value={contextValue}>
+    <MaterialPurchasesContext.Provider value={contextValue as any}>
       {children}
     </MaterialPurchasesContext.Provider>
   );

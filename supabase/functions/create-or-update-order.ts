@@ -30,7 +30,7 @@ interface OrderData {
   payments?: OrderPayment[];
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   try {
     // Only accept POST requests
     if (req.method !== 'POST') {
@@ -223,7 +223,7 @@ serve(async (req) => {
             .in('role', ['admin', 'manager']);
 
           if (!usersError && usersToNotify) {
-            const notifications = usersToNotify.map(notifyUser => ({
+            const notifications = usersToNotify.map((notifyUser: { id: string }) => ({
               user_id: notifyUser.id,
               type: 'new_order',
               message,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Order, OrderItem } from '@/types/orders';
-import { SimplifiedInvoiceSettings } from '@/features/invoices/types';
+import { SimplifiedInvoiceSettings, BankDetail, MobileMoneyDetail } from '../../types';
 
 interface OrangeInvoiceTemplateProps {
   order: Order | null;
@@ -24,7 +24,7 @@ const OrangeInvoiceTemplate: React.FC<OrangeInvoiceTemplateProps> = ({
     large: { width: '100px', height: '100px', fontSize: '18px' }
   };
 
-  const currentLogoSize = logoSizes[settings.logoSize || 'medium'];
+  const currentLogoSize = logoSizes[(settings.logoSize || 'medium') as keyof typeof logoSizes];
 
   // Dynamic font sizing function to prevent text wrapping
   const getDynamicFontSize = (text: string, baseSize: number, maxWidth: number) => {

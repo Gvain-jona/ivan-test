@@ -108,7 +108,7 @@ export function ExpenseView({
           open={isAddingPayment}
           onOpenChange={setIsAddingPayment}
           onSubmit={async (values) => {
-            await addPayment(values);
+            await addPayment({ ...values, date: values.date instanceof Date ? values.date.toISOString().split('T')[0] : values.date });
             setIsAddingPayment(false);
           }}
           isSubmitting={isSubmitting}
