@@ -7,6 +7,7 @@ import { Package, DollarSign } from "lucide-react";
 
 // Import refactored components
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
+import OrderFormSheet from '../../components/orders/OrderFormSheet';
 import OrdersPageHeader from './_components/OrdersPageHeader';
 import OrdersTab from './_components/OrdersTab';
 import InvoicesTab from './_components/InvoicesTab';
@@ -27,6 +28,9 @@ const OrdersPageContent: React.FC = () => {
     selectedOrder,
     viewModalOpen,
     setViewModalOpen,
+    createModalOpen,
+    setCreateModalOpen,
+    handleSaveOrder,
     userRole,
   } = useOrdersPage();
 
@@ -94,9 +98,13 @@ const OrdersPageContent: React.FC = () => {
         />
       )}
 
-      {/* TODO(B3 — order form cutover): OrderFormSheet reconnects here
-          once rebuilt on client picker + CustomFieldsForm + product
-          picker, submitting OrderCreateInput via handleSaveOrder. */}
+      {/* Order Create Sheet — v2 form (atomic create_order) */}
+      <OrderFormSheet
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onSave={handleSaveOrder}
+        title="Create New Order"
+      />
 
       {/* TODO(documents module): InvoiceSheet reconnects when
           v2.documents + issue_document exist. */}

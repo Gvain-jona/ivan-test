@@ -3,9 +3,8 @@
 
 export { useLoadingSWR, useFetch } from './useLoadingSWR';
 
-// Orders domain
+// Orders domain (legacy root hooks; the v2 order hooks live in ./orders/)
 export { useOrders, useOrder } from './useOrders';
-export { useOrderPayments } from './orders/useOrderPayments';
 
 // Domain data hooks
 export { useMaterials, useMaterial } from './useMaterialsData';

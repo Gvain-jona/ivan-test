@@ -1,301 +1,423 @@
-import React, { useEffect, useRef, memo } from 'react';
-import { clearAllOrderFormData } from '@/utils/form-storage';
+'use client';
+
+import React, { useState } from 'react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Order } from '@/types/orders';
-import { Ban, Save, FileText, Box, CreditCard, StickyNote, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { useNotifications } from '@/components/ui/notification';
-import { useModalState } from '@/hooks/ui/useModalState';
-import { useOrderForm } from '@/hooks/orders/useOrderForm';
-import { useOrderCreation } from '@/hooks/useOrderCreation';
-import { useOrderFormState } from '@/hooks/orders/useOrderFormState';
-import { useOrderFormValidation } from '@/hooks/orders/useOrderFormValidation';
-import { useOrderFormHandlers } from '@/hooks/orders/useOrderFormHandlers';
-import ApprovalDialog from '@/components/ui/approval-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
-import { motion } from 'framer-motion';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import ValidationSummary from '@/components/ui/form/ValidationSummary';
-import { useReferenceData } from '@/hooks/useReferenceData';
-import { UnsavedChangesDialog } from './OrderFormModal/UnsavedChangesDialog';
-import OrderGeneralInfoForm from './OrderFormModal/OrderGeneralInfoForm';
-import OrderItemsForm from './OrderFormModal/OrderItemsForm';
-import OrderPaymentsForm from './OrderFormModal/OrderPaymentsForm';
-import OrderNotesForm from './OrderFormModal/OrderNotesForm';
+import { CustomFieldsForm } from '@/components/fields/CustomFieldsForm';
+import { useClients } from '@/hooks/clients/useClients';
+import { useProducts } from '@/hooks/products/useProducts';
+import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
+import { useOrganization } from '@/hooks/organization/useOrganization';
+import { formatCurrency } from '@/lib/utils';
+import type { OrderCreateInput } from '@/hooks/orders/useOrders';
+
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'mobile_money', label: 'Mobile Money' },
+  { value: 'bank', label: 'Bank' },
+  { value: 'credit', label: 'Credit' },
+] as const;
+
+/** Sentinel for the "free-text item" choice in the product picker. */
+const CUSTOM_ITEM = '__custom__';
+
+interface ItemDraft {
+  product_id: string | null;
+  product_name_raw: string;
+  quantity: string;
+  unit_price: string;
+  discount: string;
+  custom_data: Record<string, unknown>;
+}
+
+interface PaymentDraft {
+  amount: string;
+  payment_method: (typeof PAYMENT_METHODS)[number]['value'];
+  payment_date: string;
+}
+
+const emptyItem = (): ItemDraft => ({
+  product_id: null,
+  product_name_raw: '',
+  quantity: '1',
+  unit_price: '',
+  discount: '',
+  custom_data: {},
+});
 
 interface OrderFormSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (order: Order) => void;
-  initialOrder?: Order;
-  title: string;
+  onSave: (input: OrderCreateInput) => Promise<{ success: boolean; error?: unknown }>;
+  title?: string;
 }
 
-const OrderFormSheet = memo(function OrderFormSheet({
-  open,
-  onOpenChange,
-  onSave,
-  initialOrder,
-  title,
-}: OrderFormSheetProps) {
-  const { success: showSuccess, error: showError } = useNotifications();
-  const { clients, categories, items, isLoading: isReferenceDataLoading } = useReferenceData();
+/**
+ * Create-order sheet on the v2 model: hard client FK, org-defined
+ * custom fields on the order and each item (rendered from the field
+ * registry), product picker with overridable price or free-text lines,
+ * optional payments. Submits once through the atomic create_order RPC.
+ * Field-level custom_data validation stays in the DB; its precise
+ * message surfaces via the save error toast.
+ */
+export default function OrderFormSheet({ open, onOpenChange, onSave, title }: OrderFormSheetProps) {
+  const { clients } = useClients({ status: 'active', limit: 100 });
+  const { products } = useProducts({ status: 'active', limit: 100 });
+  const { orderStatuses } = useOrganization();
+  const { fieldDefinitions: orderFields } = useFieldDefinitions('order');
+  const { fieldDefinitions: itemFields } = useFieldDefinitions('order_item');
 
-  const deleteDialog = useModalState();
-  const confirmDialog = useModalState();
+  const [clientId, setClientId] = useState('');
+  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [status, setStatus] = useState('pending');
+  const [customData, setCustomData] = useState<Record<string, unknown>>({});
+  const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
+  const [payments, setPayments] = useState<PaymentDraft[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const { order, updateOrderField, updateOrderFields, recalculateOrder, resetOrder } = useOrderForm({ initialOrder });
+  const updateItem = (index: number, patch: Partial<ItemDraft>) => {
+    setItems(prev => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  };
 
-  const formStateResult = useOrderFormState();
-  const {
-    itemToDelete,
-    isSaving,
-    validationErrors,
-    activeTab,
-    setActiveTab,
-    formStatus,
-    isMountedRef,
-    formIds,
-    setFormIds,
-    formIdCounters,
-    setFormIdCounters,
-    partialDataRef,
-    safeSetFormStatus,
-    safeSetIsSaving,
-    safeSetValidationErrors,
-    formState,
-  } = formStateResult;
-
-  const { createOrder } = useOrderCreation({
-    onSuccess: () => {
-      if (!isMountedRef.current) return;
-      safeSetFormStatus('success');
-      showSuccess('Order created successfully.', 'Success');
-    },
-  });
-
-  const { validateForm } = useOrderFormValidation({
-    order,
-    isMountedRef,
-    safeSetFormStatus,
-    safeSetValidationErrors,
-    safeSetActiveTab: (tab: string) => {
-      if (isMountedRef.current && tab !== activeTab) {
-        setActiveTab(tab);
-        if (tab === 'general-info') recalculateOrder();
-      }
-    },
-    showError,
-  });
-
-  const {
-    safeSetActiveTab,
-    handleSave,
-    handleDeleteRequest,
-    handleSheetClose,
-    openDeleteDialog,
-  } = useOrderFormHandlers({
-    order,
-    updateOrderFields,
-    recalculateOrder,
-    resetOrder,
-    onOpenChange,
-    validateForm,
-    createOrder,
-    showSuccess,
-    showError,
-    formStateResult,
-    confirmDialogSetOpen: confirmDialog.setOpen,
-    deleteDialogSetOpen: deleteDialog.setOpen,
-  });
-
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (open && !initializedRef.current) {
-      setTimeout(() => recalculateOrder(), 0);
-      setFormIds({
-        itemForms: [order.items?.length || 0],
-        noteForms: [order.notes?.length || 0],
-        paymentForms: [order.payments?.length || 0],
-      });
-      setFormIdCounters({
-        items: (order.items?.length || 0) + 1,
-        payments: (order.payments?.length || 0) + 1,
-        notes: (order.notes?.length || 0) + 1,
-      });
-      initializedRef.current = true;
-    } else if (!open) {
-      initializedRef.current = false;
+  const handleProductPick = (index: number, value: string) => {
+    if (value === CUSTOM_ITEM) {
+      updateItem(index, { product_id: null });
+      return;
     }
-  }, [open, order.items, order.payments, order.notes]);
+    const product = products.find(p => p.id === value);
+    updateItem(index, {
+      product_id: value,
+      product_name_raw: product?.name ?? '',
+      // Default price from the catalog — always overridable at the line
+      unit_price:
+        product?.selling_price != null ? String(product.selling_price) : '',
+    });
+  };
+
+  const orderTotal = items.reduce((sum, item) => {
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.unit_price) || 0;
+    const discount = Number(item.discount) || 0;
+    return sum + (qty * price - discount);
+  }, 0);
+
+  const canSubmit =
+    clientId &&
+    items.length > 0 &&
+    items.every(
+      item =>
+        (item.product_id || item.product_name_raw.trim()) &&
+        Number(item.quantity) > 0 &&
+        Number(item.unit_price) >= 0,
+    );
+
+  const resetForm = () => {
+    setClientId('');
+    setOrderDate(new Date().toISOString().slice(0, 10));
+    setStatus('pending');
+    setCustomData({});
+    setItems([emptyItem()]);
+    setPayments([]);
+  };
+
+  const handleSubmit = async () => {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    try {
+      const input: OrderCreateInput = {
+        client_id: clientId,
+        order_date: orderDate,
+        status,
+        ...(Object.keys(customData).length > 0 && { custom_data: customData }),
+        items: items.map(item => ({
+          product_id: item.product_id,
+          ...(item.product_name_raw.trim() && { product_name_raw: item.product_name_raw.trim() }),
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price) || 0,
+          ...(Number(item.discount) > 0 && { discount: Number(item.discount) }),
+          ...(Object.keys(item.custom_data).length > 0 && { custom_data: item.custom_data }),
+        })),
+        ...(payments.length > 0 && {
+          payments: payments
+            .filter(p => Number(p.amount) > 0)
+            .map(p => ({
+              amount: Number(p.amount),
+              payment_method: p.payment_method,
+              payment_date: p.payment_date,
+            })),
+        }),
+      };
+
+      const result = await onSave(input);
+      if (result.success) resetForm();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <>
-      <OrderSheet open={open} onOpenChange={handleSheetClose} title={title} size="lg" showCloseButton={true}>
-        <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden bg-background" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-          {Object.keys(validationErrors).length > 0 && formStatus === 'error' && (
-            <ValidationSummary errors={validationErrors} title="Please fix the following errors:" onSectionClick={setActiveTab} />
-          )}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6 transition-all duration-300 ease-in-out">
-            <TabsList className="bg-card border border-border/60 rounded-lg p-3 mb-6 w-full flex flex-wrap justify-between gap-2 overflow-x-hidden min-h-[60px]">
-              <TabsTrigger value="general-info" className="text-sm font-medium text-muted-foreground py-2.5 px-4 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/10 transition-all flex-1 truncate">
-                <FileText className="mr-2 h-4 w-4" />
-                General Info
-                {(validationErrors['client_id'] || validationErrors['date'] || validationErrors['client_type'] || validationErrors['status']) && (
-                  <AlertCircle className="ml-2 h-4 w-4 text-destructive" />
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="items" className="text-sm font-medium text-muted-foreground py-2.5 px-4 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/10 transition-all flex-1 truncate">
-                <Box className="mr-2 h-4 w-4" />
-                Items
-                {order.items && order.items.length > 0 && (
-                  <span className="ml-2 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full">{order.items.length}</span>
-                )}
-                {validationErrors['items'] && <AlertCircle className="ml-2 h-4 w-4 text-destructive" />}
-              </TabsTrigger>
-              <TabsTrigger value="payments" className="text-sm font-medium text-muted-foreground py-2.5 px-4 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/10 transition-all flex-1 truncate">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Payments
-                {order.payments && order.payments.length > 0 && (
-                  <span className="ml-2 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full">{order.payments.length}</span>
-                )}
-                {validationErrors['payments'] && <AlertCircle className="ml-2 h-4 w-4 text-destructive" />}
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="text-sm font-medium text-muted-foreground py-2.5 px-4 rounded-md data-[state=active]:bg-foreground data-[state=active]:text-background hover:bg-muted/10 transition-all flex-1 truncate">
-                <StickyNote className="mr-2 h-4 w-4" />
-                Notes
-                {order.notes && order.notes.length > 0 && (
-                  <span className="ml-2 min-w-5 bg-muted/30 px-1.5 py-0.5 text-xs font-medium text-muted-foreground rounded-full">{order.notes.length}</span>
-                )}
-                {validationErrors['notes'] && <AlertCircle className="ml-2 h-4 w-4 text-destructive" />}
-              </TabsTrigger>
-            </TabsList>
+    <OrderSheet open={open} onOpenChange={onOpenChange} title={title ?? 'Create New Order'}>
+      <div className="p-4 space-y-6">
+        {/* General */}
+        <section className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">General</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>
+                Client<span className="ml-0.5 text-destructive">*</span>
+              </Label>
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map(client => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="order-date">Order Date</Label>
+              <Input
+                id="order-date"
+                type="date"
+                value={orderDate}
+                onChange={e => setOrderDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderStatuses.map(s => (
+                    <SelectItem key={s} value={s}>
+                      {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <CustomFieldsForm fields={orderFields} value={customData} onChange={setCustomData} />
+        </section>
 
-            <TabsContent value="general-info" className="mt-2 px-1 animate-in fade-in-50 slide-in-from-left-5 duration-300 transition-all overflow-x-hidden">
-              <OrderGeneralInfoForm active={true} order={order} updateOrderField={updateOrderField} clients={clients} errors={validationErrors} />
-            </TabsContent>
-            <TabsContent value="items" className="mt-2 px-1 animate-in fade-in-50 slide-in-from-right-5 duration-300 transition-all overflow-x-hidden">
-              <OrderItemsForm
-                active={true} order={order} updateOrderFields={updateOrderFields} openDeleteDialog={openDeleteDialog}
-                recalculateOrder={recalculateOrder} categories={categories} items={items} errors={validationErrors}
-                formState={formState.itemForms} partialData={formState.partialData.items}
-                onAddForm={() => {
-                  const counter = formIdCounters.items;
-                  if (!formIds.itemForms.includes(counter)) setFormIds(prev => ({ ...prev, itemForms: [...prev.itemForms, counter] }));
-                  setFormIdCounters(prev => ({ ...prev, items: prev.items + 1 }));
-                }}
-                onRemoveForm={(index) => {
-                  setFormIds(prev => ({ ...prev, itemForms: prev.itemForms.filter(id => id !== index) }));
-                  if (partialDataRef.current.items[index]) delete partialDataRef.current.items[index];
-                }}
-                onUpdatePartialData={(index, data) => { partialDataRef.current.items[index] = data; }}
+        {/* Items */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-muted-foreground">Items</h3>
+            <span className="text-sm text-white font-medium">{formatCurrency(orderTotal)}</span>
+          </div>
+          {items.map((item, index) => (
+            <div key={index} className="border border-[#2B2B40] rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Product</Label>
+                  <Select
+                    value={item.product_id ?? CUSTOM_ITEM}
+                    onValueChange={value => handleProductPick(index, value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CUSTOM_ITEM}>Custom item (free text)</SelectItem>
+                      {products.map(product => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                          {product.selling_price != null
+                            ? ` — ${formatCurrency(product.selling_price)}`
+                            : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Item name{item.product_id ? ' (from product)' : ''}</Label>
+                  <Input
+                    value={item.product_name_raw}
+                    onChange={e => updateItem(index, { product_name_raw: e.target.value })}
+                    placeholder="e.g. Vinyl banner 2x1m"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={item.quantity}
+                    onChange={e => updateItem(index, { quantity: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Unit Price</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={item.unit_price}
+                    onChange={e => updateItem(index, { unit_price: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Discount</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={item.discount}
+                    onChange={e => updateItem(index, { discount: e.target.value })}
+                  />
+                </div>
+              </div>
+              <CustomFieldsForm
+                fields={itemFields}
+                value={item.custom_data}
+                onChange={next => updateItem(index, { custom_data: next })}
               />
-            </TabsContent>
-            <TabsContent value="payments" className="mt-2 px-1 animate-in fade-in-50 slide-in-from-right-5 duration-300 transition-all overflow-x-hidden">
-              <OrderPaymentsForm
-                active={true} order={order} updateOrderFields={updateOrderFields} openDeleteDialog={openDeleteDialog}
-                recalculateOrder={recalculateOrder} errors={validationErrors}
-                formState={formState.paymentForms} partialData={formState.partialData.payments}
-                onAddForm={() => {
-                  const counter = formIdCounters.payments;
-                  if (!formIds.paymentForms.includes(counter)) setFormIds(prev => ({ ...prev, paymentForms: [...prev.paymentForms, counter] }));
-                  setFormIdCounters(prev => ({ ...prev, payments: prev.payments + 1 }));
-                }}
-                onRemoveForm={(index) => {
-                  setFormIds(prev => ({ ...prev, paymentForms: prev.paymentForms.filter(id => id !== index) }));
-                  if (partialDataRef.current.payments[index]) delete partialDataRef.current.payments[index];
-                }}
-                onUpdatePartialData={(index, data) => { partialDataRef.current.payments[index] = data; }}
-              />
-            </TabsContent>
-            <TabsContent value="notes" className="mt-2 px-1 animate-in fade-in-50 slide-in-from-right-5 duration-300 transition-all overflow-x-hidden">
-              <OrderNotesForm
-                active={true} order={order} updateOrderFields={updateOrderFields} openDeleteDialog={openDeleteDialog}
-                errors={validationErrors} formState={formState.noteForms} partialData={formState.partialData.notes}
-                onAddForm={() => {
-                  const counter = formIdCounters.notes;
-                  if (!formIds.noteForms.includes(counter)) setFormIds(prev => ({ ...prev, noteForms: [...prev.noteForms, counter] }));
-                  setFormIdCounters(prev => ({ ...prev, notes: prev.notes + 1 }));
-                }}
-                onRemoveForm={(index) => {
-                  setFormIds(prev => ({ ...prev, noteForms: prev.noteForms.filter(id => id !== index) }));
-                  if (partialDataRef.current.notes[index]) delete partialDataRef.current.notes[index];
-                }}
-                onUpdatePartialData={(index, data) => { partialDataRef.current.notes[index] = data; }}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <div className="border-t border-border/40 p-6 flex justify-between bg-card sticky bottom-0 left-0 right-0">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              variant="outline"
-              className="border-border/40 bg-transparent hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                try {
-                  clearAllOrderFormData();
-                  setFormIds({ itemForms: [0], noteForms: [0], paymentForms: [0] });
-                  setFormIdCounters({ items: 1, payments: 1, notes: 1 });
-                  partialDataRef.current = { items: {}, payments: {}, notes: {} };
-                  resetOrder();
-                  if (isMountedRef.current) {
-                    safeSetActiveTab('general-info');
-                    safeSetValidationErrors({});
-                    recalculateOrder();
-                  }
-                } catch (error) {
-                  console.error('Error during form clear:', error);
-                }
-              }}
-              disabled={isSaving}
-            >
-              <Ban className="mr-2 h-4 w-4" />
-              Clear Form
-            </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: isSaving ? 1 : 1.05 }} whileTap={{ scale: isSaving ? 1 : 0.95 }}>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[150px]" onClick={handleSave} disabled={isSaving}>
-              {formStatus === 'saving' ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</>
-              ) : formStatus === 'success' ? (
-                <><CheckCircle className="mr-2 h-4 w-4" />Created</>
-              ) : (
-                <><Save className="mr-2 h-4 w-4" />Create Order</>
+              {items.length > 1 && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => setItems(prev => prev.filter((_, i) => i !== index))}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" />
+                    Remove item
+                  </Button>
+                </div>
               )}
-            </Button>
-          </motion.div>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setItems(prev => [...prev, emptyItem()])}
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Item
+          </Button>
+        </section>
+
+        {/* Payments (optional) */}
+        <section className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Payments (optional)</h3>
+          {payments.map((payment, index) => (
+            <div key={index} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+              <div className="space-y-1.5">
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={payment.amount}
+                  onChange={e =>
+                    setPayments(prev =>
+                      prev.map((p, i) => (i === index ? { ...p, amount: e.target.value } : p)),
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Method</Label>
+                <Select
+                  value={payment.payment_method}
+                  onValueChange={value =>
+                    setPayments(prev =>
+                      prev.map((p, i) =>
+                        i === index
+                          ? { ...p, payment_method: value as PaymentDraft['payment_method'] }
+                          : p,
+                      ),
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map(m => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={payment.payment_date}
+                  onChange={e =>
+                    setPayments(prev =>
+                      prev.map((p, i) =>
+                        i === index ? { ...p, payment_date: e.target.value } : p,
+                      ),
+                    )
+                  }
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => setPayments(prev => prev.filter((_, i) => i !== index))}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setPayments(prev => [
+                ...prev,
+                {
+                  amount: '',
+                  payment_method: 'cash',
+                  payment_date: new Date().toISOString().slice(0, 10),
+                },
+              ])
+            }
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Payment
+          </Button>
+        </section>
+
+        {/* Submit */}
+        <div className="flex justify-end gap-2 border-t border-[#2B2B40] pt-4">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            Create Order
+          </Button>
         </div>
-      </OrderSheet>
-
-      {itemToDelete && (
-        <ApprovalDialog
-          open={deleteDialog.isOpen}
-          onOpenChange={deleteDialog.setOpen}
-          itemId={itemToDelete.id}
-          itemName={itemToDelete.name}
-          type={itemToDelete.type}
-          linkedId={order.id ?? ''}
-          linkedType="order"
-          onSubmit={handleDeleteRequest}
-          onCancel={() => { formStateResult.setItemToDelete(null); deleteDialog.setOpen(false); }}
-        />
-      )}
-
-      <UnsavedChangesDialog
-        open={confirmDialog.isOpen}
-        onOpenChange={confirmDialog.setOpen}
-        order={order}
-        partialItems={partialDataRef.current.items}
-        partialPayments={partialDataRef.current.payments}
-        partialNotes={partialDataRef.current.notes}
-        onContinueEditing={() => confirmDialog.setOpen(false)}
-        onDiscard={() => {
-          confirmDialog.setOpen(false);
-          setTimeout(() => onOpenChange(false), 100);
-        }}
-      />
-    </>
+      </div>
+    </OrderSheet>
   );
-});
-
-export default OrderFormSheet;
+}
