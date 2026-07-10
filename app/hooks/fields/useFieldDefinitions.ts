@@ -9,7 +9,7 @@ export type FieldEntity = 'client' | 'order' | 'order_item' | 'product';
 
 type FieldDefinitionRow = DatabaseV2['v2']['Tables']['field_definitions']['Row'];
 
-/** What GET /api/v2/field-definitions returns per row. */
+/** What GET /api/field-definitions returns per row. */
 export type FieldDefinition = Omit<
   FieldDefinitionRow,
   'organization_id' | 'created_at' | 'updated_at'

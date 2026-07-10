@@ -8,12 +8,12 @@
  */
 
 export const PLATFORM_API = {
-  CLIENTS: '/api/v2/clients',
-  PRODUCTS: '/api/v2/products',
-  ORDERS: '/api/v2/orders',
-  FIELD_DEFINITIONS: '/api/v2/field-definitions',
-  NOTES: '/api/v2/notes',
-  ORGANIZATION: '/api/v2/organization',
+  CLIENTS: '/api/clients',
+  PRODUCTS: '/api/products',
+  ORDERS: '/api/orders',
+  FIELD_DEFINITIONS: '/api/field-definitions',
+  NOTES: '/api/notes',
+  ORGANIZATION: '/api/organization',
 } as const;
 
 /** Error shape produced by app/lib/api/error-handler.ts. */

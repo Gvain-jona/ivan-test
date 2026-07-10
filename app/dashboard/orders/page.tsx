@@ -43,9 +43,8 @@ const OrdersPageContent: React.FC = () => {
         onCreateOrder={handleCreateOrder}
       />
 
-      {/* TODO(v2 read layer): OrderMetricsCards reconnects when the
-          analytics accessors exist — legacy metrics read public-schema
-          tables that no longer receive new orders. */}
+      {/* TODO(v2 read layer): order metrics cards return here once the
+          analytics read accessors exist in the v2 schema. */}
 
       {/* Tabs */}
       <Tabs

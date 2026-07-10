@@ -12,7 +12,7 @@ const PRODUCT_COLUMNS =
   'id, name, selling_price, status, name_variants, custom_data, created_at, updated_at';
 
 /**
- * GET /api/v2/products/[id]
+ * GET /api/products/[id]
  */
 export async function GET(
   _request: NextRequest,
@@ -41,7 +41,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/v2/products/[id] — update; archive via status, no DELETE.
+ * PATCH /api/products/[id] — update; archive via status, no DELETE.
  */
 export async function PATCH(
   request: NextRequest,

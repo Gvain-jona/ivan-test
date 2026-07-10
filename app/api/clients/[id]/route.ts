@@ -11,7 +11,7 @@ import { clientUpdateSchema } from '@/lib/api/validators';
 const CLIENT_COLUMNS = 'id, name, status, custom_data, created_at, updated_at';
 
 /**
- * GET /api/v2/clients/[id]
+ * GET /api/clients/[id]
  */
 export async function GET(
   _request: NextRequest,
@@ -40,7 +40,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/v2/clients/[id] — update name/status/custom_data.
+ * PATCH /api/clients/[id] — update name/status/custom_data.
  * Archiving IS the delete path (status: 'archived'); no DELETE handler
  * by design — v2 never hard-deletes business records.
  */

@@ -7,7 +7,7 @@ import {
 } from '@/lib/api/error-handler';
 
 /**
- * GET /api/v2/organization — the caller's active org: name, slug, and
+ * GET /api/organization — the caller's active org: name, slug, and
  * settings (order_statuses, currency, locale, document formats). The
  * UI reads order_statuses from here instead of a hardcoded enum —
  * statuses are org-configurable in v2.

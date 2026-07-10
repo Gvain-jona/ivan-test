@@ -109,10 +109,10 @@ const supabase = createClient()
 
 The app is being rebuilt module-by-module against the multi-tenant `v2` Postgres schema (orders first). Rules:
 
-- **"v2" appears ONLY in identifiers that literally reference the DB schema**: `.schema('v2')`, `DatabaseV2` (`app/types/supabase-v2.ts`), the `createV2Client`/`createV2AdminClient` factories (`app/utils/supabase/{server,client}-v2.ts`), and the `/api/v2/*` URL segment. Nothing else — no `v2` folders, hooks, components, types, or UI copy. New platform code takes plain domain names (`app/hooks/orders/useOrders.ts`, `app/components/fields/`, `app/lib/auth/tenant.ts`, `app/lib/api/{client,validators}.ts`).
+- **"v2" appears ONLY in identifiers that literally reference the DB schema**: `.schema('v2')`, `DatabaseV2` (`app/types/supabase-v2.ts`), and the `createV2Client`/`createV2AdminClient` factories (`app/utils/supabase/{server,client}-v2.ts`). Nothing else — no `v2` folders, hooks, components, types, URL segments, or UI copy. New platform code takes plain domain names (`app/hooks/orders/useOrders.ts`, `app/components/fields/`, `app/lib/auth/tenant.ts`, `app/lib/api/{client,validators}.ts`).
 - **Git is the archive, not the file tree.** Legacy files are deleted at their module's cutover, not kept alongside; rewind via git if ever needed. Do not create parallel copies of components/hooks "just in case".
 - **Deletion is per-module at cutover, not global**: modules not yet migrated (expenses, materials, accounts, invoicing, analytics) keep their legacy code fully working against the `public` schema until their turn. Never delete a legacy file that a still-unmigrated module imports.
-- The `/api/v2/*` paths collapse to plain paths (`/api/orders`, …) in the same commit that deletes their legacy counterparts.
+- API paths are plain (`/api/orders`, …): the migrated-module routes replaced their legacy counterparts in place at the orders cutover; new module routes take plain paths directly.
 
 ## Known architecture debt
 

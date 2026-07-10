@@ -6,12 +6,13 @@ import {
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { clientCreateSchema, listQuerySchema } from '@/lib/api/validators';
+import { productCreateSchema, listQuerySchema } from '@/lib/api/validators';
 
-const CLIENT_COLUMNS = 'id, name, status, custom_data, created_at, updated_at';
+const PRODUCT_COLUMNS =
+  'id, name, selling_price, status, name_variants, custom_data, created_at, updated_at';
 
 /**
- * GET /api/v2/clients — list clients for the caller's org.
+ * GET /api/products — list products for the caller's org.
  * Query: status (default 'active'), search (name ilike), limit, offset.
  */
 export async function GET(request: NextRequest) {
@@ -28,8 +29,8 @@ export async function GET(request: NextRequest) {
     const search = params.get('search');
 
     let query = tenant.db
-      .from('clients')
-      .select(CLIENT_COLUMNS, { count: 'exact' })
+      .from('products')
+      .select(PRODUCT_COLUMNS, { count: 'exact' })
       .eq('organization_id', tenant.organizationId)
       .order('name')
       .range(paging.offset, paging.offset + paging.limit - 1);
@@ -40,38 +41,38 @@ export async function GET(request: NextRequest) {
     const { data, error, count } = await query;
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({ clients: data, total: count ?? 0 });
+    return NextResponse.json({ products: data, total: count ?? 0 });
   } catch (error) {
     return handleUnexpectedError(error);
   }
 }
 
 /**
- * POST /api/v2/clients — create a client in the caller's org.
+ * POST /api/products — create a product in the caller's org.
  */
 export async function POST(request: NextRequest) {
   try {
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    const parsed = clientCreateSchema.safeParse(await request.json());
+    const parsed = productCreateSchema.safeParse(await request.json());
     if (!parsed.success) {
       return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
     const { data, error } = await tenant.db
-      .from('clients')
+      .from('products')
       .insert({
         ...parsed.data,
         organization_id: tenant.organizationId,
         created_by: tenant.userId,
       })
-      .select(CLIENT_COLUMNS)
+      .select(PRODUCT_COLUMNS)
       .single();
 
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({ client: data }, { status: 201 });
+    return NextResponse.json({ product: data }, { status: 201 });
   } catch (error) {
     return handleUnexpectedError(error);
   }

@@ -14,7 +14,7 @@ const FIELD_COLUMNS =
   'inherit_from, sort_order, status';
 
 /**
- * GET /api/v2/field-definitions?entity=order — the field registry that
+ * GET /api/field-definitions?entity=order — the field registry that
  * drives dynamic form rendering. Frontend reads this BEFORE rendering
  * any custom_data form (handoff rule).
  */
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/v2/field-definitions — define a custom field (owner/admin only;
+ * POST /api/field-definitions — define a custom field (owner/admin only;
  * field definitions shape every form and validation rule in the org).
  */
 export async function POST(request: NextRequest) {

@@ -11,7 +11,7 @@ import { noteCreateSchema } from '@/lib/api/validators';
 const NOTE_COLUMNS = 'id, entity_type, entity_id, content, created_by, created_at, updated_at';
 
 /**
- * GET /api/v2/notes?entity_type=order&entity_id=<uuid> — notes for one
+ * GET /api/notes?entity_type=order&entity_id=<uuid> — notes for one
  * record via the polymorphic notes engine.
  */
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/v2/notes — attach a note to any record in the caller's org.
+ * POST /api/notes — attach a note to any record in the caller's org.
  */
 export async function POST(request: NextRequest) {
   try {
