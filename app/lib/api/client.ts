@@ -12,6 +12,8 @@ export const PLATFORM_API = {
   PRODUCTS: '/api/v2/products',
   ORDERS: '/api/v2/orders',
   FIELD_DEFINITIONS: '/api/v2/field-definitions',
+  NOTES: '/api/v2/notes',
+  ORGANIZATION: '/api/v2/organization',
 } as const;
 
 /** Error shape produced by app/lib/api/error-handler.ts. */
