@@ -1,36 +1,49 @@
 import React from 'react';
-import { CalendarIcon, CheckCircle, Clock, User, Tag, FileText, Truck, Calendar } from 'lucide-react';
+import { CheckCircle, Tag, CalendarIcon } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { PaymentStatusBadge } from '@/components/ui/payment-status-badge';
-import { OrderDetailsTabProps } from './types';
+import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
+import type { OrderDetailsTabProps } from './types';
+
+/** Human-readable rendering for a governed custom_data value. */
+function formatFieldValue(value: unknown): string {
+  if (value == null || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') {
+    const dim = value as { raw?: string; w?: number; h?: number };
+    if (dim.raw) return dim.raw;
+    if (dim.w != null && dim.h != null) return `${dim.w}x${dim.h}`;
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
 
 /**
- * OrderDetailsTab displays the order details, status, and payment information
+ * OrderDetailsTab shows order info (including the org's custom fields
+ * from the field registry) and the financial summary.
  */
-const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({
-  order,
-  calculateBalancePercent
-}) => {
+const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({ order }) => {
+  const { fieldDefinitions } = useFieldDefinitions('order');
+  const customData = (order.custom_data ?? {}) as Record<string, unknown>;
+
   return (
     <div className="space-y-4">
       {/* Order Information Section */}
       <div className="border border-[#2B2B40] rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-[#6D6D80]">Order Information</h3>
-          <div className="flex gap-2">
-            <StatusBadge status={order.status} />
-          </div>
+          <StatusBadge status={order.status} />
         </div>
-
-        {/* Order header information moved to the sheet header */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <div className="flex items-start gap-2">
-            <User className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+            <CalendarIcon className="h-4 w-4 text-[#6D6D80] mt-0.5" />
             <div>
-              <p className="text-xs text-[#6D6D80]">Client Type</p>
-              <p className="text-sm text-white capitalize">{order.client_type || 'Regular'} Client</p>
+              <p className="text-xs text-[#6D6D80]">Order Date</p>
+              <p className="text-sm text-white">
+                {order.order_date ? new Date(order.order_date).toLocaleDateString() : '—'}
+              </p>
             </div>
           </div>
 
@@ -38,27 +51,22 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({
             <Tag className="h-4 w-4 text-[#6D6D80] mt-0.5" />
             <div>
               <p className="text-xs text-[#6D6D80]">Order Items</p>
-              <p className="text-sm text-white">{order.items?.length || 0} Items</p>
+              <p className="text-sm text-white">{order.order_items?.length ?? 0} Items</p>
             </div>
           </div>
 
-          {/* Delivery Method - Made more prominent for future inline editing */}
-          <div className="flex items-start gap-2">
-            <Truck className="h-4 w-4 text-[#6D6D80] mt-0.5" />
-            <div>
-              <p className="text-xs text-[#6D6D80]">Delivery Method</p>
-              <p className="text-sm text-white font-medium">{(order as any).delivery_method || 'Pickup'}</p>
+          {/* Org-defined custom fields, from the field registry */}
+          {fieldDefinitions.map(field => (
+            <div key={field.field_name} className="flex items-start gap-2">
+              <Tag className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+              <div>
+                <p className="text-xs text-[#6D6D80]">{field.field_label}</p>
+                <p className="text-sm text-white">
+                  {formatFieldValue(customData[field.field_name])}
+                </p>
+              </div>
             </div>
-          </div>
-
-          {/* Delivery Date - Made more prominent for future inline editing */}
-          <div className="flex items-start gap-2">
-            <Calendar className="h-4 w-4 text-[#6D6D80] mt-0.5" />
-            <div>
-              <p className="text-xs text-[#6D6D80]">Delivery Date</p>
-              <p className="text-sm text-white font-medium">{order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : 'Not scheduled'}</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -66,7 +74,7 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({
       <div className="border border-[#2B2B40] rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-[#6D6D80]">Financial Summary</h3>
-          <PaymentStatusBadge status={order.payment_status} />
+          <PaymentStatusBadge status={order.payment_status ?? 'unpaid'} />
         </div>
 
         <div className="space-y-4">
@@ -81,7 +89,9 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({
             </div>
             <div>
               <p className="text-xs text-[#6D6D80]">Balance Due</p>
-              <p className="text-lg font-medium text-orange-500">{formatCurrency(order.balance || (order.total_amount - order.amount_paid))}</p>
+              <p className="text-lg font-medium text-orange-500">
+                {formatCurrency(order.balance ?? order.total_amount - order.amount_paid)}
+              </p>
             </div>
           </div>
 

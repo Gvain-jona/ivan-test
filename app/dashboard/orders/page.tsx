@@ -6,6 +6,7 @@ import { Badge } from "../../components/ui/badge";
 import { Package, DollarSign } from "lucide-react";
 
 // Import refactored components
+import OrderViewSheet from '../../components/orders/OrderViewSheet';
 import OrdersPageHeader from './_components/OrdersPageHeader';
 import OrdersTab from './_components/OrdersTab';
 import InvoicesTab from './_components/InvoicesTab';
@@ -23,6 +24,10 @@ const OrdersPageContent: React.FC = () => {
     setActiveTab,
     handleCreateOrder,
     stats,
+    selectedOrder,
+    viewModalOpen,
+    setViewModalOpen,
+    userRole,
   } = useOrdersPage();
 
   return (
@@ -78,9 +83,16 @@ const OrdersPageContent: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* TODO(B2 — order view cutover): OrderViewSheet reconnects here
-          once app/components/orders/order-view is adapted to the v2
-          OrderDetail shape (useOrder + useNotes + addPayment). */}
+      {/* Order View Sheet — v2 data path (fetches detail itself) */}
+      {selectedOrder && (
+        <OrderViewSheet
+          open={viewModalOpen}
+          onOpenChange={setViewModalOpen}
+          order={selectedOrder}
+          onClose={() => setViewModalOpen(false)}
+          userRole={userRole}
+        />
+      )}
 
       {/* TODO(B3 — order form cutover): OrderFormSheet reconnects here
           once rebuilt on client picker + CustomFieldsForm + product
