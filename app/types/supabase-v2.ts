@@ -708,6 +708,16 @@ export type DatabaseV2 = {
         Args: { payload: Json }
         Returns: string
       }
+      /**
+       * INTERIM service-role shim (see supabase/migrations/
+       * 20260710000000_create_order_as_org_interim_shim.sql): injects
+       * org/user claims then delegates to create_order. Granted to
+       * service_role only; drop when Clerk JWTs carry organization_id.
+       */
+      create_order_as_org: {
+        Args: { p_org: string; p_user: string; payload: Json }
+        Returns: string
+      }
       next_number: {
         Args: { p_counter_key: string; p_org?: string | null }
         Returns: string

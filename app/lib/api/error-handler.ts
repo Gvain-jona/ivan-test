@@ -86,6 +86,16 @@ export function handleSupabaseError(error: {
     return handleApiError('VALIDATION_ERROR', 'Unique constraint violation');
   }
 
+  if (error.code === 'P0001') {
+    // raise_exception: v2 triggers/RPCs raise precise, user-facing
+    // validation messages (custom_data rules, org context, immutability).
+    // The DB is the validation authority — surface its message verbatim.
+    return handleApiError(
+      'VALIDATION_ERROR',
+      error.message || 'Database validation failed',
+    );
+  }
+
   if (error.code === '42703') {
     return handleApiError('DATABASE_ERROR', 'Database schema mismatch');
   }
