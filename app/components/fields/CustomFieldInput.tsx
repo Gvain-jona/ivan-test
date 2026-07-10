@@ -9,9 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useClients } from '@/hooks/v2/useClients';
-import { useProducts } from '@/hooks/v2/useProducts';
-import type { FieldDefinition } from '@/hooks/v2/useFieldDefinitions';
+import { useClients } from '@/hooks/clients/useClients';
+import { useProducts } from '@/hooks/products/useProducts';
+import type { FieldDefinition } from '@/hooks/fields/useFieldDefinitions';
 
 interface CustomFieldInputProps {
   field: FieldDefinition;

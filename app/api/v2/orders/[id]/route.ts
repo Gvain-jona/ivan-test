@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveTenant } from '@/lib/v2/tenant';
+import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { orderUpdateSchema } from '@/schemas/v2';
+import { orderUpdateSchema } from '@/lib/api/validators';
 
 const ORDER_DETAIL_COLUMNS =
   'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +

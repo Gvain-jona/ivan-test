@@ -7,7 +7,7 @@
  * layer can grow module-by-module as the platform migrates.
  */
 
-export const V2_ENDPOINTS = {
+export const PLATFORM_API = {
   CLIENTS: '/api/v2/clients',
   PRODUCTS: '/api/v2/products',
   ORDERS: '/api/v2/orders',
@@ -15,24 +15,24 @@ export const V2_ENDPOINTS = {
 } as const;
 
 /** Error shape produced by app/lib/api/error-handler.ts. */
-export class V2ApiError extends Error {
+export class ApiRequestError extends Error {
   readonly type: string;
   readonly status: number;
   readonly details?: unknown;
 
   constructor(status: number, type: string, message: string, details?: unknown) {
     super(message);
-    this.name = 'V2ApiError';
+    this.name = 'ApiRequestError';
     this.status = status;
     this.type = type;
     this.details = details;
   }
 }
 
-async function parseError(response: Response): Promise<V2ApiError> {
+async function parseError(response: Response): Promise<ApiRequestError> {
   const body = await response.json().catch(() => null);
   const err = body?.error;
-  return new V2ApiError(
+  return new ApiRequestError(
     response.status,
     err?.type ?? 'UNKNOWN',
     // DB-authored validation messages (P0001) arrive here verbatim —
@@ -42,7 +42,7 @@ async function parseError(response: Response): Promise<V2ApiError> {
   );
 }
 
-export async function v2Fetcher<T = unknown>(url: string): Promise<T> {
+export async function apiFetcher<T = unknown>(url: string): Promise<T> {
   const response = await fetch(url, {
     headers: { Accept: 'application/json' },
   });
@@ -50,7 +50,7 @@ export async function v2Fetcher<T = unknown>(url: string): Promise<T> {
   return response.json();
 }
 
-export async function v2Request<T = unknown>(
+export async function apiRequest<T = unknown>(
   url: string,
   method: 'POST' | 'PATCH',
   body: unknown,

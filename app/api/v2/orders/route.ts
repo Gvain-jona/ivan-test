@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveTenant } from '@/lib/v2/tenant';
+import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { orderCreateSchema, listQuerySchema } from '@/schemas/v2';
+import { orderCreateSchema, listQuerySchema } from '@/lib/api/validators';
 import type { Json } from '@/types/supabase-v2';
 
 const ORDER_LIST_COLUMNS =

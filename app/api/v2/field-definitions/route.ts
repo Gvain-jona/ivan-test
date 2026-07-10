@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveTenant } from '@/lib/v2/tenant';
+import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { fieldDefinitionCreateSchema, fieldEntitySchema } from '@/schemas/v2';
+import { fieldDefinitionCreateSchema, fieldEntitySchema } from '@/lib/api/validators';
 
 const FIELD_COLUMNS =
   'id, entity, field_name, field_label, field_type, is_required, is_unique, options, ' +

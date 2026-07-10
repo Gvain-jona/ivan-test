@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveTenant } from '@/lib/v2/tenant';
+import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { clientUpdateSchema } from '@/schemas/v2';
+import { clientUpdateSchema } from '@/lib/api/validators';
 
 const CLIENT_COLUMNS = 'id, name, status, custom_data, created_at, updated_at';
 

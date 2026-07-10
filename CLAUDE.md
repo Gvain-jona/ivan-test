@@ -105,6 +105,15 @@ const supabase = createClient()
 
 **New UI components — log responsiveness status**: when you create a new component under `app/components/` (or anywhere else in `app/`), add one row to `docs/mobile-responsiveness/COMPONENT_REGISTRY.md` — just the component name/path and a `Yes` / `No` / `Partial` on whether it holds up across breakpoints (~375px phone through desktop). This is a visibility log, not a gate: a `No` is a perfectly valid entry. It does not require fixing the component, does not block the work, and isn't a request for a write-up — one line is enough. The point is being able to see how much of the app actually scales as it grows, not enforcing that every component must.
 
+## v2 platform migration — naming convention
+
+The app is being rebuilt module-by-module against the multi-tenant `v2` Postgres schema (orders first). Rules:
+
+- **"v2" appears ONLY in identifiers that literally reference the DB schema**: `.schema('v2')`, `DatabaseV2` (`app/types/supabase-v2.ts`), the `createV2Client`/`createV2AdminClient` factories (`app/utils/supabase/{server,client}-v2.ts`), and the `/api/v2/*` URL segment. Nothing else — no `v2` folders, hooks, components, types, or UI copy. New platform code takes plain domain names (`app/hooks/orders/useOrders.ts`, `app/components/fields/`, `app/lib/auth/tenant.ts`, `app/lib/api/{client,validators}.ts`).
+- **Git is the archive, not the file tree.** Legacy files are deleted at their module's cutover, not kept alongside; rewind via git if ever needed. Do not create parallel copies of components/hooks "just in case".
+- **Deletion is per-module at cutover, not global**: modules not yet migrated (expenses, materials, accounts, invoicing, analytics) keep their legacy code fully working against the `public` schema until their turn. Never delete a legacy file that a still-unmigrated module imports.
+- The `/api/v2/*` paths collapse to plain paths (`/api/orders`, …) in the same commit that deletes their legacy counterparts.
+
 ## Known architecture debt
 
 `docs/code-review/AUDIT_PROGRESS.md` is the live tracker (security, error-handling, dependency findings with ✅ FIXED / ⏸ DEFERRED / 🔲 OPEN status and commit hashes) — check it before assuming an issue is unaddressed or before re-auditing something already covered. Two items are explicitly deferred and flagged "do before first external user access":

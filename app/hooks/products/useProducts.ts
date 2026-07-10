@@ -3,12 +3,12 @@
 import { useCallback } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
-import { V2_ENDPOINTS, buildKey, keysUnder, v2Fetcher, v2Request } from '@/lib/v2/api';
+import { PLATFORM_API, buildKey, keysUnder, apiFetcher, apiRequest } from '@/lib/api/client';
 import type { DatabaseV2 } from '@/types/supabase-v2';
 
 type ProductRow = DatabaseV2['v2']['Tables']['products']['Row'];
 
-export type V2Product = Omit<ProductRow, 'organization_id' | 'created_by'>;
+export type Product = Omit<ProductRow, 'organization_id' | 'created_by'>;
 
 export type ProductListParams = {
   status?: 'active' | 'archived' | 'draft' | 'all';
@@ -26,10 +26,10 @@ export interface ProductInput {
 }
 
 export function useProducts(params: ProductListParams = {}) {
-  const key = buildKey(V2_ENDPOINTS.PRODUCTS, params);
-  const { data, error, isLoading, mutate } = useSWR<{ products: V2Product[]; total: number }>(
+  const key = buildKey(PLATFORM_API.PRODUCTS, params);
+  const { data, error, isLoading, mutate } = useSWR<{ products: Product[]; total: number }>(
     key,
-    v2Fetcher,
+    apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE },
   );
 
@@ -43,9 +43,9 @@ export function useProducts(params: ProductListParams = {}) {
 }
 
 export function useProduct(id: string | null | undefined) {
-  const { data, error, isLoading, mutate } = useSWR<{ product: V2Product }>(
-    id ? `${V2_ENDPOINTS.PRODUCTS}/${id}` : null,
-    v2Fetcher,
+  const { data, error, isLoading, mutate } = useSWR<{ product: Product }>(
+    id ? `${PLATFORM_API.PRODUCTS}/${id}` : null,
+    apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
   );
 
@@ -55,14 +55,14 @@ export function useProduct(id: string | null | undefined) {
 export function useProductMutations() {
   const { mutate } = useSWRConfig();
   const invalidate = useCallback(
-    () => mutate(keysUnder(V2_ENDPOINTS.PRODUCTS)),
+    () => mutate(keysUnder(PLATFORM_API.PRODUCTS)),
     [mutate],
   );
 
   const createProduct = useCallback(
     async (input: ProductInput) => {
-      const { product } = await v2Request<{ product: V2Product }>(
-        V2_ENDPOINTS.PRODUCTS,
+      const { product } = await apiRequest<{ product: Product }>(
+        PLATFORM_API.PRODUCTS,
         'POST',
         input,
       );
@@ -74,8 +74,8 @@ export function useProductMutations() {
 
   const updateProduct = useCallback(
     async (id: string, input: Partial<ProductInput>) => {
-      const { product } = await v2Request<{ product: V2Product }>(
-        `${V2_ENDPOINTS.PRODUCTS}/${id}`,
+      const { product } = await apiRequest<{ product: Product }>(
+        `${PLATFORM_API.PRODUCTS}/${id}`,
         'PATCH',
         input,
       );

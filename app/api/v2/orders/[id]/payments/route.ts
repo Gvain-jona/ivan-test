@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveTenant } from '@/lib/v2/tenant';
+import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { paymentInputSchema } from '@/schemas/v2';
+import { paymentInputSchema } from '@/lib/api/validators';
 
 /**
  * POST /api/v2/orders/[id]/payments — record a payment against an order.

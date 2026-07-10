@@ -3,12 +3,12 @@
 import { useCallback } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
-import { V2_ENDPOINTS, buildKey, keysUnder, v2Fetcher, v2Request } from '@/lib/v2/api';
+import { PLATFORM_API, buildKey, keysUnder, apiFetcher, apiRequest } from '@/lib/api/client';
 import type { DatabaseV2 } from '@/types/supabase-v2';
 
 type ClientRow = DatabaseV2['v2']['Tables']['clients']['Row'];
 
-export type V2Client = Omit<ClientRow, 'organization_id' | 'source_ids' | 'created_by'>;
+export type Client = Omit<ClientRow, 'organization_id' | 'source_ids' | 'created_by'>;
 
 export type ClientListParams = {
   status?: 'active' | 'archived' | 'all';
@@ -24,10 +24,10 @@ export interface ClientInput {
 }
 
 export function useClients(params: ClientListParams = {}) {
-  const key = buildKey(V2_ENDPOINTS.CLIENTS, params);
-  const { data, error, isLoading, mutate } = useSWR<{ clients: V2Client[]; total: number }>(
+  const key = buildKey(PLATFORM_API.CLIENTS, params);
+  const { data, error, isLoading, mutate } = useSWR<{ clients: Client[]; total: number }>(
     key,
-    v2Fetcher,
+    apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE },
   );
 
@@ -41,9 +41,9 @@ export function useClients(params: ClientListParams = {}) {
 }
 
 export function useClient(id: string | null | undefined) {
-  const { data, error, isLoading, mutate } = useSWR<{ client: V2Client }>(
-    id ? `${V2_ENDPOINTS.CLIENTS}/${id}` : null,
-    v2Fetcher,
+  const { data, error, isLoading, mutate } = useSWR<{ client: Client }>(
+    id ? `${PLATFORM_API.CLIENTS}/${id}` : null,
+    apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
   );
 
@@ -53,14 +53,14 @@ export function useClient(id: string | null | undefined) {
 export function useClientMutations() {
   const { mutate } = useSWRConfig();
   const invalidate = useCallback(
-    () => mutate(keysUnder(V2_ENDPOINTS.CLIENTS)),
+    () => mutate(keysUnder(PLATFORM_API.CLIENTS)),
     [mutate],
   );
 
   const createClient = useCallback(
     async (input: ClientInput) => {
-      const { client } = await v2Request<{ client: V2Client }>(
-        V2_ENDPOINTS.CLIENTS,
+      const { client } = await apiRequest<{ client: Client }>(
+        PLATFORM_API.CLIENTS,
         'POST',
         input,
       );
@@ -72,8 +72,8 @@ export function useClientMutations() {
 
   const updateClient = useCallback(
     async (id: string, input: Partial<ClientInput>) => {
-      const { client } = await v2Request<{ client: V2Client }>(
-        `${V2_ENDPOINTS.CLIENTS}/${id}`,
+      const { client } = await apiRequest<{ client: Client }>(
+        `${PLATFORM_API.CLIENTS}/${id}`,
         'PATCH',
         input,
       );

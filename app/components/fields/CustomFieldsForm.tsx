@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { CustomFieldInput } from './CustomFieldInput';
-import type { FieldDefinition } from '@/hooks/v2/useFieldDefinitions';
+import type { FieldDefinition } from '@/hooks/fields/useFieldDefinitions';
 
 export type CustomDataValue = Record<string, unknown>;
 

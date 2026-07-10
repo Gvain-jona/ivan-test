@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveTenant } from '@/lib/v2/tenant';
+import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { productUpdateSchema } from '@/schemas/v2';
+import { productUpdateSchema } from '@/lib/api/validators';
 
 const PRODUCT_COLUMNS =
   'id, name, selling_price, status, name_variants, custom_data, created_at, updated_at';

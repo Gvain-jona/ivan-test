@@ -3,23 +3,23 @@
 import { useCallback } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
-import { V2_ENDPOINTS, buildKey, keysUnder, v2Fetcher, v2Request } from '@/lib/v2/api';
+import { PLATFORM_API, buildKey, keysUnder, apiFetcher, apiRequest } from '@/lib/api/client';
 import type { DatabaseV2 } from '@/types/supabase-v2';
 
 type OrderRow = DatabaseV2['v2']['Tables']['orders']['Row'];
 type OrderItemRow = DatabaseV2['v2']['Tables']['order_items']['Row'];
 type PaymentRow = DatabaseV2['v2']['Tables']['payments']['Row'];
 
-export type V2OrderSummary = Omit<OrderRow, 'organization_id' | 'source_id' | 'created_by'> & {
+export type OrderSummary = Omit<OrderRow, 'organization_id' | 'source_id' | 'created_by'> & {
   clients: { name: string } | null;
 };
 
-export type V2OrderDetail = Omit<OrderRow, 'organization_id' | 'source_id' | 'created_by'> & {
+export type OrderDetail = Omit<OrderRow, 'organization_id' | 'source_id' | 'created_by'> & {
   clients: { id: string; name: string } | null;
   order_items: OrderItemRow[];
 };
 
-export type V2Payment = Pick<
+export type Payment = Pick<
   PaymentRow,
   'id' | 'amount' | 'payment_date' | 'payment_method' | 'notes' | 'created_at'
 >;
@@ -66,10 +66,10 @@ export interface OrderUpdateInput {
 }
 
 export function useOrders(params: OrderListParams = {}) {
-  const key = buildKey(V2_ENDPOINTS.ORDERS, params);
-  const { data, error, isLoading, mutate } = useSWR<{ orders: V2OrderSummary[]; total: number }>(
+  const key = buildKey(PLATFORM_API.ORDERS, params);
+  const { data, error, isLoading, mutate } = useSWR<{ orders: OrderSummary[]; total: number }>(
     key,
-    v2Fetcher,
+    apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE },
   );
 
@@ -84,9 +84,9 @@ export function useOrders(params: OrderListParams = {}) {
 
 export function useOrder(id: string | null | undefined) {
   const { data, error, isLoading, mutate } = useSWR<{
-    order: V2OrderDetail;
-    payments: V2Payment[];
-  }>(id ? `${V2_ENDPOINTS.ORDERS}/${id}` : null, v2Fetcher, {
+    order: OrderDetail;
+    payments: Payment[];
+  }>(id ? `${PLATFORM_API.ORDERS}/${id}` : null, apiFetcher, {
     dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE,
   });
 
@@ -102,15 +102,15 @@ export function useOrder(id: string | null | undefined) {
 export function useOrderMutations() {
   const { mutate } = useSWRConfig();
   const invalidate = useCallback(
-    () => mutate(keysUnder(V2_ENDPOINTS.ORDERS)),
+    () => mutate(keysUnder(PLATFORM_API.ORDERS)),
     [mutate],
   );
 
   /** Atomic: order + items (+ payments) in one DB transaction. */
   const createOrder = useCallback(
     async (input: OrderCreateInput) => {
-      const { order } = await v2Request<{ order: V2OrderSummary }>(
-        V2_ENDPOINTS.ORDERS,
+      const { order } = await apiRequest<{ order: OrderSummary }>(
+        PLATFORM_API.ORDERS,
         'POST',
         input,
       );
@@ -122,8 +122,8 @@ export function useOrderMutations() {
 
   const updateOrder = useCallback(
     async (id: string, input: OrderUpdateInput) => {
-      const { order } = await v2Request<{ order: V2OrderSummary }>(
-        `${V2_ENDPOINTS.ORDERS}/${id}`,
+      const { order } = await apiRequest<{ order: OrderSummary }>(
+        `${PLATFORM_API.ORDERS}/${id}`,
         'PATCH',
         input,
       );
@@ -139,10 +139,10 @@ export function useOrderMutations() {
    */
   const addPayment = useCallback(
     async (orderId: string, input: PaymentInput) => {
-      const result = await v2Request<{
-        payment: V2Payment;
+      const result = await apiRequest<{
+        payment: Payment;
         order: Pick<OrderRow, 'id' | 'total_amount' | 'amount_paid' | 'balance' | 'payment_status'>;
-      }>(`${V2_ENDPOINTS.ORDERS}/${orderId}/payments`, 'POST', input);
+      }>(`${PLATFORM_API.ORDERS}/${orderId}/payments`, 'POST', input);
       await invalidate();
       return result;
     },

@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
-import { V2_ENDPOINTS, buildKey, v2Fetcher } from '@/lib/v2/api';
+import { PLATFORM_API, buildKey, apiFetcher } from '@/lib/api/client';
 import type { DatabaseV2 } from '@/types/supabase-v2';
 
 export type FieldEntity = 'client' | 'order' | 'order_item' | 'product';
@@ -26,8 +26,8 @@ interface FieldDefinitionsResponse {
  * on the dropdown cadence.
  */
 export function useFieldDefinitions(entity: FieldEntity) {
-  const key = buildKey(V2_ENDPOINTS.FIELD_DEFINITIONS, { entity });
-  const { data, error, isLoading, mutate } = useSWR<FieldDefinitionsResponse>(key, v2Fetcher, {
+  const key = buildKey(PLATFORM_API.FIELD_DEFINITIONS, { entity });
+  const { data, error, isLoading, mutate } = useSWR<FieldDefinitionsResponse>(key, apiFetcher, {
     dedupingInterval: SWR_CACHE_TIMES.DROPDOWN_DEDUPE,
     revalidateOnFocus: false,
   });
