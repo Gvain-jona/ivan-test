@@ -4,13 +4,9 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Badge } from "../../components/ui/badge";
 import { Package, DollarSign } from "lucide-react";
-import OrderViewSheet from '../../components/orders/OrderViewSheet';
-import OrderFormSheet from '../../components/orders/OrderFormSheet';
-import { InvoiceSheet } from '@/app/features/invoices';
 
 // Import refactored components
 import OrdersPageHeader from './_components/OrdersPageHeader';
-import OrderMetricsCards from './_components/OrderMetricsCards';
 import OrdersTab from './_components/OrdersTab';
 import InvoicesTab from './_components/InvoicesTab';
 
@@ -23,38 +19,10 @@ import { OrdersPageProvider, useOrdersPage } from './_context';
  */
 const OrdersPageContent: React.FC = () => {
   const {
-    // State
-    initialLoading,
     activeTab,
     setActiveTab,
-
-    // Modals
-    selectedOrder,
-    viewModalOpen,
-    createModalOpen,
-    invoiceModalOpen,
-    setViewModalOpen,
-    setCreateModalOpen,
-    setInvoiceModalOpen,
-    handleGenerateInvoice,
-    handleSaveOrder,
     handleCreateOrder,
-    handleInlineEdit,
-    activeModal,
-
-    // User role
-    userRole,
-
-    // Metrics
     stats,
-
-    // Filtering
-    filterByStatus,
-    filters,
-
-    // Invoice Settings
-    invoiceSettings,
-    isLoadingInvoiceSettings
   } = useOrdersPage();
 
   return (
@@ -66,13 +34,9 @@ const OrdersPageContent: React.FC = () => {
         onCreateOrder={handleCreateOrder}
       />
 
-      {/* Metric Cards - Pass filters to ensure accurate metrics */}
-      <OrderMetricsCards
-        stats={stats}
-        isLoading={initialLoading}
-        onFilterByStatus={(statuses) => filterByStatus(statuses as any)}
-        filters={filters}
-      />
+      {/* TODO(v2 read layer): OrderMetricsCards reconnects when the
+          analytics accessors exist — legacy metrics read public-schema
+          tables that no longer receive new orders. */}
 
       {/* Tabs */}
       <Tabs
@@ -114,39 +78,16 @@ const OrdersPageContent: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Order View Sheet */}
-      {selectedOrder && (
-        <OrderViewSheet
-          open={viewModalOpen}
-          onOpenChange={setViewModalOpen}
-          order={selectedOrder}
-          onClose={() => setViewModalOpen(false)}
-          onEdit={handleInlineEdit}
-          onGenerateInvoice={handleGenerateInvoice}
-          userRole={userRole}
-        />
-      )}
+      {/* TODO(B2 — order view cutover): OrderViewSheet reconnects here
+          once app/components/orders/order-view is adapted to the v2
+          OrderDetail shape (useOrder + useNotes + addPayment). */}
 
-      {/* Edit functionality has been consolidated to use only inline editing in the OrderViewSheet */}
+      {/* TODO(B3 — order form cutover): OrderFormSheet reconnects here
+          once rebuilt on client picker + CustomFieldsForm + product
+          picker, submitting OrderCreateInput via handleSaveOrder. */}
 
-      {/* Order Create Sheet */}
-      <OrderFormSheet
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onSave={handleSaveOrder}
-        title="Create New Order"
-      />
-
-      {/* Invoice Sheet - Pass pre-loaded settings */}
-      {selectedOrder && (
-        <InvoiceSheet
-          open={invoiceModalOpen}
-          onOpenChange={setInvoiceModalOpen}
-          order={selectedOrder}
-          onClose={() => setInvoiceModalOpen(false)}
-          initialSettings={invoiceSettings}
-        />
-      )}
+      {/* TODO(documents module): InvoiceSheet reconnects when
+          v2.documents + issue_document exist. */}
     </div>
   );
 };

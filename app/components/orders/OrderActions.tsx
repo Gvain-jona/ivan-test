@@ -4,20 +4,22 @@ import { Button } from '@/components/ui/button';
 import {
   Edit, Eye, Trash2, Copy, FileText, MoreVertical
 } from 'lucide-react';
-import { Order, OrderStatus } from '@/types/orders';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
+// TODO(documents module): legacy cast for the unmigrated invoices feature
+import type { Order as LegacyOrder } from '@/types/orders';
 import { cn } from '@/lib/utils';
 import InvoiceButtonWrapper from '@/app/dashboard/orders/_components/InvoiceSystem';
 import { OrderDeleteConfirmation } from './OrderDeleteConfirmation';
 
 interface OrderActionsProps {
-  order: Order;
+  order: OrderSummary;
   userRole: 'admin' | 'manager' | 'employee';
-  onView: (order: Order) => void;
-  onEdit: (order: Order) => void;
-  onDelete: (order: Order) => Promise<boolean>;
-  onDuplicate: (order: Order) => void;
-  onInvoice: (order: Order) => void;
-  onStatusChange: (order: Order, status: OrderStatus) => void;
+  onView: (order: OrderSummary) => void;
+  onEdit: (order: OrderSummary) => void;
+  onDelete: (order: OrderSummary) => Promise<boolean>;
+  onDuplicate: (order: OrderSummary) => void;
+  onInvoice: (order: OrderSummary) => void;
+  onStatusChange: (order: OrderSummary, status: string) => void;
 }
 
 function OrderActions(props: OrderActionsProps) {
@@ -45,7 +47,7 @@ function OrderActions(props: OrderActionsProps) {
   const isProcessingRef = React.useRef(false);
 
   // Handle safe actions (non-destructive) with debounce
-  const handleSafeAction = (action: (order: Order) => void, e: React.MouseEvent) => {
+  const handleSafeAction = (action: (order: OrderSummary) => void, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault(); // Prevent any default behavior
 
@@ -174,17 +176,17 @@ function OrderActions(props: OrderActionsProps) {
           <CustomDropdownItem
             className={cn(
               "focus:bg-table-hover p-0",
-              (order as any).latest_invoice_id || order.invoice_generated_at
+              (order as unknown as LegacyOrder).invoice_generated_at
                 ? "text-green-500 focus:text-green-500"
                 : "text-white focus:text-white"
             )}
             onClick={(e) => e.stopPropagation()}
           >
             <InvoiceButtonWrapper
-              order={order}
+              order={order as unknown as LegacyOrder}
               variant="ghost"
               size="sm"
-              label={(order as any).latest_invoice_id || order.invoice_generated_at ? "View Invoice" : "Generate Invoice"}
+              label={(order as unknown as LegacyOrder).invoice_generated_at ? "View Invoice" : "Generate Invoice"}
               className="w-full justify-start text-inherit hover:text-inherit"
               showIcon={true}
               useContextHandler={true}

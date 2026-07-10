@@ -41,11 +41,16 @@ export async function GET(request: NextRequest) {
     const paymentStatus = params.get('payment_status');
     const clientId = params.get('client_id');
     const search = params.get('search');
+    const startDate = params.get('start_date');
+    const endDate = params.get('end_date');
 
-    if (status) query = query.eq('status', status);
-    if (paymentStatus) query = query.eq('payment_status', paymentStatus);
+    // status / payment_status accept comma-separated lists (multi-select filters)
+    if (status) query = query.in('status', status.split(','));
+    if (paymentStatus) query = query.in('payment_status', paymentStatus.split(','));
     if (clientId) query = query.eq('client_id', clientId);
     if (search) query = query.ilike('order_number', `%${search}%`);
+    if (startDate) query = query.gte('order_date', startDate);
+    if (endDate) query = query.lte('order_date', endDate);
 
     const { data, error, count } = await query;
     if (error) return handleSupabaseError(error);

@@ -1,20 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { Order, OrderStatus } from '@/types/orders';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { cn } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import { CheckCircle, Clock, PauseCircle, Truck, AlertCircle, ArrowRightCircle, Loader2 } from 'lucide-react';
 import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from './CustomDropdown';
 
 interface StatusDropdownProps {
-  order: Order;
-  onStatusChange: (order: Order, status: OrderStatus) => void;
+  order: OrderSummary;
+  onStatusChange: (order: OrderSummary, status: string) => void;
   userRole: 'admin' | 'manager' | 'employee';
 }
 
 function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps) {
   const canChangeStatus = userRole === 'admin' || userRole === 'manager';
 
-  const getStatusConfig = (status: OrderStatus) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
       case 'in_progress':
         return {
@@ -67,14 +67,14 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
 
   // Add state for loading and current status being changed
   const [isLoading, setIsLoading] = useState(false);
-  const [changingStatus, setChangingStatus] = useState<OrderStatus | null>(null);
+  const [changingStatus, setChangingStatus] = useState<string | null>(null);
 
   // Use a ref to track the current order status for comparison
   const orderStatusRef = React.useRef(order.status);
 
   // Use state to track the displayed status (for optimistic UI updates)
   // Initialize it with the order status but don't re-initialize on every render
-  const [displayStatus, setDisplayStatus] = useState<OrderStatus>(order.status);
+  const [displayStatus, setDisplayStatus] = useState<string>(order.status);
 
   // Update displayed status only when order.status actually changes
   React.useEffect(() => {
@@ -87,7 +87,7 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
   // Handle status change with debounce to prevent accidental double-clicks
   const isChangingRef = React.useRef(false);
 
-  const handleStatusChange = async (status: OrderStatus, e: React.MouseEvent) => {
+  const handleStatusChange = async (status: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault(); // Prevent any default behavior
 

@@ -25,10 +25,14 @@ export type Payment = Pick<
 >;
 
 export type OrderListParams = {
+  /** Single value or comma-separated list (multi-select filters). */
   status?: string;
-  payment_status?: 'paid' | 'partial' | 'unpaid';
+  /** 'paid' | 'partial' | 'unpaid' — single or comma-separated. */
+  payment_status?: string;
   client_id?: string;
   search?: string;
+  start_date?: string;
+  end_date?: string;
   limit?: number;
   offset?: number;
 }

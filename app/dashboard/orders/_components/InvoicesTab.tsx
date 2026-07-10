@@ -514,7 +514,7 @@ const InvoicesTab: React.FC = () => {
                               className="text-xs h-6 px-2 text-foreground/70 hover:text-foreground hover:bg-foreground/5"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleViewOrder({ id: invoice.id } as Order);
+                                handleViewOrder({ id: invoice.id } as unknown as Parameters<typeof handleViewOrder>[0]);
                               }}
                             >
                               + {invoice.totalItems - 3} more items
@@ -541,7 +541,7 @@ const InvoicesTab: React.FC = () => {
                           className="flex-1 h-9 bg-transparent border-foreground/20 text-foreground hover:bg-foreground/5 hover:text-foreground"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewOrder({ id: invoice.id } as Order);
+                            handleViewOrder({ id: invoice.id } as unknown as Parameters<typeof handleViewOrder>[0]);
                           }}
                         >
                           View Order
