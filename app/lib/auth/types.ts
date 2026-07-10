@@ -1,4 +1,4 @@
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 // Role and Permission Types
 export type Role = 'admin' | 'manager' | 'staff';

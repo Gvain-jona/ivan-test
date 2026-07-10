@@ -1,4 +1,4 @@
-import { OrderItem, OrderStatus, PaymentStatus } from '@/types/orders';
+import type { OrderItem, OrderStatus, PaymentStatus } from '@/types/orders';
 
 /**
  * Validates an order item

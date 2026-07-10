@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { DollarSign, Loader2, Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Expense, ExpensePayment } from '@/hooks/expenses';
+import type { Expense, ExpensePayment } from '@/hooks/expenses';
 import { SectionHeader } from '../SectionHeader';
 import { ItemCard } from '../ItemCard';
 import { EmptyStateMessage } from '../EmptyStateMessage';

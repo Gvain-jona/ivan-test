@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { SettingItem, SettingSection } from '@/components/settings';
 import { useSettings } from '@/app/context/settings';
-import { TableDensityOption } from '@/app/context/settings/types';
+import type { TableDensityOption } from '@/app/context/settings/types';
 
 /**
  * Layout settings tab component

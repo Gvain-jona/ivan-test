@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { TaskRecurrenceFrequency } from '@/types/tasks';
+import type { TaskRecurrenceFrequency } from '@/types/tasks';
 
 interface UseTaskRecurrenceProps {
   isRecurring: boolean;

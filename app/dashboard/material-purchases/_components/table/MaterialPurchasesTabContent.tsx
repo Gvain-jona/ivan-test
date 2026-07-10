@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { MaterialPurchaseForm } from '@/components/materials/forms/MaterialPurchaseForm';
 import { MaterialPurchasesTable } from '@/components/materials/MaterialPurchasesTable';
 import { BottomOverlayForm } from '@/components/materials/BottomOverlayForm';

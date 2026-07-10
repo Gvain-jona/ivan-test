@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { OrdersTableFilters } from '@/types/orders';
+import type { OrdersTableFilters } from '@/types/orders';
 import { createSWRConfig } from '@/lib/swr-config';
 
 export interface OrderAnalytics {

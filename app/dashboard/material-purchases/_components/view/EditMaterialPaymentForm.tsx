@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, CalendarIcon, DollarSign, Save } from 'lucide-react';
-import { MaterialPayment } from '@/types/materials';
+import type { MaterialPayment } from '@/types/materials';
 import { BottomOverlayForm } from './BottomOverlayForm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO } from 'date-fns';

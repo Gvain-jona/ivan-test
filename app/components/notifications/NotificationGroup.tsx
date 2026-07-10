@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { NotificationGroup as NotificationGroupType } from '@/types/notifications';
+import type { NotificationGroup as NotificationGroupType } from '@/types/notifications';
 import { NotificationItem } from './NotificationItem';
 
 interface NotificationGroupProps {

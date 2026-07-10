@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { MaterialPaymentFormData, MaterialPayment } from '@/types/materials';
+import type { MaterialPaymentFormData, MaterialPayment } from '@/types/materials';
 import { useMaterialPurchaseDetails } from '@/hooks/materials';
 import { Textarea } from '@/components/ui/textarea';
 

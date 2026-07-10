@@ -17,7 +17,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { MaterialPurchase, useDeleteMaterialPurchase } from '@/hooks/materials';
+import type { MaterialPurchase} from '@/hooks/materials';
+import { useDeleteMaterialPurchase } from '@/hooks/materials';
 import { formatCurrency } from '@/lib/utils';
 
 interface MaterialPurchaseCardProps {

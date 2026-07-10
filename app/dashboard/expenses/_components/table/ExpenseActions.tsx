@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Expense } from '@/hooks/expenses';
+import type { Expense } from '@/hooks/expenses';
 import { ExpenseDeleteConfirmation } from '../shared/ExpenseDeleteConfirmation';
 
 interface ExpenseActionsProps {

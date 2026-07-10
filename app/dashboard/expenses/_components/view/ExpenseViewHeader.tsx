@@ -7,7 +7,7 @@ import {
   SheetDescription,
   SheetClose
 } from '@/components/ui/sheet';
-import { Expense } from '@/hooks/expenses';
+import type { Expense } from '@/hooks/expenses';
 import { ExpenseDeleteConfirmation } from '../shared/ExpenseDeleteConfirmation';
 
 interface ExpenseViewHeaderProps {

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { FileText, Settings2, Save } from 'lucide-react';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
-import { InvoiceSheetProps } from '../types';
+import type { InvoiceSheetProps } from '../types';
 import { InvoiceProvider, emptyInvoiceSettings } from '../context/InvoiceContext';
 import { useInvoiceSettings } from '../hooks/useInvoiceSettingsV2';
 import InvoicePreview from './InvoicePreview';

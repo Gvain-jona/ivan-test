@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { ComboboxOption } from '@/components/ui/combobox';
+import type { ComboboxOption } from '@/components/ui/combobox';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 
 // Enhanced fetcher with error handling

@@ -1,7 +1,7 @@
 'use client';
 
 import { useLoadingSWR } from './useLoadingSWR';
-import { SWRConfiguration } from 'swr';
+import type { SWRConfiguration } from 'swr';
 import { dataService } from '@/lib/supabase';
 import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';

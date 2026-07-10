@@ -1,12 +1,13 @@
 'use client';
 
-import useSWR, { SWRConfiguration } from 'swr';
-import { DateRange } from '@/types/date-range';
+import type { SWRConfiguration } from 'swr';
+import useSWR from 'swr';
+import type { DateRange } from '@/types/date-range';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 
 // Add the new endpoint for normalized categories
 const ANALYTICS_NORMALIZED_CATEGORIES = '/api/analytics/normalized-categories';
-import {
+import type {
   SummaryMetrics,
   RevenueByPeriod,
   ProfitByPeriod,
@@ -17,7 +18,8 @@ import {
   CategoryPerformance,
   ClientRetentionRate,
   ExpenseToRevenueRatio,
-  InstallmentDelinquencyRate,
+  InstallmentDelinquencyRate} from '@/lib/services/analytics-service';
+import {
   SpendingSummary
 } from '@/lib/services/analytics-service';
 

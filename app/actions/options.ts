@@ -76,9 +76,8 @@ export async function fetchDropdownOptions({
 
     // Determine which table to query based on entity type
     let table: 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes' = 'clients'
-    let columns = 'id, name'
-    let orderBy = 'name'
-    let whereClause = ''
+    const columns = 'id, name'
+    const orderBy = 'name'
 
     switch (entityType) {
       case 'clients':
@@ -115,12 +114,6 @@ export async function fetchDropdownOptions({
     // Add search filter if provided
     if (search) {
       query = query.ilike('name', `%${search}%`)
-    }
-
-    // Add where clause if provided
-    if (whereClause) {
-      const [field, value] = whereClause.split('.eq.')
-      query = query.eq(field, value)
     }
 
     // Add filter if provided
@@ -192,7 +185,7 @@ export async function createDropdownOption({
 
     // Determine which table to insert into
     let table: 'clients' | 'categories' | 'items' | 'suppliers' | 'sizes' = 'clients'
-    let data: any = { name: label.trim() }
+    const data: any = { name: label.trim() }
 
     switch (entityType) {
       case 'clients':

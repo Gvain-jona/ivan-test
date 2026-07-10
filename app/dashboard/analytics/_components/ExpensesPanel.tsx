@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { KPICard } from '@/components/analytics/KPICard';
-import { LineChartComponent, ChartSeries } from '@/components/analytics/LineChartComponent';
+import type { ChartSeries } from '@/components/analytics/LineChartComponent';
+import { LineChartComponent } from '@/components/analytics/LineChartComponent';
 import { PieChartComponent } from '@/components/analytics/PieChartComponent';
 import { useAnalyticsContext } from '../_context/AnalyticsContext';
 import { useExpensesByCategory, useExpenseToRevenueRatio } from '@/hooks/analytics/useAnalytics';

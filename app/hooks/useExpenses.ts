@@ -1,10 +1,11 @@
 // Re-export from the modularized expenses hooks for backward compatibility
-import {
+import type {
   Expense,
   ExpenseFilters,
   ExpenseNote,
   ExpensePayment,
-  RecurringExpenseOccurrence,
+  RecurringExpenseOccurrence} from './expenses';
+import {
   useExpensesList as useExpenses,
   useExpenseDetails as useExpense,
   useRecurringExpenses

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { SmartComboboxOption } from '@/components/ui/smart-combobox'
+import type { SmartComboboxOption } from '@/components/ui/smart-combobox'
 import { toast } from '@/components/ui/use-toast'
 import { useSmartDropdown } from './useSmartDropdown'
 

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getAuthUser } from '@/lib/auth-utils';
 import { handleApiError, handleSupabaseError } from '@/lib/api/error-handler';
@@ -39,7 +40,7 @@ export async function GET(
       );
     }
 
-    console.log(`Fetching installments for purchase ID: ${id}`);
+    console.warn(`Fetching installments for purchase ID: ${id}`);
 
     // Get installments for the material purchase
     const { data: installments, error } = await supabase
@@ -53,7 +54,7 @@ export async function GET(
       return handleSupabaseError(error);
     }
 
-    console.log(`Found ${installments?.length || 0} installments for purchase ID: ${id}`);
+    console.warn(`Found ${installments?.length || 0} installments for purchase ID: ${id}`);
 
     return createApiResponse({ installments });
   } catch (error: any) {
@@ -172,7 +173,7 @@ export async function POST(
       }
     }
 
-    console.log('Creating installment plan with data:', {
+    console.warn('Creating installment plan with data:', {
       p_purchase_id: id,
       p_installments: installments,
       p_total_installments: total_installments,
@@ -196,7 +197,7 @@ export async function POST(
       return handleSupabaseError(error);
     }
 
-    console.log('Installment plan creation result:', data);
+    console.warn('Installment plan creation result:', data);
 
     // Get the created installments
     const { data: createdInstallments, error: installmentsError } = await supabase

@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ExpensePayment } from '@/hooks/expenses';
+import type { ExpensePayment } from '@/hooks/expenses';
 import { PAYMENT_METHODS } from './schema';
 
 // Form schema

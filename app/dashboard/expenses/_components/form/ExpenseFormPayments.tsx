@@ -1,6 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { Control, UseFieldArrayReturn } from 'react-hook-form';
+import type { Control, UseFieldArrayReturn } from 'react-hook-form';
 import { PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -5,12 +5,14 @@
  * for use in API routes.
  */
 
+import type {
+  ApiErrorType,
+  ApiErrorResponse
+} from './api/error-handler';
 import {
   handleApiError as _handleApiError,
   handleSupabaseError as _handleSupabaseError,
-  handleUnexpectedError as _handleUnexpectedError,
-  ApiErrorType,
-  ApiErrorResponse
+  handleUnexpectedError as _handleUnexpectedError
 } from './api/error-handler';
 
 // Re-export the error handling functions and types

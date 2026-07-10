@@ -2,7 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { SWRConfig, type Revalidator, type RevalidatorOptions, type SWRConfiguration, type SWRHook, type Key, type BareFetcher } from 'swr';
-import { createSWRConfig, DataFetchType, getSWRConfigForKey } from '@/lib/swr-config';
+import type { Middleware } from 'swr';
+import type { DataFetchType} from '@/lib/swr-config';
+import { createSWRConfig, getSWRConfigForKey } from '@/lib/swr-config';
 
 // Create a context to track slow loading requests
 interface SlowLoadingContext {
@@ -262,7 +264,13 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     provider: () => sharedCache,
     use: [
       ((useSWRNext: SWRHook) => {
-        return (key: Key, fetcher: BareFetcher<unknown> | null, config: SWRConfiguration<unknown>) => {
+        // Named as a hook so rules-of-hooks recognizes SWR's middleware
+        // convention: SWR calls this function as a hook per key.
+        return function useSlowLoadingTracking(
+          key: Key,
+          fetcher: BareFetcher<unknown> | null,
+          config: SWRConfiguration<unknown>,
+        ) {
           // Use the next middleware
           const swr = useSWRNext(key, fetcher, config);
 
@@ -288,7 +296,7 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
 
           return swr;
         };
-      }) as unknown as import('swr').Middleware,
+      }) as unknown as Middleware,
     ],
   };
 

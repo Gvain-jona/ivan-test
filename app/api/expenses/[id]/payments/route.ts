@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
 import { createApiResponse } from '@/lib/api/response-handler';

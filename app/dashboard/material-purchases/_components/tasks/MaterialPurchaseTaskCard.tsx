@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatCurrency } from '@/lib/utils';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 
 interface MaterialPurchaseTaskCardProps {
   purchase: MaterialPurchase;

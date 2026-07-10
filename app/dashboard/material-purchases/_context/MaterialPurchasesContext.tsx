@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
+import type { ReactNode} from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { useMaterialPurchasesList } from '@/hooks/materials/useMaterialPurchases';
-import { MaterialPurchase, MaterialPurchaseFilters, PaginationParams } from '@/types/materials';
-import { DateRange } from 'react-day-picker';
+import type { MaterialPurchase, MaterialPurchaseFilters, PaginationParams } from '@/types/materials';
+import type { DateRange } from 'react-day-picker';
 import { format, addDays, startOfDay } from 'date-fns';
 
 // Task filter types (for the tasks tab)
@@ -200,29 +201,32 @@ export function MaterialPurchasesProvider({ children }: { children: ReactNode })
           case 'today':
             newDateRange = { from: today, to: today };
             break;
-          case 'tomorrow':
+          case 'tomorrow': {
             const tomorrow = addDays(today, 1);
             newDateRange = { from: tomorrow, to: tomorrow };
             break;
+          }
           case 'thisWeek':
             newDateRange = { from: today, to: addDays(today, 7) };
             break;
           case 'nextWeek':
             newDateRange = { from: addDays(today, 7), to: addDays(today, 14) };
             break;
-          case 'thisMonth':
+          case 'thisMonth': {
             const nextMonth = new Date(today);
             nextMonth.setMonth(nextMonth.getMonth() + 1);
             newDateRange = { from: today, to: nextMonth };
             break;
+          }
           case 'upcoming':
             newDateRange = { from: today, to: undefined };
             break;
-          case 'overdue':
+          case 'overdue': {
             // For overdue, we need to set an end date of yesterday
             const yesterday = addDays(today, -1);
             newDateRange = { from: undefined, to: yesterday };
             break;
+          }
         }
 
         setDateRange(newDateRange);

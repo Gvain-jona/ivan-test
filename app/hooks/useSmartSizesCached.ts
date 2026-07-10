@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { SmartComboboxOption } from '@/components/ui/smart-combobox';
+import type { SmartComboboxOption } from '@/components/ui/smart-combobox';
 import { useSmartDropdownCached } from './useSmartDropdownCached';
 
 interface UseSmartSizesCachedReturn {

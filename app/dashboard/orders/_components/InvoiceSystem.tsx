@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { InvoiceButton } from '@/app/features/invoices';
-import { Order } from '@/types/orders';
+import type { Order } from '@/types/orders';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
 import { useOrdersPage } from '../_context';
@@ -32,9 +32,10 @@ const InvoiceButtonWrapper: React.FC<InvoiceButtonWrapperProps> = ({
   useContextHandler = false,
   onClick,
 }) => {
-  // Get the context handler if needed
-  const context = useContextHandler ? useOrdersPage() : null;
-  const handleGenerateInvoice = context?.handleGenerateInvoice;
+  // Hooks must run unconditionally; whether to USE the handler stays
+  // conditional below.
+  const context = useOrdersPage();
+  const handleGenerateInvoice = useContextHandler ? context.handleGenerateInvoice : undefined;
 
   // If we're using the context handler and it exists, create a button that calls it
   if (useContextHandler && handleGenerateInvoice) {

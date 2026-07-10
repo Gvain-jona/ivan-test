@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useInvoiceContext } from '../../context/InvoiceContext';
 import { useInvoiceSettings } from '../../hooks/useInvoiceSettingsV2';
 
-import { InvoiceSettingRecord } from '../../types';
+import type { InvoiceSettingRecord } from '../../types';
 import {
   Card,
   CardContent,

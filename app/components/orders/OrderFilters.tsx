@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { OrderStatus, PaymentStatus, OrdersTableFilters } from '@/types/orders';
+import type { OrderStatus, PaymentStatus, OrdersTableFilters } from '@/types/orders';
 import { CalendarIcon, Search, X, Filter } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 

@@ -1,10 +1,10 @@
 'use client';
 
 import { useLoadingSWR, useFetch } from './useLoadingSWR';
-import { SWRConfiguration } from 'swr';
+import type { SWRConfiguration } from 'swr';
 import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { dataService } from '@/lib/supabase';
-import { Order, OrderStatus, PaymentStatus } from '@/types/orders';
+import type { Order, OrderStatus, PaymentStatus } from '@/types/orders';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 
 const DEFAULT_CONFIG: SWRConfiguration = {

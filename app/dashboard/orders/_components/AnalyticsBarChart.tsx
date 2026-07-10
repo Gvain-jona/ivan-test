@@ -57,6 +57,8 @@ const AnalyticsBarChart: React.FC<AnalyticsBarChartProps> = ({
   };
 
   // Handle empty data
+  const [isHovering, setIsHovering] = useState(false);
+
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
@@ -68,8 +70,6 @@ const AnalyticsBarChart: React.FC<AnalyticsBarChartProps> = ({
   // Calculate average if not provided
   const calculatedAverage = average || (data.length > 0 ?
     data.reduce((sum, item) => sum + item.value, 0) / data.length : 0);
-
-  const [isHovering, setIsHovering] = useState(false);
 
   return (
     <div

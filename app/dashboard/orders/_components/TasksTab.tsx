@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { useOrdersPage } from '../_context';
-import { Task } from '@/types/orders';
+import type { Task } from '@/types/orders';
 import { cn } from '@/lib/utils';
 
 /**

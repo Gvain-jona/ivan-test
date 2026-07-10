@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Import order types
-import { Order, OrderStatus, ClientType, OrderItem, OrderNote, TaskPriority, TaskStatus } from '@/app/types/orders';
+import type { ClientType, TaskPriority, TaskStatus } from '@/app/types/orders';
+import { Order, OrderStatus, OrderItem, OrderNote } from '@/app/types/orders';
 
 // Define types for our task card data
 interface Task {

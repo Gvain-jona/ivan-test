@@ -21,9 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { OrderStatus } from '@/types/orders';
+import type { OrderStatus } from '@/types/orders';
 import { Filter, RefreshCw } from 'lucide-react';
-import { DateRange } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import { OptimizedSmartCombobox } from '@/components/ui/optimized-smart-combobox';
 
 interface FilterDrawerProps {

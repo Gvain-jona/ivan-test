@@ -1,9 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { SmartCombobox, SmartComboboxOption } from "./smart-combobox"
+import type { SmartComboboxOption } from "./smart-combobox";
+import { SmartCombobox } from "./smart-combobox"
 import { useDropdownCache } from "@/hooks/useDropdownCache"
-import { EntityType, createDropdownOption } from "../../actions/options"
+import type { EntityType} from "../../actions/options";
+import { createDropdownOption } from "../../actions/options"
 
 interface CachedSmartComboboxProps {
   entityType: EntityType

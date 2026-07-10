@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Save, FileText } from 'lucide-react';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { BottomOverlayForm } from './BottomOverlayForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 

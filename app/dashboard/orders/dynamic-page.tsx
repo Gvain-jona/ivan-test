@@ -39,7 +39,7 @@ export function DynamicOrdersPage({ initialData }: DynamicOrdersPageProps) {
     <div className="space-y-6">
       <DynamicOrdersHeader />
       <DynamicOrdersFilters />
-      {/* @ts-ignore */}
+      {/* @ts-expect-error legacy dynamic component props */}
       <DynamicOrdersTable initialData={initialData} />
     </div>
   );

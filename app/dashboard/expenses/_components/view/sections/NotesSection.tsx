@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText, Loader2, Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
-import { Expense, ExpenseNote } from '@/hooks/expenses';
+import type { Expense, ExpenseNote } from '@/hooks/expenses';
 import { SectionHeader } from '../SectionHeader';
 import { ItemCard } from '../ItemCard';
 import { EmptyStateMessage } from '../EmptyStateMessage';

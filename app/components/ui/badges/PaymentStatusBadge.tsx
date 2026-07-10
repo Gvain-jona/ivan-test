@@ -6,7 +6,7 @@ import {
   DollarSign, 
   CheckCircle 
 } from 'lucide-react';
-import { PaymentStatus } from '@/types/orders';
+import type { PaymentStatus } from '@/types/orders';
 
 interface PaymentStatusBadgeProps {
   status: PaymentStatus;

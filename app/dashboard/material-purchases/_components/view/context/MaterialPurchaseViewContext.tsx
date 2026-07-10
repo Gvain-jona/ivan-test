@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 
 interface MaterialPurchaseViewContextType {
   purchase: MaterialPurchase | null;

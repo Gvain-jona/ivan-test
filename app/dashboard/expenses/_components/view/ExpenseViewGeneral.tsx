@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Expense } from '@/hooks/expenses';
+import type { Expense } from '@/hooks/expenses';
 import { StatusBadge } from '../shared';
 
 interface ExpenseViewGeneralProps {

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { DateRange as ReactDayPickerDateRange } from 'react-day-picker';
-import { DateRange as ApiDateRange } from '@/types/date-range';
+import type { DateRange as ReactDayPickerDateRange } from 'react-day-picker';
+import type { DateRange as ApiDateRange } from '@/types/date-range';
 import { AnalyticsDateRangePicker } from './AnalyticsDateRangePicker';
 import { format } from 'date-fns';
 

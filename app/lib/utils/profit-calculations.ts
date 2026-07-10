@@ -1,4 +1,5 @@
-import { CalculationBasisOption, ProfitOverride, ProfitSettings } from '@/app/context/settings/types';
+import type { ProfitOverride, ProfitSettings } from '@/app/context/settings/types';
+import { CalculationBasisOption } from '@/app/context/settings/types';
 
 /**
  * Check if profit calculations are enabled

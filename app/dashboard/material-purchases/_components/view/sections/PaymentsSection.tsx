@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { useMaterialPurchaseView } from '../context/MaterialPurchaseViewContext';
 import { SectionHeader } from '../SectionHeader';
-import { MaterialPayment } from '@/types/materials';
+import type { MaterialPayment } from '@/types/materials';
 import { AddMaterialPaymentForm } from '../AddMaterialPaymentForm';
 import { EditMaterialPaymentForm } from '../EditMaterialPaymentForm';
 import { EmptyStateMessage } from '../EmptyStateMessage';

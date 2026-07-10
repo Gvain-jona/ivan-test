@@ -3,7 +3,7 @@
  */
 
 import { createClient } from '@/utils/supabase/server';
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 /**
  * Get the authenticated user from the current request

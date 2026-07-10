@@ -61,10 +61,6 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
     }
   };
 
-  if (!canChangeStatus) {
-    return <StatusBadge status={order.status} size="md" />;
-  }
-
   // Add state for loading and current status being changed
   const [isLoading, setIsLoading] = useState(false);
   const [changingStatus, setChangingStatus] = useState<string | null>(null);
@@ -86,6 +82,14 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
 
   // Handle status change with debounce to prevent accidental double-clicks
   const isChangingRef = React.useRef(false);
+
+  // State to control the dropdown programmatically
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // After all hooks: users without permission just see the badge
+  if (!canChangeStatus) {
+    return <StatusBadge status={order.status} size="md" />;
+  }
 
   const handleStatusChange = async (status: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -126,9 +130,6 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
       }, 300);
     }
   };
-
-  // State to control the dropdown programmatically
-  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
     <CustomDropdown

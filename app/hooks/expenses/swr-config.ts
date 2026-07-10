@@ -3,7 +3,7 @@
  * This ensures consistent caching behavior across the application
  */
 
-import { SWRConfiguration } from 'swr';
+import type { SWRConfiguration } from 'swr';
 import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 
 /**

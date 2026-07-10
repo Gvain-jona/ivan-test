@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import useSWR from 'swr';
 import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
-import { Order, OrderStatus, OrdersTableFilters, PaginationParams, OrdersResponse } from '@/types/orders';
+import type { Order, OrderStatus, OrdersTableFilters, PaginationParams, OrdersResponse } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 
 const DEFAULT_PAGE_SIZE = 50;

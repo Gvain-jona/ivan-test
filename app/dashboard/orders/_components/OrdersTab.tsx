@@ -2,7 +2,8 @@
 
 import React from 'react';
 import OrdersTable from '@/components/orders/OrdersTableNew';
-import FilterDrawer, { OrderFilters as FilterTypes } from '../../../components/orders/FilterDrawer';
+import type { OrderFilters as FilterTypes } from '../../../components/orders/FilterDrawer';
+import FilterDrawer from '../../../components/orders/FilterDrawer';
 import { useOrdersPage } from '../_context';
 import { useLoading } from '@/components/loading';
 import { OrdersTableSkeleton } from '@/components/ui/loading-states';

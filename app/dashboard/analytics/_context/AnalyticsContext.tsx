@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { DateRange } from '@/types/date-range';
+import type { DateRange } from '@/types/date-range';
 import { subDays, format } from 'date-fns';
 
 export type AnalyticsTab = 'overview' | 'orders' | 'expenses' | 'materials' | 'financials';

@@ -4,7 +4,7 @@ import React from 'react';
 import { Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { FilterType } from './types';
+import type { FilterType } from './types';
 
 interface EmptyStateProps {
   renderFilters: () => React.ReactNode;

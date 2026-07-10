@@ -1,4 +1,4 @@
-import { Order, OrderItem, OrderPayment, PaymentStatus } from '@/types/orders';
+import type { Order, OrderItem, OrderPayment, PaymentStatus } from '@/types/orders';
 
 /**
  * Calculate the total amount for an order based on its items

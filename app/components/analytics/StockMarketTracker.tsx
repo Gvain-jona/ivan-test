@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Line } from 'react-chartjs-2';
-import { ChartData, ChartOptions } from 'chart.js';
+import type { ChartData, ChartOptions } from 'chart.js';
 import { lineChartOptions } from '@/lib/chart-config';
 import { cn, formatCurrency } from '@/lib/utils';
 import { TrendingUp, ChevronDown } from 'lucide-react';

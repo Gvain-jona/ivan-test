@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { InvoiceSettings } from '../types';
+import type { InvoiceSettings } from '../types';
 import { emptyInvoiceSettings } from '../context/InvoiceContext';
 import useSWR from 'swr';
 import { useToast } from '@/components/ui/use-toast';

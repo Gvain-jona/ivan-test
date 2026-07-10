@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Order, OrderPayment } from '@/types/orders';
+import type { Order, OrderPayment } from '@/types/orders';
 import { CalendarIcon, CheckCircle, Clock, Printer, CreditCard, Plus, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/status-badge';

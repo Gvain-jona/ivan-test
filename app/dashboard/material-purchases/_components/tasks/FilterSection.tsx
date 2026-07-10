@@ -24,7 +24,7 @@ import {
   CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TaskFilterType } from '../../_context/MaterialPurchasesContext';
+import type { TaskFilterType } from '../../_context/MaterialPurchasesContext';
 
 // Filter labels for display
 const FILTER_LABELS: Record<string, string> = {

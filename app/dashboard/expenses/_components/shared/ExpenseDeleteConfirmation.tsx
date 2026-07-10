@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Expense } from "@/hooks/expenses";
+import type { Expense } from "@/hooks/expenses";
 import { Loader2 } from "lucide-react";
 
 interface ExpenseDeleteConfirmationProps {

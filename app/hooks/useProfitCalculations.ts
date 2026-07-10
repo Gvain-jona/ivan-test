@@ -3,8 +3,9 @@
 import { useCallback } from 'react';
 import { useSettings } from '@/app/context/settings';
 import { ProfitSettings } from '@/app/context/settings/types';
+import type {
+  OrderItemWithProfit} from '@/app/lib/utils/profit-calculations';
 import {
-  OrderItemWithProfit,
   applyProfitCalculations,
   applyProfitCalculationsToItems,
   isProfitCalculationsEnabled

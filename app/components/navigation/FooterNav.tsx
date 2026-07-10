@@ -35,7 +35,8 @@ import ContextMenu from '@/components/ui/context-menu';
 // Import custom hooks
 import { useContextMenu } from '@/hooks/ui/useContextMenu';
 import { useScrollNavigation } from '@/hooks/ui/useScrollNavigation';
-import { useTabNavigation, NavItemType, NavItem } from '@/hooks/ui/useTabNavigation';
+import type { NavItemType, NavItem } from '@/hooks/ui/useTabNavigation';
+import { useTabNavigation } from '@/hooks/ui/useTabNavigation';
 import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
 // Define navigation items with consistent navigation approach

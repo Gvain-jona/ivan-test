@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 
-import { NotificationStatus } from '@/types/notifications';
+import type { NotificationStatus } from '@/types/notifications';
 import { useOnceEffect } from '@/lib/useOnceEffect';
 
 export function NotificationsDrawer() {

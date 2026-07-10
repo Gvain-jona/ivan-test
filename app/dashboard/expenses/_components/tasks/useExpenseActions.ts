@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Expense } from '@/hooks/expenses';
-import { OccurrenceStatus, RecurringExpenseOccurrence } from './types';
+import type { Expense } from '@/hooks/expenses';
+import type { OccurrenceStatus, RecurringExpenseOccurrence } from './types';
 
 interface UseExpenseActionsProps {
   refreshData: () => Promise<void>;

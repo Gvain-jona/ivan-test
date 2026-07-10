@@ -3,7 +3,7 @@ import { PlusCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Expense, ExpenseNote } from '@/hooks/expenses';
+import type { Expense, ExpenseNote } from '@/hooks/expenses';
 import { NoteCard, EmptyState } from '../shared';
 
 interface ExpenseViewNotesProps {

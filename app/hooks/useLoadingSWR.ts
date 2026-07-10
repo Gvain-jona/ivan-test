@@ -1,6 +1,7 @@
 'use client';
 
-import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
+import type { SWRConfiguration, SWRResponse } from 'swr';
+import useSWR from 'swr';
 import { useLoading } from '@/components/loading/LoadingProvider';
 import { useEffect } from 'react';
 import { createSWRConfig, DataFetchType, getSWRConfigForKey } from '@/lib/swr-config';

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SettingSection } from '@/components/settings';
 import { useSettings } from '@/app/context/settings';
-import { DateFormatOption, LanguageOption, TimeFormatOption } from '@/app/context/settings/types';
+import type { DateFormatOption, LanguageOption, TimeFormatOption } from '@/app/context/settings/types';
 
 /**
  * Language settings tab component

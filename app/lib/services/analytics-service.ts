@@ -8,7 +8,7 @@
  */
 
 import { createClient } from '@/utils/supabase/client';
-import { DateRange } from '@/types/date-range';
+import type { DateRange } from '@/types/date-range';
 import { format, isWithinInterval, parseISO, subDays } from 'date-fns';
 
 // Define types for analytics data

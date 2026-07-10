@@ -1,5 +1,5 @@
-import { Order } from '@/types/orders';
-import { Control } from 'react-hook-form';
+import type { Order } from '@/types/orders';
+import type { Control } from 'react-hook-form';
 
 /**
  * Props for the main InvoiceSheet component

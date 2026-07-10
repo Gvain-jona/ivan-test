@@ -288,7 +288,7 @@ export function OverviewPanel() {
           interval = 'day';
           break;
 
-        case 'Last 90 days':
+        case 'Last 90 days': {
           // For last 90 days, group by weeks
           startDate = new Date(today);
           startDate.setDate(today.getDate() - 89);
@@ -300,6 +300,7 @@ export function OverviewPanel() {
 
           interval = 'week';
           break;
+        }
 
         case 'This year':
           // For this year, show each month

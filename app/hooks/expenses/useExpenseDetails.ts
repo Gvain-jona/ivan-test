@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLoadingSWR } from '../useLoadingSWR';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { toast } from 'sonner';
-import { ExpenseNote, ExpensePayment } from './types';
+import type { ExpenseNote, ExpensePayment } from './types';
 import { createSWRConfig } from '@/lib/swr-config';
 import { EXPENSE_SWR_CONFIG } from './useExpensesList';
 

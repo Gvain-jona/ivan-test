@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { prefetchService } from '@/lib/prefetch-service';
-import { NavItemType } from './useTabNavigation';
+import type { NavItemType } from './useTabNavigation';
 
 /**
  * Enhanced hook to handle route prefetching with improved efficiency

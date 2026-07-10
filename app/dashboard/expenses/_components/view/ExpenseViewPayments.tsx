@@ -3,7 +3,7 @@ import { PlusCircle, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Expense, ExpensePayment } from '@/hooks/expenses';
+import type { Expense, ExpensePayment } from '@/hooks/expenses';
 import { PaymentCard, EmptyState } from '../shared';
 
 interface ExpenseViewPaymentsProps {

@@ -3,7 +3,7 @@
  * Ensures consistent handling of user profiles across the application
  */
 
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 
 export type Profile = {

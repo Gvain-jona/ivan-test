@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { SmartCombobox, SmartComboboxOption } from "./smart-combobox"
-import { useDropdownData, EntityType } from "@/hooks/useDropdownData"
+import type { SmartComboboxOption } from "./smart-combobox";
+import { SmartCombobox } from "./smart-combobox"
+import type { EntityType } from "@/hooks/useDropdownData";
+import { useDropdownData } from "@/hooks/useDropdownData"
 import { useDebounce } from "@/hooks/useDebounce"
 
 interface OptimizedSmartComboboxProps {

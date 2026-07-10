@@ -8,7 +8,8 @@ import OrangeInvoiceTemplate from './templates/OrangeInvoiceTemplate';
 import { toSimplifiedSettings } from '../types';
 import { generateExactPdf } from '../utils/exactPdfGenerator';
 import { useToast } from '@/components/ui/use-toast';
-import { QualitySelector, InvoiceQuality } from './QualitySelectorFixed';
+import type { InvoiceQuality } from './QualitySelectorFixed';
+import { QualitySelector } from './QualitySelectorFixed';
 import { InvoiceDatePicker } from './InvoiceDatePicker';
 import { PdfGenerationOverlay } from './PdfGenerationOverlay';
 

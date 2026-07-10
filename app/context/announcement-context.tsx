@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Announcement } from '@/app/types/announcements';
+import type { Announcement } from '@/app/types/announcements';
 import { API_ENDPOINTS } from '@/app/lib/api-endpoints';
 
 interface AnnouncementContextType {

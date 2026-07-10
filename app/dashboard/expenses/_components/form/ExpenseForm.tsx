@@ -15,12 +15,13 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { Expense } from '@/hooks/expenses';
+import type { Expense } from '@/hooks/expenses';
 import { ExpenseFormGeneral } from './ExpenseFormGeneral';
 import { ExpenseFormRecurrence } from './ExpenseFormRecurrence';
 import { ExpenseFormPayments } from './ExpenseFormPayments';
 import { ExpenseFormNotes } from './ExpenseFormNotes';
-import { expenseFormSchema, ExpenseFormValues } from './schema';
+import type { ExpenseFormValues } from './schema';
+import { expenseFormSchema } from './schema';
 import { toast } from 'sonner';
 
 interface ExpenseFormProps {

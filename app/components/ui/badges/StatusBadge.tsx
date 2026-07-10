@@ -9,8 +9,8 @@ import {
   Ban,
   AlertTriangle
 } from 'lucide-react';
-import { TaskStatus } from '@/types/tasks';
-import { OrderStatus } from '@/types/orders';
+import type { TaskStatus } from '@/types/tasks';
+import type { OrderStatus } from '@/types/orders';
 
 type Status = TaskStatus | OrderStatus;
 

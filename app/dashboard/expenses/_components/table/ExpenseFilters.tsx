@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Search, Filter, CalendarRange } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DateRange } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 

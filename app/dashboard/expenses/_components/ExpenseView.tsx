@@ -28,7 +28,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn, formatCurrency, formatDate, getInitials } from '@/lib/utils';
-import { Expense, ExpensePayment, ExpenseNote, useExpense } from '@/hooks/useExpenses';
+import type { Expense, ExpensePayment, ExpenseNote} from '@/hooks/useExpenses';
+import { useExpense } from '@/hooks/useExpenses';
 import { PaymentForm } from './PaymentForm';
 import { NoteForm } from './NoteForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';

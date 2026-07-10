@@ -1,8 +1,8 @@
 'use client'
 
-import { User } from '@supabase/supabase-js'
-import { SupabaseClient } from '@supabase/supabase-js'
-import { Profile } from '@/lib/auth/types'
+import type { User } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Profile } from '@/lib/auth/types'
 
 /**
  * Service for handling profile-related operations

@@ -4,7 +4,7 @@ import React from 'react';
 import { format, isToday, isTomorrow, isYesterday, parseISO, isValid } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { MaterialPurchaseTaskCard } from './MaterialPurchaseTaskCard';
 
 interface DateGroupProps {

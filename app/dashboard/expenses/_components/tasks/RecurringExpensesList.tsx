@@ -12,7 +12,7 @@ import { EmptyState } from './EmptyState';
 import { useRecurringExpensesData } from './useRecurringExpensesData';
 import { useExpenseActions } from './useExpenseActions';
 import { useDebouncedSearch } from './useDebouncedSearch';
-import { FilterType } from './types';
+import type { FilterType } from './types';
 import { Expense } from '@/hooks/expenses';
 import { Button } from '@/components/ui/button';
 

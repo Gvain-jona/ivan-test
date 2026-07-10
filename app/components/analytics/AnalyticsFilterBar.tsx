@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { DateRangeAdapter } from './DateRangeAdapter';
-import { DateRange } from '@/types/date-range';
+import type { DateRange } from '@/types/date-range';
 import { Button } from '@/components/ui/button';
 import {
   Select,

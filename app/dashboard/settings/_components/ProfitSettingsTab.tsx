@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { useSettings } from '@/app/context/settings';
-import { CalculationBasisOption, ProfitOverride, ProfitSettings } from '@/app/context/settings/types';
+import type { CalculationBasisOption, ProfitOverride, ProfitSettings } from '@/app/context/settings/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useAuth } from '@/app/context/auth-context';
 import { SettingSection, SettingItem } from '@/components/settings';

@@ -2,7 +2,7 @@ import React from 'react';
 import { RefreshCw, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Expense } from '@/hooks/expenses';
+import type { Expense } from '@/hooks/expenses';
 import {
   Tooltip,
   TooltipContent,

@@ -1,4 +1,4 @@
-import { TaskPriority } from '@/types/tasks';
+import type { TaskPriority } from '@/types/tasks';
 
 /**
  * Returns the appropriate CSS classes for a task priority badge

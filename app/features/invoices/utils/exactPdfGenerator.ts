@@ -1,6 +1,6 @@
 'use client';
 
-import { Order } from '@/types/orders';
+import type { Order } from '@/types/orders';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { formatInvoiceFilenameFromOrder } from '@/lib/utils/downloadUtils';

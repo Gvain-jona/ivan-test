@@ -13,12 +13,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
-import { Expense, useExpenses, ExpenseFilters } from '@/hooks/useExpenses';
+import type { Expense, ExpenseFilters } from '@/hooks/useExpenses';
+import { useExpenses } from '@/hooks/useExpenses';
 import { ExpenseView } from './view';
 import { ExpenseForm } from './form/ExpenseForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DateRange } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 

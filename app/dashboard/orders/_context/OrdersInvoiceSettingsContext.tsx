@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode } from 'react';
-import { InvoiceSettings } from '@/app/features/invoices/types';
+import type { ReactNode } from 'react';
+import React, { createContext, useContext } from 'react';
+import type { InvoiceSettings } from '@/app/features/invoices/types';
 import { emptyInvoiceSettings } from '@/app/features/invoices/context/InvoiceContext';
 import { useInvoiceSettings } from '@/app/features/invoices/hooks/useInvoiceSettingsV2';
 

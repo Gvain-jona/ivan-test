@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PendingInvoice } from '../../types';
+import type { PendingInvoice } from '../../types';
 import { formatCurrency } from '@/lib/utils';
 
 interface PendingInvoicesProps {

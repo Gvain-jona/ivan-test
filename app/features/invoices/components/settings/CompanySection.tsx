@@ -9,7 +9,7 @@ import {
   FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { SettingsSectionProps } from '../../types';
+import type { SettingsSectionProps } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, FileText } from 'lucide-react';
 import LogoSelector from './LogoSelector';

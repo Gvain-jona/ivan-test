@@ -1,5 +1,6 @@
 // Next.js API Route Handler for notifications
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
 /**
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // For public access, return empty notifications array if no user is found
     if (userError || !user) {
-      console.log('No authenticated user found, returning empty notifications for public access');
+      console.warn('No authenticated user found, returning empty notifications for public access');
       
       // Add Cache-Control header for better performance
       const headers = new Headers();

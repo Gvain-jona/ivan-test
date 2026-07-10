@@ -21,7 +21,7 @@ import {
   Popover, PopoverContent, PopoverTrigger
 } from '@/app/components/ui/popover';
 import { DateRangePicker } from '@/app/components/ui/date-range-picker';
-import { DateRange } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';

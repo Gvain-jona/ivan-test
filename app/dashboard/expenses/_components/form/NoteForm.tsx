@@ -31,7 +31,7 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ExpenseNote } from '@/hooks/expenses';
+import type { ExpenseNote } from '@/hooks/expenses';
 import { NOTE_TYPES } from './schema';
 
 // Form schema

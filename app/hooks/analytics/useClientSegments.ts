@@ -1,6 +1,7 @@
-import useSWR, { SWRConfiguration } from 'swr';
-import { ClientSegment } from '@/lib/services/analytics-service';
-import { DateRange } from '@/types/date-range';
+import type { SWRConfiguration } from 'swr';
+import useSWR from 'swr';
+import type { ClientSegment } from '@/lib/services/analytics-service';
+import type { DateRange } from '@/types/date-range';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 
 // Default SWR configuration for analytics data

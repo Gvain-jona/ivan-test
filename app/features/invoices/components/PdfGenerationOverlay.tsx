@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Loader2, FileText, Download, CheckCircle } from 'lucide-react';
-import { InvoiceQuality } from './QualitySelector';
+import type { InvoiceQuality } from './QualitySelector';
 
 interface PdfGenerationOverlayProps {
   isVisible: boolean;

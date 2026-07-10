@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import {
+import type {
   MaterialInstallment,
   MaterialPurchase,
   MaterialPayment

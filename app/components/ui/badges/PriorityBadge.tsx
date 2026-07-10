@@ -7,7 +7,7 @@ import {
   ArrowUp, 
   AlertTriangle
 } from 'lucide-react';
-import { TaskPriority } from '@/types/tasks';
+import type { TaskPriority } from '@/types/tasks';
 
 interface PriorityBadgeProps {
   priority: TaskPriority;

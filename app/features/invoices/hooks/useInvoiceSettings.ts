@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { InvoiceSettings } from '../types';
+import type { InvoiceSettings } from '../types';
 import { emptyInvoiceSettings } from '../context/InvoiceContext';
 import { getDefaultInvoiceSettings, saveInvoiceSettings } from '../api/settings';
 import useSWR from 'swr';

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
-import { DateRange } from 'react-day-picker';
-import { Expense, useExpenses, ExpenseFilters } from '@/hooks/useExpenses';
+import type { DateRange } from 'react-day-picker';
+import type { Expense, ExpenseFilters } from '@/hooks/useExpenses';
+import { useExpenses } from '@/hooks/useExpenses';
 import { ExpenseViewSheet } from '../view/ExpenseViewSheet';
 import { ExpenseForm } from '../form';
 import { ExpenseFilters as ExpenseFiltersComponent } from './ExpenseFilters';

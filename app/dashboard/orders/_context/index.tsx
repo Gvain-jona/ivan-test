@@ -1,6 +1,7 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React from 'react';
 // Legacy types are used ONLY to type the compat stubs for unmigrated
 // tabs (Invoices/Tasks/Insights); both imports go when those migrate.
 import type { Order as LegacyOrder, Task as LegacyTask } from '@/types/orders';

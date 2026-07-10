@@ -32,11 +32,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
+import type {
   Announcement,
   AnnouncementVariant,
+  AppPageLink} from '@/app/types/announcements';
+import {
   AnnouncementTag,
-  AppPageLink,
   ANNOUNCEMENT_TAGS,
   APP_PAGE_LINKS
 } from '@/app/types/announcements';
