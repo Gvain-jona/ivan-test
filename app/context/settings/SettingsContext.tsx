@@ -62,7 +62,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
               .from('user_settings')
               .select('settings')
               .eq('user_id', profile.id)
-              .single();
+              .maybeSingle();
 
             if (error) {
               // PGRST116 is "no rows returned" error - this is expected for new users

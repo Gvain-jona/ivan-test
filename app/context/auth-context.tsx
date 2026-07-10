@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import {
@@ -51,6 +51,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [profileError, setProfileError] = useState<boolean>(false)
   const router = useRouter()
+
+  // Tracks the currently-handled user id. Supabase fires SIGNED_IN on every tab refocus, not
+  // just on a genuine new sign-in; we use this to skip the redundant profile refetch + redirect
+  // when the signed-in user has not actually changed.
+  const lastUserIdRef = useRef<string | null>(null)
 
   const isAdmin = profile?.role === 'admin'
   const isManager = profile?.role === 'manager'
@@ -166,10 +171,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
+          const newUserId = session.user.id
+
+          // On token refresh, always keep the realtime client's auth fresh.
+          if (event === 'TOKEN_REFRESHED') {
+            console.log('Token refreshed, maintaining current route')
+            supabase.realtime.setAuth(session.access_token)
+          }
+
+          // Supabase emits SIGNED_IN on every tab refocus. If the user has not changed, this is
+          // not a real sign-in: skip the profile refetch, prefetch, and navigation to avoid the
+          // re-render / refetch storm and unwanted re-navigation.
+          if (newUserId === lastUserIdRef.current) {
+            return
+          }
+
+          lastUserIdRef.current = newUserId
           setUser(session.user)
 
           // Try to use cached profile first
-          const usedCache = loadCachedProfile()
+          loadCachedProfile()
 
           // Fetch profile for the user in the background
           fetchProfileWithRetry(session.user)
@@ -177,27 +198,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Trigger data prefetch as early as possible
           triggerPrefetch();
 
-          // Only redirect if this is a new sign-in, not a token refresh
+          // Only redirect on a genuine new sign-in, not a token refresh.
           if (event === 'SIGNED_IN') {
-            // Get the redirect path and navigate
             const searchParams = new URLSearchParams(window.location.search)
             const redirect = getRedirectPath(searchParams)
             router.push(redirect)
-          } else {
-            // For token refresh, don't navigate - stay on current page
-            console.log('Token refreshed, maintaining current route')
-            console.log('Current pathname:', window.location.pathname)
-
-            // Set a header for future requests to indicate token refresh
-            // This will help middleware identify token refresh requests
-            const tokenRefreshHeader = { 'x-token-refresh': 'true' };
-
-            // Apply this header to the Supabase client for future requests
-            supabase.realtime.setAuth(session.access_token);
           }
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out, cleaning up...')
+        lastUserIdRef.current = null
         setUser(null)
         setProfile(null)
 
@@ -221,6 +231,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (currentUser) {
           console.log('Found existing user:', currentUser.email)
+          // Record the user so the SIGNED_IN event that fires right after load for this same
+          // user is treated as a refocus (skipped), not a duplicate sign-in.
+          lastUserIdRef.current = currentUser.id
           setUser(currentUser)
 
           // Try to use cached profile first

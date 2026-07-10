@@ -19,15 +19,15 @@ function getSameOriginPath(next: string, requestUrl: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+
+  const code = searchParams.get('code')
+  const state = searchParams.get('state')
+  const token_hash = searchParams.get('token_hash')
+  const type = searchParams.get('type') as EmailOtpType | null
+  const next = searchParams.get('next') || '/dashboard/orders'
+
   try {
-    const { searchParams } = new URL(request.url)
-
-    const code = searchParams.get('code')
-    const state = searchParams.get('state')
-    const token_hash = searchParams.get('token_hash')
-    const type = searchParams.get('type') as EmailOtpType | null
-    const next = searchParams.get('next') || '/dashboard/orders'
-
     const supabase = await createClient()
 
     if (code && state) {
@@ -71,12 +71,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const safePath = getSameOriginPath(next, request.url)
-    return redirect(`${getBaseUrl()}${safePath}`)
   } catch (error) {
     console.error('Auth callback exception:', error instanceof Error ? error.message : error)
     return NextResponse.redirect(
       `${getBaseUrl()}/auth/error?error=${encodeURIComponent('An unexpected error occurred')}`
     )
   }
+
+  // Redirect on success OUTSIDE the try/catch. redirect() throws a NEXT_REDIRECT signal as
+  // its control-flow mechanism; if called inside the try, the catch above swallows it and
+  // converts every successful sign-in into an /auth/error redirect.
+  const safePath = getSameOriginPath(next, request.url)
+  redirect(`${getBaseUrl()}${safePath}`)
 }

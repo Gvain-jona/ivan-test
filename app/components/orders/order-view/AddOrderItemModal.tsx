@@ -26,7 +26,7 @@ const AddOrderItemModal: React.FC<AddOrderItemModalProps> = ({
   const { success: showSuccess, error: showError } = useNotifications();
 
   // Fetch the order data if not provided
-  const { order: fetchedOrder } = useOrder(orderId ? `/api/orders/${orderId}` : undefined);
+  const { order: fetchedOrder } = useOrder(orderId || undefined);
 
   // Use the provided order or the fetched order
   const order = initialOrder || fetchedOrder;

@@ -9,7 +9,6 @@ import { OrderViewSheetProps } from './types';
 import { OrderPayment } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrder } from '@/hooks/useOrders';
-import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { invalidateOrderCache } from '@/lib/cache-utils';
 
 // Import shared components
@@ -67,7 +66,8 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   // Create a unique SWR key that includes both the order ID and open state
   // This ensures SWR fetches only when the sheet is open
   const orderKey = useMemo(() => {
-    const key = open && orderId ? `${API_ENDPOINTS.ORDERS}/${orderId}` : null;
+    // Pass the raw order id; useOrder() builds the /api/orders/<id> path itself.
+    const key = open && orderId ? orderId : null;
     // Only log in development
     if (process.env.NODE_ENV === 'development') {
       console.log('OrderViewSheet - SWR key:', key);
