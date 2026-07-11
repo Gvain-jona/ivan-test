@@ -7,8 +7,6 @@ export { useLoadingSWR, useFetch } from './useLoadingSWR';
 export { useOrders, useOrder } from './useOrders';
 
 // Domain data hooks
-export { useMaterials, useMaterial } from './useMaterialsData';
-export { useTasks, useTask } from './useTasksData';
 export { useDashboardStats } from './useDashboardStats';
 
 // Reference data hooks (clients, categories, items, sizes, suppliers) + generic

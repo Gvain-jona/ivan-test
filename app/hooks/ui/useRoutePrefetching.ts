@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { prefetchService } from '@/lib/prefetch-service';
 import type { NavItemType } from './useTabNavigation';
 
 /**
@@ -70,21 +69,10 @@ export function useRoutePrefetching(navigationItems: NavItemType[]) {
 
           // Only prefetch if we haven't already prefetched this route
           if (!prefetchedRoutes.current.has(href)) {
-            // Prefetch the route
+            // Prefetch the route's RSC payload; per-module SWR hooks own
+            // their own data fetching/caching, so nothing else happens here.
             router.prefetch(href);
             prefetchedRoutes.current.add(href);
-
-            // Selectively prefetch data based on route
-            // Using a more targeted approach to reduce unnecessary data fetching
-            if (href.includes('/orders')) {
-              prefetchService.prefetchOrders();
-            } else if (href.includes('/expenses')) {
-              prefetchService.prefetchExpenses();
-            } else if (href.includes('/material-purchases')) {
-              prefetchService.prefetchMaterials();
-            }
-            // Only prefetch other data when specifically navigating to those routes
-            // This reduces unnecessary data fetching
           }
         }
       });

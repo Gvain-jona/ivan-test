@@ -114,33 +114,30 @@ export function ExpandableTabs({
         }
 
         const Icon = tab.icon;
-        return (
-          <motion.button
-            key={tab.title}
-            variants={buttonVariants}
-            initial={false}
-            animate="animate"
-            custom={selected === index}
-            onClick={(event) => handleSelect(index, event)}
-            transition={transition}
-            className={cn(
-              "relative flex items-center rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-300",
-              // Regular navigation items are active based on the selected state
-              !tab.isContextMenu && selected === index && !tab.disabled
-                ? cn("bg-muted", activeColor)
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              // Context menu items have special handling
-              tab.isContextMenu && "context-menu-item",
-              // Context menu items can be active based on activeContextMenuIndex
-              tab.isContextMenu && activeContextMenuIndex === index && cn("bg-muted", activeColor, "active-context-menu-item"),
-              // Always keep the current page tab active even when a context menu is open
-              initialSelectedIndex === index && !tab.disabled && cn("bg-muted", activeColor),
-              // Disabled items styling - slightly increased opacity for better visibility
-              tab.disabled && "opacity-70 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground"
-            )}
-            role="tab"
-            aria-selected={selected === index || activeContextMenuIndex === index || initialSelectedIndex === index}
-          >
+        // Real page links (not context-menu triggers, not disabled) render as
+        // actual anchors so cmd/ctrl/middle-click and "open in new tab" work.
+        const isNavigable = Boolean(tab.href) && tab.href !== '#' && !tab.isContextMenu && !tab.disabled;
+
+        const tabClassName = cn(
+          "relative flex items-center rounded-xl px-4 py-2 text-sm font-medium transition-colors duration-300",
+          // Regular navigation items are active based on the selected state
+          !tab.isContextMenu && selected === index && !tab.disabled
+            ? cn("bg-muted", activeColor)
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          // Context menu items have special handling
+          tab.isContextMenu && "context-menu-item",
+          // Context menu items can be active based on activeContextMenuIndex
+          tab.isContextMenu && activeContextMenuIndex === index && cn("bg-muted", activeColor, "active-context-menu-item"),
+          // Always keep the current page tab active even when a context menu is open
+          initialSelectedIndex === index && !tab.disabled && cn("bg-muted", activeColor),
+          // Disabled items styling - slightly increased opacity for better visibility
+          tab.disabled && "opacity-70 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground"
+        );
+
+        const tabAriaSelected = selected === index || activeContextMenuIndex === index || initialSelectedIndex === index;
+
+        const tabContent = (
+          <>
             <div className="relative inline-flex items-center justify-center">
               <Icon size={20} />
               {tab.badge !== undefined && !tab.disabled && (
@@ -165,6 +162,52 @@ export function ExpandableTabs({
                 </motion.span>
               )}
             </AnimatePresence>
+          </>
+        );
+
+        if (isNavigable) {
+          return (
+            <motion.a
+              key={tab.title}
+              href={tab.href}
+              variants={buttonVariants}
+              initial={false}
+              animate="animate"
+              custom={selected === index}
+              transition={transition}
+              className={tabClassName}
+              role="tab"
+              aria-selected={tabAriaSelected}
+              onClick={(event) => {
+                // Let ctrl/cmd/shift/alt/middle-click fall through to native
+                // "open in new tab" behavior instead of intercepting it.
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+                  return;
+                }
+                event.preventDefault();
+                handleSelect(index, event);
+              }}
+            >
+              {tabContent}
+            </motion.a>
+          );
+        }
+
+        return (
+          <motion.button
+            key={tab.title}
+            type="button"
+            variants={buttonVariants}
+            initial={false}
+            animate="animate"
+            custom={selected === index}
+            onClick={(event) => handleSelect(index, event)}
+            transition={transition}
+            className={tabClassName}
+            role="tab"
+            aria-selected={tabAriaSelected}
+          >
+            {tabContent}
           </motion.button>
         );
       })}
