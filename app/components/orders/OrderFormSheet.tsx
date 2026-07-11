@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { CustomFieldsForm } from '@/components/fields/CustomFieldsForm';
+import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import { useClients } from '@/hooks/clients/useClients';
 import { useProducts } from '@/hooks/products/useProducts';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
@@ -30,6 +31,8 @@ const PAYMENT_METHODS = [
 
 /** Sentinel for the "free-text item" choice in the product picker. */
 const CUSTOM_ITEM = '__custom__';
+/** Sentinel for the "+ New client" choice in the client picker. */
+const NEW_CLIENT = '__new_client__';
 
 interface ItemDraft {
   product_id: string | null;
@@ -84,6 +87,8 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
   const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
   const [payments, setPayments] = useState<PaymentDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Walk-in customers: create the client without leaving the order
+  const [newClientOpen, setNewClientOpen] = useState(false);
 
   const updateItem = (index: number, patch: Partial<ItemDraft>) => {
     setItems(prev => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -176,11 +181,18 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
               <Label>
                 Client<span className="ml-0.5 text-destructive">*</span>
               </Label>
-              <Select value={clientId} onValueChange={setClientId}>
+              <Select
+                value={clientId}
+                onValueChange={value => {
+                  if (value === NEW_CLIENT) setNewClientOpen(true);
+                  else setClientId(value);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NEW_CLIENT}>+ New client…</SelectItem>
                   {clients.map(client => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name}
@@ -418,6 +430,14 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
           </Button>
         </div>
       </div>
+
+      {/* Inline client creation for walk-in customers */}
+      <ClientFormSheet
+        open={newClientOpen}
+        onOpenChange={setNewClientOpen}
+        client={null}
+        onSaved={saved => setClientId(saved.id)}
+      />
     </OrderSheet>
   );
 }

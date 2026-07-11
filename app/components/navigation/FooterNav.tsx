@@ -46,6 +46,7 @@ const getNavigationItems = (unreadCount: number): NavItemType[] => [
   // Home page removed temporarily
   // { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
+  { title: 'Clients', icon: User, href: '/dashboard/clients' },
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
   { title: 'Fields', icon: SlidersHorizontal, href: '/dashboard/fields' },
   { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },

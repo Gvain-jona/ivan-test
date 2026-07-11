@@ -34,3 +34,5 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | ProductFormSheet | `app/components/products/ProductFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
 | FieldSetupPage | `app/dashboard/fields/page.tsx` | Partial | Entity tab bar may overflow on ~375px; table scrolls horizontally |
 | FieldDefinitionFormSheet | `app/components/fields/FieldDefinitionFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
+| ClientsPage | `app/dashboard/clients/page.tsx` | Yes | Controls stack on mobile; table scrolls in `overflow-x-auto` |
+| ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
