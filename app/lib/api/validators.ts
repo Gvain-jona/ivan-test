@@ -112,3 +112,10 @@ export const noteCreateSchema = z.object({
   entity_id: z.string().uuid(),
   content: z.string().trim().min(1),
 });
+
+/** field_name and entity are immutable after creation (DB convention). */
+export const fieldDefinitionUpdateSchema = fieldDefinitionCreateSchema
+  .omit({ entity: true, field_name: true })
+  .partial()
+  .extend({ status: z.enum(['active', 'archived']).optional() })
+  .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' });

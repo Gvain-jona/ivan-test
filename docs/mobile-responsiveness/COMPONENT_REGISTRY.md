@@ -30,3 +30,7 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | CustomFieldsForm | `app/components/fields/CustomFieldsForm.tsx` | Yes | Field grid collapses `sm:grid-cols-2` → 1 col; groups stack vertically |
 | CustomFieldInput | `app/components/fields/CustomFieldInput.tsx` | Yes | Dimension inputs wrap via `flex-wrap`; selects/inputs full-width |
 | OrderFormSheet (v2 rebuild) | `app/components/orders/OrderFormSheet.tsx` | Yes | All field grids collapse `sm:` → 1 col; payment rows stack |
+| ProductsPage | `app/dashboard/products/page.tsx` | Yes | Header/controls stack on mobile; table scrolls in `overflow-x-auto` |
+| ProductFormSheet | `app/components/products/ProductFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
+| FieldSetupPage | `app/dashboard/fields/page.tsx` | Partial | Entity tab bar may overflow on ~375px; table scrolls horizontally |
+| FieldDefinitionFormSheet | `app/components/fields/FieldDefinitionFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
