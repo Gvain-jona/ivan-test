@@ -1,5 +1,6 @@
 import type { OrderSummary, OrderDetail, Payment } from '@/hooks/orders/useOrders';
 import type { Note } from '@/hooks/notes/useNotes';
+import type { DocumentRecord, DocumentType } from '@/hooks/documents/useDocuments';
 
 /**
  * Props for the main OrderViewSheet component. The sheet receives the
@@ -38,5 +39,11 @@ export interface OrderPaymentsTabProps {
 export interface OrderNotesTabProps {
   notes: Note[];
   onAddNote: (content: string) => Promise<void>;
+  isSubmitting: boolean;
+}
+
+export interface OrderDocumentsTabProps {
+  documents: DocumentRecord[];
+  onCreateDocument: (documentType: DocumentType) => Promise<void>;
   isSubmitting: boolean;
 }

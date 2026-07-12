@@ -6,14 +6,17 @@ import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrder, useOrderMutations } from '@/hooks/orders/useOrders';
 import { useNotes } from '@/hooks/notes/useNotes';
+import { useDocuments } from '@/hooks/documents/useDocuments';
+import type { DocumentType } from '@/hooks/documents/useDocuments';
 import type { OrderViewSheetProps } from './types';
 
 import OrderDetailsTab from './OrderDetailsTab';
 import OrderItemsTab from './OrderItemsTab';
 import OrderPaymentsTab from './OrderPaymentsTab';
 import OrderNotesTab from './OrderNotesTab';
+import OrderDocumentsTab from './OrderDocumentsTab';
 
-type TabKey = 'details' | 'items' | 'payments' | 'notes';
+type TabKey = 'details' | 'items' | 'payments' | 'notes' | 'documents';
 
 /**
  * OrderViewSheet displays an order in a side panel: details, items,
@@ -32,6 +35,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   const orderId = open ? summary?.id ?? null : null;
   const { order, payments, isLoading, mutate: refreshOrder } = useOrder(orderId);
   const { notes, addNote } = useNotes('order', orderId);
+  const { documents, createDocument } = useDocuments('order', orderId);
   const { addPayment } = useOrderMutations();
 
   const clientName = order?.clients?.name ?? summary?.clients?.name ?? 'Unknown';
@@ -74,11 +78,28 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
     }
   };
 
+  const handleCreateDocument = async (documentType: DocumentType) => {
+    setIsSubmitting(true);
+    try {
+      await createDocument({ document_type: documentType });
+      toast({ title: 'Document created', description: 'Saved as a draft' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create document',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: 'details', label: 'Details' },
     { key: 'items', label: 'Items', count: order?.order_items?.length },
     { key: 'payments', label: 'Payments', count: payments.length },
     { key: 'notes', label: 'Notes', count: notes.length },
+    { key: 'documents', label: 'Documents', count: documents.length },
   ];
 
   return (
@@ -152,6 +173,13 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             )}
             {activeTab === 'notes' && (
               <OrderNotesTab notes={notes} onAddNote={handleAddNote} isSubmitting={isSubmitting} />
+            )}
+            {activeTab === 'documents' && (
+              <OrderDocumentsTab
+                documents={documents}
+                onCreateDocument={handleCreateDocument}
+                isSubmitting={isSubmitting}
+              />
             )}
           </>
         )}

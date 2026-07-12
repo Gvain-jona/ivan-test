@@ -16,6 +16,23 @@ the design center. Migration is module-by-module (orders first), legacy code is
 deleted at each module's cutover (git is the archive), and the DB is the
 validation authority (field registry + triggers), not the app.
 
+For the full DB-side design of the order-model tables (clients, products,
+orders, order_items, payments, documents, field_definitions — schema, triggers,
+`create_order`/`next_number` RPCs, deferred `issue_document`), see
+`docs/v2-migration/orders-system-handoff.md`. That doc is DB-authoritative
+(confirmed live in `v2` schema); this file tracks what the *app* has actually
+wired up against it.
+
+For a graded audit of the app-side data path (fetch, tenancy, cache, bloat,
+performance — not UI), see `docs/v2-migration/DATA_LAYER_AUDIT.md`
+(2026-07-12). Security findings remain in `docs/code-review/AUDIT_PROGRESS.md`.
+
+For orders-specific legacy attachment (dead code vs hollow UI vs what to
+delete/fix), see `docs/v2-migration/ORDERS_CLEANUP.md` (2026-07-12).
+
+For Clerk absence impact and hold-vs-now recommendation, see
+`docs/v2-migration/CLERK_HOLD_AUDIT.md` (2026-07-12).
+
 ## Decided — do not relitigate
 
 | Decision | Verdict |
@@ -36,7 +53,8 @@ validation authority (field registry + triggers), not the app.
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
 | **Field setup** | ✅ New (per-entity registry admin at `/dashboard/fields`). |
-| Expenses, materials, accounts, invoicing, analytics, home dashboard | ⏳ Legacy, still on `public` schema, fully working — do not delete their code. Invoices/Tasks/Insights tabs on the orders page compile against explicitly-marked legacy-compat stubs in `app/dashboard/orders/_context/` and show empty data until their own cutovers. |
+| **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The separate per-row "quick invoice" button on the orders list (`OrdersTab` → `handleGenerateInvoice`) still has no sheet behind it. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
+| Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics, home dashboard | ⏳ Legacy, still on `public` schema, fully working — do not delete their code. Tasks/Insights tabs on the orders page compile against explicitly-marked legacy-compat stubs in `app/dashboard/orders/_context/`. `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
 
 ## Interim auth (until Clerk)
 
@@ -50,6 +68,11 @@ the `v2.create_order_as_org(p_org, p_user, payload)` SECURITY DEFINER shim
 (migration `20260710000000_…`), service_role-only; **drop the shim when Clerk
 lands** and call `create_order` with real JWT claims.
 
+**Hold stance (2026-07-12):** keep this interim for single-tenant Ivan work;
+do not start Clerk until multi-org / external users or until keys + user-id
+decision + third-party auth are unblocked. Full impact analysis:
+`docs/v2-migration/CLERK_HOLD_AUDIT.md`.
+
 ## Blocked / waiting on others
 
 - **Clerk integration (Layer 2)**: needs Clerk keys, the DB user-id decision
@@ -57,8 +80,13 @@ lands** and call `create_order` with real JWT claims.
 - **DB owner items** (flagged, not app work): trigger-based activity/audit log
   on orders/payments; tenant provisioning (new org must get counters +
   membership bootstrapped — `next_number` fails for orgs without seeded
-  counters); `validate_custom_data` search_path hardening; re-map the 3 seeded
-  `organization_members` rows when Clerk user ids exist.
+  counters, **including a `document:<document_type>` counter per type now
+  that `/api/documents` calls `next_number('document:invoice', ...)` etc. —
+  confirm this counter_key naming with the DB owner, it's an app-side
+  assumption, not a confirmed DB convention**); `validate_custom_data`
+  search_path hardening; re-map the 3 seeded `organization_members` rows when
+  Clerk user ids exist; `v2.issue_document()` RPC (blocked on credit-note +
+  partial-invoicing decisions — see orders-system-handoff.md §6/§12).
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 
@@ -66,8 +94,8 @@ Item add/edit/remove on existing orders; org settings editor (order statuses,
 currency → needs `PATCH /api/organization`); order detail editing (date,
 client, custom_data); searchable comboboxes for client/product pickers at
 scale; attachments; payment/note edit+delete; currency-aware `formatCurrency`;
-documents module (InvoiceSheet TODO on the orders page); order-page metrics on
-a v2 read layer.
+documents "issue" action + per-row quick-invoice sheet (both wait on
+`issue_document()`); order-page metrics on a v2 read layer.
 
 ## v2 value differences vs legacy (easy to trip on)
 

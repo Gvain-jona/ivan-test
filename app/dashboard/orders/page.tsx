@@ -105,8 +105,13 @@ const OrdersPageContent: React.FC = () => {
         title="Create New Order"
       />
 
-      {/* TODO(documents module): InvoiceSheet reconnects when
-          v2.documents + issue_document exist. */}
+      {/* Documents (quotations/invoices/receipts) are viewable and
+          creatable as drafts from the order view sheet's Documents tab
+          (see app/components/orders/order-view/OrderDocumentsTab.tsx).
+          TODO(documents module): the per-row "quick invoice" button
+          below (OrdersTab -> handleGenerateInvoice -> invoiceSheetOpen)
+          still has no sheet wired to it — reconnect once issue_document()
+          exists and there's a real "issue" action to trigger. */}
     </div>
   );
 };

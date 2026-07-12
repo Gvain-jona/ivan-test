@@ -1,0 +1,264 @@
+# Orders system — legacy attachment & cleanup plan
+
+**Date:** 2026-07-12  
+**Scope:** What legacy / dead code is still attached to the orders surface after the v2 cutover — what to delete, what to fix, what to leave alone.  
+**Companion docs:** `STATE.md` (module status), `DATA_LAYER_AUDIT.md` (graded data-path audit), `orders-system-handoff.md` (DB design).  
+**Update when:** unmounted tabs are deleted, the page façade is collapsed, or documents replace the legacy invoice feature on this page.
+
+---
+
+## Short answer
+
+The **core order data path is on v2**, but the **page shell is still a legacy façade**. Roughly **~4k LOC unmounted dead code** sits under orders, plus **~1.4k LOC still mounted but legacy-shaped**, and a separate **~5k LOC client-side invoice feature** still reachable from the page tree.
+
+| Bucket | Approx size | Live on `/dashboard/orders`? | Risk |
+|---|---|---|---|
+| **A. Pure dead / unmounted** | ~3.8k LOC | No | Bundle noise, confusion |
+| **B. Mounted but hollow (stubs)** | ~1.4k LOC + context façade | Yes | Looks real; no-ops or wrong data |
+| **C. Invoice feature (legacy PDF)** | ~4.9k LOC under `app/features/invoices` | Partially (Invoices tab / row buttons) | Wrong model vs v2 `documents` |
+| **D. Dual data path** | `hooks/useOrders.ts` + `@/types/orders` | Only via dead InsightsTab | Footgun if remounted |
+| **E. Live v2 core** | store + form + view sheet + `hooks/orders` | Yes | This is the real system |
+
+---
+
+## Live vs legacy paths
+
+### Keep — live v2 path
+
+```
+page → OrdersStoreContext → hooks/orders/useOrders
+     → OrderFormSheet / OrderViewSheet (order-view/*)
+     → /api/orders|clients|products|notes|documents
+```
+
+### Still in the gravity well — mounted legacy shell
+
+```
+page
+ ├─ OrdersTab
+ │    ├─ FilterDrawer          → apply calls no-op stub
+ │    └─ OrdersTableNew
+ │         └─ OrderActions → InvoiceSystem → features/invoices
+ │              + LegacyOrder cast
+ ├─ InvoicesTab               → filteredOrders always []
+ ├─ OrdersInvoiceSettingsProvider  → fetches invoice settings every visit
+ └─ useOrdersPage() façade    → ~25 legacy-compat stubs
+```
+
+### Unmounted but still in the tree
+
+- `InsightsTab` + `TasksTab` (+ analytics cards/charts)
+- `hooks/useOrders.ts` (only consumer is InsightsTab)
+- `OrderViewModal`, `OrderFilters`, `dynamic-page`, old header/filters
+- `OrderViewSheet.tsx.new`, thin re-exports, sample data (home may still import samples)
+
+---
+
+## Attachment diagram
+
+```
+                    ┌─────────────────────────────────────┐
+                    │  LIVE v2                            │
+                    │  Store → hooks/orders → /api/orders │
+                    │  FormSheet / ViewSheet / payments   │
+                    └──────────────┬──────────────────────┘
+                                   │
+                    ┌──────────────▼──────────────────────┐
+                    │  LEGACY FAÇADE (still mounted)      │
+                    │  useOrdersPage stubs                │
+                    │  FilterDrawer (no-op apply)         │
+                    │  InvoicesTab (always empty)         │
+                    │  Invoice settings provider          │
+                    │  OrderActions → features/invoices   │
+                    └──────────────┬──────────────────────┘
+                                   │
+                    ┌──────────────▼──────────────────────┐
+                    │  DEAD CLUSTER (not mounted)         │
+                    │  InsightsTab + useOrders (legacy)   │
+                    │  TasksTab, analytics cards          │
+                    │  OrderViewModal, dynamic-page, …    │
+                    └─────────────────────────────────────┘
+```
+
+**Share of “orders folder” still legacy-attached:** roughly half+ of `dashboard/orders` by LOC is dead or hollow. The mess is the **shell and satellite tabs**, not the v2 API/hooks.
+
+---
+
+## Fix now — live bugs / hollow UX
+
+These are **wired into the page today** and misbehave because of cutover stubs.
+
+| Issue | Where | What’s wrong | Fix |
+|---|---|---|---|
+| **Filter drawer is a no-op** | `OrdersTab` → `handleFilterChange` | Stub is `() => {}` while store has real `setFilters` | Map drawer fields → `OrderListFilters` (or replace drawer with v2 filters) |
+| **Invoices tab is always empty** | `InvoicesTab` uses `filteredOrders` | Context hardcodes `filteredOrders: []` | Remove tab **or** feed v2 orders / documents; do not keep empty UI |
+| **Invoice button opens nothing** | `handleGenerateInvoice` → `invoiceSheetOpen` | State flips; no sheet mounted (page TODO) | Wire to documents draft flow **or** remove button until `issue_document` |
+| **Duplicate order is a no-op** | `handleDuplicateOrder` stub | UI still exposes action | Implement (create from detail) **or** hide action |
+| **Pending badge always 0** | `stats.pendingOrders` stub | Badge on Orders tab | Compute from list/`total` or drop badge until metrics exist |
+| **Status update errors swallowed** | `OrdersStoreContext.updateOrderStatus` | `catch { return false }` | Surface toast (cancel path is better) |
+| **Payment status vocab mismatch** | InvoicesTab filters `partially_paid` | v2 uses `partial` | Use v2 values if tab stays |
+| **Edit = View** | `OrdersTab` `onEdit={handleViewOrder}` | No edit form | OK temporary; hide Edit or implement header PATCH |
+
+### Key façade file
+
+`app/dashboard/orders/_context/index.tsx` — `useOrdersPage()` intentionally stubs:
+
+- `filteredOrders: []`, `filteredTasks: []`
+- `stats: { … pendingOrders: 0 }`
+- `handleFilterChange`, `handleDuplicateOrder`, task handlers → no-ops
+- `handleGenerateInvoice` cast for legacy invoice consumers
+
+Real data/mutations live in `OrdersStoreContext` / `OrdersUIContext`; the façade is backward-compat for unmigrated tabs.
+
+---
+
+## Clean up — safe deletes / quarantines
+
+### Safe to delete (after one grep confirm; Insights/Tasks not on `page.tsx`)
+
+| Item | Notes |
+|---|---|
+| `app/dashboard/orders/_components/InsightsTab.tsx` | Unmounted; pulls **legacy** `useOrders` |
+| `TasksTab.tsx` | Unmounted (~700 LOC) |
+| `OrderAnalyticsCard`, `ClientPerformanceCard`, `AnalyticsBarChart` | Only Insights cluster |
+| `PendingInvoicesCard`, `PendingInvoicesPanel` | Not on current page |
+| `app/hooks/useOrders.ts` | After Insights gone — kills dual orders fetch path |
+| `app/hooks/useOrderAnalytics.ts` | If unused |
+| `OrderViewModal.tsx`, `OrderFilters.tsx` | Superseded by view sheet / FilterDrawer |
+| `OrderViewSheet.tsx.new` | Leftover |
+| `dynamic-page.tsx`, `OrdersHeader.tsx`, `OrdersFilters.tsx` | Alternate page shell |
+| `_data/sample-orders.ts` | Only after home stops importing samples |
+| `hooks/loading.ts` re-export of legacy `useOrders` | Update barrel when root hook is deleted |
+
+### Do not delete wholesale yet
+
+| Item | Why keep |
+|---|---|
+| `app/features/invoices/**` | Own module; still referenced; not the v2 documents module |
+| `app/types/orders.ts` | Until InvoicesTab / FilterDrawer / cache-keys stop using it |
+| `cache-keys` orders helpers | May still serve other legacy consumers |
+| v2 documents API / hooks | Real path; incomplete UI only |
+
+### Reshape — not delete, not full feature
+
+| Work | Goal |
+|---|---|
+| **Collapse `useOrdersPage` façade** | Drop legacy-compat stubs; tabs call store/UI directly |
+| **Drop or isolate `OrdersInvoiceSettingsProvider`** | Stops fetching invoice settings on every orders visit if sheet is dead |
+| **`OrderActions` / InvoiceSystem** | Remove legacy PDF button; optional “Create document” → `useDocuments` |
+| **FilterDrawer types** | Stop using `@/types/orders` / `OrderStatus`; align with v2 filter shape |
+| **`userRole: 'admin' as const`** | Hardcoded; wire real role later (not orders-data critical) |
+
+---
+
+## LOC inventory (approx, 2026-07-12)
+
+### Dead / unmounted cluster
+
+| Path | ~LOC |
+|---|---|
+| `app/hooks/useOrders.ts` | 147 |
+| `app/hooks/useOrderAnalytics.ts` | 87 |
+| `app/hooks/use-data.ts` | 187 |
+| `app/components/orders/OrderViewModal.tsx` | 411 |
+| `app/components/orders/OrderFilters.tsx` | 245 |
+| `app/dashboard/orders/dynamic-page.tsx` | 40 |
+| `app/dashboard/orders/OrdersFilters.tsx` | 54 |
+| `app/dashboard/orders/OrdersHeader.tsx` | 19 |
+| `app/dashboard/orders/_components/InsightsTab.tsx` | 370 |
+| `app/dashboard/orders/_components/TasksTab.tsx` | 711 |
+| `app/dashboard/orders/_components/PendingInvoicesCard.tsx` | 306 |
+| `app/dashboard/orders/_components/PendingInvoicesPanel.tsx` | 264 |
+| Analytics card/chart cluster under `_components/` | (with Insights) |
+| **Cluster total** | **~3.8k** |
+
+### Live but legacy-attached
+
+| Path | ~LOC |
+|---|---|
+| `InvoicesTab.tsx` | 540 |
+| `InvoiceSystem.tsx` | 70 |
+| `OrdersInvoiceSettingsContext.tsx` | (provider) |
+| `_context/index.tsx` façade | 107 |
+| `FilterDrawer.tsx` | (types from `@/types/orders`) |
+| `OrderActions.tsx` + legacy cast | — |
+| `app/types/orders.ts` | 153 |
+| **Attached total** | **~1.4k** |
+
+### Separate module (not delete with orders dead code)
+
+| Path | ~LOC |
+|---|---|
+| `app/features/invoices/**` | ~4.9k (26 files) |
+
+---
+
+## Cleanup sequence
+
+### Phase 1 — Delete unmounted dead (low risk)
+
+1. Remove Insights + Tasks + analytics cards/panels not imported by `page.tsx`.
+2. Delete `hooks/useOrders.ts` (and fix `hooks/loading.ts` barrel if it re-exports it).
+3. Delete `OrderViewModal`, `OrderFilters`, `dynamic-page`, header/filters orphans, `.new` files.
+4. Grep-confirm no remaining `@/hooks/useOrders` imports.
+
+**Outcome:** dual orders fetch path gone; less noise for the next session.
+
+### Phase 2 — Fix the live façade (high user impact)
+
+1. **Wire `handleFilterChange`** to `store.setFilters` (map status/date/payment), or delete FilterDrawer until rewritten.
+2. **Invoices tab:** remove from page **or** rebuild on `useOrders({ payment_status: 'unpaid,partial' })` + documents — empty tab is worse than no tab.
+3. **Invoice / duplicate / pending badge:** hide actions until real, or implement minimal paths.
+4. Stop loading **invoice settings** if nothing consumes a sheet.
+
+### Phase 3 — Cut invoice legacy off the order row
+
+1. Remove `InvoiceSystem` / `features/invoices` from `OrderActions`.
+2. Point “document” actions at v2 `useDocuments` (draft create already works in view sheet).
+3. Leave `features/invoices` in repo until documents PDF rendering exists (or archive via git only).
+
+### Phase 4 — Collapse context
+
+1. Replace `useOrdersPage` mega-object with thin hooks (`useOrdersStore` + `useOrdersUI`).
+2. Delete remaining stubs and `@/types/orders` usage on the orders page.
+3. Optional: move remaining page-local types next to store.
+
+---
+
+## What not to treat as “orders legacy”
+
+| Item | Why |
+|---|---|
+| `/api/orders` + `create_order_as_org` shim | Correct interim platform path |
+| `OrderFormSheet` / `order-view/*` | Already on platform hooks |
+| Expenses / materials / analytics APIs | Different modules; not orders cutover debt |
+| Missing item-edit on existing orders | Product gap, not dead code (see `STATE.md` backlog) |
+| Clerk / service-role tenancy | Platform-wide; see `DATA_LAYER_AUDIT.md` |
+
+---
+
+## Key files
+
+| Role | Path |
+|---|---|
+| Page entry | `app/dashboard/orders/page.tsx` |
+| Compat façade (stubs) | `app/dashboard/orders/_context/index.tsx` |
+| Live list store | `app/dashboard/orders/_context/OrdersStoreContext.tsx` |
+| Live UI actions | `app/dashboard/orders/_context/OrdersUIContext.tsx` |
+| Invoice settings (legacy) | `app/dashboard/orders/_context/OrdersInvoiceSettingsContext.tsx` |
+| Platform hooks | `app/hooks/orders/useOrders.ts` |
+| Legacy hook (delete Phase 1) | `app/hooks/useOrders.ts` |
+| Legacy types | `app/types/orders.ts` |
+| Legacy invoice module | `app/features/invoices/` |
+| v2 documents (replacement) | `app/hooks/documents/useDocuments.ts`, `/api/documents` |
+
+---
+
+## Bottom line
+
+- **Data path for orders: mostly clean.**
+- **Page integration: still ~30–50% legacy shell by surface area.**
+- **Biggest real bugs:** filter apply no-op, invoices tab empty, invoice button dead-end, duplicate no-op, always-zero badge.
+- **Biggest cleanup win:** delete unmounted Insights/Tasks/legacy `useOrders` + stop feeding the page through a stub façade.
+
+Track module-level status in `STATE.md`; use this file for the orders-specific cleanup checklist.

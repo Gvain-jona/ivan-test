@@ -107,6 +107,40 @@ export const listQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+export const documentEntitySchema = z.enum(['order', 'expense', 'client']);
+export const documentTypeSchema = z.enum(['quotation', 'proforma', 'invoice', 'receipt', 'po']);
+export const documentStatusSchema = z.enum([
+  'draft',
+  'sent',
+  'accepted',
+  'declined',
+  'expired',
+  'issued',
+  'void',
+]);
+
+export const documentCreateSchema = z.object({
+  entity_type: documentEntitySchema,
+  entity_id: z.string().uuid(),
+  document_type: documentTypeSchema,
+  snapshot: customData.optional(),
+  valid_until: isoDate.optional(),
+});
+
+/**
+ * status/snapshot only move forward while status is 'draft' — once a
+ * document reaches sent/accepted/issued, v2.protect_issued_documents
+ * rejects any snapshot change at the DB layer regardless of what this
+ * schema allows.
+ */
+export const documentUpdateSchema = z
+  .object({
+    status: documentStatusSchema.optional(),
+    snapshot: customData.optional(),
+    valid_until: isoDate.optional(),
+  })
+  .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' });
+
 export const noteCreateSchema = z.object({
   entity_type: z.enum(['order', 'client', 'product', 'expense', 'material_purchase']),
   entity_id: z.string().uuid(),

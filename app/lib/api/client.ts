@@ -13,6 +13,7 @@ export const PLATFORM_API = {
   ORDERS: '/api/orders',
   FIELD_DEFINITIONS: '/api/field-definitions',
   NOTES: '/api/notes',
+  DOCUMENTS: '/api/documents',
   ORGANIZATION: '/api/organization',
 } as const;
 
