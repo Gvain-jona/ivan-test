@@ -3,8 +3,8 @@
 
 export { useLoadingSWR, useFetch } from './useLoadingSWR';
 
-// Orders domain (legacy root hooks; the v2 order hooks live in ./orders/)
-export { useOrders, useOrder } from './useOrders';
+// Orders hooks live in ./orders/ (v2); the legacy root useOrders.ts was
+// deleted at cutover cleanup (docs/v2-migration/ORDERS_CLEANUP.md Phase 1).
 
 // Domain data hooks
 export { useDashboardStats } from './useDashboardStats';

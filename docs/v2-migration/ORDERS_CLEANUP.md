@@ -47,10 +47,10 @@ page
 
 ### Unmounted but still in the tree
 
-- `InsightsTab` + `TasksTab` (+ analytics cards/charts)
-- `hooks/useOrders.ts` (only consumer is InsightsTab)
-- `OrderViewModal`, `OrderFilters`, `dynamic-page`, old header/filters
-- `OrderViewSheet.tsx.new`, thin re-exports, sample data (home may still import samples)
+~~Deleted in Phase 1 (2026-07-13)~~ — Insights/Tasks tabs, analytics cards,
+legacy `hooks/useOrders.ts`, `OrderViewModal`, `OrderFilters`, `dynamic-page`,
+old header/filters. Still in tree: `_data/sample-orders.ts` (home still
+imports it) and `hooks/use-data.ts` (live consumer on the home dashboard).
 
 ---
 
@@ -195,14 +195,22 @@ Real data/mutations live in `OrdersStoreContext` / `OrdersUIContext`; the façad
 
 ## Cleanup sequence
 
-### Phase 1 — Delete unmounted dead (low risk)
+### Phase 1 — Delete unmounted dead (low risk) — ✅ DONE 2026-07-13
 
-1. Remove Insights + Tasks + analytics cards/panels not imported by `page.tsx`.
-2. Delete `hooks/useOrders.ts` (and fix `hooks/loading.ts` barrel if it re-exports it).
-3. Delete `OrderViewModal`, `OrderFilters`, `dynamic-page`, header/filters orphans, `.new` files.
-4. Grep-confirm no remaining `@/hooks/useOrders` imports.
+Executed after re-verifying every delete candidate had zero importers.
+Deleted: `InsightsTab`, `TasksTab`, `OrderAnalyticsCard`, `ClientPerformanceCard`,
+`AnalyticsBarChart`, `PendingInvoicesCard`, `PendingInvoicesPanel`,
+`hooks/useOrders.ts`, `hooks/useOrderAnalytics.ts`, `OrderViewModal`,
+`OrderFilters`, `dynamic-page`, `OrdersHeader`, `OrdersFilters`; removed the
+legacy `useOrders`/`useOrder` re-export from `hooks/loading.ts`. Grep confirms
+no `@/hooks/useOrders` imports remain — the dual orders fetch path is gone.
 
-**Outcome:** dual orders fetch path gone; less noise for the next session.
+Deviations from the original list:
+- `hooks/use-data.ts` **kept** — the inventory misfiled it as dead; it has a
+  live importer (`app/dashboard/home/DashboardStats.tsx` → `useDashboardStats`).
+- `_data/sample-orders.ts` **kept** — precondition unmet
+  (`app/dashboard/home/_data/home-data.ts` still imports `SAMPLE_ORDERS`).
+- `OrderViewSheet.tsx.new` was already gone before Phase 1 (stale entry).
 
 ### Phase 2 — Fix the live façade (high user impact)
 
