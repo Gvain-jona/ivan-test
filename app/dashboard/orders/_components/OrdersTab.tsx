@@ -1,115 +1,79 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import OrdersTable from '@/components/orders/OrdersTableNew';
-import type { OrderFilters as FilterTypes } from '../../../components/orders/FilterDrawer';
-import FilterDrawer from '../../../components/orders/FilterDrawer';
-import { useOrdersPage } from '../_context';
+import { useOrdersStore, useOrdersUI } from '../_context';
 import { useLoading } from '@/components/loading';
 import { OrdersTableSkeleton } from '@/components/ui/loading-states';
 
 /**
- * Tab content for the Orders tab in the Orders page
+ * Orders tab content. Filtering happens through the table's built-in
+ * quick filters (status / payment / date / search), wired straight to
+ * the store's OrderListFilters. The legacy FilterDrawer (public-schema
+ * fields, hardcoded status list) was deleted in cleanup Phase 2 — see
+ * docs/v2-migration/ORDERS_CLEANUP.md.
  */
 const OrdersTab: React.FC = () => {
-  const {
-    // Filtering
-    filters,
-    showFilters,
-    handleFilterChange,
-    handleSearch,
-    resetFilters,
-    searchTerm,
-    toggleFilters,
-
-    // Quick filters
-    selectedStatus,
-    selectedPaymentStatus,
-    selectedClientType,
-    dateRange,
-    handleStatusFilterChange,
-    handlePaymentStatusFilterChange,
-    handleClientTypeFilterChange,
-    handleDateRangeChange,
-
-    // Pagination
-    paginatedOrders,
-    currentPage,
-    totalPages,
-    totalCount,
-    handlePageChange,
-
-    // Loading
-    loading,
-    handleLoadMore,
-
-    // User role
-    userRole,
-
-    // Modal handlers
-    handleViewOrder,
-    handleDeleteOrder,
-    handleDuplicateOrder,
-    handleGenerateInvoice,
-    handleOrderStatusChange,
-    handleCreateOrder,
-  } = useOrdersPage();
-
+  const store = useOrdersStore();
+  const ui = useOrdersUI();
   const { loadingIds } = useLoading();
 
-  const isInitialLoading = (loading || loadingIds.has('orders')) && (!paginatedOrders || paginatedOrders.length === 0);
+  const { filters, setFilters } = store;
+
+  // v2 org roles are owner/admin/staff; table actions still take the
+  // legacy admin/manager/employee shape. Wire the real org role when
+  // role-based UI matters (ORDERS_CLEANUP.md reshape list).
+  const userRole = 'admin' as const;
+
+  const dateRange = useMemo<DateRange | undefined>(() => {
+    if (!filters.startDate && !filters.endDate) return undefined;
+    return {
+      from: filters.startDate ? new Date(filters.startDate) : undefined,
+      to: filters.endDate ? new Date(filters.endDate) : undefined,
+    };
+  }, [filters.startDate, filters.endDate]);
+
+  const isInitialLoading =
+    (store.isLoading || loadingIds.has('orders')) && store.orders.length === 0;
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Filter Drawer - Only render when it's open to prevent unnecessary API calls */}
-      {showFilters && (
-        <FilterDrawer
-          open={showFilters}
-          onOpenChange={toggleFilters}
-          onApplyFilters={(newFilters: FilterTypes) => {
-            handleFilterChange(newFilters);
-          }}
-          onResetFilters={resetFilters}
-          initialFilters={filters as FilterTypes}
-        />
-      )}
-
-      {/* Orders Table - Using flex-1 and min-h-0 to ensure proper scrolling */}
       <div className="flex-1 min-h-0">
         {isInitialLoading ? (
           <OrdersTableSkeleton rows={10} />
         ) : (
           <OrdersTable
-            orders={paginatedOrders || []}
-            totalCount={totalCount || 0}
+            orders={store.orders}
+            totalCount={store.totalCount}
             userRole={userRole}
-            onView={handleViewOrder}
-            onEdit={handleViewOrder}
-            onDelete={(order) => { handleDeleteOrder(order.id); }}
-            onDuplicate={handleDuplicateOrder}
-            onInvoice={handleGenerateInvoice}
-            onStatusChange={(order, status) => { handleOrderStatusChange(order.id, status); }}
-            onLoadMore={handleLoadMore}
-            loading={loading}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            onSearch={handleSearch}
-            onFilter={toggleFilters}
-            onExport={() => console.log('Export')}
-            onCreateOrder={handleCreateOrder}
-            searchTerm={searchTerm}
-
-            // Quick filters
-            selectedStatus={selectedStatus}
-            onStatusFilterChange={handleStatusFilterChange}
-            selectedPaymentStatus={selectedPaymentStatus}
-            onPaymentStatusFilterChange={handlePaymentStatusFilterChange}
-            selectedClientType={selectedClientType}
-            onClientTypeFilterChange={handleClientTypeFilterChange}
+            onView={ui.handleViewOrder}
+            onDelete={(order) => { ui.handleDeleteOrder(order.id); }}
+            onStatusChange={(order, status) => { ui.handleOrderStatusChange(order.id, status); }}
+            onLoadMore={store.refresh}
+            loading={store.isLoading}
+            currentPage={store.page}
+            totalPages={store.pageCount}
+            onPageChange={store.setPage}
+            onSearch={(term) => setFilters({ ...filters, search: term || undefined })}
+            searchTerm={filters.search ?? ''}
+            selectedStatus={filters.status ?? []}
+            onStatusFilterChange={(statuses) =>
+              setFilters({ ...filters, status: statuses.length ? statuses : undefined })
+            }
+            selectedPaymentStatus={filters.paymentStatus ?? []}
+            onPaymentStatusFilterChange={(statuses) =>
+              setFilters({ ...filters, paymentStatus: statuses.length ? statuses : undefined })
+            }
             dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
-            showFilters={showFilters}
+            onDateRangeChange={(range) =>
+              setFilters({
+                ...filters,
+                startDate: range?.from ? format(range.from, 'yyyy-MM-dd') : undefined,
+                endDate: range?.to ? format(range.to, 'yyyy-MM-dd') : undefined,
+              })
+            }
           />
         )}
       </div>

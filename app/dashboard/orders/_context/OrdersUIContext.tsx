@@ -8,18 +8,13 @@ import type { OrderSummary, OrderCreateInput } from '@/hooks/orders/useOrders';
 import { useOrdersStore } from './OrdersStoreContext';
 
 interface OrdersUIContextType {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   selectedOrder: OrderSummary | null;
   viewSheetOpen: boolean;
   createSheetOpen: boolean;
-  invoiceSheetOpen: boolean;
   setViewSheetOpen: (open: boolean) => void;
   setCreateSheetOpen: (open: boolean) => void;
-  setInvoiceSheetOpen: (open: boolean) => void;
   handleViewOrder: (order: OrderSummary) => void;
   handleCreateOrder: () => void;
-  handleGenerateInvoice: (order: OrderSummary) => Promise<void>;
   handleDeleteOrder: (orderId: string) => Promise<boolean>;
   handleOrderStatusChange: (orderId: string, status: string) => Promise<boolean>;
   handleSaveOrder: (input: OrderCreateInput) => Promise<{ success: boolean; error?: unknown }>;
@@ -32,11 +27,9 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
   const store = useOrdersStore();
   const { createOrder } = useOrderMutations();
 
-  const [activeTab, setActiveTab] = useState('orders');
   const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null);
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
-  const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false);
 
   const handleViewOrder = useCallback((order: OrderSummary) => {
     setSelectedOrder(order);
@@ -46,16 +39,6 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
   const handleCreateOrder = useCallback(() => {
     setSelectedOrder(null);
     setCreateSheetOpen(true);
-  }, []);
-
-  /**
-   * Invoicing waits on v2.documents + issue_document; the sheet is
-   * disconnected until that module migrates. State still tracks the
-   * intent so the button can show a "coming with documents" notice.
-   */
-  const handleGenerateInvoice = useCallback(async (order: OrderSummary) => {
-    setSelectedOrder(order);
-    setInvoiceSheetOpen(true);
   }, []);
 
   /** v2 never hard-deletes — routed to status 'cancelled'. */
@@ -71,9 +54,12 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const handleOrderStatusChange = useCallback(
     async (orderId: string, status: string): Promise<boolean> => {
-      return store.updateOrderStatus(orderId, status);
+      const ok = await store.updateOrderStatus(orderId, status);
+      if (ok) toast({ title: 'Order updated', description: `Status changed to ${status.replace(/_/g, ' ')}` });
+      else toast({ title: 'Error', description: 'Failed to update order status', variant: 'destructive' });
+      return ok;
     },
-    [store],
+    [store, toast],
   );
 
   const handleSaveOrder = useCallback(
@@ -99,18 +85,13 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
   return (
     <OrdersUIContext.Provider
       value={{
-        activeTab,
-        setActiveTab,
         selectedOrder,
         viewSheetOpen,
         createSheetOpen,
-        invoiceSheetOpen,
         setViewSheetOpen,
         setCreateSheetOpen,
-        setInvoiceSheetOpen,
         handleViewOrder,
         handleCreateOrder,
-        handleGenerateInvoice,
         handleDeleteOrder,
         handleOrderStatusChange,
         handleSaveOrder,

@@ -13,10 +13,7 @@ interface OrderRowProps {
   order: OrderSummary;
   userRole: 'admin' | 'manager' | 'employee';
   onView: (order: OrderSummary) => void;
-  onEdit: (order: OrderSummary) => void;
   onDelete: (order: OrderSummary) => void;
-  onDuplicate: (order: OrderSummary) => void;
-  onInvoice: (order: OrderSummary) => void;
   onStatusChange: (order: OrderSummary, status: string) => void;
   isHovered?: boolean;
   onMouseEnter?: () => void;
@@ -33,10 +30,7 @@ function OrderRow(props: OrderRowProps) {
     order,
     userRole,
     onView,
-    onEdit,
     onDelete,
-    onDuplicate,
-    onInvoice,
     onStatusChange,
     onMouseEnter,
     onMouseLeave,
@@ -189,11 +183,7 @@ function OrderRow(props: OrderRowProps) {
               order={order}
               userRole={userRole}
               onView={onView}
-              onEdit={onEdit}
               onDelete={async (o) => { onDelete(o); return true; }}
-              onDuplicate={onDuplicate}
-              onInvoice={onInvoice}
-              onStatusChange={onStatusChange}
             />
           </div>
         </td>

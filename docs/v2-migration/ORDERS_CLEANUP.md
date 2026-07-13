@@ -213,24 +213,45 @@ Deviations from the original list:
   `/dashboard` redirects to orders) and ran on sample data. See `STATE.md`
   module table.
 
-### Phase 2 — Fix the live façade (high user impact)
+### Phase 2 — Fix the live façade (high user impact) — ✅ DONE 2026-07-13
 
-1. **Wire `handleFilterChange`** to `store.setFilters` (map status/date/payment), or delete FilterDrawer until rewritten.
-2. **Invoices tab:** remove from page **or** rebuild on `useOrders({ payment_status: 'unpaid,partial' })` + documents — empty tab is worse than no tab.
-3. **Invoice / duplicate / pending badge:** hide actions until real, or implement minimal paths.
-4. Stop loading **invoice settings** if nothing consumes a sheet.
+Resolutions chosen (user stance: no dead weight, no hollow UI):
 
-### Phase 3 — Cut invoice legacy off the order row
+1. **Filtering**: the legacy FilterDrawer was **deleted** (its fields were
+   public-schema shapes; no v2 backend for most of them). The table's built-in
+   quick filters (status from `useOrganization()`, payment `paid/partial/
+   unpaid`, date range, search) are now wired straight to `store.setFilters`
+   — filtering actually works. The client-type quick filter was removed from
+   the table: the v2 orders API has no `client_type` param.
+2. **Invoices tab deleted** and the page's Tabs wrapper collapsed — the orders
+   page is a single view. The `partially_paid` vocab bug died with it.
+3. **Dead actions removed** from the row dropdown: Generate Invoice (opened
+   nothing), Duplicate (no-op), View/Edit (duplicated View). The pending
+   badge (always 0) went with the tab bar. Each returns when its real
+   implementation exists.
+4. **Invoice settings provider deleted** (`OrdersInvoiceSettingsContext`) —
+   nothing consumed a sheet; the orders page no longer fetches invoice
+   settings.
+5. **Status-change errors surfaced**: `handleOrderStatusChange` now toasts
+   success and failure (matches the cancel path).
 
-1. Remove `InvoiceSystem` / `features/invoices` from `OrderActions`.
-2. Point “document” actions at v2 `useDocuments` (draft create already works in view sheet).
-3. Leave `features/invoices` in repo until documents PDF rendering exists (or archive via git only).
+### Phase 3 — Cut invoice legacy off the order row — ✅ step 1+3 DONE 2026-07-13
 
-### Phase 4 — Collapse context
+1. ~~Remove `InvoiceSystem` / `features/invoices` from `OrderActions`~~ —
+   done in Phase 2 (InvoiceSystem.tsx deleted; OrderActions no longer imports
+   `@/types/orders`).
+2. Point “document” actions at v2 `useDocuments` — **not done**: drafts are
+   creatable from the view sheet's Documents tab; a per-row action waits on
+   `issue_document()`.
+3. `features/invoices` left in repo (unreferenced from the orders page now)
+   until documents PDF rendering exists.
 
-1. Replace `useOrdersPage` mega-object with thin hooks (`useOrdersStore` + `useOrdersUI`).
-2. Delete remaining stubs and `@/types/orders` usage on the orders page.
-3. Optional: move remaining page-local types next to store.
+### Phase 4 — Collapse context — ✅ DONE 2026-07-13 (came free with Phase 2)
+
+1. `useOrdersPage` mega-object deleted; consumers (`page.tsx`, `OrdersTab`)
+   use `useOrdersStore` + `useOrdersUI` directly.
+2. All stubs deleted; no `@/types/orders` usage remains on the orders page.
+3. Page-local types already live next to the store.
 
 ---
 
