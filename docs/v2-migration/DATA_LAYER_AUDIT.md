@@ -181,7 +181,13 @@ Ordered by impact on these grades, not UI:
    compile tests (`.delete()`, foreign `organization_id`, raw-client access,
    unscoped tables all rejected). RLS-backed enforcement still lands with
    Clerk; the interface is the swap point.
-3. **Contract tests** on the platform routes (auth, scope, validation, create_order, payment recompute). ← **next**
+3. ~~**Contract tests**~~ — ✅ DONE 2026-07-13: Vitest suite (48 tests) —
+   unit tests on the `TenantDb` wrapper + contract tests on every migrated
+   route (401 gate, validation, role gates, org-scoped flow, create_order
+   RPC payload, payment ownership + recompute, documents shim sequence).
+   Fake-TenantDb pattern + layer model in `test/README.md`; DB-integration
+   layer stays blocked on a v2 schema dump from the DB owner. ← next up:
+   item 4 (picker search) or 5 (cache invalidation)
 4. **Reference data at scale** — searchable clients/products (not hard `limit: 100`).
 5. **Targeted cache invalidation** — detail key + current list keys, not blanket `keysUnder(ORDERS)` forever.
 6. **Ship or hide documents** — `issue_document` path blocked on DB owner; draft create is exposed and labeled interim.

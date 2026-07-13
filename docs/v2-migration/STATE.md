@@ -42,7 +42,7 @@ For Clerk absence impact and hold-vs-now recommendation, see
 | Legacy code | Deleted at module cutover, rewound via git if needed. No parallel copies. |
 | API paths | Plain (`/api/orders`, `/api/clients`, …) — migrated routes replaced legacy in place. |
 | Activity log | **DB-side** (triggers), not app-side route logging — recommended to DB owner, deliberately not built in the app. |
-| Testing stance | No live tenant data dependency; mock up a trial/playground org when a test bed is needed. |
+| Testing stance | No live tenant data dependency; mock up a trial/playground org when a test bed is needed. **Since 2026-07-13 a Vitest suite is live** (`npm test`): unit tests on the `TenantDb` wrapper + route contract tests on all migrated routes against a fake tenant DB. Newly migrated modules add colocated `route.test.ts` files in the same PR — pattern in `test/README.md`. DB-integration tests blocked on a v2 schema dump (DB owner). |
 | Scope discipline | Quality over quantity — ship the load-bearing pieces, park the rest as explicit follow-ups (below), don't half-build. |
 
 ## Module status
@@ -92,7 +92,9 @@ decision + third-party auth are unblocked. Full impact analysis:
   assumption, not a confirmed DB convention**); `validate_custom_data`
   search_path hardening; re-map the 3 seeded `organization_members` rows when
   Clerk user ids exist; `v2.issue_document()` RPC (blocked on credit-note +
-  partial-invoicing decisions — see orders-system-handoff.md §6/§12).
+  partial-invoicing decisions — see orders-system-handoff.md §6/§12); a `v2`
+  schema dump (or migration mirror) so DB-integration tests can run against
+  local Supabase (see `test/README.md` layer 3).
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

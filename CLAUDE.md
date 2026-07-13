@@ -40,7 +40,7 @@ npm run dev:cloud        # env:cloud + dev
 npm run ui:add <name>    # Add a Shadcn component, e.g. npm run ui:add dialog
 ```
 
-There is **no automated test suite**. `npm test` is a no-op (`echo "No tests specified"`). No jest/vitest/playwright config exists anywhere in the repo. `tests/javascript/*.js` and `tests/powershell/*.ps1` are one-off manual debug/seed scripts, not CI-run tests — don't assume changes are covered by them. Validate changes with `npx tsc --noEmit`, `npm run lint`, and manual exercise of the feature.
+**Tests exist (Vitest) — `npm test` runs them.** The suite covers the v2 platform slice: unit tests for the `TenantDb` scoping wrapper and route contract tests for every migrated API route (auth gate, validation, role gates, org-scoped data flow) via a fake tenant DB — see `test/README.md` for the layer model and the pattern every newly migrated module must copy (its routes get a colocated `route.test.ts` in the same PR). Type-level tenancy enforcement lives in `test/types/tenant-scoping.ts` (`@ts-expect-error` assertions run by `tsc --noEmit`/`next build`, not Vitest). There is no DB-integration or browser layer yet (v2 schema isn't locally reproducible; blocked on a DB-owner schema dump). `tests/javascript/*.js` and `tests/powershell/*.ps1` are unrelated one-off manual scripts, not part of the suite. Validate changes with `npm test`, `npx tsc --noEmit`, `npm run lint`, and manual exercise of the feature.
 
 ## Project Structure
 
