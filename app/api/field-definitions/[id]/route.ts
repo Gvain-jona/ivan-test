@@ -42,7 +42,6 @@ export async function PATCH(
       .from('field_definitions')
       .update(parsed.data)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .select(FIELD_COLUMNS)
       .maybeSingle();
 

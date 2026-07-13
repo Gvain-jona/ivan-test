@@ -32,7 +32,6 @@ export async function GET(
       .from('orders')
       .select(ORDER_DETAIL_COLUMNS)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .maybeSingle();
 
     if (error) return handleSupabaseError(error);
@@ -41,7 +40,6 @@ export async function GET(
     const { data: payments, error: paymentsError } = await tenant.db
       .from('payments')
       .select('id, amount, payment_date, payment_method, notes, created_at')
-      .eq('organization_id', tenant.organizationId)
       .eq('entity_type', 'order')
       .eq('entity_id', id)
       .order('payment_date', { ascending: false });
@@ -78,7 +76,6 @@ export async function PATCH(
       .from('orders')
       .update(parsed.data)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .select(
         'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
           'balance, payment_status, custom_data, updated_at',

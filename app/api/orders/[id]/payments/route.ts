@@ -30,13 +30,14 @@ export async function POST(
       return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
-    // Ownership check before writing: the admin client bypasses RLS,
-    // so cross-tenant ids must be rejected here.
+    // Ownership check before writing: the scoped select proves this
+    // order id belongs to the caller's org — without it, a foreign id
+    // would create a payment whose trigger recomputes another org's
+    // order totals.
     const { data: order, error: orderError } = await tenant.db
       .from('orders')
       .select('id')
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .maybeSingle();
     if (orderError) return handleSupabaseError(orderError);
     if (!order) return handleApiError('NOT_FOUND', 'Order not found');
@@ -44,7 +45,6 @@ export async function POST(
     const { data: payment, error } = await tenant.db
       .from('payments')
       .insert({
-        organization_id: tenant.organizationId,
         entity_type: 'order',
         entity_id: id,
         amount: parsed.data.amount,
@@ -61,7 +61,6 @@ export async function POST(
       .from('orders')
       .select('id, total_amount, amount_paid, balance, payment_status')
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .single();
     if (refetchError) return handleSupabaseError(refetchError);
 

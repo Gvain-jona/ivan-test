@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     let query = tenant.db
       .from('field_definitions')
       .select(FIELD_COLUMNS)
-      .eq('organization_id', tenant.organizationId)
       .order('sort_order')
       .order('field_label');
 
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await tenant.db
       .from('field_definitions')
-      .insert({ ...parsed.data, organization_id: tenant.organizationId })
+      .insert(parsed.data)
       .select(FIELD_COLUMNS)
       .single();
 

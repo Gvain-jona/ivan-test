@@ -18,9 +18,8 @@ export async function GET() {
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
     const { data, error } = await tenant.db
-      .from('organizations')
+      .organization()
       .select('id, name, slug, status, settings')
-      .eq('id', tenant.organizationId)
       .single();
 
     if (error) return handleSupabaseError(error);

@@ -26,7 +26,6 @@ export async function GET(
       .from('documents')
       .select(DOCUMENT_COLUMNS)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .maybeSingle();
 
     if (error) return handleSupabaseError(error);
@@ -64,7 +63,6 @@ export async function PATCH(
       .from('documents')
       .update(parsed.data)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .select(DOCUMENT_COLUMNS)
       .maybeSingle();
 

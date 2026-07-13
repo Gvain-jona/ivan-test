@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await tenant.db
       .from('documents')
       .select(DOCUMENT_COLUMNS)
-      .eq('organization_id', tenant.organizationId)
       .eq('entity_type', entityType)
       .eq('entity_id', entityId)
       .order('created_at', { ascending: false });
@@ -77,7 +76,6 @@ export async function POST(request: NextRequest) {
       .insert({
         ...parsed.data,
         document_number: documentNumber,
-        organization_id: tenant.organizationId,
         created_by: tenant.userId,
         status: 'draft',
         snapshot: (parsed.data.snapshot ?? {}) as Json,

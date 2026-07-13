@@ -171,12 +171,20 @@ There is no automated test suite. For money + multi-tenant, production grade usu
 
 Ordered by impact on these grades, not UI:
 
-1. **Delete or quarantine legacy order fetchers** — one orders path only; kill InsightsTab / `useData` bleed into orders.
-2. **Structural tenancy** — RLS + user-scoped client, or a data-access helper that cannot query without `organizationId`.
-3. **Contract tests** on the platform routes (auth, scope, validation, create_order, payment recompute).
+1. ~~**Delete or quarantine legacy order fetchers**~~ — ✅ DONE 2026-07-13
+   (orders cleanup Phases 1–4: legacy `useOrders`/`useData` bleed gone, one
+   orders path only).
+2. ~~**Structural tenancy**~~ — ✅ DONE 2026-07-13 (interim form): `tenant.db`
+   is now a scoped `TenantDb` accessor, not the raw service-role client —
+   selects/updates auto-scope to `organization_id`, inserts inject it, no
+   hard delete, raw client never leaves `tenant.ts`. Verified with negative
+   compile tests (`.delete()`, foreign `organization_id`, raw-client access,
+   unscoped tables all rejected). RLS-backed enforcement still lands with
+   Clerk; the interface is the swap point.
+3. **Contract tests** on the platform routes (auth, scope, validation, create_order, payment recompute). ← **next**
 4. **Reference data at scale** — searchable clients/products (not hard `limit: 100`).
 5. **Targeted cache invalidation** — detail key + current list keys, not blanket `keysUnder(ORDERS)` forever.
-6. **Ship or hide documents** — finish `issue_document` path or do not expose half-wired create as final.
+6. **Ship or hide documents** — `issue_document` path blocked on DB owner; draft create is exposed and labeled interim.
 
 Doing 1–3 moves the v2 slice toward **A− design / B+ production**.
 

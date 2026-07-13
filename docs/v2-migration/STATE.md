@@ -61,10 +61,15 @@ For Clerk absence impact and hold-vs-now recommendation, see
 
 Identity comes from the existing Supabase-Auth session; `resolveTenant()` in
 `app/lib/auth/tenant.ts` maps it to an org via `organization_members` and
-returns a **service-role** client plus `{ userId, organizationId, orgRole }`.
-Every migrated route filters by `organizationId` explicitly — the service-role
-client bypasses RLS, so that explicit scoping is the tenant boundary right now.
-`resolveTenant()` is the single Clerk swap point. Order creation goes through
+returns `{ userId, organizationId, orgRole, db }`. **Since 2026-07-13, `db` is
+a scoped accessor (`TenantDb`), not the raw service-role client**: selects and
+updates auto-append the `organization_id` filter, inserts inject it (the type
+rejects a caller-supplied one), hard `delete` isn't exposed (v2 archives via
+status), and `organizations` reads go through `db.organization()`. Routes can
+no longer forget the org filter — the boundary is by construction, not by
+convention. The raw client never leaves `tenant.ts`. `resolveTenant()` is the
+single Clerk swap point; when Clerk + RLS land, `TenantDb` gets backed by the
+RLS client and the interface holds. Order creation goes through
 the `v2.create_order_as_org(p_org, p_user, payload)` SECURITY DEFINER shim
 (migration `20260710000000_…`), service_role-only; **drop the shim when Clerk
 lands** and call `create_order` with real JWT claims.

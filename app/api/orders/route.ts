@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
     let query = tenant.db
       .from('orders')
       .select(ORDER_LIST_COLUMNS, { count: 'exact' })
-      .eq('organization_id', tenant.organizationId)
       .order('order_date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(paging.offset, paging.offset + paging.limit - 1);
@@ -92,7 +91,6 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .select(`${ORDER_LIST_COLUMNS}, order_items(*)`)
       .eq('id', orderId)
-      .eq('organization_id', tenant.organizationId)
       .single();
     if (fetchError) return handleSupabaseError(fetchError);
 

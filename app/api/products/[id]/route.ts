@@ -28,7 +28,6 @@ export async function GET(
       .from('products')
       .select(PRODUCT_COLUMNS)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .maybeSingle();
 
     if (error) return handleSupabaseError(error);
@@ -62,7 +61,6 @@ export async function PATCH(
       .from('products')
       .update(parsed.data)
       .eq('id', id)
-      .eq('organization_id', tenant.organizationId)
       .select(PRODUCT_COLUMNS)
       .maybeSingle();
 

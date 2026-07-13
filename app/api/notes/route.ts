@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
     const { data, error } = await tenant.db
       .from('notes')
       .select(NOTE_COLUMNS)
-      .eq('organization_id', tenant.organizationId)
       .eq('entity_type', entityType)
       .eq('entity_id', entityId)
       .order('created_at', { ascending: false });
@@ -58,7 +57,6 @@ export async function POST(request: NextRequest) {
       .from('notes')
       .insert({
         ...parsed.data,
-        organization_id: tenant.organizationId,
         created_by: tenant.userId,
       })
       .select(NOTE_COLUMNS)

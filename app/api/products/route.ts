@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
     let query = tenant.db
       .from('products')
       .select(PRODUCT_COLUMNS, { count: 'exact' })
-      .eq('organization_id', tenant.organizationId)
       .order('name')
       .range(paging.offset, paging.offset + paging.limit - 1);
 
@@ -64,7 +63,6 @@ export async function POST(request: NextRequest) {
       .from('products')
       .insert({
         ...parsed.data,
-        organization_id: tenant.organizationId,
         created_by: tenant.userId,
       })
       .select(PRODUCT_COLUMNS)
