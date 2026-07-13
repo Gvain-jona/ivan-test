@@ -132,8 +132,13 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
         }
 
         // Instead of automatically using window.location (which causes a full page reload),
-        // we set an error state that allows the user to choose what to do
-        setNavigationError(new Error(`Failed to navigate to ${path}`));
+        // we set an error state that allows the user to choose what to do.
+        // Production-only: in dev, Turbopack on-demand compilation of large routes routinely
+        // exceeds this timeout, producing a false "navigation failed" error. Production routes
+        // are pre-compiled, so a real timeout there signals an actual failure worth surfacing.
+        if (process.env.NODE_ENV === 'production') {
+          setNavigationError(new Error(`Failed to navigate to ${path}`));
+        }
 
         // Keep isNavigating true so the user knows we're still trying
         // The NavigationError component will provide options to retry or use direct navigation

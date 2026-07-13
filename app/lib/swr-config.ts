@@ -14,8 +14,9 @@ export type DataFetchType = 'list' | 'detail' | 'dropdown' | 'dashboard' | 'invo
  * Global SWR configuration constants
  * These values are used across the application to ensure consistent caching behavior
  *
- * IMPORTANT: All deduping intervals have been standardized to at least 30 minutes
- * to prevent excessive API calls and improve application performance.
+ * Per-type deduping intervals are tuned individually (fresher data for metrics/lists, longer
+ * for dropdowns/invoices). MIN_DEDUPE is a low safety floor that only blocks pathologically
+ * small intervals — it must stay at or below the smallest interval any hook legitimately uses.
  */
 export const SWR_CACHE_TIMES = {
   // How long to dedupe identical requests (ms)
@@ -27,8 +28,9 @@ export const SWR_CACHE_TIMES = {
   STATS_DEDUPE: 30 * 60 * 1000,     // 30 minutes for stats data
   RECURRING_DEDUPE: 30 * 60 * 1000, // 30 minutes for recurring data
 
-  // Minimum deduping interval for any data type
-  MIN_DEDUPE: 15 * 60 * 1000,      // 15 minutes minimum for any data type
+  // Minimum deduping interval for any data type (low floor: blocks only pathologically
+  // small values; must stay <= the smallest interval any hook intentionally requests, e.g. 60s)
+  MIN_DEDUPE: 60 * 1000,           // 60 seconds minimum for any data type
 
   // How long to keep data in memory cache (ms)
   MEMORY_TTL: 60 * 60 * 1000,      // 60 minutes
@@ -237,10 +239,12 @@ export function createSWRConfig(
   // Enforce minimum deduping interval to prevent excessive API calls
   if (combinedConfig.dedupingInterval !== undefined &&
       combinedConfig.dedupingInterval < SWR_CACHE_TIMES.MIN_DEDUPE) {
-    console.warn(
-      `Warning: dedupingInterval of ${combinedConfig.dedupingInterval}ms is below the minimum of ${SWR_CACHE_TIMES.MIN_DEDUPE}ms. ` +
-      `Using minimum value instead to prevent excessive API calls.`
-    );
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `Warning: dedupingInterval of ${combinedConfig.dedupingInterval}ms is below the minimum of ${SWR_CACHE_TIMES.MIN_DEDUPE}ms. ` +
+        `Using minimum value instead to prevent excessive API calls.`
+      );
+    }
     combinedConfig.dedupingInterval = SWR_CACHE_TIMES.MIN_DEDUPE;
   }
 
