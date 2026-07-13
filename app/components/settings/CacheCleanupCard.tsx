@@ -20,11 +20,13 @@ import {
   ShoppingCart,
   AlertCircle
 } from 'lucide-react';
+import type { 
+  CleanupTarget 
+} from '@/app/lib/cleanup-utils';
 import { 
   getStorageSummary, 
   formatBytes, 
-  performCleanup, 
-  CleanupTarget 
+  performCleanup 
 } from '@/app/lib/cleanup-utils';
 import { toast } from '@/components/ui/use-toast';
 import { Progress } from '@/components/ui/progress';

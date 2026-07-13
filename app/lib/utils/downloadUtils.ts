@@ -1,7 +1,7 @@
 /**
  * Utility functions for downloading files
  */
-import { Order } from '@/types/orders';
+import type { Order } from '@/types/orders';
 
 /**
  * Downloads a file from a URL with a custom filename

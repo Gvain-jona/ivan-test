@@ -8,7 +8,7 @@ import { Calendar, Package, DollarSign, Tag, User, RefreshCw } from 'lucide-reac
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { calculateNextOccurrence } from '@/lib/utils/date-utils';
 import { toast } from 'sonner';
-import { Expense, ExpensePayment, ExpenseNote } from '@/hooks/expenses';
+import type { Expense, ExpensePayment, ExpenseNote } from '@/hooks/expenses';
 import { ExpenseViewHeader } from './ExpenseViewHeader';
 import { StatusBadge, CategoryBadge } from '../shared';
 

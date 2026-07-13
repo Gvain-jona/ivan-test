@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Control, useWatch } from 'react-hook-form';
+import type { Control} from 'react-hook-form';
+import { useWatch } from 'react-hook-form';
 import {
   FormField,
   FormItem,
@@ -337,10 +338,11 @@ export function ExpenseFormRecurrence({ control, isRecurring }: ExpenseFormRecur
         summary += `daily${time ? ` at ${time}` : ''}`;
         break;
 
-      case 'weekly':
+      case 'weekly': {
         const dayName = DAYS_OF_WEEK.find(d => parseInt(d.value) === dayOfWeek)?.label || '';
         summary += `weekly on ${dayName || 'the selected day'}`;
         break;
+      }
 
       case 'monthly':
         // Using the monthlyRecurrenceType from the top-level hooks

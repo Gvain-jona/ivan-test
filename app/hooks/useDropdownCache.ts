@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { create } from 'zustand';
-import { fetchDropdownOptions, EntityType } from '../actions/options';
-import { SmartComboboxOption } from '@/components/ui/smart-combobox';
+import type { EntityType } from '../actions/options';
+import { fetchDropdownOptions } from '../actions/options';
+import type { SmartComboboxOption } from '@/components/ui/smart-combobox';
 
 // Define the cache store structure
 interface DropdownCacheState {

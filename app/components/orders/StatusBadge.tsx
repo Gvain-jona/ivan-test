@@ -1,16 +1,15 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { OrderStatus } from '@/types/orders';
 import { CheckCircle, Clock, PauseCircle, Truck, AlertCircle, ArrowRightCircle, ChevronDown, Loader2 } from 'lucide-react';
 
 interface StatusBadgeProps {
-  status: OrderStatus;
+  status: string;
   size?: 'sm' | 'md' | 'lg';
   onClick?: (e: React.MouseEvent) => void;
   showDropdownIndicator?: boolean;
   className?: string;
   isLoading?: boolean;
-  loadingStatus?: OrderStatus | null;
+  loadingStatus?: string | null;
 }
 
 function StatusBadge({ status, size = 'md', onClick, showDropdownIndicator = false, className: propClassName, isLoading = false, loadingStatus = null }: StatusBadgeProps) {

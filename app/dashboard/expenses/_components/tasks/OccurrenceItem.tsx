@@ -6,7 +6,7 @@ import { CircleCheck, Circle, X, Pencil, Loader2, Calendar, Check, Receipt } fro
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { OccurrenceStatus, RecurringExpense, RecurringExpenseOccurrence } from './types';
+import type { OccurrenceStatus, RecurringExpense, RecurringExpenseOccurrence } from './types';
 
 interface OccurrenceItemProps {
   occurrence: RecurringExpenseOccurrence;

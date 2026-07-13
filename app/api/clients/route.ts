@@ -1,47 +1,76 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import type { NextRequest } from 'next/server';
+import { resolveTenant } from '@/lib/auth/tenant';
+import {
+  handleApiError,
+  handleSupabaseError,
+  handleUnexpectedError,
+} from '@/lib/api/error-handler';
+import { clientCreateSchema, listQuerySchema } from '@/lib/api/validators';
+
+const CLIENT_COLUMNS = 'id, name, status, custom_data, created_at, updated_at';
 
 /**
- * GET /api/clients
- * Returns a list of clients for dropdowns
+ * GET /api/clients — list clients for the caller's org.
+ * Query: status (default 'active'), search (name ilike), limit, offset.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Create Supabase client
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Fetch clients
-    const { data, error } = await supabase
+    const params = request.nextUrl.searchParams;
+    const paging = listQuerySchema.parse({
+      limit: params.get('limit') ?? undefined,
+      offset: params.get('offset') ?? undefined,
+    });
+    const status = params.get('status') ?? 'active';
+    const search = params.get('search');
+
+    let query = tenant.db
       .from('clients')
-      .select('id, name')
-      .order('name');
-    
-    if (error) {
-      console.error('Error fetching clients:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch clients' },
-        { status: 500 }
-      );
-    }
-    
-    // Transform data for combobox format
-    const clients = data.map(client => ({
-      value: client.id,
-      label: client.name
-    }));
-    
-    // Create response with cache headers
-    const response = NextResponse.json(clients);
-    response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=120, stale-while-revalidate=600');
-    
-    return response;
+      .select(CLIENT_COLUMNS, { count: 'exact' })
+      .order('name')
+      .range(paging.offset, paging.offset + paging.limit - 1);
+
+    if (status !== 'all') query = query.eq('status', status);
+    if (search) query = query.ilike('name', `%${search}%`);
+
+    const { data, error, count } = await query;
+    if (error) return handleSupabaseError(error);
+
+    return NextResponse.json({ clients: data, total: count ?? 0 });
   } catch (error) {
-    console.error('Unexpected error in GET /api/clients:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error);
+  }
+}
+
+/**
+ * POST /api/clients — create a client in the caller's org.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
+    const parsed = clientCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
+    }
+
+    const { data, error } = await tenant.db
+      .from('clients')
+      .insert({
+        ...parsed.data,
+        created_by: tenant.userId,
+      })
+      .select(CLIENT_COLUMNS)
+      .single();
+
+    if (error) return handleSupabaseError(error);
+
+    return NextResponse.json({ client: data }, { status: 201 });
+  } catch (error) {
+    return handleUnexpectedError(error);
   }
 }

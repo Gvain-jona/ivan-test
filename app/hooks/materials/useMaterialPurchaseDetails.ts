@@ -9,7 +9,7 @@ import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { toast } from 'sonner';
 import { createMaterialSWRConfig } from './swr-config';
-import {
+import type {
   MaterialPayment,
   MaterialNote,
   MaterialInstallment,

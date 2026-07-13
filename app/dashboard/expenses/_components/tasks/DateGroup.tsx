@@ -5,7 +5,7 @@ import { format, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { OccurrenceItem } from './OccurrenceItem';
-import { RecurringExpenseOccurrence } from './types';
+import type { RecurringExpenseOccurrence } from './types';
 
 interface DateGroupProps {
   dateKey: string;

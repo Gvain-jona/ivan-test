@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { StatusBadge } from './StatusBadge';
 import { MaterialPurchaseActions } from './MaterialPurchaseActions';

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Save, Package, DollarSign, User } from 'lucide-react';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { useMaterialPurchaseView } from './context/MaterialPurchaseViewContext';
 import { BottomOverlayForm } from './BottomOverlayForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';

@@ -14,12 +14,12 @@ type OrderStatus =
   | undefined;
 
 interface StatusBadgeProps {
-  status: OrderStatus;
+  status: string;
   className?: string;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) => {
-  const getStatusConfig = (status: OrderStatus) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
       case 'paused':
         return {

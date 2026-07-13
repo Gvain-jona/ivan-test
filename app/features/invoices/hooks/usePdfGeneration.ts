@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Order } from '@/types/orders';
-import { PdfGenerationOptions } from '../types';
+import type { Order } from '@/types/orders';
+import type { PdfGenerationOptions } from '../types';
 import { downloadPdf } from '../utils/pdfGenerator';
 import { useToast } from '@/components/ui/use-toast';
 

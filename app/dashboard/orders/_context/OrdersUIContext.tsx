@@ -1,27 +1,23 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useState, useCallback } from 'react';
-import { Order, OrderStatus } from '@/types/orders';
+import type { ReactNode} from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
+import { useOrderMutations } from '@/hooks/orders/useOrders';
+import type { OrderSummary, OrderCreateInput } from '@/hooks/orders/useOrders';
 import { useOrdersStore } from './OrdersStoreContext';
 
 interface OrdersUIContextType {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  selectedOrder: Order | null;
+  selectedOrder: OrderSummary | null;
   viewSheetOpen: boolean;
   createSheetOpen: boolean;
-  invoiceSheetOpen: boolean;
   setViewSheetOpen: (open: boolean) => void;
   setCreateSheetOpen: (open: boolean) => void;
-  setInvoiceSheetOpen: (open: boolean) => void;
-  handleViewOrder: (order: Order) => void;
+  handleViewOrder: (order: OrderSummary) => void;
   handleCreateOrder: () => void;
-  handleGenerateInvoice: (order: Order) => Promise<void>;
   handleDeleteOrder: (orderId: string) => Promise<boolean>;
-  handleOrderStatusChange: (orderId: string, status: OrderStatus) => Promise<boolean>;
-  handleSaveOrder: (order: Order) => Promise<{ success: boolean; data?: unknown; error?: unknown }>;
-  handleInlineEdit: (order: Order) => Promise<{ success: boolean; data?: unknown; error?: unknown }>;
+  handleOrderStatusChange: (orderId: string, status: string) => Promise<boolean>;
+  handleSaveOrder: (input: OrderCreateInput) => Promise<{ success: boolean; error?: unknown }>;
 }
 
 const OrdersUIContext = createContext<OrdersUIContextType | undefined>(undefined);
@@ -29,14 +25,13 @@ const OrdersUIContext = createContext<OrdersUIContextType | undefined>(undefined
 export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
   const store = useOrdersStore();
+  const { createOrder } = useOrderMutations();
 
-  const [activeTab, setActiveTab] = useState('orders');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null);
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
-  const [invoiceSheetOpen, setInvoiceSheetOpen] = useState(false);
 
-  const handleViewOrder = useCallback((order: Order) => {
+  const handleViewOrder = useCallback((order: OrderSummary) => {
     setSelectedOrder(order);
     setViewSheetOpen(true);
   }, []);
@@ -46,92 +41,60 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
     setCreateSheetOpen(true);
   }, []);
 
-  const handleGenerateInvoice = useCallback(async (order: Order) => {
-    setSelectedOrder(order);
-    setInvoiceSheetOpen(true);
-    if (!order.invoice_generated_at) {
+  /** v2 never hard-deletes — routed to status 'cancelled'. */
+  const handleDeleteOrder = useCallback(
+    async (orderId: string): Promise<boolean> => {
+      const ok = await store.cancelOrder(orderId);
+      if (ok) toast({ title: 'Order cancelled' });
+      else toast({ title: 'Error', description: 'Failed to cancel order', variant: 'destructive' });
+      return ok;
+    },
+    [store, toast],
+  );
+
+  const handleOrderStatusChange = useCallback(
+    async (orderId: string, status: string): Promise<boolean> => {
+      const ok = await store.updateOrderStatus(orderId, status);
+      if (ok) toast({ title: 'Order updated', description: `Status changed to ${status.replace(/_/g, ' ')}` });
+      else toast({ title: 'Error', description: 'Failed to update order status', variant: 'destructive' });
+      return ok;
+    },
+    [store, toast],
+  );
+
+  const handleSaveOrder = useCallback(
+    async (input: OrderCreateInput): Promise<{ success: boolean; error?: unknown }> => {
       try {
-        await fetch(`/api/orders/${order.id}/invoice-timestamp`, { method: 'PUT' });
-      } catch {
-        // Non-blocking
+        await createOrder(input);
+        toast({ title: 'Order Created', description: 'New order has been created' });
+        setCreateSheetOpen(false);
+        await store.refresh();
+        return { success: true };
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to save order',
+          variant: 'destructive',
+        });
+        return { success: false, error };
       }
-    }
-  }, []);
-
-  const handleDeleteOrder = useCallback(async (orderId: string): Promise<boolean> => {
-    return store.deleteOrder(orderId);
-  }, [store]);
-
-  const handleOrderStatusChange = useCallback(async (orderId: string, status: OrderStatus): Promise<boolean> => {
-    return store.updateOrderStatus(orderId, status);
-  }, [store]);
-
-  const handleSaveOrder = useCallback(async (order: Order): Promise<{ success: boolean; data?: unknown; error?: unknown }> => {
-    try {
-      const res = await fetch('/api/orders', {
-        method: order.id ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(order),
-      });
-      if (!res.ok) throw new Error(`Failed to ${order.id ? 'update' : 'create'} order`);
-      const data = await res.json();
-      toast({
-        title: order.id ? 'Order Updated' : 'Order Created',
-        description: order.id ? `Order has been updated` : 'New order has been created',
-      });
-      setCreateSheetOpen(false);
-      await store.refresh();
-      return { success: true, data };
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save order', variant: 'destructive' });
-      return { success: false, error };
-    }
-  }, [store, toast]);
-
-  const handleInlineEdit = useCallback(async (order: Order): Promise<{ success: boolean; data?: unknown; error?: unknown }> => {
-    try {
-      const res = await fetch(`/api/orders/${order.id}/inline-edit`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: order.items, payments: order.payments, notes: order.notes }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error?.message ?? `Failed to update order (${res.status})`);
-      }
-      const data = await res.json();
-      if (data.order) setSelectedOrder(data.order);
-      await store.refresh();
-      return { success: true, data };
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update order',
-        variant: 'destructive',
-      });
-      return { success: false, error };
-    }
-  }, [store, toast]);
+    },
+    [createOrder, store, toast],
+  );
 
   return (
     <OrdersUIContext.Provider
       value={{
-        activeTab,
-        setActiveTab,
         selectedOrder,
         viewSheetOpen,
         createSheetOpen,
-        invoiceSheetOpen,
         setViewSheetOpen,
         setCreateSheetOpen,
-        setInvoiceSheetOpen,
         handleViewOrder,
         handleCreateOrder,
-        handleGenerateInvoice,
         handleDeleteOrder,
         handleOrderStatusChange,
         handleSaveOrder,
-        handleInlineEdit,
       }}
     >
       {children}

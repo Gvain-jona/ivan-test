@@ -5,7 +5,7 @@ import {
   Sheet,
   SheetContent,
 } from '@/components/ui/sheet';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { useMaterialPurchaseDetails } from '@/hooks/materials/useMaterialPurchases';
 import { MaterialPurchaseViewContext } from './context/MaterialPurchaseViewContext';
 import { HeaderSection } from './sections/HeaderSection';

@@ -115,7 +115,7 @@ export const usePagination = ({
     } else {
       // Show a subset of pages with current page in the middle
       let start = Math.max(1, page - Math.floor(MAX_VISIBLE_PAGES / 2));
-      let end = Math.min(start + MAX_VISIBLE_PAGES - 1, totalPages);
+      const end = Math.min(start + MAX_VISIBLE_PAGES - 1, totalPages);
       
       // Adjust start if we're near the end
       if (end === totalPages) {

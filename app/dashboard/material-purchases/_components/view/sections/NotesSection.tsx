@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { useMaterialPurchaseView } from '../context/MaterialPurchaseViewContext';
 import { SectionHeader } from '../SectionHeader';
-import { MaterialNote } from '@/types/materials';
+import type { MaterialNote } from '@/types/materials';
 import { AddMaterialNoteForm } from '../AddMaterialNoteForm';
 import { EditMaterialNoteForm } from '../EditMaterialNoteForm';
 import { EmptyStateMessage } from '../EmptyStateMessage';

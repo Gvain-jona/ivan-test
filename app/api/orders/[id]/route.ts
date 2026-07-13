@@ -1,103 +1,91 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { resolveTenant } from '@/lib/auth/tenant';
+import {
+  handleApiError,
+  handleSupabaseError,
+  handleUnexpectedError,
+} from '@/lib/api/error-handler';
+import { orderUpdateSchema } from '@/lib/api/validators';
 
+const ORDER_DETAIL_COLUMNS =
+  'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
+  'balance, payment_status, custom_data, created_at, updated_at, ' +
+  'clients(id, name), order_items(*)';
+
+/**
+ * GET /api/orders/[id] — order (with client + items embedded) and
+ * its payments as a sibling key; payments are polymorphic
+ * (entity_type/entity_id), so they can't be embedded by PostgREST.
+ */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
     const { id } = await params;
-    if (!id) return handleApiError('VALIDATION_ERROR', 'Order ID is required');
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
+    const { data: order, error } = await tenant.db
+      .from('orders')
+      .select(ORDER_DETAIL_COLUMNS)
+      .eq('id', id)
+      .maybeSingle();
 
-    const [
-      { data: order, error: orderError },
-      { data: orderItems, error: itemsError },
-      { data: orderPayments, error: paymentsError },
-      { data: orderNotes, error: notesError },
-    ] = await Promise.all([
-      supabase.from('orders').select('id, order_number, client_id, client_name, client_type, date, status, payment_status, total_amount, amount_paid, balance, delivery_date, is_delivered, invoice_generated_at, created_by, created_at, updated_at').eq('id', id).single(),
-      supabase.from('order_items').select('id, order_id, item_id, category_id, item_name, category_name, size, quantity, unit_price, total_amount, profit_amount, labor_amount, created_at, updated_at').eq('order_id', id).order('created_at', { ascending: true }),
-      supabase.from('order_payments').select('id, order_id, amount, date, payment_method, created_at, updated_at').eq('order_id', id).order('date', { ascending: false }),
-      supabase
-        .from('notes')
-        .select('id, type, text, linked_item_type, linked_item_id, created_by, created_at, updated_at')
-        .eq('linked_item_type', 'order')
-        .eq('linked_item_id', id)
-        .order('created_at', { ascending: false }),
-    ]);
+    if (error) return handleSupabaseError(error);
+    if (!order) return handleApiError('NOT_FOUND', 'Order not found');
 
-    if (orderError) {
-      if (orderError.code === 'PGRST116') return handleApiError('NOT_FOUND', 'Order not found');
-      return handleSupabaseError(orderError);
+    const { data: payments, error: paymentsError } = await tenant.db
+      .from('payments')
+      .select('id, amount, payment_date, payment_method, notes, created_at')
+      .eq('entity_type', 'order')
+      .eq('entity_id', id)
+      .order('payment_date', { ascending: false });
+
+    if (paymentsError) return handleSupabaseError(paymentsError);
+
+    return NextResponse.json({ order, payments });
+  } catch (error) {
+    return handleUnexpectedError(error);
+  }
+}
+
+/**
+ * PATCH /api/orders/[id] — status / order_date / client_id /
+ * custom_data only. Money fields are trigger-maintained or generated;
+ * they are not accepted here by schema design.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
+    const { id } = await params;
+
+    const parsed = orderUpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
-    const warnings: string[] = [];
-    if (itemsError) { console.error('GET /api/orders/[id]: items fetch failed', itemsError); warnings.push('items_unavailable'); }
-    if (paymentsError) { console.error('GET /api/orders/[id]: payments fetch failed', paymentsError); warnings.push('payments_unavailable'); }
-    if (notesError) { console.error('GET /api/orders/[id]: notes fetch failed', notesError); warnings.push('notes_unavailable'); }
+    const { data, error } = await tenant.db
+      .from('orders')
+      .update(parsed.data)
+      .eq('id', id)
+      .select(
+        'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
+          'balance, payment_status, custom_data, updated_at',
+      )
+      .maybeSingle();
 
-    const orderDetails = {
-      id: order.id,
-      order_number: order.order_number,
-      client_id: order.client_id,
-      client_name: order.client_name || 'Unknown Client',
-      client_type: order.client_type || 'regular',
-      date: order.date,
-      delivery_date: order.delivery_date,
-      is_delivered: order.is_delivered || false,
-      status: order.status,
-      payment_status: order.payment_status,
-      total_amount: order.total_amount || 0,
-      amount_paid: order.amount_paid || 0,
-      balance: order.balance || 0,
-      invoice_generated_at: order.invoice_generated_at,
-      created_by: order.created_by,
-      created_at: order.created_at,
-      updated_at: order.updated_at,
-      items: (orderItems ?? []).map(item => ({
-        id: item.id,
-        order_id: item.order_id,
-        item_id: item.item_id,
-        item_name: item.item_name || 'Unknown Item',
-        category_id: item.category_id,
-        category_name: item.category_name || 'Uncategorized',
-        size: item.size,
-        quantity: item.quantity || 0,
-        unit_price: item.unit_price || 0,
-        total_amount: item.total_amount || 0,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      })),
-      payments: (orderPayments ?? []).map(payment => ({
-        id: payment.id,
-        order_id: payment.order_id,
-        amount: payment.amount,
-        date: payment.date,
-        payment_method: payment.payment_method,
-        created_at: payment.created_at,
-        updated_at: payment.updated_at,
-      })),
-      notes: (orderNotes ?? []).map(note => ({
-        id: note.id,
-        type: note.type || 'info',
-        text: note.text || '',
-        linked_item_type: note.linked_item_type,
-        linked_item_id: note.linked_item_id,
-        created_by: note.created_by,
-        created_at: note.created_at,
-        updated_at: note.updated_at,
-      })),
-    };
+    if (error) return handleSupabaseError(error);
+    if (!data) return handleApiError('NOT_FOUND', 'Order not found');
 
-    return NextResponse.json({
-      order: orderDetails,
-      ...(warnings.length > 0 && { warnings }),
-    });
+    return NextResponse.json({ order: data });
   } catch (error) {
     return handleUnexpectedError(error);
   }

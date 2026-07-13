@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { MaterialPayment } from '@/types/materials';
+import type { MaterialPayment } from '@/types/materials';
 import { useMaterialPurchaseView } from '../../../context/MaterialPurchaseViewContext';
 import { v4 as uuidv4 } from 'uuid';
 

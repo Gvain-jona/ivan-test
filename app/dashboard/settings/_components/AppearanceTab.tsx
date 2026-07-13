@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SettingItem, SettingSection } from '@/components/settings';
 import { useSettings } from '@/app/context/settings';
-import { AccentColorOption, ThemeOption } from '@/app/context/settings/types';
+import type { AccentColorOption, ThemeOption } from '@/app/context/settings/types';
 
 /**
  * Appearance settings tab component

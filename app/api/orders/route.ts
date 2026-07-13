@@ -1,183 +1,100 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
-import { CreateOrderSchema, UpdateOrderSchema } from '@/lib/orders/validators';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { resolveTenant } from '@/lib/auth/tenant';
+import {
+  handleApiError,
+  handleSupabaseError,
+  handleUnexpectedError,
+} from '@/lib/api/error-handler';
+import { orderCreateSchema, listQuerySchema } from '@/lib/api/validators';
+import type { Json } from '@/types/supabase-v2';
 
+const ORDER_LIST_COLUMNS =
+  'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
+  'balance, payment_status, custom_data, created_at, clients(name)';
+
+/**
+ * GET /api/orders — list orders for the caller's org.
+ * Query: status, payment_status, client_id, search (order_number ilike),
+ * limit, offset. Sorted newest first.
+ */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.getAll('status');
-    const paymentStatus = searchParams.getAll('paymentStatus');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const search = searchParams.get('search');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const params = request.nextUrl.searchParams;
+    const paging = listQuerySchema.parse({
+      limit: params.get('limit') ?? undefined,
+      offset: params.get('offset') ?? undefined,
+    });
 
-    let query = supabase
+    let query = tenant.db
       .from('orders')
-      .select(
-        `id, order_number, client_id, client_name, client_type, date, status, payment_status,
-         total_amount, amount_paid, balance, created_by, delivery_date, is_delivered,
-         created_at, updated_at`,
-        { count: 'exact' },
-      );
+      .select(ORDER_LIST_COLUMNS, { count: 'exact' })
+      .order('order_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(paging.offset, paging.offset + paging.limit - 1);
 
-    if (status.length) query = query.in('status', status);
-    if (paymentStatus.length) query = query.in('payment_status', paymentStatus);
-    if (startDate) query = query.gte('date', startDate);
-    if (endDate) query = query.lte('date', endDate);
-    if (search) {
-      query = query.or(
-        `order_number.ilike.%${search}%,client_name.ilike.%${search}%`,
-      );
-    }
+    const status = params.get('status');
+    const paymentStatus = params.get('payment_status');
+    const clientId = params.get('client_id');
+    const search = params.get('search');
+    const startDate = params.get('start_date');
+    const endDate = params.get('end_date');
 
-    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    // status / payment_status accept comma-separated lists (multi-select filters)
+    if (status) query = query.in('status', status.split(','));
+    if (paymentStatus) query = query.in('payment_status', paymentStatus.split(','));
+    if (clientId) query = query.eq('client_id', clientId);
+    if (search) query = query.ilike('order_number', `%${search}%`);
+    if (startDate) query = query.gte('order_date', startDate);
+    if (endDate) query = query.lte('order_date', endDate);
 
     const { data, error, count } = await query;
     if (error) return handleSupabaseError(error);
 
-    const orderIds = (data ?? []).map(o => o.id);
-    let itemsMap: Record<string, unknown[]> = {};
-
-    if (orderIds.length) {
-      const { data: allItems, error: itemsError } = await supabase
-        .from('order_items')
-        .select(
-          'id, order_id, item_id, category_id, item_name, category_name, size, quantity, unit_price, total_amount, created_at, updated_at',
-        )
-        .in('order_id', orderIds);
-
-      if (itemsError) {
-        console.error('GET /api/orders: failed to fetch order items', itemsError);
-      } else {
-        itemsMap = (allItems ?? []).reduce<Record<string, unknown[]>>((acc, item) => {
-          const key = item.order_id ?? '';
-          if (!acc[key]) acc[key] = [];
-          acc[key].push(item);
-          return acc;
-        }, {});
-      }
-    }
-
-    const orders = (data ?? []).map(order => ({
-      ...order,
-      client_name: order.client_name || 'Unknown Client',
-      client_type: order.client_type || 'regular',
-      total_amount: order.total_amount || 0,
-      amount_paid: order.amount_paid || 0,
-      balance: order.balance || 0,
-      items: itemsMap[order.id] ?? [],
-    }));
-
-    const totalCount = count ?? orders.length;
-
-    return NextResponse.json({
-      orders,
-      totalCount,
-      pageCount: Math.ceil(totalCount / limit),
-    });
+    return NextResponse.json({ orders: data, total: count ?? 0 });
   } catch (error) {
     return handleUnexpectedError(error);
   }
 }
 
+/**
+ * POST /api/orders — create order + items (+ payments) atomically.
+ *
+ * Goes through v2.create_order_as_org, the service-role shim that
+ * injects org/user context before delegating to v2.create_order
+ * (which reads both from JWT claims the service key doesn't carry).
+ * When Clerk lands and requests run as RLS-scoped users, this switches
+ * to calling create_order directly — same payload, one line.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    const body = await request.json();
-    const parsed = CreateOrderSchema.safeParse(body);
+    const parsed = orderCreateSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return handleApiError('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
+      return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
-    const { clientId, clientName, date, deliveryDate, isDelivered, status, clientType, items, payments, notes } =
-      parsed.data;
-
-    const { data, error } = await supabase.rpc('create_complete_order', {
-      p_client_id: clientId ?? crypto.randomUUID(),
-      p_client_name: clientName,
-      p_date: date,
-      p_status: status,
-      p_payment_status: 'unpaid',
-      p_client_type: clientType,
-      p_items: items,
-      p_payments: payments,
-      p_notes: notes,
-      p_delivery_date: deliveryDate ?? undefined,
-      p_is_delivered: isDelivered,
+    const { data: orderId, error } = await tenant.db.rpc('create_order_as_org', {
+      p_org: tenant.organizationId,
+      p_user: tenant.userId,
+      // Zod-validated request.json() output — JSON by construction.
+      payload: parsed.data as unknown as Json,
     });
-
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json(data, { status: 201 });
-  } catch (error) {
-    return handleUnexpectedError(error);
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
-
-    const body = await request.json();
-    const parsed = UpdateOrderSchema.safeParse(body);
-    if (!parsed.success) {
-      return handleApiError('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
-    }
-    const { id, clientId, date, status, items } = parsed.data;
-
-    const { error } = await supabase.rpc('update_order', {
-      p_order_id: id,
-      p_date: date,
-      p_status: status,
-      p_items: items,
-    } as never);
-
-    if (error) return handleSupabaseError(error);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return handleUnexpectedError(error);
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
+    const { data: order, error: fetchError } = await tenant.db
+      .from('orders')
+      .select(`${ORDER_LIST_COLUMNS}, order_items(*)`)
+      .eq('id', orderId)
       .single();
-    if (!profile || !['admin', 'manager'].includes(profile.role)) {
-      return handleApiError('FORBIDDEN', 'Only admins and managers can delete orders');
-    }
+    if (fetchError) return handleSupabaseError(fetchError);
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return handleApiError('VALIDATION_ERROR', 'Order ID is required');
-    }
-
-    const { error } = await supabase.rpc('delete_order', { p_order_id: id });
-    if (error) return handleSupabaseError(error);
-
-    return NextResponse.json({ success: true, id });
+    return NextResponse.json({ order }, { status: 201 });
   } catch (error) {
     return handleUnexpectedError(error);
   }

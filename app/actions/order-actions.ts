@@ -1,7 +1,8 @@
 "use server"
 
 import { createClient } from '@/utils/supabase/server';
-import { OrderItem, OrderNote } from '@/types/orders';
+import type { OrderItem} from '@/types/orders';
+import { OrderNote } from '@/types/orders';
 
 // Create a Supabase client
 const getSupabase = async () => {

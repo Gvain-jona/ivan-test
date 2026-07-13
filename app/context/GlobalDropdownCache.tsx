@@ -9,8 +9,9 @@ declare global {
 }
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { fetchDropdownOptions, createDropdownOption, EntityType } from '../actions/options';
-import { SmartComboboxOption } from '@/components/ui/smart-combobox';
+import type { EntityType } from '../actions/options';
+import { fetchDropdownOptions, createDropdownOption } from '../actions/options';
+import type { SmartComboboxOption } from '@/components/ui/smart-combobox';
 import { toast } from '@/components/ui/use-toast';
 
 // Define the cache structure

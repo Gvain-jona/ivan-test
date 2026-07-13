@@ -1,13 +1,14 @@
 "use client"
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Order, OrderStatus, PaymentStatus, ClientType } from '@/types/orders';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
+import { useOrganization } from '@/hooks/organization/useOrganization';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import OrderRow from './OrderRow';
 import { Button } from '@/app/components/ui/button';
 import {
-  Search, Filter, RefreshCw, X, Calendar,
-  CreditCard, ClipboardList, ChevronDown, Users
+  Search, RefreshCw, X, Calendar,
+  CreditCard, ClipboardList
 } from 'lucide-react';
 import { useLoading, LoadingButton } from '@/components/loading';
 import { Skeleton } from '@/app/components/ui/skeleton';
@@ -20,47 +21,40 @@ import {
   Popover, PopoverContent, PopoverTrigger
 } from '@/app/components/ui/popover';
 import { DateRangePicker } from '@/app/components/ui/date-range-picker';
-import { DateRange } from 'react-day-picker';
+import type { DateRange } from 'react-day-picker';
 import TablePagination from '@/app/components/ui/pagination/TablePagination';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 interface OrdersTableProps {
-  orders: Order[];
+  orders: OrderSummary[];
   totalCount: number;
   userRole: 'admin' | 'manager' | 'employee';
-  onView: (order: Order) => void;
-  onEdit: (order: Order) => void;
-  onDelete: (order: Order) => void;
-  onDuplicate: (order: Order) => void;
-  onInvoice: (order: Order) => void;
-  onStatusChange: (order: Order, status: OrderStatus) => void;
+  onView: (order: OrderSummary) => void;
+  onDelete: (order: OrderSummary) => void;
+  onStatusChange: (order: OrderSummary, status: string) => void;
   onLoadMore: () => void;
   loading: boolean;
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
   onSearch: (term: string) => void;
-  onFilter: () => void;
-  onExport: () => void;
-  onCreateOrder?: () => void;
   searchTerm: string;
-  showFilters?: boolean;
 
-  // New quick filter props
-  selectedStatus?: OrderStatus[];
-  onStatusFilterChange?: (statuses: OrderStatus[]) => void;
-  selectedPaymentStatus?: PaymentStatus[];
-  onPaymentStatusFilterChange?: (statuses: PaymentStatus[]) => void;
-  selectedClientType?: ClientType[];
-  onClientTypeFilterChange?: (types: ClientType[]) => void;
+  // Quick filter props — the table header is the filter UI (the legacy
+  // FilterDrawer was deleted in cleanup Phase 2). Client-type filtering
+  // was dropped with it: the v2 orders API has no client_type param.
+  selectedStatus?: string[];
+  onStatusFilterChange?: (statuses: string[]) => void;
+  selectedPaymentStatus?: string[];
+  onPaymentStatusFilterChange?: (statuses: string[]) => void;
   dateRange?: DateRange;
   onDateRangeChange?: (range: DateRange | undefined) => void;
 }
 
 // Sort configuration type
 type SortConfig = {
-  key: keyof Order | null;
+  key: keyof OrderSummary | null;
   direction: 'ascending' | 'descending';
 };
 
@@ -70,10 +64,7 @@ export default function OrdersTable(props: OrdersTableProps) {
     totalCount,
     userRole,
     onView,
-    onEdit,
     onDelete,
-    onDuplicate,
-    onInvoice,
     onStatusChange,
     onLoadMore,
     loading,
@@ -81,19 +72,13 @@ export default function OrdersTable(props: OrdersTableProps) {
     totalPages = 1,
     onPageChange,
     onSearch,
-    onFilter,
-    onExport,
-    onCreateOrder,
     searchTerm,
-    showFilters = false,
 
-    // New quick filter props with defaults
+    // Quick filter props with defaults
     selectedStatus = [],
     onStatusFilterChange = () => {},
     selectedPaymentStatus = [],
     onPaymentStatusFilterChange = () => {},
-    selectedClientType = [],
-    onClientTypeFilterChange = () => {},
     dateRange,
     onDateRangeChange = () => {},
   } = props;
@@ -101,6 +86,8 @@ export default function OrdersTable(props: OrdersTableProps) {
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'ascending' });
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  // Status list is org-configurable in v2 (organizations.settings)
+  const { orderStatuses } = useOrganization();
 
   // Memoize row mouse enter/leave handlers
   const handleRowMouseEnter = useCallback((id: string) => {
@@ -112,7 +99,7 @@ export default function OrdersTable(props: OrdersTableProps) {
   }, []);
 
   // Handle sort request
-  const requestSort = useCallback((key: keyof Order) => {
+  const requestSort = useCallback((key: keyof OrderSummary) => {
     setSortConfig(prevConfig => ({
       key,
       direction:
@@ -127,8 +114,8 @@ export default function OrdersTable(props: OrdersTableProps) {
     if (!orders || orders.length === 0 || !sortConfig.key) return orders;
 
     return [...orders].sort((a, b) => {
-      const aValue = a[sortConfig.key as keyof Order] ?? '';
-      const bValue = b[sortConfig.key as keyof Order] ?? '';
+      const aValue = a[sortConfig.key as keyof OrderSummary] ?? '';
+      const bValue = b[sortConfig.key as keyof OrderSummary] ?? '';
 
       if (aValue < bValue) {
         return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -141,7 +128,7 @@ export default function OrdersTable(props: OrdersTableProps) {
   }, [orders, sortConfig]);
 
   // Get class names for sort headers
-  const getSortIcon = (key: keyof Order) => {
+  const getSortIcon = (key: keyof OrderSummary) => {
     if (sortConfig.key !== key) return null;
 
     return sortConfig.direction === 'ascending'
@@ -193,7 +180,7 @@ export default function OrdersTable(props: OrdersTableProps) {
                 if (value === "all") {
                   onStatusFilterChange([]);
                 } else {
-                  onStatusFilterChange([value as OrderStatus]);
+                  onStatusFilterChange([value]);
                 }
               }}
             >
@@ -205,12 +192,11 @@ export default function OrdersTable(props: OrdersTableProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                {orderStatuses.map(status => (
+                  <SelectItem key={status} value={status}>
+                    {status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {selectedStatus.length > 0 && (
@@ -231,7 +217,7 @@ export default function OrdersTable(props: OrdersTableProps) {
                 if (value === "all") {
                   onPaymentStatusFilterChange([]);
                 } else {
-                  onPaymentStatusFilterChange([value as PaymentStatus]);
+                  onPaymentStatusFilterChange([value]);
                 }
               }}
             >
@@ -244,7 +230,7 @@ export default function OrdersTable(props: OrdersTableProps) {
               <SelectContent>
                 <SelectItem value="all">All Payments</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
                 <SelectItem value="unpaid">Unpaid</SelectItem>
               </SelectContent>
             </Select>
@@ -254,40 +240,6 @@ export default function OrdersTable(props: OrdersTableProps) {
                 className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
               >
                 {selectedPaymentStatus.length}
-              </Badge>
-            )}
-          </div>
-
-          {/* Client Type Quick Filter */}
-          <div className="relative">
-            <Select
-              value={selectedClientType.length === 0 ? "all" : selectedClientType.length === 1 ? selectedClientType[0] : "multiple"}
-              onValueChange={(value) => {
-                if (value === "all") {
-                  onClientTypeFilterChange([]);
-                } else {
-                  onClientTypeFilterChange([value as ClientType]);
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 px-3 py-2 w-[130px] bg-[hsl(var(--table-search-bg))] border-[hsl(var(--table-border))]">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Client Type" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Clients</SelectItem>
-                <SelectItem value="regular">Regular</SelectItem>
-                <SelectItem value="contract">Contract</SelectItem>
-              </SelectContent>
-            </Select>
-            {selectedClientType.length > 0 && (
-              <Badge
-                variant="secondary"
-                className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
-              >
-                {selectedClientType.length}
               </Badge>
             )}
           </div>
@@ -351,7 +303,7 @@ export default function OrdersTable(props: OrdersTableProps) {
       </div>
 
       {/* Active filters indicator */}
-      {(searchTerm || selectedStatus.length > 0 || selectedPaymentStatus.length > 0 || selectedClientType.length > 0 || dateRange) && (
+      {(searchTerm || selectedStatus.length > 0 || selectedPaymentStatus.length > 0 || dateRange) && (
         <div className="px-4 py-2 border-b border-[hsl(var(--table-border))] bg-[hsl(var(--table-search-bg))] flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Search term indicator */}
@@ -403,26 +355,6 @@ export default function OrdersTable(props: OrdersTableProps) {
               </div>
             )}
 
-            {/* Client type filter indicator */}
-            {selectedClientType.length > 0 && (
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-muted-foreground">Client:</span>
-                <div className="flex gap-1 flex-wrap">
-                  {selectedClientType.map(type => (
-                    <Badge key={type} variant="outline" className="text-xs">
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                      <span
-                        className="ml-1 hover:text-foreground cursor-pointer"
-                        onClick={() => onClientTypeFilterChange(selectedClientType.filter(t => t !== type))}
-                      >
-                        <X className="h-3 w-3" />
-                      </span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Date range filter indicator */}
             {dateRange && (
               <div className="flex items-center gap-1">
@@ -453,7 +385,6 @@ export default function OrdersTable(props: OrdersTableProps) {
               onSearch("");
               onStatusFilterChange([]);
               onPaymentStatusFilterChange([]);
-              onClientTypeFilterChange([]);
               onDateRangeChange(undefined);
             }}
             className="h-8 px-2 text-xs"
@@ -475,20 +406,20 @@ export default function OrdersTable(props: OrdersTableProps) {
                 <th scope="col" className="w-[250px] px-2 py-2.5 text-left text-sm font-medium tracking-wider client-column">
                   <button
                     className="flex items-center justify-start w-full text-[hsl(var(--table-header-text))] hover:text-foreground focus:outline-none"
-                    onClick={() => requestSort('client_name')}
+                    onClick={() => requestSort('order_number')}
                     aria-label="Sort by client"
                   >
-                    <span className="flex items-center">Client {getSortIcon('client_name')}</span>
+                    <span className="flex items-center">Client {getSortIcon('order_number')}</span>
                   </button>
                 </th>
 
                 <th scope="col" className="date-column px-4 py-2.5 text-left text-sm font-medium tracking-wider">
                   <button
                     className="flex items-center justify-start w-full text-[hsl(var(--table-header-text))] hover:text-foreground focus:outline-none"
-                    onClick={() => requestSort('date')}
+                    onClick={() => requestSort('order_date')}
                     aria-label="Sort by date"
                   >
-                    <span className="flex items-center">Date {getSortIcon('date')}</span>
+                    <span className="flex items-center">Date {getSortIcon('order_date')}</span>
                   </button>
                 </th>
                 <th scope="col" className="status-column px-4 py-2.5 text-left text-sm font-medium tracking-wider">
@@ -587,10 +518,7 @@ export default function OrdersTable(props: OrdersTableProps) {
                     order={order}
                     userRole={userRole}
                     onView={onView}
-                    onEdit={onEdit}
                     onDelete={onDelete}
-                    onDuplicate={onDuplicate}
-                    onInvoice={onInvoice}
                     onStatusChange={onStatusChange}
                     isHovered={hoveredRowId === order.id}
                     onMouseEnter={() => handleRowMouseEnter(order.id)}

@@ -30,7 +30,7 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import { Loader2 } from 'lucide-react';
-import { MaterialNote } from '@/hooks/materials/types';
+import type { MaterialNote } from '@/hooks/materials/types';
 
 // Define the form schema
 const formSchema = z.object({

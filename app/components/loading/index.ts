@@ -31,4 +31,3 @@ export {
 } from '@/components/ui/loading';
 
 // Export the example component
-export { LoadingExample } from '../examples/LoadingExample';

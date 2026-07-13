@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
-    "test": "echo \"No tests specified\" && exit 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepare": "husky",
     "clean": "node clean-build.js",
     "clean:dev": "node clean-build.js && npm install && npm run dev",
@@ -118,6 +119,7 @@
     "supabase": "^2.20.12",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
+    "vitest": "^4.1.10",
     "worker-loader": "^3.0.8"
   }
 }

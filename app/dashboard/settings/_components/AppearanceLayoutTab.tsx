@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SettingItem, SettingSection } from '@/components/settings';
 import { useSettings } from '@/app/context/settings';
 import { FileUpload } from '@/components/ui/file-upload';
-import {
+import type {
   ThemeOption,
   LanguageOption,
   DateFormatOption,

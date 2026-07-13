@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Task } from '@/types/orders';
+import type { Task } from '@/types/orders';
 import { Edit, Trash, Check, Calendar, Link } from 'lucide-react';
 import { formatDate, timeAgo } from '@/lib/utils';
 

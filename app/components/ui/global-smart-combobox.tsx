@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { SmartCombobox, SmartComboboxOption } from "./smart-combobox"
-import { EntityType, fetchDropdownOptions, createDropdownOption } from "../../actions/options"
+import type { SmartComboboxOption } from "./smart-combobox";
+import { SmartCombobox } from "./smart-combobox"
+import type { EntityType} from "../../actions/options";
+import { fetchDropdownOptions, createDropdownOption } from "../../actions/options"
 
 interface GlobalSmartComboboxProps {
   entityType: EntityType

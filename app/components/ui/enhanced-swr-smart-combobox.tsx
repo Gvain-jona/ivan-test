@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { SmartCombobox, SmartComboboxOption } from './smart-combobox';
+import type { SmartComboboxOption } from './smart-combobox';
+import { SmartCombobox } from './smart-combobox';
 import * as useData from '@/hooks/loading';
 import { toast } from '@/components/ui/use-toast';
 

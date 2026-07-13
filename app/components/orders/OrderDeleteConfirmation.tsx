@@ -10,11 +10,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Order } from "@/types/orders";
+import type { OrderSummary } from "@/hooks/orders/useOrders";
 import { Loader2 } from "lucide-react";
 
 interface OrderDeleteConfirmationProps {
-  order: Order | null;
+  order: OrderSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
@@ -36,10 +36,10 @@ export function OrderDeleteConfirmation({
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the order{" "}
+            This will cancel order{" "}
             <strong>{order.order_number || order.id}</strong> for client{" "}
-            <strong>{order.client_name}</strong> and all its associated data
-            (items, payments, notes, invoices).
+            <strong>{order.clients?.name ?? 'Unknown'}</strong>. The order and
+            its history stay on record with status set to cancelled.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

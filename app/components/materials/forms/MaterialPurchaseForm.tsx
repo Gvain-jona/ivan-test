@@ -57,7 +57,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { useMaterialPurchasesList } from '@/hooks/materials';
 import {
   Card,

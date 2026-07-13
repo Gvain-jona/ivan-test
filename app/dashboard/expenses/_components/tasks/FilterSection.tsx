@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FilterButton } from './FilterButton';
-import { FilterType, FILTER_LABELS } from './types';
+import type { FilterType} from './types';
+import { FILTER_LABELS } from './types';
 import {
   DropdownMenu,
   DropdownMenuContent,

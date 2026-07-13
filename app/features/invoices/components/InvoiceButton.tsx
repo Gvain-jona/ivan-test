@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, ButtonProps } from '@/components/ui/button';
+import type { ButtonProps } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
-import { Order } from '@/types/orders';
+import type { Order } from '@/types/orders';
 import InvoiceSheet from './InvoiceSheet';
 
 interface InvoiceButtonProps extends ButtonProps {

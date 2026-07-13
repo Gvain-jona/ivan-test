@@ -1,4 +1,4 @@
-import { TaskStatus } from '@/types/tasks';
+import type { TaskStatus } from '@/types/tasks';
 
 /**
  * Returns the appropriate CSS classes for a task status badge

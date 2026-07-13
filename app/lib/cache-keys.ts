@@ -4,7 +4,7 @@
  */
 
 import { API_ENDPOINTS } from './api-endpoints';
-import { OrdersTableFilters, PaginationParams } from '@/types/orders';
+import type { OrdersTableFilters, PaginationParams } from '@/types/orders';
 
 export function getOrdersListKey(filters?: OrdersTableFilters, pagination?: PaginationParams): string {
   const params = new URLSearchParams();

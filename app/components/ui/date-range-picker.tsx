@@ -14,7 +14,7 @@ import {
 } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useState } from "react";
-import { DateRange } from "react-day-picker";
+import type { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 

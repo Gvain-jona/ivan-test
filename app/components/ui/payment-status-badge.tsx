@@ -5,7 +5,7 @@ import { CreditCard, DollarSign, Clock, Ban, AlertCircle, CheckCircle } from 'lu
 
 type PaymentStatus =
   | 'paid'
-  | 'partially_paid'
+  | 'partial'
   | 'unpaid'
   | 'overdue'
   | 'refunded'
@@ -35,7 +35,7 @@ export const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({
           label: 'Paid',
           className: 'bg-green-500/15 text-green-400 border-green-500/30',
         };
-      case 'partially_paid':
+      case 'partial':
         // Different styling based on percentage
         if (percentage >= 75) {
           return {

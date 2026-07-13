@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, CreateTaskPayload, UpdateTaskPayload } from '@/types/tasks';
+import type { Task, TaskStatus, TaskPriority, CreateTaskPayload, UpdateTaskPayload } from '@/types/tasks';
 
 interface UseTaskFormProps {
   initialTask?: Partial<Task>;

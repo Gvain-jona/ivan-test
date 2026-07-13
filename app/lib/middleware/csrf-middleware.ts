@@ -4,7 +4,8 @@
  * This middleware validates CSRF tokens for POST, PUT, DELETE, and PATCH requests.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { validateCSRFToken as validateCsrfToken } from '../utils/csrf';
 
 /**

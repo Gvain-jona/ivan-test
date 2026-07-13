@@ -1,7 +1,7 @@
 'use client';
 
 import { useLoadingSWR } from './useLoadingSWR';
-import { SWRConfiguration } from 'swr';
+import type { SWRConfiguration } from 'swr';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 
 export interface DropdownOption {

@@ -9,7 +9,7 @@ import {
   CardHeader,
 } from '@/components/ui/card';
 import { cn, formatDate } from '@/lib/utils';
-import { ExpenseNote } from '@/hooks/expenses';
+import type { ExpenseNote } from '@/hooks/expenses';
 import { StatusBadge } from './StatusBadge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExpensePayment } from '@/hooks/expenses';
+import type { ExpensePayment } from '@/hooks/expenses';
 import BottomOverlayForm from './BottomOverlayForm';
 import AddExpensePaymentForm from './AddExpensePaymentForm';
 

@@ -1,106 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { handleApiError, handleSupabaseError, handleUnexpectedError } from '@/lib/api/error-handler';
-import { updateOrderTotals } from '@/lib/orders/db';
-import { AddOrderPaymentSchema } from '@/lib/orders/validators';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { resolveTenant } from '@/lib/auth/tenant';
+import {
+  handleApiError,
+  handleSupabaseError,
+  handleUnexpectedError,
+} from '@/lib/api/error-handler';
+import { paymentInputSchema } from '@/lib/api/validators';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-    if (!id) return handleApiError('VALIDATION_ERROR', 'Order ID is required');
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
-
-    const { data, error } = await supabase
-      .from('order_payments')
-      .select('id, order_id, amount, date, payment_method, created_at, updated_at')
-      .eq('order_id', id)
-      .order('date', { ascending: false });
-
-    if (error) return handleSupabaseError(error);
-
-    return NextResponse.json({ payments: data ?? [] });
-  } catch (error) {
-    return handleUnexpectedError(error);
-  }
-}
-
+/**
+ * POST /api/orders/[id]/payments — record a payment against an order.
+ * Direct insert per the handoff (single-row write); the DB trigger
+ * recomputes the order's amount_paid, and balance / payment_status are
+ * generated columns. Returns the payment plus the recomputed money
+ * fields so the client can update caches without a refetch.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
+
     const { id } = await params;
-    if (!id) return handleApiError('VALIDATION_ERROR', 'Order ID is required');
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
-
-    const body = await request.json();
-    const parsed = AddOrderPaymentSchema.safeParse(body);
+    const parsed = paymentInputSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return handleApiError('VALIDATION_ERROR', 'Invalid payment data', parsed.error.flatten());
+      return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
-    const { payment } = parsed.data;
+    // Ownership check before writing: the scoped select proves this
+    // order id belongs to the caller's org — without it, a foreign id
+    // would create a payment whose trigger recomputes another org's
+    // order totals.
+    const { data: order, error: orderError } = await tenant.db
+      .from('orders')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+    if (orderError) return handleSupabaseError(orderError);
+    if (!order) return handleApiError('NOT_FOUND', 'Order not found');
 
-    const { data, error } = await supabase
-      .from('order_payments')
+    const { data: payment, error } = await tenant.db
+      .from('payments')
       .insert({
-        order_id: id,
-        amount: payment.amount,
-        date: payment.date,
-        payment_method: payment.payment_method,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        entity_type: 'order',
+        entity_id: id,
+        amount: parsed.data.amount,
+        payment_date: parsed.data.payment_date ?? new Date().toISOString().slice(0, 10),
+        payment_method: parsed.data.payment_method ?? 'cash',
+        notes: parsed.data.notes ?? null,
+        created_by: tenant.userId,
       })
-      .select()
+      .select('id, amount, payment_date, payment_method, notes, created_at')
       .single();
-
     if (error) return handleSupabaseError(error);
 
-    await updateOrderTotals(supabase, id);
+    const { data: updatedOrder, error: refetchError } = await tenant.db
+      .from('orders')
+      .select('id, total_amount, amount_paid, balance, payment_status')
+      .eq('id', id)
+      .single();
+    if (refetchError) return handleSupabaseError(refetchError);
 
-    return NextResponse.json({ payment: data }, { status: 201 });
-  } catch (error) {
-    return handleUnexpectedError(error);
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const paymentId = searchParams.get('paymentId');
-
-    if (!id || !paymentId) {
-      return handleApiError('VALIDATION_ERROR', 'Order ID and Payment ID are required');
-    }
-
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required');
-
-    const { error } = await supabase
-      .from('order_payments')
-      .delete()
-      .eq('id', paymentId)
-      .eq('order_id', id);
-
-    if (error) return handleSupabaseError(error);
-
-    await updateOrderTotals(supabase, id);
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ payment, order: updatedOrder }, { status: 201 });
   } catch (error) {
     return handleUnexpectedError(error);
   }

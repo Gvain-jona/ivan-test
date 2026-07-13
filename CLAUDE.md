@@ -14,7 +14,9 @@ Don't assume, and don't hide confusion. Before implementing:
 
 ## Project Overview
 
-Ivan Prints — a business management system for a print shop. Manages orders, expenses, material purchases, invoicing, and analytics with role-based access control (`admin` / `manager` / `staff`). Next.js 15 (App Router) + TypeScript + Supabase (Postgres + Auth) + Shadcn UI.
+A business management platform for print shops, being rebuilt **multi-tenant** against the `v2` Postgres schema — orders, clients, products, and an org-defined custom-field registry are migrated; expenses, material purchases, invoicing, and analytics still run on the legacy single-shop (`public`-schema) code until their cutovers. "Ivan Prints" is the first tenant, not the product — never design around it. Next.js 15 (App Router) + TypeScript + Supabase (Postgres + Auth, Clerk planned) + Shadcn UI.
+
+**Before working on anything migration-adjacent, read `docs/v2-migration/STATE.md`** — it is the live record of what's decided (don't relitigate), what's migrated, what's blocked on whom, and the v2 value differences that are easy to trip on. Update it when your work changes any of that.
 
 ## Key Development Commands
 
@@ -38,7 +40,7 @@ npm run dev:cloud        # env:cloud + dev
 npm run ui:add <name>    # Add a Shadcn component, e.g. npm run ui:add dialog
 ```
 
-There is **no automated test suite**. `npm test` is a no-op (`echo "No tests specified"`). No jest/vitest/playwright config exists anywhere in the repo. `tests/javascript/*.js` and `tests/powershell/*.ps1` are one-off manual debug/seed scripts, not CI-run tests — don't assume changes are covered by them. Validate changes with `npx tsc --noEmit`, `npm run lint`, and manual exercise of the feature.
+**Tests exist (Vitest) — `npm test` runs them.** The suite covers the v2 platform slice: unit tests for the `TenantDb` scoping wrapper and route contract tests for every migrated API route (auth gate, validation, role gates, org-scoped data flow) via a fake tenant DB — see `test/README.md` for the layer model and the pattern every newly migrated module must copy (its routes get a colocated `route.test.ts` in the same PR). Type-level tenancy enforcement lives in `test/types/tenant-scoping.ts` (`@ts-expect-error` assertions run by `tsc --noEmit`/`next build`, not Vitest). There is no DB-integration or browser layer yet (v2 schema isn't locally reproducible; blocked on a DB-owner schema dump). `tests/javascript/*.js` and `tests/powershell/*.ps1` are unrelated one-off manual scripts, not part of the suite. Validate changes with `npm test`, `npx tsc --noEmit`, `npm run lint`, and manual exercise of the feature.
 
 ## Project Structure
 
@@ -57,6 +59,7 @@ app/
 
 supabase/migrations/      # SQL migrations, applied in filename order
 docs/code-review/        # Living architecture/security audit — see "Known debt" below
+docs/v2-migration/       # STATE.md — live status of the v2 platform pivot (read first)
 ```
 
 The route groups described in older docs/templates (`(auth)`, `(dashboard)`) do **not** exist in this codebase — `app/auth/` and `app/dashboard/` are ordinary folders.
@@ -72,38 +75,50 @@ This codebase accumulated parallel implementations during rapid iteration. When 
 
 ## Key Patterns
 
-**API route auth + error handling** (this exact shape is used in essentially every route):
+There are **two route patterns in the codebase** — which one applies depends on whether the module has been migrated to v2 (see `docs/v2-migration/STATE.md` for the module list). New platform work uses the migrated pattern; don't "modernize" a legacy route ahead of its module's cutover.
+
+**Migrated (v2) API route** (orders, clients, products, field-definitions, notes, organization):
+```typescript
+const tenant = await resolveTenant() // from '@/lib/auth/tenant'
+if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required')
+
+const parsed = Schema.safeParse(await request.json()) // schemas in app/lib/api/validators.ts
+if (!parsed.success) return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten())
+
+const { data, error } = await tenant.db
+  .from('orders')
+  .select('id, status, total_amount') // explicit columns, not select('*')
+  .eq('organization_id', tenant.organizationId) // REQUIRED: tenant.db is service-role, this IS the tenant boundary
+if (error) return handleSupabaseError(error)
+```
+`tenant.db` bypasses RLS — **every query must filter by `tenant.organizationId` explicitly.** `resolveTenant()` is also the single swap point for the planned Clerk auth.
+
+**Legacy API route** (unmigrated modules — expenses, materials, accounts, invoicing, analytics):
 ```typescript
 const supabase = await createClient() // from '@/utils/supabase/server'
 const { data: { user } } = await supabase.auth.getUser()
 if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required')
-
-const parsed = Schema.safeParse(await request.json())
-if (!parsed.success) return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten())
-
-const { data, error } = await supabase.from('orders').select('id, status, total_amount') // explicit columns, not select('*')
-if (error) return handleSupabaseError(error)
-```
-`handleApiError`, `handleSupabaseError`, and `handleUnexpectedError` live in `app/lib/api/error-handler.ts`. `handleSupabaseError` maps known Postgres codes (`23505`, `42501`, `PGRST116`, FK/check constraint messages) to the right HTTP status — extend it there rather than handling Postgres codes ad hoc in a route.
-
-**Supabase client creation**:
-```typescript
-// Server component / API route
-import { createClient } from '@/utils/supabase/server'
-const supabase = await createClient()
-
-// Client component
-import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+// ...safeParse, explicit-column select, handleSupabaseError as above
 ```
 
-**SWR data hooks**: client hooks live under `app/hooks/<feature>/`, call `useSWR` with a key built from `app/lib/cache-keys.ts` and an endpoint constant from `app/lib/api-endpoints.ts` (`API_ENDPOINTS.ORDERS`, etc.). After a mutation, invalidate via the matching helper in `app/lib/cache/` (e.g. `invalidateOrderCache(id)`) rather than hand-rolling `mutate()` calls.
+`handleApiError`, `handleSupabaseError`, and `handleUnexpectedError` live in `app/lib/api/error-handler.ts`. `handleSupabaseError` maps known Postgres codes (`23505`, `42501`, `PGRST116`, `P0001` from the v2 field-validation trigger, FK/check constraint messages) to the right HTTP status — extend it there rather than handling Postgres codes ad hoc in a route.
 
-**Validation**: Zod schemas in `app/schemas/` or `app/lib/<feature>/validators.ts`, parsed with `safeParse` — avoid `as { field: type }` casts on request bodies.
+**SWR data hooks**: client hooks live under `app/hooks/<feature>/`. Migrated modules build keys and fetch via `app/lib/api/client.ts` (`PLATFORM_API`, `buildKey`, `apiFetcher`, `keysUnder`) and expose a `use<Entity>Mutations()` hook that revalidates its own keys. Legacy modules use `app/lib/cache-keys.ts` + `app/lib/api-endpoints.ts` and invalidate via the helpers in `app/lib/cache/` — keep each module on its own convention.
+
+**Validation**: migrated-module schemas live in `app/lib/api/validators.ts`; legacy schemas in `app/schemas/` or `app/lib/<feature>/validators.ts`. Always `safeParse` — avoid `as { field: type }` casts on request bodies. For v2 `custom_data`, the app schema is deliberately loose: the DB trigger (`validate_custom_data`) is the validation authority, and its P0001 message is surfaced verbatim.
 
 **Component structure**: props interface at the top, single responsibility, complex logic extracted to a hook. New files should target well under 200 lines — but `max-lines` in `.eslintrc.json` is a **warning, not a build-blocking error**, and it is widely exceeded today (`MaterialPurchaseForm.tsx` is 1293 lines, `AccountsSettingsTab.tsx` 1124, `analytics-service.ts` 929). Don't assume a file under that size is "fine" or one over it is "broken" — use it as guidance for new/refactored code, not as a correctness signal for existing files.
 
 **New UI components — log responsiveness status**: when you create a new component under `app/components/` (or anywhere else in `app/`), add one row to `docs/mobile-responsiveness/COMPONENT_REGISTRY.md` — just the component name/path and a `Yes` / `No` / `Partial` on whether it holds up across breakpoints (~375px phone through desktop). This is a visibility log, not a gate: a `No` is a perfectly valid entry. It does not require fixing the component, does not block the work, and isn't a request for a write-up — one line is enough. The point is being able to see how much of the app actually scales as it grows, not enforcing that every component must.
+
+## v2 platform migration — naming convention
+
+The app is being rebuilt module-by-module against the multi-tenant `v2` Postgres schema (orders first). **Status, decisions, and blockers live in `docs/v2-migration/STATE.md`** — this section is only the naming rules:
+
+- **"v2" appears ONLY in identifiers that literally reference the DB schema**: `.schema('v2')`, `DatabaseV2` (`app/types/supabase-v2.ts`), and the `createV2Client`/`createV2AdminClient` factories (`app/utils/supabase/{server,client}-v2.ts`). Nothing else — no `v2` folders, hooks, components, types, URL segments, or UI copy. New platform code takes plain domain names (`app/hooks/orders/useOrders.ts`, `app/components/fields/`, `app/lib/auth/tenant.ts`, `app/lib/api/{client,validators}.ts`).
+- **Git is the archive, not the file tree.** Legacy files are deleted at their module's cutover, not kept alongside; rewind via git if ever needed. Do not create parallel copies of components/hooks "just in case".
+- **Deletion is per-module at cutover, not global**: modules not yet migrated (expenses, materials, accounts, invoicing, analytics) keep their legacy code fully working against the `public` schema until their turn. Never delete a legacy file that a still-unmigrated module imports.
+- API paths are plain (`/api/orders`, …): the migrated-module routes replaced their legacy counterparts in place at the orders cutover; new module routes take plain paths directly.
 
 ## Known architecture debt
 
@@ -115,7 +130,9 @@ Other docs under `docs/` (e.g. `docs/index.md`, dated April 2025) are historical
 
 ## Authentication
 
-Real auth is enforced two ways: root `middleware.ts` redirects unauthenticated requests (except `/auth/*` and `/api/healthz`) to `/auth/signin`, and individual API routes additionally call `supabase.auth.getUser()` themselves (defense in depth — don't remove the route-level check because middleware "already handles it"). Sign-in is magic-link based; only emails present in the `allowed_emails` table can sign in. Roles (`admin`/`manager`/`staff`) live on the `profiles` table.
+Real auth is enforced two ways: root `middleware.ts` redirects unauthenticated requests (except `/auth/*` and `/api/healthz`) to `/auth/signin`, and individual API routes additionally check auth themselves (defense in depth — don't remove the route-level check because middleware "already handles it"). Sign-in is magic-link based; only emails present in the `allowed_emails` table can sign in. Legacy roles (`admin`/`manager`/`staff`) live on the `profiles` table; v2 org roles (`owner`/`admin`/`staff` — there is **no `manager`** in v2) live on `organization_members`.
+
+**Interim v2 tenancy** (until Clerk lands): `resolveTenant()` takes identity from the Supabase session, resolves the active org via `organization_members`, and returns a service-role client — tenant isolation is the explicit `organization_id` filter in each route, not RLS. The decided end state is **Clerk** (see `docs/v2-migration/STATE.md` for what that swap is blocked on); when it lands, `resolveTenant()` is the only place that changes, and the `create_order_as_org` SQL shim gets dropped.
 
 ## Environment Configuration
 
@@ -126,6 +143,8 @@ Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE
 1. Add migration under `supabase/migrations/<timestamp>_description.sql`, including RLS policies for every role that needs access.
 2. Regenerate types: `npx supabase gen types typescript --local > app/types/supabase.ts` (note: README's older instructions reference `app/lib/database.types.ts` — that file is dead; regenerate into `app/types/supabase.ts`, the file actually imported as `Database`).
 3. Test locally against `npm run supabase:seed` before pushing to cloud.
+
+**v2 schema types are different**: `app/types/supabase-v2.ts` (`DatabaseV2`) is **hand-maintained** from live introspection of the v2 project — the gen-types command above only regenerates the legacy `public`-schema `Database` type and must not overwrite `supabase-v2.ts`. When the v2 schema changes, update `DatabaseV2` by hand to match. The v2 schema itself is owned DB-side; the repo's `supabase/migrations/` only mirrors app-requested v2 changes (e.g. the `create_order_as_org` shim), not the schema's own history.
 
 ## Deployment
 

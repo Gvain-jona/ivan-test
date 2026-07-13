@@ -1,5 +1,5 @@
 import React from 'react';
-import { Task, TaskStatus, TaskPriority } from '@/types/orders';
+import type { Task, TaskStatus, TaskPriority } from '@/types/orders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { 

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getCachedData, getAnalyticsCacheKey } from '@/lib/cache/analytics-cache';
 import { analyticsService } from '@/lib/services/analytics-service';

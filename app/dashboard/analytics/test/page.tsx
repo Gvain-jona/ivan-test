@@ -6,7 +6,7 @@ import { BarChartComponent } from '@/components/analytics/BarChartComponent';
 import { PieChartComponent } from '@/components/analytics/PieChartComponent';
 import { KPICard } from '@/components/analytics/KPICard';
 import { AnalyticsFilterBar } from '@/components/analytics/AnalyticsFilterBar';
-import { DateRange } from '@/types/date-range';
+import type { DateRange } from '@/types/date-range';
 import { subDays, format } from 'date-fns';
 import {
   ShoppingCartIcon,

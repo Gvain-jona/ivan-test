@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Pie, Doughnut } from 'react-chartjs-2';
-import { ChartData, ChartOptions } from 'chart.js';
+import type { ChartData, ChartOptions } from 'chart.js';
 import { pieChartOptions } from '@/lib/chart-config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';

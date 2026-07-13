@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Building2, Layout, CreditCard } from 'lucide-react';
-import { InvoiceSettings as InvoiceSettingsType } from '../../types';
+import type { InvoiceSettings as InvoiceSettingsType } from '../../types';
 import { useInvoiceContext } from '../../context/InvoiceContext';
 import CompanySection from './CompanySection';
 import LayoutSection from './LayoutSection';

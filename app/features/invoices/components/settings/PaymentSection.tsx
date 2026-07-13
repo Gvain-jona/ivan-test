@@ -8,7 +8,7 @@ import {
   FormLabel,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { SettingsSectionProps, BankDetail, MobileMoneyDetail } from '../../types';
+import type { SettingsSectionProps, BankDetail, MobileMoneyDetail } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreditCard, Smartphone, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

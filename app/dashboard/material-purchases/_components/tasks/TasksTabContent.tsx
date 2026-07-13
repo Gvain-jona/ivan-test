@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { format, isToday, isTomorrow, isYesterday, addDays, isBefore, isAfter, parseISO, isValid } from 'date-fns';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { FilterSection } from './FilterSection';
 import { DateGroup } from './DateGroup';
@@ -81,7 +81,7 @@ export function TasksTabContent() {
 
       // Determine the date to use for grouping
       // Safely handle potentially invalid dates
-      let groupDate = purchase.next_payment_date || purchase.date;
+      const groupDate = purchase.next_payment_date || purchase.date;
 
       // Skip if no valid date is available
       if (!groupDate) {
@@ -194,7 +194,7 @@ export function TasksTabContent() {
 
     purchasesNotFullyPaid.forEach(purchase => {
       // Determine the date to use for filtering
-      let dateToUse = purchase.next_payment_date || purchase.date;
+      const dateToUse = purchase.next_payment_date || purchase.date;
       if (!dateToUse) return;
 
       // Safely parse the date

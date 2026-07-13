@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Expense, ExpensePayment, ExpenseNote } from '@/hooks/expenses';
+import type { Expense, ExpensePayment, ExpenseNote } from '@/hooks/expenses';
 import { toast } from 'sonner';
 
 interface LoadingStates {

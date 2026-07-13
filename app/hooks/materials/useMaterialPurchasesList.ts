@@ -10,7 +10,7 @@ import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { createMaterialSWRConfig } from './swr-config';
-import {
+import type {
   MaterialPurchase,
   MaterialPurchaseFilters,
   PaginationParams,

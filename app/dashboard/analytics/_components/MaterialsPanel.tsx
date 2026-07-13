@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { KPICard } from '@/components/analytics/KPICard';
-import { BarChartComponent, BarSeries } from '@/components/analytics/BarChartComponent';
+import type { BarSeries } from '@/components/analytics/BarChartComponent';
+import { BarChartComponent } from '@/components/analytics/BarChartComponent';
 import { PieChartComponent } from '@/components/analytics/PieChartComponent';
 import { useAnalyticsContext } from '../_context/AnalyticsContext';
 import { useMaterialsBySupplier, useInstallmentDelinquencyRate } from '@/hooks/analytics/useAnalytics';

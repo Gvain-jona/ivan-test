@@ -1,3 +1,7 @@
+import type {
+  ChartOptions,
+  ChartDataset
+} from 'chart.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,9 +15,7 @@ import {
   Tooltip,
   Legend,
   TimeScale,
-  ChartOptions,
-  ChartData,
-  ChartDataset
+  ChartData
 } from 'chart.js';
 // Inline definition to avoid missing module error
 type _DeepPartialObject<T> = { [K in keyof T]?: T[K] extends object ? _DeepPartialObject<T[K]> : T[K] };

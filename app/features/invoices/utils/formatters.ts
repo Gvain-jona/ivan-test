@@ -1,8 +1,8 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Order, OrderItem } from '@/types/orders';
-import { InvoiceSettings } from '../types';
+import type { Order, OrderItem } from '@/types/orders';
+import type { InvoiceSettings } from '../types';
 
 /**
  * Format a date string to a human-readable format

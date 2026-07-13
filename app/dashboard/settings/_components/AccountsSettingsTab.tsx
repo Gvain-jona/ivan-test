@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { useSettings } from '@/app/context/settings';
 import { useAuth } from '@/app/context/auth-context';
-import {
+import type {
   Account,
   AccountType,
   AccountsSettings

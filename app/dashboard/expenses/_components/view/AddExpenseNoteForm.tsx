@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { ExpenseNote } from '@/hooks/expenses';
+import type { ExpenseNote } from '@/hooks/expenses';
 import { NOTE_TYPES } from '../form/schema';
 
 interface AddExpenseNoteFormProps {

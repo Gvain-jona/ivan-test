@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
   Home,
   Package,
+  Boxes,
+  SlidersHorizontal,
   Banknote,
   ShoppingBag,
   CheckSquare,
@@ -35,7 +37,8 @@ import ContextMenu from '@/components/ui/context-menu';
 // Import custom hooks
 import { useContextMenu } from '@/hooks/ui/useContextMenu';
 import { useScrollNavigation } from '@/hooks/ui/useScrollNavigation';
-import { useTabNavigation, NavItemType, NavItem } from '@/hooks/ui/useTabNavigation';
+import type { NavItemType, NavItem } from '@/hooks/ui/useTabNavigation';
+import { useTabNavigation } from '@/hooks/ui/useTabNavigation';
 import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
 // Define navigation items with consistent navigation approach
@@ -43,6 +46,9 @@ const getNavigationItems = (unreadCount: number): NavItemType[] => [
   // Home page removed temporarily
   // { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
+  { title: 'Clients', icon: User, href: '/dashboard/clients' },
+  { title: 'Products', icon: Boxes, href: '/dashboard/products' },
+  { title: 'Fields', icon: SlidersHorizontal, href: '/dashboard/fields' },
   { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
   { type: 'separator' },

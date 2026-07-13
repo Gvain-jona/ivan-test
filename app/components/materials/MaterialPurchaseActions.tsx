@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MaterialPurchase } from '@/types/materials';
+import type { MaterialPurchase } from '@/types/materials';
 import { MaterialPurchaseDeleteConfirmation } from './MaterialPurchaseDeleteConfirmation';
 
 interface MaterialPurchaseActionsProps {

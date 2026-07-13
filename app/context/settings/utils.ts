@@ -2,7 +2,9 @@
  * Utility functions for settings management
  */
 
-import { UserSettings, defaultSettings } from './types';
+import type { ProfitSettings, AccountsSettings } from './types';
+import type { UserSettings} from './types';
+import { defaultSettings } from './types';
 
 /**
  * Merges user settings with default settings
@@ -43,11 +45,11 @@ export function mergeWithDefaultSettings(userSettings?: Partial<UserSettings>): 
       ...defaultSettings.profit,
       ...userSettings.profit,
       overrides: userSettings.profit?.overrides || defaultSettings.profit?.overrides || [],
-    } as import('./types').ProfitSettings,
+    } as ProfitSettings,
     accounts: {
       ...defaultSettings.accounts,
       ...userSettings.accounts,
-    } as import('./types').AccountsSettings,
+    } as AccountsSettings,
   };
 }
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import { SWR_CACHE_TIMES, SWR_RETRY } from '@/lib/swr-config';
 import { createClient } from '@/utils/supabase/client';
-import { SmartComboboxOption } from '@/components/ui/smart-combobox';
+import type { SmartComboboxOption } from '@/components/ui/smart-combobox';
 
 // Define the entity types
 export type EntityType = 'clients' | 'categories' | 'items' | 'sizes' | 'suppliers';

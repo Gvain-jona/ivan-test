@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Order } from '@/types/orders';
-import { InvoiceSettings } from '../../types';
+import type { Order } from '@/types/orders';
+import type { InvoiceSettings } from '../../types';
 import {
   formatCurrency,
   formatDate,

@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { DayPicker, DayClickEventHandler } from 'react-day-picker';
+import type { DayClickEventHandler } from 'react-day-picker';
+import { DayPicker } from 'react-day-picker';
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';

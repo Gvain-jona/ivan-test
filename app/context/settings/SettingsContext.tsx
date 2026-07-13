@@ -3,9 +3,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/app/context/auth-context';
 import { createClient } from '@/utils/supabase/client';
-import {
+import type {
   UserSettings,
-  SettingsContextType,
+  SettingsContextType} from './types';
+import {
   defaultSettings
 } from './types';
 import {

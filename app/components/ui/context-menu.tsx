@@ -38,7 +38,6 @@ function ContextMenu({
 
     // Use a ref to track if the menu was just opened to prevent immediate closing
     const justOpenedRef = { current: true };
-    let clickOutsideTimeout: NodeJS.Timeout;
 
     const handleClickOutside = (event: MouseEvent) => {
       // Prevent handling clicks immediately after opening
@@ -75,7 +74,7 @@ function ContextMenu({
     document.addEventListener('keydown', handleEscapeKey);
 
     // After a short delay, allow click outside handling
-    clickOutsideTimeout = setTimeout(() => {
+    const clickOutsideTimeout = setTimeout(() => {
       // Now allow click outside handling
       justOpenedRef.current = false;
     }, 200); // Shorter delay for better responsiveness
@@ -89,16 +88,6 @@ function ContextMenu({
 
   // For debugging positioning issues - only log when state actually changes
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && open && false) { // Disable logging completely
-      console.log('ContextMenu state changed:', {
-        open,
-        activeSection,
-        menuType,
-        position,
-        viewportWidth: window.innerWidth,
-      });
-    }
-
     // Focus the menu when it opens for better keyboard accessibility
     if (open && menuRef.current) {
       // Use requestAnimationFrame to ensure the menu is rendered

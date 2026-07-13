@@ -1,9 +1,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { PaymentStatus } from '@/types/orders';
 
 interface PaymentStatusBadgeProps {
-  status: PaymentStatus;
+  status: string;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -12,7 +11,7 @@ const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({ status, size = 
     switch (status) {
       case 'unpaid':
         return 'bg-red-500 text-white';
-      case 'partially_paid':
+      case 'partial':
         return 'bg-brand text-white';
       case 'paid':
         return 'bg-status-completed text-white';

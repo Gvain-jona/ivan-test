@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { MoreHorizontal, MessageSquare, UserPlus, AlertCircle, Clock, DollarSign, AtSign, CheckCircle, Loader2 } from 'lucide-react';
-import { Notification } from '@/types/notifications';
+import type { Notification } from '@/types/notifications';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/context/NotificationsContext';

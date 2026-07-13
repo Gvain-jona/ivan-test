@@ -3,7 +3,8 @@
  * Ensures consistent handling of auth sessions across the application
  */
 
-import { Session, User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { clearAuthStorage } from '@/lib/storage-keys';
 

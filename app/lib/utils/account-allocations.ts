@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
-import { SourceType, TransactionType } from '@/app/context/settings/types';
+import type { SourceType, TransactionType } from '@/app/context/settings/types';
 
 /**
  * Interface for allocation result

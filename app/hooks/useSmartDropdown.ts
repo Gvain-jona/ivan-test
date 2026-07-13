@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { SmartComboboxOption } from '@/components/ui/smart-combobox'
+import type { SmartComboboxOption } from '@/components/ui/smart-combobox'
 import { toast } from '@/components/ui/use-toast'
-import { fetchDropdownOptions, createDropdownOption, EntityType } from '../actions/options'
+import type { EntityType } from '../actions/options';
+import { fetchDropdownOptions, createDropdownOption } from '../actions/options'
 
 interface UseSmartDropdownProps {
   entityType: EntityType

@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { MaterialNote } from '@/hooks/materials/types';
+import type { MaterialNote } from '@/hooks/materials/types';
 import { useMaterialPurchaseDetails } from '@/hooks/materials';
 import { useToast } from '@/components/ui/use-toast';
 

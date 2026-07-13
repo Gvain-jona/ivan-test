@@ -1,432 +1,189 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useOrdersPage } from '@/app/dashboard/orders/_context';
-import { Button } from '@/components/ui/button';
-import { Printer, Calendar, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
-import { OrderViewSheetProps } from './types';
-import { OrderPayment } from '@/types/orders';
 import { useToast } from '@/components/ui/use-toast';
-import { useOrder } from '@/hooks/useOrders';
-import { invalidateOrderCache } from '@/lib/cache-utils';
+import { useOrder, useOrderMutations } from '@/hooks/orders/useOrders';
+import { useNotes } from '@/hooks/notes/useNotes';
+import { useDocuments } from '@/hooks/documents/useDocuments';
+import type { DocumentType } from '@/hooks/documents/useDocuments';
+import type { OrderViewSheetProps } from './types';
 
-// Import shared components
-import SectionHeader from './components/SectionHeader';
-
-// Import tab components
 import OrderDetailsTab from './OrderDetailsTab';
 import OrderItemsTab from './OrderItemsTab';
 import OrderPaymentsTab from './OrderPaymentsTab';
 import OrderNotesTab from './OrderNotesTab';
+import OrderDocumentsTab from './OrderDocumentsTab';
 
-// Import modal components
-import AddOrderItemModal from './AddOrderItemModal';
-import AddOrderPaymentModal from './AddOrderPaymentModal';
-import AddOrderNoteModal from './AddOrderNoteModal';
-
-// Import custom hooks
-import { useOrderUpdates } from './hooks/useOrderUpdates';
+type TabKey = 'details' | 'items' | 'payments' | 'notes' | 'documents';
 
 /**
- * OrderViewSheet displays order details in a side panel
+ * OrderViewSheet displays an order in a side panel: details, items,
+ * payments, and notes, all fetched live from the v2 API while open.
  */
 const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   open,
   onOpenChange,
-  order: initialOrder,
+  order: summary,
   onClose,
-  onEdit,
-  onGenerateInvoice,
-  userRole = 'user'
 }) => {
-  // State for the OrderViewSheet component
   const { toast } = useToast();
-  // Get the active modal state from context
-  const { activeModal } = useOrdersPage();
-  // Use state for orderId to ensure it updates when initialOrder changes
-  const [orderId, setOrderId] = useState<string | undefined>(initialOrder?.id);
+  const [activeTab, setActiveTab] = useState<TabKey>('details');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State for modals
-  const [showAddItemModal, setShowAddItemModal] = useState(false);
-  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
-  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
+  const orderId = open ? summary?.id ?? null : null;
+  const { order, payments, isLoading, mutate: refreshOrder } = useOrder(orderId);
+  const { notes, addNote } = useNotes('order', orderId);
+  const { documents, createDocument } = useDocuments('order', orderId);
+  const { addPayment } = useOrderMutations();
 
-  // Update orderId when initialOrder changes, but only if it's different
-  useEffect(() => {
-    if (initialOrder?.id && initialOrder.id !== orderId) {
-      // Only log in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('OrderViewSheet - Updating orderId from', orderId, 'to', initialOrder.id);
-      }
-      setOrderId(initialOrder.id);
-    }
-  }, [initialOrder, orderId]); // Include orderId to prevent unnecessary updates
+  const clientName = order?.clients?.name ?? summary?.clients?.name ?? 'Unknown';
 
-  // Create a unique SWR key that includes both the order ID and open state
-  // This ensures SWR fetches only when the sheet is open
-  const orderKey = useMemo(() => {
-    // Pass the raw order id; useOrder() builds the /api/orders/<id> path itself.
-    const key = open && orderId ? orderId : null;
-    // Only log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('OrderViewSheet - SWR key:', key);
-    }
-    return key;
-  }, [open, orderId]);
-
-  // Fetch order data only when the sheet is open and we have an orderId
-  const { order: fetchedOrder, isLoading, isError, mutate: refreshOrderBase } = useOrder(orderKey ?? undefined);
-
-  // Use the fetched order if available, otherwise fall back to the initial order
-  const order = fetchedOrder || initialOrder;
-
-  // Ensure order always has arrays for items, payments, and notes
-  if (order) {
-    if (!order.items) order.items = [];
-    if (!order.payments) order.payments = [];
-    if (!order.notes) order.notes = [];
-  }
-
-  // Debug log to track order data flow - only in development and only when data changes
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && order) {
-      console.log('OrderViewSheet - Current order data:', {
-        id: order.id,
-        order_number: order.order_number,
-        client_name: order.client_name,
-        items: order.items?.length || 0,
-        payments: order.payments?.length || 0,
-        notes: order.notes?.length || 0,
-        source: order === fetchedOrder ? 'fetchedOrder' : 'initialOrder'
-      });
-    }
-  }, [order, fetchedOrder]); // Depend on actual data changes, not just orderId
-
-  // Optimized refreshOrder function with debounced revalidation and request batching
-  const refreshOrder = useCallback(async (optimisticData?: any, shouldRevalidate: boolean = true) => {
+  const handleAddPayment = async (input: {
+    amount: number;
+    payment_method?: 'cash' | 'mobile_money' | 'bank' | 'credit';
+    payment_date?: string;
+  }) => {
+    if (!summary) return;
+    setIsSubmitting(true);
     try {
-      // If optimistic data is provided, update the cache immediately
-      if (optimisticData) {
-        // Update the cache with the optimistic data without triggering a revalidation
-        await refreshOrderBase(optimisticData, false);
-
-        // If we should revalidate, do it after a delay, but only if the component is still mounted
-        if (shouldRevalidate) {
-          // Store the current orderId to check if it changes
-          const currentOrderId = orderId;
-          // Use a longer delay to allow multiple optimistic updates to batch
-          setTimeout(() => {
-            // Only revalidate if the orderId hasn't changed (component still showing the same order)
-            if (currentOrderId === orderId) {
-              refreshOrderBase();
-            }
-          }, 2000); // Increased to 2 seconds to allow more batching
-        }
-      } else {
-        // Just do a normal revalidation, but only if we have an orderId
-        if (orderId) {
-          return refreshOrderBase();
-        }
-      }
+      await addPayment(summary.id, input);
+      await refreshOrder();
+      toast({ title: 'Payment recorded' });
     } catch (error) {
-      console.error('Error in refreshOrder:', error);
-      // Only revalidate if we have an orderId
-      if (orderId) {
-        return refreshOrderBase();
-      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to record payment',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [refreshOrderBase, orderId]);
-
-  // Use our custom hook for order updates with optimistic updates
-  const {
-    loadingStates,
-    handleAddItem,
-    handleEditItem,
-    handleDeleteItem,
-    handleAddPayment,
-    handleEditPayment,
-    handleDeletePayment,
-    handleAddNote,
-    handleEditNote,
-    handleDeleteNote
-  } = useOrderUpdates({
-    order,
-    onEdit: async (updatedOrder) => {
-      try {
-        const response = await onEdit(updatedOrder);
-        return response;
-      } catch (error) {
-        console.error('Error in onEdit:', error);
-        throw error;
-      }
-    },
-    refreshOrder
-  });
-
-  // No need to update orderId since it's derived from initialOrder
-
-  // Handle sheet closing without clearing cache unnecessarily
-  useEffect(() => {
-    if (!open) {
-      // Small delay to ensure the sheet is closed before calling onClose
-      const timer = setTimeout(() => {
-        if (!open && onClose) {
-          onClose();
-          // Log but don't clear cache - we'll let SWR handle cache management
-          if (orderId && activeModal === 'invoice') {
-            console.log('OrderViewSheet - NOT clearing SWR cache because invoice modal is open');
-          }
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-
-    // Cleanup function - log but don't clear cache to prevent unnecessary API calls
-    return () => {
-      if (orderId) {
-        // Check if any operations are in progress
-        const globalApiCallInProgress = !!(window as any).__apiCallInProgress;
-        const anyLoadingStateInProgress = [
-          'addItem', 'editItem', 'deleteItem',
-          'addPayment', 'editPayment', 'deletePayment',
-          'addNote', 'editNote', 'deleteNote'
-        ].some(key => !!(loadingStates as unknown as Record<string, unknown>)[key]);
-
-        const anyOperationInProgress = globalApiCallInProgress || anyLoadingStateInProgress;
-        const invoiceModalOpen = activeModal === 'invoice';
-
-        // Just log the state but don't clear cache - let SWR handle cache management
-        if (anyOperationInProgress) {
-          console.log('OrderViewSheet - Component unmounting, operations in progress');
-        } else if (invoiceModalOpen) {
-          console.log('OrderViewSheet - Component unmounting, invoice modal is open');
-        } else {
-          console.log('OrderViewSheet - Component unmounting normally');
-        }
-      }
-    };
-  }, [open, onClose, orderId, refreshOrderBase, activeModal, loadingStates]);
-
-  // Determine if the user can edit based on role
-  const canEdit = ['admin', 'manager'].includes(userRole);
-
-  /**
-   * Calculate the balance percent for the progress bar
-   */
-  const calculateBalancePercent = () => {
-    if (!order || order.total_amount === 0) return 0;
-    return (order.amount_paid / order.total_amount) * 100;
   };
 
-  // Payment submission will be handled by a separate component in Phase 2
-
-  // We don't need to manually refresh the order data when the order ID changes
-  // because SWR will handle this automatically when the key (orderId) changes
-
-  // Create a custom header with client avatar and order details
-  const renderCustomHeader = () => {
-    if (!order) return null;
-
-    return (
-      <div className="flex items-start gap-4">
-        {/* Client Avatar */}
-        <Avatar className="h-12 w-12 border-2 border-border/40">
-          <AvatarFallback className="bg-gradient-to-r from-primary to-orange-600 text-white">
-            {getInitials(order.client_name || '')}
-          </AvatarFallback>
-        </Avatar>
-
-        {/* Order Details */}
-        <div className="flex-1">
-          {/* Client Name as Main Title */}
-          <h2 className="text-xl font-semibold">{order.client_name}</h2>
-
-          {/* Order Number and Date as Subtitle */}
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm text-muted-foreground">Order {order.order_number || (order.id ? `#${order.id.substring(0, 8)}` : 'Unknown')}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {new Date(order.date).toLocaleDateString()}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
+  const handleAddNote = async (content: string) => {
+    setIsSubmitting(true);
+    try {
+      await addNote(content);
+      toast({ title: 'Note added' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to add note',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const handleCreateDocument = async (documentType: DocumentType) => {
+    setIsSubmitting(true);
+    try {
+      await createDocument({ document_type: documentType });
+      toast({ title: 'Document created', description: 'Saved as a draft' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create document',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const tabs: { key: TabKey; label: string; count?: number }[] = [
+    { key: 'details', label: 'Details' },
+    { key: 'items', label: 'Items', count: order?.order_items?.length },
+    { key: 'payments', label: 'Payments', count: payments.length },
+    { key: 'notes', label: 'Notes', count: notes.length },
+    { key: 'documents', label: 'Documents', count: documents.length },
+  ];
 
   return (
     <OrderSheet
       open={open}
-      onOpenChange={onOpenChange}
-      title={order ? `Order ${order.order_number || (order.id ? `#${order.id.substring(0, 8)}` : 'Unknown')}` : 'Order Details'}
-      description={isLoading ? 'Loading order details...' : (isError ? 'Error loading order details' : '')}
-      onClose={onClose}
-      size="lg"
-      customHeader={order ? renderCustomHeader() : undefined}
+      onOpenChange={(next: boolean) => {
+        onOpenChange(next);
+        if (!next) onClose();
+      }}
+      title={summary?.order_number ?? 'Order'}
     >
-      {isError && !order ? (
-        <div className="p-6 flex flex-col items-center justify-center space-y-4">
-          <p className="text-sm text-destructive">Error loading order details. Please try again.</p>
-          <Button variant="outline" onClick={() => refreshOrder()}>
-            Retry
-          </Button>
+      <div className="p-4 space-y-4">
+        {/* Client header */}
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10 border-2 border-primary/40 bg-primary/10">
+            <AvatarFallback className="text-sm font-medium">
+              {getInitials(clientName)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-medium text-white">{clientName}</p>
+            <p className="text-xs text-muted-foreground">
+              {summary?.order_date
+                ? new Date(summary.order_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : ''}
+            </p>
+          </div>
         </div>
-      ) : isLoading && !order && !initialOrder ? (
-        <div className="p-6 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading order details...</p>
-        </div>
-      ) : (
-        <div className="p-6">
-        <div className="space-y-8">
-          {/* Order Details Section */}
-          <div className="space-y-4">
-            <SectionHeader
-              title="Order Details"
-              actions={
-                <Button
-                  onClick={() => order && onGenerateInvoice(order)}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#2B2B40] bg-transparent hover:bg-white/[0.02] text-[#6D6D80] hover:text-white"
-                >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Generate Invoice
-                </Button>
+
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b border-[#2B2B40]">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={
+                activeTab === tab.key
+                  ? 'px-3 py-2 text-sm font-medium text-white border-b-2 border-orange-500'
+                  : 'px-3 py-2 text-sm text-muted-foreground hover:text-white'
               }
-            />
-            {order && (
-              <OrderDetailsTab
+            >
+              {tab.label}
+              {tab.count != null && tab.count > 0 && (
+                <span className="ml-1.5 text-xs text-muted-foreground">({tab.count})</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {isLoading || !order ? (
+          <div className="flex items-center justify-center py-12 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            Loading order…
+          </div>
+        ) : (
+          <>
+            {activeTab === 'details' && <OrderDetailsTab order={order} />}
+            {activeTab === 'items' && <OrderItemsTab order={order} />}
+            {activeTab === 'payments' && (
+              <OrderPaymentsTab
                 order={order}
-                calculateBalancePercent={calculateBalancePercent}
+                payments={payments}
+                onAddPayment={handleAddPayment}
+                isSubmitting={isSubmitting}
               />
             )}
-          </div>
-
-          {/* Order Items Section */}
-          <div className="space-y-4">
-            <SectionHeader
-              title="Order Items"
-              count={order?.items?.length}
-              badgeColor="white"
-            />
-            {order && <OrderItemsTab
-              order={order}
-              canEdit={true}
-              onAddItem={handleAddItem}
-              onEditItem={handleEditItem}
-              onDeleteItem={handleDeleteItem}
-              loadingStates={{
-                addItem: loadingStates?.addItem || false,
-                editItem: loadingStates?.editItem || null,
-                deleteItem: loadingStates?.deleteItem || null
-              }}
-              onAddItemClick={(orderId) => {
-                console.log('Add item clicked for order:', orderId);
-                setShowAddItemModal(true);
-              }}
-            />}
-          </div>
-
-          {/* Payments Section */}
-          <div className="space-y-4">
-            <SectionHeader
-              title="Payments"
-              count={order?.payments?.length}
-              badgeColor="green"
-            />
-            <OrderPaymentsTab
-              order={order}
-              onEdit={(o) => Promise.resolve(onEdit(o))}
-              refreshOrder={refreshOrder}
-              isLoading={isLoading}
-              isError={isError}
-              loadingStates={{
-                editPayment: loadingStates?.editPayment || null,
-                deletePayment: loadingStates?.deletePayment || null
-              }}
-              onAddPaymentClick={(orderId) => {
-                console.log('Add payment clicked for order:', orderId);
-                setShowAddPaymentModal(true);
-              }}
-            />
-          </div>
-
-          {/* Notes Section */}
-          <div className="space-y-4">
-            <SectionHeader
-              title="Notes"
-              count={order?.notes?.length}
-              badgeColor="purple"
-            />
-            {order && <OrderNotesTab
-              order={order}
-              onEdit={(o) => Promise.resolve(onEdit(o))}
-              refreshOrder={refreshOrder}
-              isLoading={isLoading}
-              isError={isError}
-              loadingStates={{
-                editNote: loadingStates?.editNote || null,
-                deleteNote: loadingStates?.deleteNote || null
-              }}
-              onAddNoteClick={(orderId) => {
-                console.log('Add note clicked for order:', orderId);
-                setShowAddNoteModal(true);
-              }}
-            />}
-          </div>
-        </div>
+            {activeTab === 'notes' && (
+              <OrderNotesTab notes={notes} onAddNote={handleAddNote} isSubmitting={isSubmitting} />
+            )}
+            {activeTab === 'documents' && (
+              <OrderDocumentsTab
+                documents={documents}
+                onCreateDocument={handleCreateDocument}
+                isSubmitting={isSubmitting}
+              />
+            )}
+          </>
+        )}
       </div>
-      )}
-
-      {/* Footer area removed as we're moving to inline editing */}
-
-      {/* Modals */}
-      <AddOrderItemModal
-        isOpen={showAddItemModal}
-        onClose={() => setShowAddItemModal(false)}
-        orderId={order?.id || ''}
-        order={order ?? undefined}
-        onSuccess={() => {
-          // Refresh the order data and invalidate the orders list cache
-          refreshOrder();
-          if (order?.id) {
-            // Pass the order to the invalidateOrderCache function for optimistic updates
-            invalidateOrderCache(order.id, order);
-          }
-        }}
-      />
-
-      <AddOrderPaymentModal
-        isOpen={showAddPaymentModal}
-        onClose={() => setShowAddPaymentModal(false)}
-        orderId={order?.id || ''}
-        order={order ?? undefined}
-        onSuccess={() => {
-          // Refresh the order data and invalidate the orders list cache
-          refreshOrder();
-          if (order?.id) {
-            // Pass the order to the invalidateOrderCache function for optimistic updates
-            invalidateOrderCache(order.id, order);
-          }
-        }}
-      />
-
-      <AddOrderNoteModal
-        isOpen={showAddNoteModal}
-        onClose={() => setShowAddNoteModal(false)}
-        orderId={order?.id || ''}
-        order={order ?? undefined}
-        onSuccess={() => {
-          // Refresh the order data and invalidate the orders list cache
-          refreshOrder();
-          if (order?.id) {
-            // Pass the order to the invalidateOrderCache function for optimistic updates
-            invalidateOrderCache(order.id, order);
-          }
-        }}
-      />
     </OrderSheet>
   );
 };

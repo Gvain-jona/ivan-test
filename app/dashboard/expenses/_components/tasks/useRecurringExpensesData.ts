@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { format, isToday, isTomorrow, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isBefore, isAfter, isSameDay } from 'date-fns';
-import { FilterType, RecurringExpense, RecurringExpenseOccurrence } from './types';
+import type { FilterType, RecurringExpense, RecurringExpenseOccurrence } from './types';
 
 interface FilterCounts {
   all: number;

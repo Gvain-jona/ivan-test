@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { ExpensePayment } from '@/hooks/expenses';
+import type { ExpensePayment } from '@/hooks/expenses';
 import { formatCurrency } from '@/lib/utils';
 
 interface AddExpensePaymentFormProps {

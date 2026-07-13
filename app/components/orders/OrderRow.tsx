@@ -1,47 +1,48 @@
 import React, { useState } from 'react';
-import { Order, OrderStatus } from '@/types/orders';
 import StatusDropdown from './StatusDropdown';
 import OrderActions from './OrderActions';
 import { ChevronDown, ChevronRight, ShoppingBag, MessageSquare, Eye } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-
+import { useOrder } from '@/hooks/orders/useOrders';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
+import { useNotes } from '@/hooks/notes/useNotes';
 
 interface OrderRowProps {
-  order: Order;
+  order: OrderSummary;
   userRole: 'admin' | 'manager' | 'employee';
-  onView: (order: Order) => void;
-  onEdit: (order: Order) => void;
-  onDelete: (order: Order) => void;
-  onDuplicate: (order: Order) => void;
-  onInvoice: (order: Order) => void;
-  onStatusChange: (order: Order, status: OrderStatus) => void;
+  onView: (order: OrderSummary) => void;
+  onDelete: (order: OrderSummary) => void;
+  onStatusChange: (order: OrderSummary, status: string) => void;
   isHovered?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
 
 /**
- * OrderRow displays a single order row with expand/collapse functionality
- * Enhanced with animations using Framer Motion
+ * OrderRow displays a single order row with expand/collapse details.
+ * Expansion lazily fetches the order detail (items) and notes — the
+ * list payload stays light and the expanded data is always fresh.
  */
 function OrderRow(props: OrderRowProps) {
   const {
-  order,
-  userRole,
-  onView,
-  onEdit,
-  onDelete,
-  onDuplicate,
-  onInvoice,
-  onStatusChange,
-  onMouseEnter,
-  onMouseLeave,
+    order,
+    userRole,
+    onView,
+    onDelete,
+    onStatusChange,
+    onMouseEnter,
+    onMouseLeave,
   } = props;
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Generate initials from client name
+  const clientName = order.clients?.name ?? 'Unknown';
+
+  // Lazy: both hooks pause (null key) until the row is expanded
+  const { order: detail, isLoading: detailLoading } = useOrder(isExpanded ? order.id : null);
+  const { notes } = useNotes('order', isExpanded ? order.id : null);
+
   const getInitials = (name: string): string => {
     if (!name) return '--';
     return name
@@ -52,7 +53,6 @@ function OrderRow(props: OrderRowProps) {
       .slice(0, 2);
   };
 
-  // Get avatar background color based on client name with expanded color palette
   const getAvatarColor = (name: string): string => {
     if (!name) return 'bg-orange-500 text-white';
     const colors = [
@@ -95,8 +95,8 @@ function OrderRow(props: OrderRowProps) {
           <div className="flex items-center space-x-3 w-full">
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Prevent row click event
-                e.preventDefault(); // Prevent any default behavior
+                e.stopPropagation();
+                e.preventDefault();
                 setIsExpanded(!isExpanded);
               }}
               className="group inline-flex items-center text-sm text-table-header hover:text-white focus:outline-none interactive-element relative z-10 flex-shrink-0 dropdown-icon"
@@ -116,25 +116,21 @@ function OrderRow(props: OrderRowProps) {
                 order.status === 'pending' ? 'border-amber-500/50 bg-amber-500/10' :
                 order.status === 'delivered' ? 'border-purple-500/50 bg-purple-500/10' :
                 order.status === 'cancelled' ? 'border-red-500/50 bg-red-500/10' :
-                order.status === 'paused' ? 'border-gray-500/50 bg-gray-500/10' :
-                `${getAvatarColor(order.client_name || 'Unknown')} ${getAvatarColor(order.client_name || 'Unknown').replace('bg-', 'border-')}`
+                `${getAvatarColor(clientName)} ${getAvatarColor(clientName).replace('bg-', 'border-')}`
               )}>
-                <AvatarFallback className="text-sm font-medium">{getInitials(order.client_name || 'Unknown')}</AvatarFallback>
+                <AvatarFallback className="text-sm font-medium">{getInitials(clientName)}</AvatarFallback>
               </Avatar>
               <span className={cn("absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-background",
                 order.status === 'completed' ? 'bg-green-500' :
                 order.status === 'in_progress' ? 'bg-blue-500' :
                 order.status === 'pending' ? 'bg-amber-500' :
                 order.status === 'delivered' ? 'bg-purple-500' :
-                order.status === 'cancelled' ? 'bg-red-500' :
-                order.status === 'paused' ? 'bg-gray-500' : 'bg-green-500'
+                order.status === 'cancelled' ? 'bg-red-500' : 'bg-green-500'
               )}></span>
             </div>
             <div>
-              <div className="text-sm font-medium text-white max-w-[220px] line-clamp-1">{order.client_name}</div>
+              <div className="text-sm font-medium text-white max-w-[220px] line-clamp-1">{clientName}</div>
               <div className="text-xs text-muted-foreground flex items-center gap-1 max-w-[220px]">
-                <span className="capitalize truncate">{order.client_type || 'Regular'}</span>
-                <span className="text-muted-foreground/50 flex-shrink-0">•</span>
                 <span className="font-medium text-primary truncate">{order.order_number || (order.id ? `#${order.id.substring(0, 8)}` : 'Unknown')}</span>
               </div>
             </div>
@@ -143,7 +139,7 @@ function OrderRow(props: OrderRowProps) {
 
         <td className="date-column">
           <div className="text-sm text-white">
-            {order.date ? new Date(order.date).toLocaleDateString('en-US', {
+            {order.order_date ? new Date(order.order_date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
               day: 'numeric'
@@ -170,10 +166,8 @@ function OrderRow(props: OrderRowProps) {
           <div className="w-full flex justify-end items-center space-x-1">
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Prevent row click event
-                e.preventDefault(); // Prevent any default behavior
-
-                // Add a small delay to ensure the action completes properly
+                e.stopPropagation();
+                e.preventDefault();
                 setTimeout(() => {
                   onView(order);
                 }, 50);
@@ -189,11 +183,7 @@ function OrderRow(props: OrderRowProps) {
               order={order}
               userRole={userRole}
               onView={onView}
-              onEdit={onEdit}
-              onDelete={async (order) => { onDelete(order); return true; }}
-              onDuplicate={onDuplicate}
-              onInvoice={onInvoice}
-              onStatusChange={onStatusChange}
+              onDelete={async (o) => { onDelete(o); return true; }}
             />
           </div>
         </td>
@@ -215,19 +205,21 @@ function OrderRow(props: OrderRowProps) {
                   <table className="w-full divide-y divide-table-border table-fixed">
                     <thead className="bg-[hsl(var(--table-header-bg))]">
                       <tr>
-                        <th scope="col" className="w-1/3 px-4 py-2 text-left text-xs font-medium text-white">Item</th>
-                        <th scope="col" className="w-1/5 px-4 py-2 text-left text-xs font-medium text-white">Category</th>
-                        <th scope="col" className="w-1/6 px-4 py-2 text-center text-xs font-medium text-white">Quantity</th>
-                        <th scope="col" className="w-1/6 px-4 py-2 text-right text-xs font-medium text-white">Unit Price</th>
-                        <th scope="col" className="w-1/6 px-4 py-2 text-right text-xs font-medium text-white">Total</th>
+                        <th scope="col" className="w-2/5 px-4 py-2 text-left text-xs font-medium text-white">Item</th>
+                        <th scope="col" className="w-1/5 px-4 py-2 text-center text-xs font-medium text-white">Quantity</th>
+                        <th scope="col" className="w-1/5 px-4 py-2 text-right text-xs font-medium text-white">Unit Price</th>
+                        <th scope="col" className="w-1/5 px-4 py-2 text-right text-xs font-medium text-white">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-table-border">
-                      {(order.items && order.items.length > 0) ? (
-                        order.items.map((item) => (
+                      {detailLoading ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-2 text-sm text-table-header text-center">Loading…</td>
+                        </tr>
+                      ) : detail?.order_items?.length ? (
+                        detail.order_items.map((item) => (
                           <tr key={item.id} className="hover:bg-table-hover">
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white">{item.item_name}</td>
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-muted-foreground">{item.category_name}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white">{item.product_name_raw ?? '—'}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-center">{item.quantity}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right">{formatCurrency(item.unit_price)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right font-medium">{formatCurrency(item.total_amount)}</td>
@@ -235,7 +227,7 @@ function OrderRow(props: OrderRowProps) {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="px-4 py-2 text-sm text-table-header text-center">No items found</td>
+                          <td colSpan={4} className="px-4 py-2 text-sm text-table-header text-center">No items found</td>
                         </tr>
                       )}
                     </tbody>
@@ -249,9 +241,9 @@ function OrderRow(props: OrderRowProps) {
                   <MessageSquare className="h-4 w-4 text-primary" />
                   Notes
                 </h4>
-                {(order.notes && order.notes.length > 0) ? (
+                {notes.length > 0 ? (
                   <div className="space-y-2 w-full">
-                    {order.notes.map((note) => (
+                    {notes.map((note) => (
                       <div
                         key={note.id}
                         className="border border-table-border rounded-lg p-4 w-full bg-muted/10 hover:bg-muted/20 transition-colors"
@@ -262,14 +254,11 @@ function OrderRow(props: OrderRowProps) {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-medium text-muted-foreground">
-                                {note.type || 'General Note'}
-                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {new Date(note.created_at).toLocaleDateString()}
                               </p>
                             </div>
-                            <p className="text-sm text-white">{note.text}</p>
+                            <p className="text-sm text-white">{note.content}</p>
                           </div>
                         </div>
                       </div>

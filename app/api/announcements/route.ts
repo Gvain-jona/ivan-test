@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest} from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
 /**
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the data being sent to the database
-    console.log('Creating announcement with data:', announcementData);
+    console.warn('Creating announcement with data:', announcementData);
 
     // Insert the announcement
     const { data, error } = await supabase
@@ -191,7 +192,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Log the data being sent to the database
-    console.log('Updating announcement with data:', {
+    console.warn('Updating announcement with data:', {
       tag: announcementData.tag,
       message: announcementData.message,
       link: announcementData.link,

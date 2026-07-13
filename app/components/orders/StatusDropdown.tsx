@@ -1,20 +1,23 @@
 import React, { useState, useRef } from 'react';
-import { Order, OrderStatus } from '@/types/orders';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { cn } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import { CheckCircle, Clock, PauseCircle, Truck, AlertCircle, ArrowRightCircle, Loader2 } from 'lucide-react';
-import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from './CustomDropdown';
+import { CustomDropdown, CustomDropdownItem } from './CustomDropdown';
+import { useOrganization } from '@/hooks/organization/useOrganization';
 
 interface StatusDropdownProps {
-  order: Order;
-  onStatusChange: (order: Order, status: OrderStatus) => void;
+  order: OrderSummary;
+  onStatusChange: (order: OrderSummary, status: string) => void;
   userRole: 'admin' | 'manager' | 'employee';
 }
 
 function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps) {
   const canChangeStatus = userRole === 'admin' || userRole === 'manager';
+  // Statuses are org-configurable (organizations.settings.order_statuses)
+  const { orderStatuses } = useOrganization();
 
-  const getStatusConfig = (status: OrderStatus) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
       case 'in_progress':
         return {
@@ -61,20 +64,16 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
     }
   };
 
-  if (!canChangeStatus) {
-    return <StatusBadge status={order.status} size="md" />;
-  }
-
   // Add state for loading and current status being changed
   const [isLoading, setIsLoading] = useState(false);
-  const [changingStatus, setChangingStatus] = useState<OrderStatus | null>(null);
+  const [changingStatus, setChangingStatus] = useState<string | null>(null);
 
   // Use a ref to track the current order status for comparison
   const orderStatusRef = React.useRef(order.status);
 
   // Use state to track the displayed status (for optimistic UI updates)
   // Initialize it with the order status but don't re-initialize on every render
-  const [displayStatus, setDisplayStatus] = useState<OrderStatus>(order.status);
+  const [displayStatus, setDisplayStatus] = useState<string>(order.status);
 
   // Update displayed status only when order.status actually changes
   React.useEffect(() => {
@@ -87,7 +86,15 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
   // Handle status change with debounce to prevent accidental double-clicks
   const isChangingRef = React.useRef(false);
 
-  const handleStatusChange = async (status: OrderStatus, e: React.MouseEvent) => {
+  // State to control the dropdown programmatically
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // After all hooks: users without permission just see the badge
+  if (!canChangeStatus) {
+    return <StatusBadge status={order.status} size="md" />;
+  }
+
+  const handleStatusChange = async (status: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault(); // Prevent any default behavior
 
@@ -127,9 +134,6 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
     }
   };
 
-  // State to control the dropdown programmatically
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
   return (
     <CustomDropdown
       isOpen={dropdownOpen}
@@ -150,102 +154,26 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
       contentClassName="w-48 bg-background border-table-border z-50"
       sideOffset={5}
     >
-      <CustomDropdownItem
-        className={cn(
-          "focus:text-white",
-          displayStatus === 'pending' ? 'bg-amber-500/10 text-amber-400' : 'text-white',
-          isLoading && changingStatus === 'pending' ? 'opacity-70 pointer-events-none' : ''
-        )}
-        onClick={(e) => handleStatusChange('pending', e)}
-        disabled={isLoading}
-      >
-        {isLoading && changingStatus === 'pending' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Clock className="mr-2 h-4 w-4" />
-        )}
-        Pending
-      </CustomDropdownItem>
-      <CustomDropdownItem
-        className={cn(
-          "focus:text-white",
-          displayStatus === 'paused' ? 'bg-slate-500/10 text-slate-400' : 'text-white',
-          isLoading && changingStatus === 'paused' ? 'opacity-70 pointer-events-none' : ''
-        )}
-        onClick={(e) => handleStatusChange('paused', e)}
-        disabled={isLoading}
-      >
-        {isLoading && changingStatus === 'paused' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <PauseCircle className="mr-2 h-4 w-4" />
-        )}
-        Paused
-      </CustomDropdownItem>
-      <CustomDropdownItem
-        className={cn(
-          "focus:text-white",
-          displayStatus === 'in_progress' ? 'bg-blue-500/10 text-blue-400' : 'text-white',
-          isLoading && changingStatus === 'in_progress' ? 'opacity-70 pointer-events-none' : ''
-        )}
-        onClick={(e) => handleStatusChange('in_progress', e)}
-        disabled={isLoading}
-      >
-        {isLoading && changingStatus === 'in_progress' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <ArrowRightCircle className="mr-2 h-4 w-4" />
-        )}
-        In Progress
-      </CustomDropdownItem>
-      <CustomDropdownItem
-        className={cn(
-          "focus:text-white",
-          displayStatus === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : 'text-white',
-          isLoading && changingStatus === 'completed' ? 'opacity-70 pointer-events-none' : ''
-        )}
-        onClick={(e) => handleStatusChange('completed', e)}
-        disabled={isLoading}
-      >
-        {isLoading && changingStatus === 'completed' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <CheckCircle className="mr-2 h-4 w-4" />
-        )}
-        Completed
-      </CustomDropdownItem>
-      <CustomDropdownItem
-        className={cn(
-          "focus:text-white",
-          displayStatus === 'delivered' ? 'bg-purple-500/10 text-purple-400' : 'text-white',
-          isLoading && changingStatus === 'delivered' ? 'opacity-70 pointer-events-none' : ''
-        )}
-        onClick={(e) => handleStatusChange('delivered', e)}
-        disabled={isLoading}
-      >
-        {isLoading && changingStatus === 'delivered' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Truck className="mr-2 h-4 w-4" />
-        )}
-        Delivered
-      </CustomDropdownItem>
-      <CustomDropdownItem
-        className={cn(
-          "focus:text-white",
-          displayStatus === 'cancelled' ? 'bg-rose-500/10 text-rose-400' : 'text-white',
-          isLoading && changingStatus === 'cancelled' ? 'opacity-70 pointer-events-none' : ''
-        )}
-        onClick={(e) => handleStatusChange('cancelled', e)}
-        disabled={isLoading}
-      >
-        {isLoading && changingStatus === 'cancelled' ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <AlertCircle className="mr-2 h-4 w-4" />
-        )}
-        Cancelled
-      </CustomDropdownItem>
+      {orderStatuses.map(statusOption => {
+        const config = getStatusConfig(statusOption);
+        const isActive = displayStatus === statusOption;
+        const isChangingThis = isLoading && changingStatus === statusOption;
+        return (
+          <CustomDropdownItem
+            key={statusOption}
+            className={cn(
+              'focus:text-white',
+              isActive ? config.className : 'text-white',
+              isChangingThis ? 'opacity-70 pointer-events-none' : ''
+            )}
+            onClick={(e) => handleStatusChange(statusOption, e)}
+            disabled={isLoading}
+          >
+            {isChangingThis ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : config.icon}
+            {config.label}
+          </CustomDropdownItem>
+        );
+      })}
     </CustomDropdown>
   );
 }

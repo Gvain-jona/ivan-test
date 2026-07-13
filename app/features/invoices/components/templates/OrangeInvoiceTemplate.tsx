@@ -1,6 +1,8 @@
 import React from 'react';
-import { Order, OrderItem } from '@/types/orders';
-import { SimplifiedInvoiceSettings, BankDetail, MobileMoneyDetail } from '../../types';
+import type { Order} from '@/types/orders';
+import { OrderItem } from '@/types/orders';
+import type { SimplifiedInvoiceSettings} from '../../types';
+import { BankDetail, MobileMoneyDetail } from '../../types';
 
 interface OrangeInvoiceTemplateProps {
   order: Order | null;

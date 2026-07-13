@@ -1,3 +1,4 @@
+import type { DateRange } from 'react-day-picker';
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { TaskStatus, TaskPriority } from '@/types/orders';
+import type { TaskStatus, TaskPriority } from '@/types/orders';
 import { CalendarIcon, Filter, X, Search, RotateCcw } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -181,7 +182,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({
             <div>
               <Label className="text-sm text-gray-400 mb-2 block">Due Date Range</Label>
               <DateRangePicker
-                dateRange={dateRange as import('react-day-picker').DateRange | undefined}
+                dateRange={dateRange as DateRange | undefined}
                 onDateRangeChange={(range) => handleDateChange(range ?? {})}
                 className="w-full border-gray-700 bg-gray-900 hover:bg-gray-800"
                 align="start"

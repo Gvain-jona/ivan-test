@@ -1,7 +1,7 @@
 'use client';
 
-import { Order } from '@/types/orders';
-import { PdfGenerationOptions } from '../types';
+import type { Order } from '@/types/orders';
+import type { PdfGenerationOptions } from '../types';
 import { formatInvoiceFilenameFromOrder } from '@/lib/utils/downloadUtils';
 
 /**
@@ -49,7 +49,7 @@ function optimizeForPdf(element: HTMLElement): void {
   });
 
   // Ensure all colors are properly rendered
-  // @ts-ignore
+  // @ts-expect-error vendor-prefixed style property
   element.style.WebkitPrintColorAdjust = 'exact';
   element.style.printColorAdjust = 'exact';
 

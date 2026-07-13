@@ -71,18 +71,15 @@ interface SheetContentProps
 // Define the SheetContent component as a regular forwardRef component
 const SheetContentComponent = React.forwardRef<HTMLDivElement, SheetContentProps>(
   ({ side = "right", className, children, hideCloseButton = false, ...props }, ref) => {
-    // Get the Sheet context from the closest Sheet parent
+    // Get the Sheet context from the closest Sheet parent.
+    // Hooks must run unconditionally, so the missing-context guard
+    // comes after them; onOpenChange is optional until then.
     const sheetContext = React.useContext(SheetContext);
-
-    if (!sheetContext) {
-      console.error("SheetContent must be used within a Sheet component");
-      return null;
-    }
-
-    const { onOpenChange } = sheetContext;
+    const onOpenChange = sheetContext?.onOpenChange;
 
     // Handle escape key press
     React.useEffect(() => {
+      if (!onOpenChange) return;
       const handleEscape = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           // Simply call onOpenChange with false
@@ -97,8 +94,13 @@ const SheetContentComponent = React.forwardRef<HTMLDivElement, SheetContentProps
     // Handle overlay click - use a stable callback to prevent infinite loops
     const handleOverlayClick = React.useCallback(() => {
       // Simply call onOpenChange with false
-      onOpenChange(false);
+      onOpenChange?.(false);
     }, [onOpenChange]);
+
+    if (!sheetContext) {
+      console.error("SheetContent must be used within a Sheet component");
+      return null;
+    }
 
     return (
       <div className="fixed inset-0 z-50 flex">
@@ -122,8 +124,7 @@ const SheetContentComponent = React.forwardRef<HTMLDivElement, SheetContentProps
           {!hideCloseButton && (
             <button
               onClick={() => {
-                console.log('Sheet close button clicked');
-                onOpenChange(false);
+                onOpenChange?.(false);
               }}
               className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             >

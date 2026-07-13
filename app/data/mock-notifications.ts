@@ -1,4 +1,4 @@
-import { Notification, NotificationGroup } from '@/types/notifications';
+import type { Notification, NotificationGroup } from '@/types/notifications';
 import { addDays, format, subDays } from 'date-fns';
 
 // Helper to create ISO strings for dates

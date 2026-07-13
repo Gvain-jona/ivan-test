@@ -3,7 +3,8 @@ import {
   Sheet,
   SheetContent,
 } from '@/components/ui/sheet';
-import { Expense, ExpensePayment, ExpenseNote, useExpenseDetails } from '@/hooks/expenses';
+import type { Expense, ExpensePayment, ExpenseNote} from '@/hooks/expenses';
+import { useExpenseDetails } from '@/hooks/expenses';
 import { ExpenseViewHeader } from './ExpenseViewHeader';
 import { ExpenseViewGeneral } from './ExpenseViewGeneral';
 import { ExpenseViewPayments } from './ExpenseViewPayments';

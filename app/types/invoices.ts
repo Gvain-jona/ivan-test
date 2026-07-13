@@ -1,4 +1,4 @@
-import { Order } from './orders';
+import type { Order } from './orders';
 
 export interface InvoiceSettings {
   includeHeader: boolean;

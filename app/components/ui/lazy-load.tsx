@@ -1,6 +1,7 @@
 'use client';
 
-import React, { Suspense, lazy, ComponentType, ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Loader2 } from 'lucide-react';
 import ErrorBoundary from '@/components/error/ErrorBoundary';
 
