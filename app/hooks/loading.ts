@@ -6,9 +6,6 @@ export { useLoadingSWR, useFetch } from './useLoadingSWR';
 // Orders hooks live in ./orders/ (v2); the legacy root useOrders.ts was
 // deleted at cutover cleanup (docs/v2-migration/ORDERS_CLEANUP.md Phase 1).
 
-// Domain data hooks
-export { useDashboardStats } from './useDashboardStats';
-
 // Reference data hooks (clients, categories, items, sizes, suppliers) + generic
 export {
   useClients,

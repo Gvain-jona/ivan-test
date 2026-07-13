@@ -8,7 +8,6 @@ export type AnnouncementTag = 'New' | 'Updated' | 'Important' | 'Announcement' |
 
 export type AppPageLink =
   | '/dashboard'
-  | '/dashboard/home'
   | '/dashboard/orders'
   | '/dashboard/expenses'
   | '/dashboard/material-purchases'
@@ -61,7 +60,6 @@ export const ANNOUNCEMENT_TAGS: AnnouncementTag[] = [
 
 export const APP_PAGE_LINKS: { label: string; value: AppPageLink }[] = [
   { label: 'Dashboard', value: '/dashboard' },
-  { label: 'Home', value: '/dashboard/home' },
   { label: 'Orders', value: '/dashboard/orders' },
   { label: 'Expenses', value: '/dashboard/expenses' },
   { label: 'Material Purchases', value: '/dashboard/material-purchases' },

@@ -206,11 +206,12 @@ legacy `useOrders`/`useOrder` re-export from `hooks/loading.ts`. Grep confirms
 no `@/hooks/useOrders` imports remain — the dual orders fetch path is gone.
 
 Deviations from the original list:
-- `hooks/use-data.ts` **kept** — the inventory misfiled it as dead; it has a
-  live importer (`app/dashboard/home/DashboardStats.tsx` → `useDashboardStats`).
-- `_data/sample-orders.ts` **kept** — precondition unmet
-  (`app/dashboard/home/_data/home-data.ts` still imports `SAMPLE_ORDERS`).
 - `OrderViewSheet.tsx.new` was already gone before Phase 1 (stale entry).
+- `hooks/use-data.ts` and `_data/sample-orders.ts` were initially kept (their
+  only importers were the home dashboard), then deleted the same day when the
+  **entire home dashboard was removed** — it was unreachable (no nav link,
+  `/dashboard` redirects to orders) and ran on sample data. See `STATE.md`
+  module table.
 
 ### Phase 2 — Fix the live façade (high user impact)
 
