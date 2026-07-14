@@ -103,7 +103,12 @@ currency → needs `PATCH /api/organization`); order detail editing (date,
 client, custom_data); searchable comboboxes for client/product pickers at
 scale; attachments; payment/note edit+delete; currency-aware `formatCurrency`;
 documents "issue" action + per-row quick-invoice sheet (both wait on
-`issue_document()`); order-page metrics on a v2 read layer.
+`issue_document()`); order-page metrics on a v2 read layer; **Next.js security
+upgrade** (critical middleware/auth-bypass + SSRF/cache-poisoning CVEs — the
+non-breaking `npm audit fix` bumps `next` 15.3→15.5 and breaks the build gate at
+`app/actions/options.ts:234`, so it needs a scoped upgrade PR with a type fix;
+full finding in `docs/code-review/AUDIT_PROGRESS.md` §"npm audit — dependency
+CVEs (2026-07-14)").
 
 ## v2 value differences vs legacy (easy to trip on)
 

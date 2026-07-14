@@ -109,6 +109,23 @@
 
 ---
 
+## npm audit — dependency CVEs (2026-07-14, post-v2-sync)
+
+`npm audit` after installing deps against current `package.json` on `main` @ `023bcd5`: **49 advisories (2 critical, 13 high, 27 moderate, 7 low)**. These are CVEs in third-party packages — distinct from the code-level security findings above (which remain at 0 critical). All CRITICAL below block clean remediation.
+
+**Blocker — the "safe" `npm audit fix` does not ship.** The non-breaking fix bumps `next` 15.3.0 → 15.5.20 (within the `^15` range) plus a cascade, which surfaces a TypeScript error — `Property 'id' does not exist on type 'never'` at `app/actions/options.ts:234` (the dynamic `.from(table).insert().select().single()` result type tightened under the newer types). With `next.config.js` `typescript.ignoreBuildErrors: false`, `npm run build` fails (exit 1) and Vercel would reject the deploy. Isolated by `npm ci` on each lockfile: original (next 15.3.0) builds green; post-`audit fix` lockfile does not. Lockfile reverted — no deps changed, tree is clean/green/in-sync.
+
+| Advisory group | Severity | Remediation path | Status |
+|---|---|---|---|
+| **`next`** — App Router (segment-prefetch) + Pages Router (i18n) middleware/proxy **auth bypass**, RSC cache poisoning, SSRF, DoS | CRITICAL | Only via `next` upgrade → **breaks build** at `options.ts:234` | 🔲 OPEN — scoped Next upgrade + type fix required |
+| **`jspdf` / `html2pdf.js` / `jspdf-autotable`** (PDF export stack) | CRITICAL ×3 | Needs breaking `html2pdf.js@0.14.0` + PDF/invoice smoke test | 🔲 OPEN — folds into the `html2pdf.js` consolidation item above |
+| OpenTelemetry / Sentry tree (~20 pkgs) | moderate | `--force` only, which **downgrades `@sentry/nextjs` → 6.3.5** (major regression) | ⏸ DEFERRED — wait for upstream Sentry fix; do NOT `--force` |
+| Build/test tooling (eslint, rollup, webpack, `tar` via supabase CLI, picomatch, ws, …) | high/low | `npm audit fix` clears within-range | 🔲 OPEN — low runtime risk (dev/build only); ride along once build is green |
+
+**Recommended action:** treat the **Next.js security upgrade as its own scoped PR** — bump `next`, fix the `never`-type error at `options.ts:234` (and any errors behind it; the build halts at the first), run `npm run build` + `npm test`, smoke-test auth/middleware, merge. Within-range tooling fixes can ride the same PR once green. The PDF-stack criticals fold into the existing `html2pdf.js` consolidation cleanup. Do **not** run `npm audit fix --force`.
+
+---
+
 ## Added Capabilities
 
 | Item | File | Commit |
