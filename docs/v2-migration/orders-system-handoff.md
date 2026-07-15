@@ -131,29 +131,50 @@ Insert a payment → the `recompute_order_paid` trigger fires → the parent ord
 
 ---
 
-## 6 · Documents — quotations, invoices, and everything between
+## 6 · Documents — the transactional artifact system
 
-Also polymorphic. A quotation, a proforma, and an invoice are the same underlying concept: **a numbered, frozen snapshot of a record, rendered at a point in time.**
+Also polymorphic, and **every document exists because a transaction happened or is being proposed** — there is no legitimate "floating" document with nothing behind it. This was traced against the business logic explicitly and confirmed against how production accounting systems model the domain (Zoho Books / QuickBooks: Estimates → Sales Orders → Invoices → Credit Notes on the sales side, mirrored by Purchase Orders → Bills → Vendor Credits on the purchase side — the same shape we landed on independently).
 
 ```sql
 v2.documents
-├── id                uuid PK
-├── organization_id   uuid
-├── entity_type       text — 'order' | 'expense' | 'client' — what this document renders from
-├── entity_id         uuid
-├── document_type     text — 'quotation' | 'proforma' | 'invoice' | 'receipt' | 'po' — extensible
-├── document_number   text — per-type sequence via next_number(): QT-0012, INV-0451
-├── snapshot           jsonb — frozen render data (client, items, prices, totals)
-├── status              text — draft | sent | accepted | declined | expired | issued | void
-├── valid_until          date — nullable, quotation expiry
+├── id                    uuid PK
+├── organization_id       uuid
+├── entity_type           text — 'order' | 'payment' | 'expense'(future) | 'client'(future) | 'organization'(future)
+├── entity_id             uuid — the transaction this document is ABOUT
+├── document_type         text — 'quotation' | 'invoice' | 'credit_note' | 'receipt' | 'po' | 'bill' — extensible
+├── document_number       text — per-type sequence via next_number(): QT-0012, INV-0451
+├── snapshot              jsonb — frozen render data (client, items, prices, totals)
+├── status                text — draft | sent | accepted | declined | expired | issued | void
+├── valid_until           date — nullable, quotation expiry
+├── related_document_id   uuid — self-reference; a credit_note points at the invoice it corrects
 ├── created_by / created_at / updated_at
 ```
+
+### Where each document type anchors
+
+| Document | entity_type | Why |
+|---|---|---|
+| Quotation | `'order'` | A proposed sale — the order in a pre-commitment status |
+| Invoice | `'order'` | A claim for payment on a sale — same order, further along |
+| Credit note | `'order'` | Corrects an issued invoice — uses `related_document_id` to point at it |
+| Receipt (given to a client) | `'payment'` | Corresponds to *the money that arrived*, not the whole order — a partially-paid order can have multiple receipts, one per payment, without ambiguity |
+| Purchase order / Bill (future) | `'expense'` | The purchase-side mirror, once the expense module is built |
+| Vendor credit (future) | `'expense'` | The purchase-side mirror of a credit note — same `related_document_id` mechanism |
+| Company/compliance files (license, lease, ID, tax cert) | **N/A — not a `documents` row** | No transaction behind them, no snapshot to freeze — these live in `attachments` only |
 
 **Immutability is trigger-enforced.** Once `status` reaches `sent`, `accepted`, or `issued`, the `protect_issued_documents` trigger blocks any change to `snapshot`. A document, once real, cannot silently mutate — regenerating creates a new row, never overwrites.
 
 **Quotation → order conversion has zero data duplication.** A quotation is the *same order record* in a pre-commitment status (a `quotation` stage added to the configurable status workflow). Accepting it is a status change plus a new document render — not a copy. This is a deliberate improvement over how Zoho and most competitors handle it (their quote-to-invoice conversion loses custom fields because quote and invoice are separate modules with separate field registries).
 
-**Status:** `issue_document()` RPC — the function that atomically assigns the number + freezes the snapshot + sets status — is **not yet built.** It's blocked on decisions we deliberately deferred: credit notes (correcting an issued invoice), partial/progress invoicing (deposit + balance as separate documents against one order), and the precise moment each document type freezes. The table and its immutability trigger are live; the orchestration function is the next piece when those decisions land.
+**Credit notes need no new mechanism** — a credit note is a `documents` row like any other with one `related_document_id` pointer back to the invoice it corrects. Same table, same numbering engine, same immutability trigger. Validated against Zoho Books' credit-note API, which exposes a dedicated credit-note ↔ invoice relationship.
+
+**Partial / progress invoicing needs no new mechanism** either. An invoice can receive multiple payments over time, each logged as its own event, with paid/balance derived from the sum — exactly what the `payments` engine plus the generated `balance`/`payment_status` columns on `orders` already do.
+
+**`related_document_id` is live** — migration applied: one nullable, self-referencing, indexed column. When the expenses/materials module is built, vendor_credit → bill uses the identical pattern.
+
+**Status:** `issue_document()` RPC — the function that atomically assigns the number + freezes the snapshot + sets status — is **not yet built.** The table, the entity_type grouping, and the correction mechanism (`related_document_id`) are all now finalized; what remains is the orchestration function, the `snapshot` jsonb shape (not yet specified), and per-type freeze timing (likely "at generation" for invoices, "at sent" for quotations). The table and its immutability trigger are live.
+
+**App-side status (2026-07-15):** `supabase-v2.ts` carries `related_document_id`, but the app validators/UI have **not** yet been reconciled to this model — `documentEntitySchema` still lacks `'payment'` (so receipts-on-payment would be rejected) and `documentTypeSchema` still has `'proforma'` and lacks `'credit_note'`/`'bill'`. That enum reconciliation is a deliberate open follow-up (it changes what the create form accepts and needs DB-owner counter-key confirmation) — see STATE.md.
 
 ---
 
@@ -274,9 +295,13 @@ Before any Ivan-specific data touched the system, the whole order-write path was
 
 | Item | Why it waits |
 |---|---|
-| `issue_document()` RPC | Blocked on credit-note and partial-invoicing decisions |
-| Credit notes / corrections | Needs a defined path for "order changed after invoice issued" |
-| Partial / progress invoicing | Needs a rule for multiple invoice-type documents against one order |
+| `issue_document()` RPC | Model is finalized (grouping + `related_document_id`); orchestration function still unwritten |
+| ~~Credit notes / corrections~~ | **Resolved** — `related_document_id` self-reference, validated against Zoho Books' credit-note API pattern |
+| ~~Partial / progress invoicing~~ | **Resolved** — needs no new mechanism; existing payments engine + generated `balance`/`payment_status` already handle it |
+| Snapshot shape | Not yet specified — which fields, how items nest inside the jsonb |
+| `attachments.custom_data` | Needed for company/compliance documents (category, expiry, visibility) — not yet built |
+| Storage bucket security | Both buckets found `public: true` — needs private + tenant-scoped policies (see STATE.md / AUDIT_PROGRESS.md STOR-01) |
+| Document validators/UI reconciliation | Align app `entity_type`/`document_type` enums to this §6 model (add `payment`, `credit_note`, `bill`; decide `proforma`) — changes the create form, needs DB-owner counter-key confirmation |
 | Read-layer materialized views | Needed for analytics (`client_financials`, sales summaries) — not needed for the order-write path itself |
 | Governed jsonb merge function | Only needed if concurrent multi-user editing of the same record's custom fields becomes a real UX case — not built speculatively |
 
@@ -297,5 +322,5 @@ None of these block using the orders system as designed. They block specific *fu
 
 ---
 
-*Orders system handoff · v1 · Reflects live v2 schema state*
+*Orders system handoff · v2 · Documents grouping finalized (`related_document_id`, receipts-on-payment), market-validated*
 *Source: `giwurfpxxktfsdyitgvr` · schema `v2`*

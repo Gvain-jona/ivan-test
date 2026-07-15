@@ -653,6 +653,8 @@ export type DatabaseV2 = {
           snapshot: Json
           status: string
           valid_until: string | null
+          /** Self-reference: a credit_note points at the invoice it corrects. */
+          related_document_id: string | null
           created_by: string | null
           created_at: string
           updated_at: string
@@ -667,6 +669,7 @@ export type DatabaseV2 = {
           snapshot?: Json
           status?: string
           valid_until?: string | null
+          related_document_id?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -681,6 +684,7 @@ export type DatabaseV2 = {
           snapshot?: Json
           status?: string
           valid_until?: string | null
+          related_document_id?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string

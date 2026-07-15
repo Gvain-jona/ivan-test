@@ -1,5 +1,5 @@
 # Audit Progress Tracker
-**Last updated:** 2026-06-02  
+**Last updated:** 2026-07-15 (added STOR-01 from v2 migration audit)  
 **Branch:** `claude/codebase-review-security-perf-sRWF6`  
 **Session context:** [Full transcript at `/root/.claude/projects/-home-user-ivan-test/a42196d5-3e41-458a-a8cd-b528adf3022c.jsonl`]
 
@@ -32,6 +32,14 @@
 | SEC-11 | LOW | `allowed_emails` RLS exposes full access-control list to all authenticated users | ⏸ DEFERRED | — |
 | SEC-12 | LOW | Sentry traces 100% of production requests | ✅ FIXED | `19d2cad` |
 | SEC-13 | LOW | DELETE `/api/orders` has no role check (any role can delete) | ✅ FIXED | `756e3de` |
+
+### Storage / infrastructure findings (v2 migration)
+
+| ID | Severity | Finding | Status | Commit |
+|----|----------|---------|--------|--------|
+| STOR-01 | HIGH | Supabase Storage buckets `invoices` and `logos` are both `public: true` — any file is readable by anyone with the URL, no auth. Storage-layer equivalent of the anon-callable-function holes purged earlier in the v2 migration. | 🔲 OPEN | — |
+
+**STOR-01 (public storage buckets):** Surfaced by the v2 migration audit (migration tracker v7 + `orders-system-handoff.md` §6 "Storage bucket security"). Remediation: set both buckets to non-public, add `storage.objects` policies enforcing `organization_id` scoping, and encode `organization_id` in bucket paths — the same tenant-boundary treatment the DB functions got. Note the existing `supabase/migrations/20250900000001_fix_storage_rls.sql` is **legacy `public`-schema** storage RLS, not this v2 tenant-scoped fix. **Do before first external user access.**
 
 ### Deferred decisions
 

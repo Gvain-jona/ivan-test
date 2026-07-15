@@ -53,7 +53,7 @@ For Clerk absence impact and hold-vs-now recommendation, see
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
 | **Field setup** | ✅ New (per-entity registry admin at `/dashboard/fields`). |
-| **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
+| **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. **Model drift to reconcile (2026-07-15):** the DB `documents` table gained `related_document_id` (credit_note → invoice link; now in `supabase-v2.ts`) and the finalized grouping anchors receipts to `entity_type='payment'` with `document_type` `credit_note`/`bill` added and `proforma` dropped. The app enums (`documentEntitySchema`, `documentTypeSchema` in `app/lib/api/validators.ts`, mirrored in `useDocuments.ts`/`OrderDocumentsTab.tsx`) are **not** yet aligned — they still lack `payment`/`credit_note`/`bill` and still carry `proforma`. Reconciling changes what the create form accepts and needs DB-owner counter-key confirmation, so it's a deliberate follow-up. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
 | Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | ⏳ Legacy, still on `public` schema, fully working — do not delete their code. The orders-page façade stubs in `app/dashboard/orders/_context/` now serve only the unmigrated InvoicesTab (the Insights/Tasks tabs were deleted in orders cleanup Phase 1). `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
 | Home dashboard | 🗑 **Deleted 2026-07-13** — was unreachable (no nav link, `/dashboard` redirects to orders) and ran on sample data, not live queries. `app/dashboard/home/`, `sample-orders.ts`, `hooks/use-data.ts`, `hooks/useDashboardStats.ts` removed; rebuild on a v2 read layer when the home/metrics module gets its turn. |
 
@@ -103,7 +103,12 @@ currency → needs `PATCH /api/organization`); order detail editing (date,
 client, custom_data); searchable comboboxes for client/product pickers at
 scale; attachments; payment/note edit+delete; currency-aware `formatCurrency`;
 documents "issue" action + per-row quick-invoice sheet (both wait on
-`issue_document()`); order-page metrics on a v2 read layer; **Next.js security
+`issue_document()`); documents `entity_type`/`document_type` enum reconciliation
+to the finalized §6 model (see Documents row above); **Storage bucket security**
+(both `invoices` and `logos` Supabase Storage buckets are `public: true` — any
+file readable by URL without auth; needs private buckets + tenant-scoped
+`storage.objects` policies + org-id-encoded paths; tracked as STOR-01 in
+`docs/code-review/AUDIT_PROGRESS.md`); order-page metrics on a v2 read layer; **Next.js security
 upgrade** (critical middleware/auth-bypass + SSRF/cache-poisoning CVEs — the
 non-breaking `npm audit fix` bumps `next` 15.3→15.5 and breaks the build gate at
 `app/actions/options.ts:234`, so it needs a scoped upgrade PR with a type fix;
