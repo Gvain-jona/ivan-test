@@ -42,6 +42,7 @@ For Clerk absence impact and hold-vs-now recommendation, see
 | Legacy code | Deleted at module cutover, rewound via git if needed. No parallel copies. |
 | API paths | Plain (`/api/orders`, `/api/clients`, …) — migrated routes replaced legacy in place. |
 | Activity log | **DB-side** (triggers), not app-side route logging — recommended to DB owner, deliberately not built in the app. |
+| Authorization model | **Code checks permissions, never roles** (2026-07-15, research-grounded: Oso/WorkOS/Auth0 unanimous; Slack/GitHub/Linear all baseline on fixed role sets; Clerk custom roles are dev-defined app-level templates behind a ~$100/mo add-on). Gates call `can(role, 'orders:cancel')` from `app/lib/auth/permissions.ts`; the role→permission map is data in that one module. Fixed `owner/admin/staff` set stays; org-assignable privileges later = swap the map's source (org settings or Clerk custom-permission claims) with zero call-site changes. Member management (admins assigning roles) is the real "admin freedom" baseline — backlogged, not built. |
 | Testing stance | No live tenant data dependency; mock up a trial/playground org when a test bed is needed. **Since 2026-07-13 a Vitest suite is live** (`npm test`): unit tests on the `TenantDb` wrapper + route contract tests on all migrated routes against a fake tenant DB. Newly migrated modules add colocated `route.test.ts` files in the same PR — pattern in `test/README.md`. DB-integration tests blocked on a v2 schema dump (DB owner). |
 | Scope discipline | Quality over quantity — ship the load-bearing pieces, park the rest as explicit follow-ups (below), don't half-build. |
 
@@ -98,7 +99,10 @@ decision + third-party auth are unblocked. Full impact analysis:
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 
-Item add/edit/remove on existing orders; org settings editor (order statuses,
+Item add/edit/remove on existing orders; **member management** (list org
+members, change roles — the admin-freedom baseline; guard rails: owner
+unstrippable, no demoting the last admin; needs `/api/members` + UI);
+org settings editor (order statuses,
 currency → needs `PATCH /api/organization`); order detail editing (date,
 client, custom_data); searchable comboboxes for client/product pickers at
 scale; attachments; payment/note edit+delete; currency-aware `formatCurrency`;

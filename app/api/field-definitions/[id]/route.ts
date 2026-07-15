@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveTenant } from '@/lib/auth/tenant';
+import { can } from '@/lib/auth/permissions';
 import {
   handleApiError,
   handleSupabaseError,
@@ -27,8 +28,8 @@ export async function PATCH(
   try {
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
-    if (tenant.orgRole === 'staff') {
-      return handleApiError('FORBIDDEN', 'Only owners and admins can edit fields');
+    if (!can(tenant.orgRole, 'fields:manage')) {
+      return handleApiError('FORBIDDEN', 'You do not have permission to edit fields');
     }
 
     const { id } = await params;

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveTenant } from '@/lib/auth/tenant';
+import { can } from '@/lib/auth/permissions';
 import {
   handleApiError,
   handleSupabaseError,
@@ -74,8 +75,8 @@ export async function PATCH(
 
     // Cancel is v2's "delete" — destructive enough to gate. Workflow
     // status changes stay open to all members (staff run production).
-    if (parsed.data.status === 'cancelled' && tenant.orgRole === 'staff') {
-      return handleApiError('FORBIDDEN', 'Only owners and admins can cancel orders');
+    if (parsed.data.status === 'cancelled' && !can(tenant.orgRole, 'orders:cancel')) {
+      return handleApiError('FORBIDDEN', 'You do not have permission to cancel orders');
     }
 
     const { data, error } = await tenant.db

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { useOrganization } from '@/hooks/organization/useOrganization';
+import { can } from '@/lib/auth/permissions';
 import { OrderDeleteConfirmation } from './OrderDeleteConfirmation';
 
 // Edit / Duplicate / Invoice actions were removed in cleanup Phase 2
@@ -25,11 +26,11 @@ function OrderActions(props: OrderActionsProps) {
   onView,
   onDelete,
   } = props;
-  // Cancel (v2's "delete") is owner/admin only — mirrors the API gate on
-  // PATCH /api/orders/[id]. While the role is still loading (null), stay
-  // least-privileged so the destructive action never flashes for staff.
+  // Mirrors the API gate on PATCH /api/orders/[id]. While the role is
+  // still loading (null), can() denies — the destructive action never
+  // flashes for members who can't use it.
   const { orgRole } = useOrganization();
-  const canCancel = orgRole === 'owner' || orgRole === 'admin';
+  const canCancel = can(orgRole, 'orders:cancel');
 
   // No longer need status color function as we've moved status change to a separate component
 
