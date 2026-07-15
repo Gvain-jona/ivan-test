@@ -12,9 +12,17 @@
 import type { TenantContext } from '@/lib/auth/tenant'
 
 export async function tenantScopingCompileChecks(tenant: TenantContext) {
-  // Hard delete is not exposed — v2 archives via status updates.
-  // @ts-expect-error — no delete on scoped tables
+  // Hard delete is not exposed for entities — v2 archives via status
+  // updates. The single exception is order composition rows
+  // (HardDeletableTable = 'order_items'), which have no status column.
+  // @ts-expect-error — no delete on entity tables
   tenant.db.from('orders').delete()
+  // @ts-expect-error — no delete on entity tables
+  tenant.db.from('clients').delete()
+  // @ts-expect-error — no delete on entity tables
+  tenant.db.from('payments').delete()
+  // Positive assertion: the whitelisted composition table compiles.
+  tenant.db.from('order_items').delete()
 
   // A route cannot smuggle its own organization_id into an insert;
   // the accessor injects the caller's org itself.

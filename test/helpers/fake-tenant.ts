@@ -146,6 +146,9 @@ export class FakeTenantDb {
         return this.open(`insert:${table}`, values)
       },
       update: (values: Record<string, unknown>) => this.open(`update:${table}`, values),
+      // Mirrors TenantDb's HardDeletableTable surface (order_items only
+      // at the type level); key: `delete:<table>`.
+      delete: () => this.open(`delete:${table}`),
     }
   }
 

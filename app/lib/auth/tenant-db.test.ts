@@ -9,11 +9,12 @@ import { createTenantDb } from './tenant-db'
  */
 
 function stubClient() {
-  const calls: Record<string, unknown[]> = { from: [], select: [], insert: [], update: [], eq: [], rpc: [] }
+  const calls: Record<string, unknown[]> = { from: [], select: [], insert: [], update: [], delete: [], eq: [], rpc: [] }
   const chain = {
     select: vi.fn((...args: unknown[]) => { calls.select.push(args); return chain }),
     insert: vi.fn((...args: unknown[]) => { calls.insert.push(args); return chain }),
     update: vi.fn((...args: unknown[]) => { calls.update.push(args); return chain }),
+    delete: vi.fn((...args: unknown[]) => { calls.delete.push(args); return chain }),
     eq: vi.fn((...args: unknown[]) => { calls.eq.push(args); return chain }),
   }
   const client = {
@@ -67,6 +68,16 @@ describe('createTenantDb', () => {
 
     const [inserted] = calls.insert[0] as [Record<string, unknown>]
     expect(inserted.organization_id).toBe('org-1')
+  })
+
+  it('scopes deletes to the organization (order_items — the one hard-deletable table)', () => {
+    const { client, calls } = stubClient()
+    const db = createTenantDb(client, 'org-1')
+
+    db.from('order_items').delete()
+
+    expect(calls.delete).toHaveLength(1)
+    expect(calls.eq).toEqual([['organization_id', 'org-1']])
   })
 
   it('scopes the organizations row by id', () => {
