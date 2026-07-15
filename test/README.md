@@ -51,8 +51,9 @@ Helpers:
 - `createFakeTenant({ userId?, organizationId?, orgRole? })` →
   `{ tenant, db }`. Program results with
   `db.queue('<op>:<table>', { data, error, count })`
-  (`select:orders`, `insert:payments`, `rpc:next_number`,
-  `select:organization`); unqueued calls resolve empty. Inspect with
+  (`select:orders`, `insert:payments`, `delete:order_items`,
+  `rpc:next_number`, `select:organization`); unqueued calls resolve
+  empty. Inspect with
   `db.calls` / `db.callsFor(key)` — filters, modifiers, payloads,
   single/maybeSingle. The fake **throws** if a route passes
   `organization_id` to an insert (that's the accessor's job).
@@ -67,7 +68,8 @@ shape.
 ## Type-level enforcement
 
 `test/types/tenant-scoping.ts` pins the tenant boundary at the type
-level with `@ts-expect-error` assertions (no delete, no smuggled
+level with `@ts-expect-error` assertions (no delete on entity tables —
+`order_items` is the one `HardDeletableTable` exception — no smuggled
 `organization_id`, no raw client, no unscoped tables). It runs under
 `npx tsc --noEmit` and `next build` — not Vitest — so a regression
 breaks the build itself. Extend it when `TenantDb` gains surface.

@@ -1,6 +1,6 @@
 # v2 platform migration — live state
 
-Last updated: 2026-07-11 (branch `claude/db-changes-review-r8zaar`). This is the
+Last updated: 2026-07-15 (branch `claude/code-state-v2-plan-wpga70`). This is the
 session-to-session ground truth for the v2 pivot: what has been decided, what is
 built, what is blocked, and on whom. Update it when any of that changes — this
 file exists so a fresh session doesn't have to re-derive the pivot from git
@@ -65,8 +65,10 @@ Identity comes from the existing Supabase-Auth session; `resolveTenant()` in
 returns `{ userId, organizationId, orgRole, db }`. **Since 2026-07-13, `db` is
 a scoped accessor (`TenantDb`), not the raw service-role client**: selects and
 updates auto-append the `organization_id` filter, inserts inject it (the type
-rejects a caller-supplied one), hard `delete` isn't exposed (v2 archives via
-status), and `organizations` reads go through `db.organization()`. Routes can
+rejects a caller-supplied one), hard `delete` is exposed **only** for
+`HardDeletableTable` (`order_items` — composition rows with no status
+column; entities archive via status, and the type tests pin both
+directions), and `organizations` reads go through `db.organization()`. Routes can
 no longer forget the org filter — the boundary is by construction, not by
 convention. The raw client never leaves `tenant.ts`. `resolveTenant()` is the
 single Clerk swap point; when Clerk + RLS land, `TenantDb` gets backed by the
@@ -127,7 +129,9 @@ CVEs (2026-07-14)").
 - Order statuses are org-configurable (`organizations.settings.order_statuses`)
   — read them via `useOrganization()`, don't hardcode the list.
 - Delete is archive: orders "delete" = status `cancelled`; clients/products/
-  fields have `status: archived`.
+  fields have `status: archived`. (Order *lines* are the one exception:
+  composition rows hard-delete via `DELETE /api/orders/[id]/items/[itemId]` —
+  see `HardDeletableTable`.)
 - `custom_data`: omit empty values (don't send `null`); the DB
   (`validate_custom_data`) is the validation authority — surface its P0001
   message verbatim (already mapped in `app/lib/api/error-handler.ts`).
