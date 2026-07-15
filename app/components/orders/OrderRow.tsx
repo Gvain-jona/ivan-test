@@ -11,7 +11,6 @@ import { useNotes } from '@/hooks/notes/useNotes';
 
 interface OrderRowProps {
   order: OrderSummary;
-  userRole: 'admin' | 'manager' | 'employee';
   onView: (order: OrderSummary) => void;
   onDelete: (order: OrderSummary) => void;
   onStatusChange: (order: OrderSummary, status: string) => void;
@@ -28,7 +27,6 @@ interface OrderRowProps {
 function OrderRow(props: OrderRowProps) {
   const {
     order,
-    userRole,
     onView,
     onDelete,
     onStatusChange,
@@ -150,7 +148,6 @@ function OrderRow(props: OrderRowProps) {
           <StatusDropdown
             order={order}
             onStatusChange={onStatusChange}
-            userRole={userRole}
           />
         </td>
         <td className="financial-column">
@@ -181,7 +178,6 @@ function OrderRow(props: OrderRowProps) {
             </button>
             <OrderActions
               order={order}
-              userRole={userRole}
               onView={onView}
               onDelete={async (o) => { onDelete(o); return true; }}
             />

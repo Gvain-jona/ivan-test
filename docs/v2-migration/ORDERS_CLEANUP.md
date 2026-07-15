@@ -147,7 +147,7 @@ Real data/mutations live in `OrdersStoreContext` / `OrdersUIContext`; the façad
 | **Drop or isolate `OrdersInvoiceSettingsProvider`** | Stops fetching invoice settings on every orders visit if sheet is dead |
 | **`OrderActions` / InvoiceSystem** | Remove legacy PDF button; optional “Create document” → `useDocuments` |
 | **FilterDrawer types** | Stop using `@/types/orders` / `OrderStatus`; align with v2 filter shape |
-| **`userRole: 'admin' as const`** | Hardcoded; wire real role later (not orders-data critical) |
+| **`userRole: 'admin' as const`** | ✅ Done 2026-07-15 — hardcoded role and the legacy `admin/manager/employee` prop chain deleted; `OrderActions` reads the live `orgRole` from `useOrganization()` (cancel = owner/admin, mirrored by a 403 gate in `PATCH /api/orders/[id]`); status changes open to all roles, so `StatusDropdown` lost its role prop |
 
 ---
 

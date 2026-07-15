@@ -5,6 +5,7 @@ import {
   Eye, Trash2, MoreVertical
 } from 'lucide-react';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
+import { useOrganization } from '@/hooks/organization/useOrganization';
 import { OrderDeleteConfirmation } from './OrderDeleteConfirmation';
 
 // Edit / Duplicate / Invoice actions were removed in cleanup Phase 2
@@ -14,7 +15,6 @@ import { OrderDeleteConfirmation } from './OrderDeleteConfirmation';
 // v2.issue_document()).
 interface OrderActionsProps {
   order: OrderSummary;
-  userRole: 'admin' | 'manager' | 'employee';
   onView: (order: OrderSummary) => void;
   onDelete: (order: OrderSummary) => Promise<boolean>;
 }
@@ -22,13 +22,14 @@ interface OrderActionsProps {
 function OrderActions(props: OrderActionsProps) {
   const {
   order,
-  userRole,
   onView,
   onDelete,
   } = props;
-  const isAdmin = userRole === 'admin';
-  const isManager = userRole === 'manager';
-  const canModify = isAdmin || isManager;
+  // Cancel (v2's "delete") is owner/admin only — mirrors the API gate on
+  // PATCH /api/orders/[id]. While the role is still loading (null), stay
+  // least-privileged so the destructive action never flashes for staff.
+  const { orgRole } = useOrganization();
+  const canCancel = orgRole === 'owner' || orgRole === 'admin';
 
   // No longer need status color function as we've moved status change to a separate component
 
@@ -161,7 +162,7 @@ function OrderActions(props: OrderActionsProps) {
 
         {/* Status change section has been moved to a separate component */}
 
-        {canModify && (
+        {canCancel && (
           <>
             <CustomDropdownSeparator className="bg-table-border" />
             <CustomDropdownItem

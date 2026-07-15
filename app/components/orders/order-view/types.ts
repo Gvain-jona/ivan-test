@@ -12,7 +12,6 @@ export interface OrderViewSheetProps {
   onOpenChange: (open: boolean) => void;
   order: OrderSummary | null;
   onClose: () => void;
-  userRole?: string;
 }
 
 export interface OrderDetailsTabProps {

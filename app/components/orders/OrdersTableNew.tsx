@@ -29,7 +29,6 @@ import { format } from 'date-fns';
 interface OrdersTableProps {
   orders: OrderSummary[];
   totalCount: number;
-  userRole: 'admin' | 'manager' | 'employee';
   onView: (order: OrderSummary) => void;
   onDelete: (order: OrderSummary) => void;
   onStatusChange: (order: OrderSummary, status: string) => void;
@@ -62,7 +61,6 @@ export default function OrdersTable(props: OrdersTableProps) {
   const {
     orders,
     totalCount,
-    userRole,
     onView,
     onDelete,
     onStatusChange,
@@ -516,7 +514,6 @@ export default function OrdersTable(props: OrdersTableProps) {
                   <OrderRow
                     key={order.id}
                     order={order}
-                    userRole={userRole}
                     onView={onView}
                     onDelete={onDelete}
                     onStatusChange={onStatusChange}

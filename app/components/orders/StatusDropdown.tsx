@@ -9,11 +9,12 @@ import { useOrganization } from '@/hooks/organization/useOrganization';
 interface StatusDropdownProps {
   order: OrderSummary;
   onStatusChange: (order: OrderSummary, status: string) => void;
-  userRole: 'admin' | 'manager' | 'employee';
 }
 
-function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps) {
-  const canChangeStatus = userRole === 'admin' || userRole === 'manager';
+// Workflow status changes are open to every org role (staff run
+// production); only cancel is gated, and that lives in OrderActions +
+// the API route.
+function StatusDropdown({ order, onStatusChange }: StatusDropdownProps) {
   // Statuses are org-configurable (organizations.settings.order_statuses)
   const { orderStatuses } = useOrganization();
 
@@ -88,11 +89,6 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
 
   // State to control the dropdown programmatically
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // After all hooks: users without permission just see the badge
-  if (!canChangeStatus) {
-    return <StatusBadge status={order.status} size="md" />;
-  }
 
   const handleStatusChange = async (status: string, e: React.MouseEvent) => {
     e.stopPropagation();

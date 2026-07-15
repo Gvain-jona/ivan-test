@@ -72,6 +72,12 @@ export async function PATCH(
       return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
+    // Cancel is v2's "delete" — destructive enough to gate. Workflow
+    // status changes stay open to all members (staff run production).
+    if (parsed.data.status === 'cancelled' && tenant.orgRole === 'staff') {
+      return handleApiError('FORBIDDEN', 'Only owners and admins can cancel orders');
+    }
+
     const { data, error } = await tenant.db
       .from('orders')
       .update(parsed.data)

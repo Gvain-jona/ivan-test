@@ -22,11 +22,6 @@ const OrdersTab: React.FC = () => {
 
   const { filters, setFilters } = store;
 
-  // v2 org roles are owner/admin/staff; table actions still take the
-  // legacy admin/manager/employee shape. Wire the real org role when
-  // role-based UI matters (ORDERS_CLEANUP.md reshape list).
-  const userRole = 'admin' as const;
-
   const dateRange = useMemo<DateRange | undefined>(() => {
     if (!filters.startDate && !filters.endDate) return undefined;
     return {
@@ -47,7 +42,6 @@ const OrdersTab: React.FC = () => {
           <OrdersTable
             orders={store.orders}
             totalCount={store.totalCount}
-            userRole={userRole}
             onView={ui.handleViewOrder}
             onDelete={(order) => { ui.handleDeleteOrder(order.id); }}
             onStatusChange={(order, status) => { ui.handleOrderStatusChange(order.id, status); }}

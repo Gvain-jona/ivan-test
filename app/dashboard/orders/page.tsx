@@ -46,7 +46,6 @@ const OrdersPageContent: React.FC = () => {
           onOpenChange={setViewSheetOpen}
           order={selectedOrder}
           onClose={() => setViewSheetOpen(false)}
-          userRole="admin"
         />
       )}
 

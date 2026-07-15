@@ -63,6 +63,47 @@ describe('PATCH /api/orders/[id]', () => {
     expect(res.status).toBe(400)
   })
 
+  it('rejects a staff cancel with 403 before touching the db (owner/admin gate)', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'staff' })
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { status: 'cancelled' }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(403)
+    expect(db.callsFor('update:orders')).toHaveLength(0)
+  })
+
+  it('lets staff make workflow status changes (only cancel is gated)', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'staff' })
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('update:orders', { data: { id: 'o-1', status: 'in_progress' } })
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { status: 'in_progress' }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(200)
+    expect(db.callsFor('update:orders')[0].values).toEqual({ status: 'in_progress' })
+  })
+
+  it('lets an admin cancel', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'admin' })
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('update:orders', { data: { id: 'o-1', status: 'cancelled' } })
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { status: 'cancelled' }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(200)
+    expect(db.callsFor('update:orders')[0].values).toEqual({ status: 'cancelled' })
+  })
+
   it('updates status and returns the fresh row, 404 when out of org', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)

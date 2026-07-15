@@ -42,9 +42,6 @@ return (
       onOpenChange={setIsOpen}
       order={order}
       onClose={() => setIsOpen(false)}
-      onEdit={handleEditOrder}
-      onGenerateInvoice={handleGenerateInvoice}
-      userRole="admin"
     />
   </>
 );
@@ -56,14 +53,14 @@ return (
 
 The main container component that orchestrates the entire order view process.
 
-**Props:**
+**Props** (`types.ts` is authoritative):
 - `open: boolean` - Controls whether the sheet is open
 - `onOpenChange: (open: boolean) => void` - Callback when the open state changes
-- `order: Order` - The order data to display
+- `order: OrderSummary | null` - The list-row summary; the sheet fetches full detail itself
 - `onClose: () => void` - Callback when the sheet is closed
-- `onEdit: (order: Order) => void` - Callback when the edit button is clicked
-- `onGenerateInvoice: (order: Order) => void` - Callback when the generate invoice button is clicked
-- `userRole?: string` - The user's role (determines edit permissions)
+
+Role-gated actions don't take a role prop — components read the live
+org role (`owner`/`admin`/`staff`) from `useOrganization()`.
 
 ### OrderDetailsTab
 
