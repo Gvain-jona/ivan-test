@@ -1,4 +1,9 @@
-import type { OrderSummary, OrderDetail, Payment } from '@/hooks/orders/useOrders';
+import type {
+  OrderSummary,
+  OrderDetail,
+  OrderItemInput,
+  Payment,
+} from '@/hooks/orders/useOrders';
 import type { Note } from '@/hooks/notes/useNotes';
 import type { DocumentRecord, DocumentType } from '@/hooks/documents/useDocuments';
 
@@ -20,6 +25,10 @@ export interface OrderDetailsTabProps {
 
 export interface OrderItemsTabProps {
   order: OrderDetail;
+  onAddItem: (input: OrderItemInput) => Promise<void>;
+  onUpdateItem: (itemId: string, input: OrderItemInput) => Promise<void>;
+  onRemoveItem: (itemId: string) => Promise<void>;
+  isSubmitting: boolean;
 }
 
 export interface PaymentInputValues {

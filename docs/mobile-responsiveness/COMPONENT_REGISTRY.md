@@ -36,3 +36,4 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | FieldDefinitionFormSheet | `app/components/fields/FieldDefinitionFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
 | ClientsPage | `app/dashboard/clients/page.tsx` | Yes | Controls stack on mobile; table scrolls in `overflow-x-auto` |
 | ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
+| OrderItemForm | `app/components/orders/order-view/OrderItemForm.tsx` | Yes | Grids collapse `sm:` → 1 col / 3-col money row holds at 375px |

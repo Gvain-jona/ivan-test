@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, ShoppingBag, MessageSquare, Eye } from 'luci
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useOrder } from '@/hooks/orders/useOrders';
+import { useOrder, orderItemName } from '@/hooks/orders/useOrders';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { useNotes } from '@/hooks/notes/useNotes';
 
@@ -215,7 +215,7 @@ function OrderRow(props: OrderRowProps) {
                       ) : detail?.order_items?.length ? (
                         detail.order_items.map((item) => (
                           <tr key={item.id} className="hover:bg-table-hover">
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white">{item.product_name_raw ?? '—'}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white">{orderItemName(item)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-center">{item.quantity}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right">{formatCurrency(item.unit_price)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right font-medium">{formatCurrency(item.total_amount)}</td>

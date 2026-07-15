@@ -55,13 +55,16 @@ export async function apiFetcher<T = unknown>(url: string): Promise<T> {
 
 export async function apiRequest<T = unknown>(
   url: string,
-  method: 'POST' | 'PATCH',
-  body: unknown,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
 ): Promise<T> {
   const response = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
+    headers: {
+      Accept: 'application/json',
+      ...(body !== undefined && { 'Content-Type': 'application/json' }),
+    },
+    ...(body !== undefined && { body: JSON.stringify(body) }),
   });
   if (!response.ok) throw await parseError(response);
   return response.json();

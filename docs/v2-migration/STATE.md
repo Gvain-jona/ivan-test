@@ -50,7 +50,7 @@ For Clerk absence impact and hold-vs-now recommendation, see
 
 | Module | State |
 |---|---|
-| **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, create form, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. **Roles truthful since 2026-07-15**: the hardcoded `userRole="admin"` + legacy `admin/manager/employee` vocabulary are gone — UI reads the live `orgRole` via `useOrganization()`, cancel (v2's "delete") is owner/admin only and enforced server-side in `PATCH /api/orders/[id]` (403 for staff; workflow status changes stay open to all roles). Item add/edit on existing orders is a follow-up. |
+| **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, create form, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. **Roles truthful since 2026-07-15**: the hardcoded `userRole="admin"` + legacy `admin/manager/employee` vocabulary are gone — UI reads the live `orgRole` via `useOrganization()`, cancel (v2's "delete") is owner/admin only and enforced server-side in `PATCH /api/orders/[id]` (403 for staff; workflow status changes stay open to all roles). **Item add/edit/remove on existing orders shipped 2026-07-15**: `POST /api/orders/[id]/items` + `PATCH`/`DELETE /api/orders/[id]/items/[itemId]` (line totals computed server-side, DB trigger retotals the order, last line not removable), inline editor on the view sheet's Items tab. Item removal is the one sanctioned hard delete — `HardDeletableTable` in `tenant-db.ts` (order lines are composition, no status column; entities still archive-only, type tests pin it). **Product names now join live** (`order_items(*, products(name))`, handoff §4 semantics): `product_name_raw` is only written for free-text lines; `unit_price` stays the one deliberate snapshot. |
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
 | **Field setup** | ✅ New (per-entity registry admin at `/dashboard/fields`). |
@@ -99,7 +99,7 @@ decision + third-party auth are unblocked. Full impact analysis:
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 
-Item add/edit/remove on existing orders; **member management** (list org
+**Member management** (list org
 members, change roles — the admin-freedom baseline; guard rails: owner
 unstrippable, no demoting the last admin; needs `/api/members` + UI);
 org settings editor (order statuses,

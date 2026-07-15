@@ -36,7 +36,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   const { order, payments, isLoading, mutate: refreshOrder } = useOrder(orderId);
   const { notes, addNote } = useNotes('order', orderId);
   const { documents, createDocument } = useDocuments('order', orderId);
-  const { addPayment } = useOrderMutations();
+  const { addPayment, addItem, updateItem, removeItem } = useOrderMutations();
 
   const clientName = order?.clients?.name ?? summary?.clients?.name ?? 'Unknown';
 
@@ -77,6 +77,34 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  /** Shared wrapper: run an item mutation, refresh, toast the outcome. */
+  const runItemMutation = async (action: () => Promise<unknown>, success: string) => {
+    if (!summary) return;
+    setIsSubmitting(true);
+    try {
+      await action();
+      await refreshOrder();
+      toast({ title: success });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        // DB-authored messages (P0001, e.g. custom-field validation)
+        // arrive verbatim and are written to be shown as-is.
+        description: error instanceof Error ? error.message : 'Failed to update items',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddItem = (input: Parameters<typeof addItem>[1]) =>
+    runItemMutation(() => addItem(summary!.id, input), 'Item added');
+  const handleUpdateItem = (itemId: string, input: Parameters<typeof updateItem>[2]) =>
+    runItemMutation(() => updateItem(summary!.id, itemId, input), 'Item updated');
+  const handleRemoveItem = (itemId: string) =>
+    runItemMutation(() => removeItem(summary!.id, itemId), 'Item removed');
 
   const handleCreateDocument = async (documentType: DocumentType) => {
     setIsSubmitting(true);
@@ -162,7 +190,15 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
         ) : (
           <>
             {activeTab === 'details' && <OrderDetailsTab order={order} />}
-            {activeTab === 'items' && <OrderItemsTab order={order} />}
+            {activeTab === 'items' && (
+              <OrderItemsTab
+                order={order}
+                onAddItem={handleAddItem}
+                onUpdateItem={handleUpdateItem}
+                onRemoveItem={handleRemoveItem}
+                isSubmitting={isSubmitting}
+              />
+            )}
             {activeTab === 'payments' && (
               <OrderPaymentsTab
                 order={order}

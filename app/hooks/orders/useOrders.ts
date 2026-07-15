@@ -14,10 +14,22 @@ export type OrderSummary = Omit<OrderRow, 'organization_id' | 'source_id' | 'cre
   clients: { name: string } | null;
 };
 
+/**
+ * Line item with the catalog name joined live (products.name); a
+ * rename propagates to old orders. product_name_raw is the fallback
+ * for free-text lines. unit_price stays the one deliberate snapshot.
+ */
+export type OrderItem = OrderItemRow & { products: { name: string } | null };
+
 export type OrderDetail = Omit<OrderRow, 'organization_id' | 'source_id' | 'created_by'> & {
   clients: { id: string; name: string } | null;
-  order_items: OrderItemRow[];
+  order_items: OrderItem[];
 };
+
+/** Display name for a line: live catalog name, else the free-text one. */
+export function orderItemName(item: OrderItem): string {
+  return item.products?.name ?? item.product_name_raw ?? '—';
+}
 
 export type Payment = Pick<
   PaymentRow,
@@ -39,7 +51,8 @@ export type OrderListParams = {
 
 export interface OrderItemInput {
   product_id?: string | null;
-  product_name_raw?: string;
+  /** Free-text name; null/absent for catalog lines (name joins live). */
+  product_name_raw?: string | null;
   quantity: number;
   unit_price: number;
   discount?: number;
@@ -66,6 +79,16 @@ export interface OrderUpdateInput {
   client_id?: string;
   order_date?: string;
   status?: string;
+  custom_data?: Record<string, unknown>;
+}
+
+/** Partial line edit; null clears product_id / product_name_raw. */
+export interface OrderItemUpdateInput {
+  product_id?: string | null;
+  product_name_raw?: string | null;
+  quantity?: number;
+  unit_price?: number;
+  discount?: number;
   custom_data?: Record<string, unknown>;
 }
 
@@ -153,5 +176,46 @@ export function useOrderMutations() {
     [invalidate],
   );
 
-  return { createOrder, updateOrder, addPayment };
+  /** Adds a line to an existing order; the DB trigger retotals it. */
+  const addItem = useCallback(
+    async (orderId: string, input: OrderItemInput) => {
+      const result = await apiRequest<{ item: OrderItem; order: Partial<OrderRow> }>(
+        `${PLATFORM_API.ORDERS}/${orderId}/items`,
+        'POST',
+        input,
+      );
+      await invalidate();
+      return result;
+    },
+    [invalidate],
+  );
+
+  /** Partial line edit; the route recomputes the line + order totals. */
+  const updateItem = useCallback(
+    async (orderId: string, itemId: string, input: OrderItemUpdateInput) => {
+      const result = await apiRequest<{ item: OrderItem; order: Partial<OrderRow> }>(
+        `${PLATFORM_API.ORDERS}/${orderId}/items/${itemId}`,
+        'PATCH',
+        input,
+      );
+      await invalidate();
+      return result;
+    },
+    [invalidate],
+  );
+
+  /** Removes a line (the API refuses to remove an order's last one). */
+  const removeItem = useCallback(
+    async (orderId: string, itemId: string) => {
+      const result = await apiRequest<{ order: Partial<OrderRow> }>(
+        `${PLATFORM_API.ORDERS}/${orderId}/items/${itemId}`,
+        'DELETE',
+      );
+      await invalidate();
+      return result;
+    },
+    [invalidate],
+  );
+
+  return { createOrder, updateOrder, addPayment, addItem, updateItem, removeItem };
 }

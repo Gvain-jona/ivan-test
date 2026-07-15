@@ -9,10 +9,14 @@ import {
 } from '@/lib/api/error-handler';
 import { orderUpdateSchema } from '@/lib/api/validators';
 
+// order_items embeds products(name): the catalog name joins live (a
+// rename propagates to old orders); product_name_raw is the fallback
+// for free-text lines only. unit_price stays the one deliberate
+// snapshot (handoff §4).
 const ORDER_DETAIL_COLUMNS =
   'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
   'balance, payment_status, custom_data, created_at, updated_at, ' +
-  'clients(id, name), order_items(*)';
+  'clients(id, name), order_items(*, products(name))';
 
 /**
  * GET /api/orders/[id] — order (with client + items embedded) and

@@ -42,7 +42,9 @@ export const productUpdateSchema = productCreateSchema.partial().refine(
 export const orderItemInputSchema = z
   .object({
     product_id: z.string().uuid().nullish(),
-    product_name_raw: z.string().trim().min(1).optional(),
+    // Nullish: catalog lines send an explicit null (the catalog owns
+    // the name); free-text lines send the string.
+    product_name_raw: z.string().trim().min(1).nullish(),
     quantity: z.number().positive(),
     unit_price: z.number().nonnegative(),
     discount: z.number().nonnegative().optional(),
@@ -51,6 +53,25 @@ export const orderItemInputSchema = z
   .refine(i => i.product_id != null || i.product_name_raw != null, {
     message: 'Each item needs a product_id or a product_name_raw',
   });
+
+/**
+ * PATCH on a single order line. Partial by design: the route merges
+ * with the current row, re-checks the product_id-or-name invariant on
+ * the merged result, and recomputes total_amount server-side
+ * (qty × price − discount; order_items.total_amount is app-computed,
+ * not a generated column). Explicit null clears product_id (back to a
+ * free-text line) or product_name_raw (name comes from the catalog).
+ */
+export const orderItemUpdateSchema = z
+  .object({
+    product_id: z.string().uuid().nullish(),
+    product_name_raw: z.string().trim().min(1).nullish(),
+    quantity: z.number().positive().optional(),
+    unit_price: z.number().nonnegative().optional(),
+    discount: z.number().nonnegative().optional(),
+    custom_data: customData.optional(),
+  })
+  .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' });
 
 export const paymentInputSchema = z.object({
   amount: z.number().positive(),

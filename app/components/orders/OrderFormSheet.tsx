@@ -146,7 +146,10 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
         ...(Object.keys(customData).length > 0 && { custom_data: customData }),
         items: items.map(item => ({
           product_id: item.product_id,
-          ...(item.product_name_raw.trim() && { product_name_raw: item.product_name_raw.trim() }),
+          // Live-name semantics: catalog lines carry no name snapshot —
+          // products(name) joins live; free-text lines carry their own.
+          ...(item.product_id == null &&
+            item.product_name_raw.trim() && { product_name_raw: item.product_name_raw.trim() }),
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price) || 0,
           ...(Number(item.discount) > 0 && { discount: Number(item.discount) }),
@@ -261,10 +264,11 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Item name{item.product_id ? ' (from product)' : ''}</Label>
+                  <Label>Item name{item.product_id ? ' (from catalog)' : ''}</Label>
                   <Input
                     value={item.product_name_raw}
                     onChange={e => updateItem(index, { product_name_raw: e.target.value })}
+                    disabled={item.product_id != null}
                     placeholder="e.g. Vinyl banner 2x1m"
                   />
                 </div>
