@@ -3,9 +3,7 @@
 import React from 'react';
 import { LogOut } from 'lucide-react';
 import { useAuth } from '@/app/context/auth-context';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { getBaseUrl } from '@/app/lib/auth/session-utils';
 
 interface LogoutButtonProps {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -23,7 +21,6 @@ export function LogoutButton({
   text = 'Logout'
 }: LogoutButtonProps) {
   const { signOut } = useAuth();
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const handleLogout = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -46,13 +43,7 @@ export function LogoutButton({
       // Clear PIN verification cookie
       document.cookie = 'pin_verified=; Max-Age=0; path=/; secure; samesite=lax';
 
-      // Get the base URL for the current environment
-      const baseUrl = getBaseUrl();
-      const signInUrl = `${baseUrl}/auth/signin`;
-
-      console.log('Will redirect to:', signInUrl);
-
-      // Sign out from Supabase using the auth context
+      // Sign out via the auth context (Clerk redirects to /auth/signin)
       const { success, error } = await signOut();
 
       if (!success || error) {
@@ -61,17 +52,13 @@ export function LogoutButton({
       }
 
       console.log('User logged out successfully');
-
-      // Redirect to sign in page with the correct base URL
-      window.location.href = signInUrl;
     } catch (error) {
       console.error('Error signing out:', error);
       setIsLoggingOut(false);
 
       // If there was an error, still try to redirect to sign in
       setTimeout(() => {
-        const baseUrl = getBaseUrl();
-        window.location.href = `${baseUrl}/auth/signin`;
+        window.location.href = '/auth/signin';
       }, 1000);
     }
   };

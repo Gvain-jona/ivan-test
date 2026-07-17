@@ -130,13 +130,19 @@ Other docs under `docs/` (e.g. `docs/index.md`, dated April 2025) are historical
 
 ## Authentication
 
-Real auth is enforced two ways: root `middleware.ts` redirects unauthenticated requests (except `/auth/*` and `/api/healthz`) to `/auth/signin`, and individual API routes additionally check auth themselves (defense in depth — don't remove the route-level check because middleware "already handles it"). Sign-in is magic-link based; only emails present in the `allowed_emails` table can sign in. Legacy roles (`admin`/`manager`/`staff`) live on the `profiles` table; v2 org roles (`owner`/`admin`/`staff` — there is **no `manager`** in v2) live on `organization_members`.
+**Identity is Clerk** (since 2026-07-17, branch `clerk-auth-transition`): root `middleware.ts` is `clerkMiddleware()` and redirects unauthenticated requests (except `/auth/*` and `/api/healthz`) to the Clerk `<SignIn />` page at `/auth/signin`; v2 API routes additionally check auth via `resolveTenant()` themselves (defense in depth — don't remove the route-level check because middleware "already handles it"). Sign-in methods (Google + email code) and sign-up restriction (invite-only, replacing the old `allowed_emails` table) are Clerk-dashboard config, not code. The old Supabase-auth routes (`/auth/callback` etc.), magic-link flow, and `app/lib/auth/{session-utils,profile-utils,authorization}.ts` were deleted at the auth cutover.
 
-**Interim v2 tenancy** (until Clerk lands): `resolveTenant()` takes identity from the Supabase session, resolves the active org via `organization_members`, and returns a service-role client — tenant isolation is the explicit `organization_id` filter in each route, not RLS. The decided end state is **Clerk** (see `docs/v2-migration/STATE.md` for what that swap is blocked on); when it lands, `resolveTenant()` is the only place that changes, and the `create_order_as_org` SQL shim gets dropped.
+**User ids**: the app-facing user id is the `internal_user_id` **UUID claim** on the Clerk session token (set from `public_metadata.internal_user_id`, typed in `types/globals.d.ts`) — never use the raw Clerk `user_…` id against the DB. Existing users carry their pre-Clerk `auth.users` UUID, so `v2.organization_members` rows still match. `scripts/clerk-backfill.js` provisions this metadata. A signed-in user without the claim has no tenancy (v2 routes 401).
+
+**Roles**: legacy `profiles` roles are dead (the client `useAuth()` façade in `app/context/auth-context.tsx` hard-codes `isAdmin`/`isManager` to false); v2 org roles (`owner`/`admin`/`staff` — there is **no `manager`** in v2) live on `organization_members` and reach routes as `tenant.orgRole`.
+
+**Legacy modules are dark**: expenses, materials, accounts, invoicing, and analytics depended on the Supabase session and are non-functional until their v2 cutovers (explicit decision — don't "fix" a legacy route's auth ad hoc; migrate the module).
+
+**v2 tenancy** (until the RLS flip): `resolveTenant()` takes identity from Clerk, resolves the active org via `organization_members`, and returns the service-role-backed `TenantDb` — tenant isolation is the constructed `organization_id` scoping, not RLS. Phase 2 (Supabase third-party auth + v2 RLS + dropping the `create_order_as_org` shim) changes only `resolveTenant()` — see `docs/v2-migration/STATE.md`.
 
 ## Environment Configuration
 
-Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only). Also used: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET` (validated against `Authorization: Bearer <CRON_SECRET>` in `app/api/cron/*` routes — don't loosen that check to a format-only check). `npm run env:local`/`env:cloud` swap which Supabase project `.env.local` points at.
+Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` (server-only; build tolerates their absence but nothing can sign in without them). Also used: `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET` (validated against `Authorization: Bearer <CRON_SECRET>` in `app/api/cron/*` routes — don't loosen that check to a format-only check). `npm run env:local`/`env:cloud` swap which Supabase project `.env.local` points at.
 
 ## Working with the Database
 
