@@ -21,8 +21,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        {/* Clerk docs: ClerkProvider belongs inside <body>, not around <html> */}
-        <ClerkProvider appearance={{ theme: dark }}>
+        {/* Clerk docs: ClerkProvider belongs inside <body>, not around <html>.
+            signInUrl pins auth to our own /auth/signin page — without it,
+            middleware auth.protect() redirects to Clerk's hosted Account
+            Portal, whose redirect back into the app hangs. */}
+        <ClerkProvider
+          appearance={{ theme: dark }}
+          signInUrl="/auth/signin"
+          signInFallbackRedirectUrl="/dashboard/orders"
+          signUpUrl="/auth/signin"
+        >
           <Providers>
             {children}
           </Providers>
