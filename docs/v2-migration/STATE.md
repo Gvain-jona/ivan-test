@@ -30,8 +30,10 @@ performance — not UI), see `docs/v2-migration/DATA_LAYER_AUDIT.md`
 For orders-specific legacy attachment (dead code vs hollow UI vs what to
 delete/fix), see `docs/v2-migration/ORDERS_CLEANUP.md` (2026-07-12).
 
-For Clerk absence impact and hold-vs-now recommendation, see
-`docs/v2-migration/CLERK_HOLD_AUDIT.md` (2026-07-12).
+`docs/v2-migration/CLERK_HOLD_AUDIT.md` (2026-07-12) analyzed Clerk absence
+and recommended holding — **superseded 2026-07-17**: the hold was lifted and
+Phase 1 shipped (see "Clerk transition" below). Keep it only as the rationale
+record; its "keep holding" verdict no longer applies.
 
 ## Decided — do not relitigate
 

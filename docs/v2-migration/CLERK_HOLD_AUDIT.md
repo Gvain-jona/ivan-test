@@ -1,9 +1,21 @@
 # Clerk absence — impact audit & hold recommendation
 
-**Date:** 2026-07-12  
+> **⚠️ SUPERSEDED 2026-07-17.** The hold recommendation below no longer applies.
+> Clerk **Phase 1 (identity swap) shipped** on branch `clerk-auth-transition`:
+> Clerk is now the live identity provider, `resolveTenant()` reads the
+> `internal_user_id` UUID claim, and the Supabase-auth surface is deleted. The
+> user-id question this doc flagged as blocked was answered — **internal-UUID
+> claim**, no membership remap. What this doc got right and still holds: the
+> swap was localized to `resolveTenant()`; the *security* gap it describes
+> (service-role tenancy, no RLS boundary) is **still open** and is exactly what
+> Clerk **Phase 2** (RLS flip, still blocked on DB owner) closes. Read this doc
+> for the rationale of *why the phasing looks like it does*, not for a
+> current recommendation. Live status: `STATE.md` → "Clerk transition".
+
+**Date:** 2026-07-12 (historical)  
 **Scope:** How much not having Clerk in place affects the current v2 design; whether to implement now or continue holding.  
-**Companion docs:** `STATE.md` (auth decision + interim tenancy), `DATA_LAYER_AUDIT.md` (production grades / tenancy risk), `ORDERS_CLEANUP.md` (higher-ROI app work while holding).  
-**Update when:** Clerk keys land, the DB user-id decision is locked, third-party auth is registered, or the service-role interim is replaced.
+**Companion docs:** `STATE.md` (auth decision + live Clerk status), `DATA_LAYER_AUDIT.md` (production grades / tenancy risk), `ORDERS_CLEANUP.md` (higher-ROI app work while holding).  
+**Update when:** ~~Clerk keys land, the DB user-id decision is locked, third-party auth is registered, or the service-role interim is replaced.~~ (Phase 1 landed; this doc is now a frozen rationale record — track live status in `STATE.md`.)
 
 ---
 
