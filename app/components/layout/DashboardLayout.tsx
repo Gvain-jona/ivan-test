@@ -51,7 +51,10 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
                   </div>
                 </div>
               }>
-                <div className="pb-16"> {/* Reduced padding to minimize wasted space */}
+                {/* Bottom padding clears the nav: taller on mobile for the
+                    full-width tab bar + safe area, tighter on desktop for
+                    the floating pill. */}
+                <div className="pb-24 lg:pb-16">
                   {children}
                 </div>
               </Suspense>

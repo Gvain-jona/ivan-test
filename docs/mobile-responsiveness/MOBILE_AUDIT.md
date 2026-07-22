@@ -53,9 +53,14 @@ Verified as genuinely well-built for mobile already; re-auditing these would be 
 - Date-range picker's responsive min-width
 - Bottom-nav (`ExpandableTabs`) itself
 
-## Architecture question — not a bug, needs a decision
+## Architecture question — RESOLVED (2026-07-21)
 
-`app/components/navigation/SideNav.tsx` is a full sidebar component that is **never imported anywhere**. The entire app, desktop included, runs on the floating bottom pill-nav (`FooterNav`/`ExpandableTabs`). This may be a deliberate mobile-first IA choice, or a half-finished migration — worth confirming intent before either deleting `SideNav.tsx` or finishing it as a real `lg:` desktop sidebar.
+Earlier drafts flagged a dead `SideNav.tsx`; that file no longer exists. The nav model is now a **deliberate platform-adaptive split**, not one nav restyled:
+- **Desktop (`lg+`)**: the floating bottom pill (`FooterNav`/`ExpandableTabs`) with the full destination set — kept as the signature desktop IA.
+- **Mobile (`<lg`)**: `MobileTabBar.tsx` — a full-width bottom tab bar with 4 primary routes + a More sheet.
+- **Header**: `TopHeader` is desktop-only (`hidden lg:block`); mobile screens own their own top (e.g. the Home greeting hero).
+
+No desktop sidebar is planned. New shell work should preserve this split rather than converging the two navs.
 
 ---
 

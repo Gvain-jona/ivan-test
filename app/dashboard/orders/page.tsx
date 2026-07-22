@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // Import refactored components
 import OrderViewSheet from '../../components/orders/OrderViewSheet';
@@ -24,6 +25,18 @@ const OrdersPageContent: React.FC = () => {
     setCreateSheetOpen,
     handleSaveOrder,
   } = useOrdersUI();
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Deep-link: `?new=1` (e.g. from the Home quick-add) opens the create
+  // sheet, then strips the param so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (searchParams?.get('new') === '1') {
+      setCreateSheetOpen(true);
+      router.replace('/dashboard/orders');
+    }
+  }, [searchParams, setCreateSheetOpen, router]);
 
   return (
     <div className="space-y-5 min-h-screen px-6 py-4">

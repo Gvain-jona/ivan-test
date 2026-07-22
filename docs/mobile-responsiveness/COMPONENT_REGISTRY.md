@@ -19,8 +19,9 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | MaterialsPanel (analytics) | `app/dashboard/analytics/_components/MaterialsPanel.tsx` | Partial | Stat grid hardcoded to 2 cols — MOB-09 |
 | OrangeInvoiceTemplate | `app/features/invoices/components/templates/OrangeInvoiceTemplate.tsx` | Partial | Metadata grid doesn't collapse — MOB-10 |
 | RolePermissionsSection | `app/dashboard/settings/_components/RolePermissionsSection.tsx` | Partial | Double-scroll inside dialog — MOB-12 |
-| FooterNav / ExpandableTabs | `app/components/navigation/FooterNav.tsx` | Yes | |
-| TopHeader | `app/components/navigation/TopHeader.tsx` | Yes | Non-essential elements intentionally hidden below `md` |
+| FooterNav / ExpandableTabs | `app/components/navigation/FooterNav.tsx` | Yes | Desktop-only now (`hidden lg:block`) — the floating pill with the full destination set; mobile renders MobileTabBar instead |
+| MobileTabBar | `app/components/navigation/MobileTabBar.tsx` | Yes | Mobile-only (`lg:hidden`) bottom tab bar: 4 primary routes + More sheet; safe-area aware. The platform-adaptive counterpart to the desktop pill |
+| TopHeader | `app/components/navigation/TopHeader.tsx` | Yes | Branded bar is desktop-only now (`hidden lg:block`); mobile drops it so each screen owns its own top (e.g. Home hero). Profile-error alert still shows on all sizes |
 | DashboardLayout | `app/components/layout/DashboardLayout.tsx` | Yes | |
 | Home dashboard KPI grids | `app/dashboard/home/` | Yes | |
 | MaterialPurchaseForm field grids | `app/components/materials/MaterialPurchaseForm.tsx` | Yes | Internal `grid-cols-1 md:grid-cols-2/3` layout specifically |
@@ -37,3 +38,8 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | ClientsPage | `app/dashboard/clients/page.tsx` | Yes | Controls stack on mobile; table scrolls in `overflow-x-auto` |
 | ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
 | SignInPage (Clerk) | `app/auth/signin/[[...rest]]/page.tsx` | Yes | Clerk `<SignIn />` card is responsive by default; branding shell reuses signin.css |
+| HomePage | `app/dashboard/home/page.tsx` | Yes | Mobile-first Home feed; centered `max-w-2xl` column, stacks naturally |
+| HomeHero | `app/components/home/HomeHero.tsx` | Yes | Greeting hero + avatar + quick-add bar; greeting scales `text-3xl sm:text-4xl` |
+| HomeCategoryChips | `app/components/home/HomeCategoryChips.tsx` | Yes | Horizontal-scroll chip row (hidden scrollbar), swipes on phones |
+| HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | Outstanding-balance / collection-rate momentum card; single column |
+| RecentOrdersList | `app/components/home/RecentOrdersList.tsx` | Yes | Card-first order list — the mobile default for order data per redesign direction |

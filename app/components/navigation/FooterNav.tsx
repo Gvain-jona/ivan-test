@@ -20,6 +20,7 @@ import { NotificationsIndicator } from '@/components/notifications/Notifications
 import { useNotifications } from '@/context/NotificationsContext';
 
 import { ExpandableTabs } from '@/components/ui/expandable-tabs';
+import MobileTabBar from './MobileTabBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NavigationError } from '@/components/ui/navigation-error';
@@ -43,8 +44,7 @@ import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
 // Define navigation items with consistent navigation approach
 const getNavigationItems = (unreadCount: number): NavItemType[] => [
-  // Home page removed temporarily
-  // { title: 'Home', icon: Home, href: '/dashboard/home' },
+  { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: User, href: '/dashboard/clients' },
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
@@ -246,11 +246,16 @@ function FooterNavComponent({ className }: FooterNavProps) {
         </Button>
       )}
 
-      {/* Footer Navigation */}
+      {/* Mobile bottom tab bar (lg:hidden) — the phone-appropriate nav:
+          4 primary routes + a More sheet, distinct from the desktop pill. */}
+      <MobileTabBar />
+
+      {/* Desktop floating pill (hidden below lg) — the full destination
+          set in the signature expandable pill. */}
       <div
         ref={footerNavRef}
         className={cn(
-        "fixed bottom-2 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 footer-nav",
+        "hidden lg:block fixed bottom-2 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 footer-nav",
         isScrollingDown && !navVisible ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100",
         className
       )}>
