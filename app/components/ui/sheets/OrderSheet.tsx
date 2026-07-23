@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 interface OrderSheetProps {
   open: boolean;
@@ -17,8 +18,14 @@ interface OrderSheetProps {
 }
 
 /**
- * Base component for all order-related side sheets
- * Provides consistent styling and animations for side panel content
+ * Base component for all migrated form sheets (order / client / product).
+ *
+ * Platform-adaptive per docs/mobile-responsiveness/DESIGN_PHILOSOPHY.md:
+ * - Mobile (< lg): a **bottom sheet** — grab handle, rounded top, capped
+ *   height so the dimmed parent still shows, safe-area aware.
+ * - Desktop (lg+): the **right-side panel** (unchanged), width by `size`.
+ *
+ * One wrapper, so every form that renders through it gets the same behavior.
  */
 const OrderSheet = memo(function OrderSheet({
   open,
@@ -31,7 +38,10 @@ const OrderSheet = memo(function OrderSheet({
   onClose,
   customHeader
 }: OrderSheetProps) {
-  // Map size to width class
+  // lg = 1024px, matching the shell's mobile/desktop breakpoint.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+  // Desktop right-panel width by size.
   const getSizeClass = () => {
     switch (size) {
       case 'sm': return 'sm:max-w-md';
@@ -43,54 +53,54 @@ const OrderSheet = memo(function OrderSheet({
     }
   };
 
-  // Simple function to handle close button click
   const handleClose = () => {
-    // Call onClose if provided
-    if (onClose) {
-      onClose();
-    }
-
-    // Just call onOpenChange with false
-    console.log('Close button clicked');
+    if (onClose) onClose();
     onOpenChange(false);
   };
 
-  // Simple pass-through function for sheet state changes
   const handleOpenChange = useCallback((value: boolean) => {
     // Only call parent if the state is actually changing
     if (value !== open) {
-      console.log(`Sheet state change requested: ${value}`);
       onOpenChange(value);
     }
   }, [onOpenChange, open]);
 
+  const side = isDesktop ? 'right' : 'bottom';
+  // Bottom sheet gets its shape (rounded top, capped height); the right panel
+  // gets its width. `p-0` in both — header/body own their padding.
+  const shapeClass = isDesktop ? getSizeClass() : 'max-h-[85dvh] rounded-t-2xl';
+
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
-        side="right"
-        className={`p-0 bg-background border-border/40 text-foreground ${getSizeClass()}`}
+        side={side}
+        className={`flex flex-col gap-0 p-0 bg-background border-border/40 text-foreground ${shapeClass}`}
         hideCloseButton={true}
       >
-        <div className="h-full flex flex-col">
-          <SheetHeader className="p-6 border-b border-[hsl(var(--border))]/40 flex flex-row justify-between items-start bg-[hsl(var(--card))]">
-            {customHeader ? (
-              <div className="flex-1">
-                {/* Always include a SheetTitle for accessibility, but visually hide it if using customHeader */}
-                <VisuallyHidden>
-                  <SheetTitle>{title || 'Order Details'}</SheetTitle>
-                </VisuallyHidden>
-                {customHeader}
-              </div>
-            ) : (
-              <div>
-                <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
-                {description && (
-                  <p className="text-sm text-muted-foreground mt-1">{description}</p>
-                )}
-              </div>
-            )}
+        {/* Grab handle — mobile bottom sheet only. */}
+        <div className="flex shrink-0 justify-center pt-3 pb-1 lg:hidden">
+          <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
 
-            {/* Always show close button for better UX */}
+        <SheetHeader className="flex shrink-0 flex-row items-start justify-between border-b border-[hsl(var(--border))]/40 bg-[hsl(var(--card))] px-6 pb-4 pt-2 lg:p-6">
+          {customHeader ? (
+            <div className="flex-1">
+              {/* Always include a SheetTitle for accessibility, hidden when using customHeader */}
+              <VisuallyHidden>
+                <SheetTitle>{title || 'Order Details'}</SheetTitle>
+              </VisuallyHidden>
+              {customHeader}
+            </div>
+          ) : (
+            <div>
+              <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
+              {description && (
+                <p className="text-sm text-muted-foreground mt-1">{description}</p>
+              )}
+            </div>
+          )}
+
+          {showCloseButton && (
             <Button
               variant="ghost"
               size="icon"
@@ -100,11 +110,11 @@ const OrderSheet = memo(function OrderSheet({
             >
               <X className="h-5 w-5" />
             </Button>
-          </SheetHeader>
+          )}
+        </SheetHeader>
 
-          <div className="flex-1 overflow-auto">
-            {children}
-          </div>
+        <div className="min-h-0 flex-1 overflow-auto pb-[env(safe-area-inset-bottom)] lg:pb-0">
+          {children}
         </div>
       </SheetContent>
     </Sheet>
