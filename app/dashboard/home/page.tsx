@@ -4,22 +4,33 @@ import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOrders } from '@/hooks/orders/useOrders';
 import HomeHero from '@/components/home/HomeHero';
-import HomeCategoryChips from '@/components/home/HomeCategoryChips';
+import HomeQuickActions from '@/components/home/HomeQuickActions';
 import HomeSnapshot from '@/components/home/HomeSnapshot';
 import RecentOrdersList from '@/components/home/RecentOrdersList';
 
+/** First day of the current month, as a YYYY-MM-DD string. */
+function monthStart(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+/** Today, as a YYYY-MM-DD string (inclusive end of the month-to-date range). */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
- * Mobile-only Home — the reference implementation of the redesigned
- * visual language (greeting hero, quick-add, category chips, momentum
- * snapshot, card-first recent orders) and the prime structure the rest of
- * the mobile experience inherits from. Rendered as a centered feed column
- * that reads as a phone screen; desktop viewers are redirected to Orders
- * (see DESIGN_PHILOSOPHY.md — Home is mobile-only, desktop lands on Orders).
+ * Mobile-only Home — the reference implementation of the redesigned visual
+ * language (greeting hero, quick-add, quick-action chips, sales snapshot,
+ * card-first recent orders) and the prime structure the rest of the mobile
+ * experience inherits from. Rendered as a centered feed column that reads as
+ * a phone screen; desktop viewers are redirected to Orders (see
+ * DESIGN_PHILOSOPHY.md — Home is mobile-only, desktop lands on Orders).
  *
- * Data: two bounded v2 fetches — the 5 most recent orders for the feed,
- * and the open (unpaid/partial) orders for the outstanding-balance and
- * collection-rate snapshot. No global aggregate endpoint exists yet, so
- * the snapshot is scoped to the open-orders set by design.
+ * Data: two bounded v2 fetches — the current month's orders (summed for the
+ * "sales this month" snapshot; count comes from the accurate `total`), and a
+ * small recent set that RecentOrdersList groups by workflow state. No global
+ * aggregate endpoint exists yet, so the month sum is over a bounded fetch.
  */
 export default function HomePage() {
   const router = useRouter();
@@ -36,19 +47,22 @@ export default function HomePage() {
     }
   }, [router]);
 
-  const { orders: recent, isLoading: recentLoading } = useOrders({ limit: 5 });
-  const { orders: open, isLoading: openLoading } = useOrders({
-    payment_status: 'unpaid,partial',
-    limit: 100,
-  });
+  // A slightly larger recent set so the workflow segments have something to
+  // group; the list stays short per segment.
+  const { orders: recent, isLoading: recentLoading } = useOrders({ limit: 10 });
 
-  const snapshot = useMemo(() => {
-    const outstanding = open.reduce((sum, o) => sum + (o.balance ?? 0), 0);
-    const billed = open.reduce((sum, o) => sum + o.total_amount, 0);
-    const collected = open.reduce((sum, o) => sum + o.amount_paid, 0);
-    const collectionRate = billed > 0 ? Math.round((collected / billed) * 100) : 0;
-    return { outstanding, openCount: open.length, collectionRate };
-  }, [open]);
+  // Current month's orders — bounded fetch, summed client-side. `total` is the
+  // accurate month order count even when the fetch is capped.
+  const {
+    orders: month,
+    total: monthCount,
+    isLoading: monthLoading,
+  } = useOrders({ start_date: monthStart(), end_date: today(), limit: 200 });
+
+  const salesThisMonth = useMemo(
+    () => month.reduce((sum, o) => sum + (o.total_amount ?? 0), 0),
+    [month],
+  );
 
   // Nothing paints until we've confirmed we're on a mobile viewport, so a
   // desktop viewer being redirected never flashes the feed.
@@ -57,12 +71,11 @@ export default function HomePage() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <HomeHero />
-      <HomeCategoryChips />
+      <HomeQuickActions />
       <HomeSnapshot
-        outstanding={snapshot.outstanding}
-        openCount={snapshot.openCount}
-        collectionRate={snapshot.collectionRate}
-        isLoading={openLoading}
+        salesThisMonth={salesThisMonth}
+        orderCount={monthCount}
+        isLoading={monthLoading}
       />
       <RecentOrdersList orders={recent} isLoading={recentLoading} />
     </div>

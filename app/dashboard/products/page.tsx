@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search, Boxes, Pencil, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,18 @@ export default function ProductsPage() {
     setEditing(null);
     setSheetOpen(true);
   };
+
+  // Deep-link: `?new=1` (e.g. the Home quick-action chip) opens the create
+  // sheet, then strips the param so a refresh doesn't reopen it.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams?.get('new') === '1') {
+      setEditing(null);
+      setSheetOpen(true);
+      router.replace('/dashboard/products');
+    }
+  }, [searchParams, router]);
 
   const openEdit = (product: Product) => {
     setEditing(product);

@@ -55,7 +55,7 @@ export default function HomeHero() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {longDate()}
           </p>
-          <h1 className="mt-1.5 text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
+          <h1 className="mt-1.5 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
             {getGreeting()},
             <br />
             <span className="text-foreground">{name}!</span>
@@ -67,7 +67,7 @@ export default function HomeHero() {
           aria-label="Your profile"
           className="flex-shrink-0 rounded-full ring-offset-2 ring-offset-background transition-shadow hover:ring-2 hover:ring-border lg:hidden"
         >
-          <Avatar className="h-11 w-11 border border-border">
+          <Avatar className="h-10 w-10 border border-border">
             {profile?.avatar_url ? (
               <AvatarImage src={profile.avatar_url} alt={name} />
             ) : null}

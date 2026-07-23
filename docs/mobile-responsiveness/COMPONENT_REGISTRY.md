@@ -41,6 +41,6 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | SignInPage (Clerk) | `app/auth/signin/[[...rest]]/page.tsx` | Yes | Clerk `<SignIn />` card is responsive by default; branding shell reuses signin.css |
 | HomePage | `app/dashboard/home/page.tsx` | Yes | Mobile-first Home feed; centered `max-w-2xl` column, stacks naturally |
 | HomeHero | `app/components/home/HomeHero.tsx` | Yes | Greeting hero + avatar + quick-add bar; greeting scales `text-3xl sm:text-4xl` |
-| HomeCategoryChips | `app/components/home/HomeCategoryChips.tsx` | Yes | Horizontal-scroll chip row (hidden scrollbar), swipes on phones |
-| HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | Outstanding-balance / collection-rate momentum card; single column |
-| RecentOrdersList | `app/components/home/RecentOrdersList.tsx` | Yes | Card-first order list — the mobile default for order data per redesign direction |
+| HomeQuickActions | `app/components/home/HomeQuickActions.tsx` | Yes | Horizontal-scroll quick-action chips (New client / New product → `?new=1` deep-links). Replaced HomeCategoryChips, which duplicated the tab bar |
+| HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | "Sales this month" momentum card (figure + month order count); single column |
+| RecentOrdersList | `app/components/home/RecentOrdersList.tsx` | Yes | Card-first order list grouped by workflow state (in progress / awaiting payment / …) — the mobile default for order data |
