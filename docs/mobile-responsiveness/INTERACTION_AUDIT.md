@@ -139,6 +139,32 @@ v1, 2026, by the ex-Radix team) though its Drawer still uses vaul. So:
    history (pragmatic, recommended here).
 3. Foundation B: **vaul (recommended)** or react-modal-sheet — either is norm-current.
 
+---
+
+## DECISION (2026-07-23) — resolved on long-term fit, not preference
+
+**A2 (state sheet-host + history entry) + `vaul`, unified behind a single sheet primitive.**
+The choice was made to make the *recurrence class* (every surface opening overlays its own
+way) structurally impossible, judged against this codebase specifically:
+
+- **Not A1 (intercepting routes)** despite being the textbook Next.js pattern, because for
+  *this* app it introduces the exact seams we're eliminating: (1) `vaul`'s gesture-owned
+  open/close fights router-owned open/close; (2) our client-heavy form sheets (contexts +
+  SWR mutations) would need an RSC/route-segment migration; (3) its documented
+  nested-intercept `router.back()` breakage is itself a behavior-mismatch bug.
+- **A2** gives *one door* to open any sheet (`openOrder(id)`, `openCreateOrder()`, …), so no
+  future surface can diverge; the one hand-rolled concern (history/Back) lives in one place;
+  it composes with `vaul`; URL-shareability can be added later via a `?sheet=` sync on our
+  terms.
+- **`vaul`** for the drawer: Radix-Dialog-based → focus-trap + ARIA **by construction**
+  (fixes INT-08 structurally); stack + ecosystem fit. Staleness mitigated (small surface,
+  maintained Radix engine).
+
+**The enforced guarantee:** every sheet in the app — form sheets, the tab-bar More sheet, the
+future filter sheet — flows through **one `vaul`-based primitive exposed by the host**. One
+behavior, one place to fix, nothing to diverge. Recorded as a guardrail in
+`DESIGN_PHILOSOPHY.md`.
+
 **Sources:** Next.js modal patterns (jsmanifest, May 2026; Next.js parallel-routes docs) ·
 Base UI v1 / shadcn default (InfoQ Feb 2026; greatfrontend 2026) · vaul status (npm; shadcn
 Drawer) · react-modal-sheet (Temzasse) · Material 3 bottom-sheet specs · iOS

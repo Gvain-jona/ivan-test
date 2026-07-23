@@ -77,6 +77,22 @@ the bar; "it feels like a native app screen that belongs next to Home" is. Where
 existing screen only shrinks a desktop layout, it gets **rebuilt** to the mobile language,
 not tweaked.
 
+## Overlays & sheets — one primitive, one door (guardrail)
+
+Every overlay in the app — form sheets, the tab-bar More sheet, the filter sheet, any
+future modal — goes through **one sheet primitive** (a `vaul`-based bottom sheet on mobile /
+right panel on desktop) exposed by **one sheet host** with a single API (`openOrder(id)`,
+`openCreateOrder()`, …). Decision + rationale in `INTERACTION_AUDIT.md` (2026-07-23).
+
+Rules that keep the recurrence class dead:
+- **Open by intent, not by navigation.** Call the host (`openCreateOrder()`); never route to
+  another page just to pop a modal, and never re-implement open/close state per surface.
+- **No bespoke sheets.** Don't hand-roll a new `Sheet`/`Dialog`/`Drawer` for a one-off — extend
+  the primitive. One behavior (drag-to-dismiss, focus trap, Back-dismiss, animation) lives in
+  one place.
+- **Every signifier is wired.** A grab handle means the sheet drags; a leading icon means the
+  action it depicts. If you can't wire it, don't show it.
+
 ## Scaffolding gaps (data/modules that don't exist yet)
 
 When a screen needs analytics, an aggregate, or a module that hasn't been built or
