@@ -64,6 +64,20 @@ No desktop sidebar is planned. New shell work should preserve this split rather 
 
 ---
 
+## Post-redesign findings (2026-07-23)
+
+Added after the mobile-shell redesign (Home feed + `MobileTabBar`), which the
+2026-06-25 pass predates. See `DESIGN_PHILOSOPHY.md` for the direction these are
+judged against.
+
+| ID | Finding | File:Line | Fix | Status |
+|----|---------|-----------|-----|--------|
+| MOB-16 | Home's recent-order cards — the prime mobile order surface — all link to the generic `/dashboard/orders` list, not the specific order. Tapping any card, "See all", the Orders tab, and the Orders chip all land in the same place; you cannot open an order from Home. | `app/components/home/RecentOrdersList.tsx:62` | Deep-link `?order=<id>`, reusing the orders page's existing `?new=1` sheet-open pattern to open the view sheet. | 🟡 IN PROGRESS |
+| MOB-17 | Shell sized with `h-screen` (`100vh`): on mobile browsers `100vh` counts the area behind the collapsing toolbar, pushing the fixed bottom tab bar and last content rows out of view until scroll. | `app/components/layout/DashboardLayout.tsx:34` | `h-dvh` (dynamic viewport height). | ✅ FIXED |
+| MOB-18 | Profile-error alert is `fixed top-0` at all sizes, but the compensating `mt-12` offset lives only on the desktop-only header — on mobile nothing offsets it, so it covers the Home hero. | `app/components/navigation/TopHeader.tsx:172` | In-flow on mobile (pushes content), `lg:fixed` on desktop; stacks on narrow phones. | ✅ FIXED |
+| MOB-19 | Home quick-add leads the "Create a new order…" action with a magnifying-glass `Search` icon (comment calls it a "command/search bar"), but it's a plain link straight to create — no search, no input. Wrong affordance. | `app/components/home/HomeHero.tsx:82` | Lead with a create/`Plus` glyph, or make it a real search-or-create control. | 🔲 OPEN |
+| MOB-20 | Home category chips (Orders/Clients/Products/Expenses) duplicate `MobileTabBar`'s primary tabs, both on-screen on Home — redundant nav weight on the most important screen. | `app/components/home/HomeCategoryChips.tsx:14` | Repurpose chips as filters/segments rather than duplicate destinations. | 🔲 OPEN |
+
 ## Suggested order of attack
 
 1. MOB-01 – MOB-04 (critical — difference between "usable" and "broken" on a phone)

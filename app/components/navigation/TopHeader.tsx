@@ -168,9 +168,17 @@ export default function TopHeader({
 
   return (
     <>
-      {/* Profile Error Alert */}
+      {/* Profile Error Alert.
+          Desktop: fixed overlay at the very top (the header's `mt-12` below
+          compensates for it). Mobile: there is no header to compensate, so
+          the alert sits in normal flow at the top of the shell and pushes
+          the screen's content down instead of covering the Home hero. It
+          also stacks its message/action on the narrowest phones. */}
       {profileError && (
-        <Alert variant="error" className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between">
+        <Alert
+          variant="error"
+          className="z-50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:fixed lg:top-0 lg:left-0 lg:right-0"
+        >
           <AlertDescription>
             Unable to load your profile data. This may affect some features.
           </AlertDescription>
@@ -179,7 +187,7 @@ export default function TopHeader({
             variant="outline"
             onClick={handleProfileRefresh}
             disabled={isRefreshing}
-            className="ml-2 bg-background"
+            className="bg-background sm:ml-2"
           >
             {isRefreshing ? (
               <>

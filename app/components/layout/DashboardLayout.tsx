@@ -31,7 +31,12 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
       <NavigationProgress />
       <NavigationIndicator />
       {/* Performance monitor disabled */}
-      <div className="flex flex-col h-screen overflow-hidden">
+      {/* h-dvh (dynamic viewport height), not h-screen/100vh: on mobile
+          browsers 100vh counts the area behind the collapsing toolbar, which
+          pushed the fixed bottom tab bar and last content rows out of view.
+          dvh tracks the actually-visible height so the shell ends where the
+          screen does. */}
+      <div className="flex flex-col h-dvh overflow-hidden">
         {/* Header */}
         <TopHeader />
 
