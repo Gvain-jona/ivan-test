@@ -3,7 +3,6 @@
 import React, { memo, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  Home,
   Package,
   Boxes,
   SlidersHorizontal,
@@ -43,8 +42,9 @@ import { useTabNavigation } from '@/hooks/ui/useTabNavigation';
 import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
 // Define navigation items with consistent navigation approach
+// Home is a mobile-only surface (see DESIGN_PHILOSOPHY.md), so the desktop
+// pill starts at Orders — desktop's landing destination.
 const getNavigationItems = (unreadCount: number): NavItemType[] => [
-  { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: User, href: '/dashboard/clients' },
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },

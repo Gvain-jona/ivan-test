@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 /**
- * Dashboard index — redirects to the Home feed (the mobile-first landing
- * that replaced the old orders redirect during the UI transformation).
+ * Dashboard index — platform-adaptive landing per the design philosophy
+ * (docs/mobile-responsiveness/DESIGN_PHILOSOPHY.md): mobile lands on the
+ * Home feed, desktop lands on Orders. Home is a mobile-only surface, so
+ * desktop never enters it. `lg` = 1024px, matching the shell's breakpoint.
  */
 export default function DashboardPage() {
   const router = useRouter();
@@ -14,7 +16,8 @@ export default function DashboardPage() {
   useEffect(() => {
     // Short delay so navigation state settles before the push.
     const timer = setTimeout(() => {
-      router.push('/dashboard/home');
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+      router.push(isDesktop ? '/dashboard/orders' : '/dashboard/home');
     }, 100);
 
     return () => clearTimeout(timer);
