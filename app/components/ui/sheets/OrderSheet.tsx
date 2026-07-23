@@ -107,7 +107,10 @@ const OrderSheet = memo(function OrderSheet({
               </div>
             )}
 
-            {showCloseButton && (
+            {/* Desktop only. On mobile the sheet is dismissed by drag-down,
+                backdrop tap, or Back — the X is redundant chrome that just
+                eats header space (per product decision 2026-07-23). */}
+            {showCloseButton && isDesktop && (
               <Button
                 variant="ghost"
                 size="icon"
