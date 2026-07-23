@@ -92,6 +92,16 @@
 | `app/hooks/materials/useMaterialPurchases.ts` | 1,159 | Combined list + detail + mutation logic | 🔲 Planned refactor |
 | `app/lib/services/analytics-service.ts` | 919 | All analytics aggregation in one service | 🔲 Planned refactor |
 
+### CSS layering — unlayered `globals.css` rules override Tailwind utilities
+
+| ID | Finding | Status | Commit |
+|----|---------|--------|--------|
+| CSS-01 | Custom component rules in `app/globals.css` are **unlayered** and sit after `@tailwind utilities`, so at equal specificity they win over any colliding utility class. Manifested as `.top-header { display:flex }` defeating the `hidden lg:block` on the header — rendering the desktop-only header on mobile. | ✅ FIXED (that instance) — `549e247`; systemic fix ⏸ DEFERRED |
+
+**Systemic fix (deferred to a later session):** move the component-scoped rules in `globals.css` into `@layer components` so Tailwind utilities always win, making this collision class structurally impossible. Deferred because it's an ~800-line precedence change and some table/calendar rules currently rely on beating utilities — it needs an incremental migration with a visual pass on the tables + date picker (can't be verified headlessly). Full sweep 2026-07-23: `.top-header` was the **only** live collision; **no** global rule targets forms/inputs/buttons/dialogs/sheets, and there are **zero** `visibility:` overrides — so the form/sheet work is unaffected.
+
+**Guardrail until then (keep in mind while working):** do not add unlayered `globals.css` rules that set `display` / `position` / `visibility` on elements that also carry Tailwind utilities — prefer the utility, or put the rule in `@layer components`.
+
 ---
 
 ## Dependency Audit (DEPENDENCY_REVIEW.md)
