@@ -80,6 +80,58 @@ sheet host. Bundle with Foundation A.
 - INT-13: FAB → theme token; nudge clear of the tab bar.
 
 ## Suggested order
-1. **Foundation A** (global sheet host) — biggest felt improvement, unblocks Home.
-2. **Foundation B + B′** (vaul + Back handling) — makes the sheet a real sheet.
+1. **Foundation A** (in-place open) — biggest felt improvement, unblocks Home.
+2. **Foundation B + B′** (real sheet + Back handling) — makes the sheet a real sheet.
 3. **Polish** (INT-05, INT-10, INT-13) — quick sweep.
+
+---
+
+## Verification against 2026 norms (researched 2026-07-23)
+
+Checked the two load-bearing recommendations (drawer lib + in-place-open approach) and
+the sheet-mechanics claims against current sources. Outcome: findings hold, but **both
+foundations get refined** — I'd overstated a couple of things.
+
+**Confirmed (mechanics):** Modal bottom sheets should have a scrim + disable background
+(we do — scroll lock at `sheet.tsx:29`), and are dismissed by tap-outside / swipe-down /
+close-action — **multiple dismiss methods coexisting is normal**, so INT-06 is really about
+our *inconsistency + dead handle*, not "too many closes." New norm to apply: **a drag
+handle should only appear when the sheet is actually draggable** (iOS hides the grab
+indicator when there's a single detent). So the cheapest correct fix for INT-04, regardless
+of library, is **wire the drag or hide the handle** — a decorative handle is a norm
+violation, not just a nitpick. (Material 3 bottom sheets; iOS `UISheetPresentationController`.)
+
+**Refines Foundation A (in-place open).** The current Next.js-recommended modal pattern is
+**intercepting + parallel routes** — they give a URL-addressable overlay that opens over the
+*current* page and dismisses on Back, natively (solves INT-01/02/03 **and** INT-12 without
+manual history glue). That's more aligned than my "avoid navigation, pure state host."
+Caveat the community also flags: `router.back()` dismissal breaks once a modal links to
+*other* intercepted routes, and it adds route-segment complexity for our heavy client-form
+sheets. So it's a genuine trade, not a clear win:
+- **Option A1 — intercepting/parallel routes:** framework-blessed, URL + Back for free; more
+  setup, known edge cases with nested intercepts.
+- **Option A2 — state sheet-host + explicit history entry (or `?sheet=` param):** simpler,
+  full control, in-place; we own the Back glue. Also an accepted community pattern.
+  Given our sheets are deep client forms (contexts + mutations), **A2 is the pragmatic pick**;
+  A1 is the textbook one.
+
+**Refines Foundation B (real sheet).** `vaul` is still legitimate — shadcn's Drawer is built
+on it, it's Radix-Dialog-based (matches our stack), MIT, production-proven (Linear, Vercel).
+But research flags it's on a **~2-year-old release** with known iOS-scroll / keyboard-a11y
+workarounds, and — notably — **shadcn now defaults its primitive layer to Base UI** (stable
+v1, 2026, by the ex-Radix team) though its Drawer still uses vaul. So:
+- **vaul** — best ecosystem fit, proven; accept slow releases.
+- **react-modal-sheet** (Motion-based) — actively maintained alternative with velocity
+  dismiss; pick this if maintenance freshness matters more than Radix alignment.
+  Recommend **vaul** for stack fit unless we want the fresher maintenance.
+
+**Net changes to the plan:**
+1. Do the **handle fix immediately** (wire drag *or* hide handle) — norm-backed, library-agnostic.
+2. Foundation A becomes a **decision**: A1 intercepting routes (textbook) vs A2 state-host +
+   history (pragmatic, recommended here).
+3. Foundation B: **vaul (recommended)** or react-modal-sheet — either is norm-current.
+
+**Sources:** Next.js modal patterns (jsmanifest, May 2026; Next.js parallel-routes docs) ·
+Base UI v1 / shadcn default (InfoQ Feb 2026; greatfrontend 2026) · vaul status (npm; shadcn
+Drawer) · react-modal-sheet (Temzasse) · Material 3 bottom-sheet specs · iOS
+`UISheetPresentationController` (Sarunw) · bottom-sheet UX (Mobbin, Plotline).
