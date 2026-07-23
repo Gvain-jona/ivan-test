@@ -156,6 +156,22 @@ export default function FieldDefinitionFormSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={field ? `Edit ${field.field_label}` : `New ${entityLabel} Field`}
+      footer={
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleSubmit} disabled={!canSubmit || submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            {field ? 'Save Changes' : 'Create Field'}
+          </Button>
+        </div>
+      }
     >
       <div className="p-4 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -257,16 +273,6 @@ export default function FieldDefinitionFormSheet({
             />
             Show on documents (invoices/quotes)
           </label>
-        </div>
-
-        <div className="flex justify-end gap-2 border-t border-[#2B2B40] pt-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            {field ? 'Save Changes' : 'Create Field'}
-          </Button>
         </div>
       </div>
     </OrderSheet>

@@ -15,6 +15,12 @@ interface OrderSheetProps {
   showCloseButton?: boolean;
   onClose?: () => void;
   customHeader?: React.ReactNode;
+  /**
+   * Sticky action bar pinned below the scrollable body (e.g. Cancel + Save).
+   * Stays put while the form scrolls and clears the safe-area inset, so the
+   * primary action is always reachable — the reference form behavior.
+   */
+  footer?: React.ReactNode;
 }
 
 /**
@@ -36,7 +42,8 @@ const OrderSheet = memo(function OrderSheet({
   description,
   showCloseButton = true,
   onClose,
-  customHeader
+  customHeader,
+  footer
 }: OrderSheetProps) {
   // lg = 1024px, matching the shell's mobile/desktop breakpoint.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -113,9 +120,19 @@ const OrderSheet = memo(function OrderSheet({
           )}
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-auto pb-[env(safe-area-inset-bottom)] lg:pb-0">
+        <div
+          className={`min-h-0 flex-1 overflow-auto ${
+            footer ? '' : 'pb-[env(safe-area-inset-bottom)] lg:pb-0'
+          }`}
+        >
           {children}
         </div>
+
+        {footer && (
+          <div className="shrink-0 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {footer}
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

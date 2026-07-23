@@ -77,6 +77,22 @@ export default function ClientFormSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={client ? `Edit ${client.name}` : 'New Client'}
+      footer={
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleSubmit} disabled={!name.trim() || submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            {client ? 'Save Changes' : 'Create Client'}
+          </Button>
+        </div>
+      }
     >
       <div className="p-4 space-y-5">
         <div className="space-y-1.5 max-w-md">
@@ -92,16 +108,6 @@ export default function ClientFormSheet({
         </div>
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
-
-        <div className="flex justify-end gap-2 border-t border-[#2B2B40] pt-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!name.trim() || submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            {client ? 'Save Changes' : 'Create Client'}
-          </Button>
-        </div>
       </div>
     </OrderSheet>
   );

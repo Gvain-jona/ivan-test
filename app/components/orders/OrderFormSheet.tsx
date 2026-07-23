@@ -171,7 +171,27 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
   };
 
   return (
-    <OrderSheet open={open} onOpenChange={onOpenChange} title={title ?? 'Create New Order'}>
+    <OrderSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title ?? 'Create New Order'}
+      footer={
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleSubmit} disabled={!canSubmit || submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            Create Order
+          </Button>
+        </div>
+      }
+    >
       <div className="p-4 space-y-6">
         {/* General */}
         <section className="space-y-4">
@@ -418,17 +438,6 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
             Add Payment
           </Button>
         </section>
-
-        {/* Submit */}
-        <div className="flex justify-end gap-2 border-t border-[#2B2B40] pt-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            Create Order
-          </Button>
-        </div>
       </div>
 
       {/* Inline client creation for walk-in customers */}
