@@ -66,9 +66,13 @@ recent-order cards and "See all" now go to distinct, correct destinations.
   fetch), so they get the enter animation and drag, but exit is instant (unmount cuts vaul's
   close animation). The always-mounted More sheet animates both ways. If exit polish matters,
   keep forms mounted + reset via key — deferred.
-- ⏳ Follow-up: migrate the orders page's own sheet state onto the host for full "one door";
-  the legacy custom `app/components/ui/sheet.tsx` can be retired once its remaining consumers
-  move over.
+- ✅ **Orders page consolidated onto the host** — it no longer owns sheet state or renders its
+  own OrderFormSheet/OrderViewSheet; it opens them by intent like Home, and deep-links route
+  through the host too. Every create/view/filter sheet now flows through the single host +
+  primitive — **"one door" complete**. (Safe because `createOrder` invalidates the ORDERS SWR
+  keys, so the page's list auto-refreshes.)
+- ⏳ Remaining: the legacy custom `app/components/ui/sheet.tsx` can be retired once its
+  remaining consumers (dark material/expense modules) migrate — not urgent.
 
 ---
 
