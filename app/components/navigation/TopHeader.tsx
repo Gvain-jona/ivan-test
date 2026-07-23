@@ -206,7 +206,7 @@ export default function TopHeader({
           it competes with each screen's own top (e.g. the Home greeting
           hero) and eats vertical space a phone should give to content. */}
       <header className={cn(
-        "top-header hidden lg:block px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
+        "top-header hidden lg:flex lg:items-center px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
         scrolled && "shadow-md backdrop-blur-md bg-[hsl(var(--card))]/90 border-b border-[hsl(var(--border))]/60",
         !scrolled && "bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]/40",
         profileError && "mt-12", // Add margin when error is shown

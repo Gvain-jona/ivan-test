@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SmartCombobox } from '@/components/ui/smart-combobox'
 import { useSmartSizes } from '@/hooks/useSmartSizes'
@@ -80,8 +79,10 @@ export default function SizesTestPage() {
     })
   }
 
+  // The dashboard route layout (app/dashboard/layout.tsx) already wraps every
+  // page in DashboardLayout — don't wrap again here or the whole shell
+  // (TopHeader + nav) renders twice.
   return (
-    <DashboardLayout>
       <div className="container mx-auto py-6">
         <h1 className="text-2xl font-bold mb-6">Sizes Database Test</h1>
 
@@ -176,6 +177,5 @@ export default function SizesTestPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   )
 }

@@ -376,14 +376,16 @@ body {
   font-size: 0.75rem;
 }
 
-/* Header styling */
+/* Header styling. NOTE: no `display` here on purpose. This rule is unlayered
+   and sits after Tailwind's utilities, so a `display` value would override the
+   `hidden lg:block` on the <header> (equal specificity, later wins) and force
+   the header visible on mobile. Visibility + flex layout are controlled by
+   Tailwind classes on the element (`hidden lg:flex lg:items-center`). */
 .top-header {
   background-color: hsl(var(--card));
   border-bottom-width: 1px;
   border-bottom-color: hsl(var(--border));
   height: 4rem;
-  display: flex;
-  align-items: center;
 }
 
 /* Table styling */
