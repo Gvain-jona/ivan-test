@@ -168,16 +168,15 @@ export default function TopHeader({
 
   return (
     <>
-      {/* Profile Error Alert.
-          Desktop: fixed overlay at the very top (the header's `mt-12` below
-          compensates for it). Mobile: there is no header to compensate, so
-          the alert sits in normal flow at the top of the shell and pushes
-          the screen's content down instead of covering the Home hero. It
-          also stacks its message/action on the narrowest phones. */}
+      {/* Profile Error Alert — desktop-only, like the rest of this header.
+          TopHeader is chrome that belongs to desktop; on mobile every screen
+          owns its own top (product decision 2026-07-23), so nothing from here
+          renders on a phone. Desktop shows it as a fixed top overlay (the
+          header's `mt-12` below compensates for it). */}
       {profileError && (
         <Alert
           variant="error"
-          className="z-50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:fixed lg:top-0 lg:left-0 lg:right-0"
+          className="z-50 hidden items-center justify-between lg:flex lg:fixed lg:top-0 lg:left-0 lg:right-0"
         >
           <AlertDescription>
             Unable to load your profile data. This may affect some features.
