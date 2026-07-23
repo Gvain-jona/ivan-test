@@ -46,6 +46,14 @@ showing up repeatedly:
 is open (`sheet.tsx:29`); form submit shows a button spinner + toast + closes on success;
 recent-order cards and "See all" now go to distinct, correct destinations.
 
+**Progress (2026-07-23)** — the decision-independent, norm-backed items shipped first:
+- ✅ **INT-04** — grab handle removed until the sheet is actually draggable (returns with
+  the drawer primitive). ✅ **INT-10** — disabled tiles now show a "Soon" label instead of
+  dead silence. ✅ **INT-13** — scroll-top FAB tokenized (`bg-primary`) and lifted clear of
+  the tab bar. INT-05 left as-is (product decision: search+add bar is accepted).
+- ⏳ Foundations A (open mechanism) and B (drawer primitive) pending the two decisions
+  below; default leaning A2 (state host + history) + `vaul`.
+
 ---
 
 ## Fix strategy — foundations, not whack-a-mole

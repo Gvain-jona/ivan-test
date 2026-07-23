@@ -132,6 +132,11 @@ export default function MobileTabBar() {
                 >
                   <Icon className="h-6 w-6" />
                   {title}
+                  {disabled && (
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Soon
+                    </span>
+                  )}
                 </div>
               );
 

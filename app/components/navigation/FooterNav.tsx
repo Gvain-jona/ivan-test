@@ -239,7 +239,7 @@ function FooterNavComponent({ className }: FooterNavProps) {
       {showScrollTop && (
         <Button
           onClick={scrollToTop}
-          className="fixed bottom-20 right-4 z-50 h-10 w-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-lg p-0"
+          className="fixed bottom-24 right-4 z-50 h-11 w-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg p-0 lg:bottom-20"
           aria-label="Scroll to top"
         >
           <ArrowUp size={18} />

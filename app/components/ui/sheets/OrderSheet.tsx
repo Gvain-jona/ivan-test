@@ -84,12 +84,12 @@ const OrderSheet = memo(function OrderSheet({
         className={`flex flex-col gap-0 p-0 bg-background border-border/40 text-foreground ${shapeClass}`}
         hideCloseButton={true}
       >
-        {/* Grab handle — mobile bottom sheet only. */}
-        <div className="flex shrink-0 justify-center pt-3 pb-1 lg:hidden">
-          <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
-        </div>
-
-        <SheetHeader className="flex shrink-0 flex-row items-start justify-between border-b border-[hsl(var(--border))]/40 bg-[hsl(var(--card))] px-6 pb-4 pt-2 lg:p-6">
+        {/* No grab handle until the sheet is actually draggable. A grip that
+            doesn't drag is a false affordance (INT-04; iOS hides the indicator
+            when a sheet has a single, non-resizable detent). It returns with
+            real drag-to-dismiss when the drawer primitive lands — see
+            INTERACTION_AUDIT.md, Foundation B. */}
+        <SheetHeader className="flex shrink-0 flex-row items-start justify-between border-b border-[hsl(var(--border))]/40 bg-[hsl(var(--card))] px-6 py-4 lg:p-6">
           {customHeader ? (
             <div className="flex-1">
               {/* Always include a SheetTitle for accessibility, hidden when using customHeader */}
