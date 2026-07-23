@@ -77,5 +77,23 @@ the bar; "it feels like a native app screen that belongs next to Home" is. Where
 existing screen only shrinks a desktop layout, it gets **rebuilt** to the mobile language,
 not tweaked.
 
+## Scaffolding gaps (data/modules that don't exist yet)
+
+When a screen needs analytics, an aggregate, or a module that hasn't been built or
+migrated yet, **don't block and don't fake it** — scaffold the UI to its finished
+visual state on the best honest interim data (a bounded query, a real approximation),
+and **record the handoff** so it gets wired properly when the owning module lands:
+
+1. Build the UI to look done — no visible "coming soon" stubs unless the data truly
+   can't be approximated.
+2. Mark the interim data in code with a `TODO(v2 read layer)` comment naming the
+   module it belongs to.
+3. Log it in `docs/v2-migration/STATE.md` — under that module's row in **Module
+   status**, and in the **Follow-up backlog** — so whoever cuts the module over sees
+   it. STATE.md is the tracker of record for "when we have the actual module."
+
+Reference example: Home's "sales this month" card — scaffolded on a bounded
+client-side order sum, tracked against the analytics/metrics module in STATE.md.
+
 See `MOBILE_AUDIT.md` for the tracked findings and `COMPONENT_REGISTRY.md` for the
 per-component responsiveness log.

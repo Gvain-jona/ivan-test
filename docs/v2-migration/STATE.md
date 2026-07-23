@@ -57,7 +57,7 @@ record; its "keep holding" verdict no longer applies.
 | **Field setup** | ✅ New (per-entity registry admin at `/dashboard/fields`). |
 | **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
 | Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. The orders-page façade stubs in `app/dashboard/orders/_context/` now serve only the unmigrated InvoicesTab (the Insights/Tasks tabs were deleted in orders cleanup Phase 1). `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
-| Home dashboard | 🗑 **Deleted 2026-07-13** — was unreachable (no nav link, `/dashboard` redirects to orders) and ran on sample data, not live queries. `app/dashboard/home/`, `sample-orders.ts`, `hooks/use-data.ts`, `hooks/useDashboardStats.ts` removed; rebuild on a v2 read layer when the home/metrics module gets its turn. |
+| Home dashboard | 🟡 **Rebuilt as the mobile-only Home feed (2026-07-22/23)** on live v2 order queries — greeting hero, quick-add, quick-action chips (New client/product `?new=1` deep-links), a "sales this month" snapshot, and a workflow-segmented recent-orders list. Desktop lands on Orders instead; Home is `lg:hidden` (see `docs/mobile-responsiveness/DESIGN_PHILOSOPHY.md`). **Scaffolded metric awaiting a read layer:** "sales this month" (`app/components/home/HomeSnapshot.tsx`, summed in `app/dashboard/home/page.tsx`) sums a **bounded** client-side order fetch (≤200 of the month's orders) — the count badge is accurate, the sum is approximate. Wire it to a real aggregate accessor when the **analytics/metrics** module cuts over — same read layer as the deferred order-page metrics below. Don't invent a bespoke endpoint before then. |
 
 ## Clerk transition (Phase 1 built 2026-07-17)
 
@@ -131,7 +131,9 @@ currency → needs `PATCH /api/organization`); order detail editing (date,
 client, custom_data); searchable comboboxes for client/product pickers at
 scale; attachments; payment/note edit+delete; currency-aware `formatCurrency`;
 documents "issue" action + per-row quick-invoice sheet (both wait on
-`issue_document()`); order-page metrics on a v2 read layer; **Next.js security
+`issue_document()`); order-page metrics **and Home's "sales this month" card**
+on a v2 read layer (both currently scaffolded — Home sums a bounded client-side
+fetch, see Module status → Home dashboard); **Next.js security
 upgrade** (critical middleware/auth-bypass + SSRF/cache-poisoning CVEs — the
 non-breaking `npm audit fix` bumps `next` 15.3→15.5 and breaks the build gate at
 `app/actions/options.ts:234`, so it needs a scoped upgrade PR with a type fix;

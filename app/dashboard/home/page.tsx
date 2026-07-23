@@ -51,8 +51,11 @@ export default function HomePage() {
   // group; the list stays short per segment.
   const { orders: recent, isLoading: recentLoading } = useOrders({ limit: 10 });
 
-  // Current month's orders — bounded fetch, summed client-side. `total` is the
-  // accurate month order count even when the fetch is capped.
+  // TODO(v2 read layer): "sales this month" is scaffolded on a bounded
+  // client-side sum — accurate count (`total`), approximate sum (capped at
+  // `limit`). Wire to the analytics/metrics aggregate accessor when that
+  // module cuts over; don't build a bespoke endpoint first. See
+  // docs/v2-migration/STATE.md → Module status → Home dashboard.
   const {
     orders: month,
     total: monthCount,
