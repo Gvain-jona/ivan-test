@@ -6,10 +6,11 @@ import { useOrganization } from '@/hooks/organization/useOrganization';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import OrderRow from './OrderRow';
 import OrderCard from './OrderCard';
+import OrdersFilterSheet from './OrdersFilterSheet';
 import { Button } from '@/app/components/ui/button';
 import {
   Search, RefreshCw, X, Calendar,
-  CreditCard, ClipboardList
+  CreditCard, ClipboardList, SlidersHorizontal
 } from 'lucide-react';
 import { useLoading, LoadingButton } from '@/components/loading';
 import { Skeleton } from '@/app/components/ui/skeleton';
@@ -85,7 +86,21 @@ export default function OrdersTable(props: OrdersTableProps) {
   } = props;
 
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'ascending' });
+
+  // Number of active filter groups (drives the mobile Filter button badge).
+  const activeFilterCount =
+    (selectedStatus.length > 0 ? 1 : 0) +
+    (selectedPaymentStatus.length > 0 ? 1 : 0) +
+    (dateRange ? 1 : 0);
+
+  const clearAllFilters = () => {
+    onSearch('');
+    onStatusFilterChange([]);
+    onPaymentStatusFilterChange([]);
+    onDateRangeChange(undefined);
+  };
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   // Status list is org-configurable in v2 (organizations.settings)
   const { orderStatuses } = useOrganization();
@@ -173,6 +188,24 @@ export default function OrdersTable(props: OrdersTableProps) {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+          {/* Mobile: one Filter button opens the bottom sheet. The inline
+              quick filters below are desktop-only. */}
+          <Button
+            variant="outline"
+            onClick={() => setFilterOpen(true)}
+            className="relative h-9 flex-1 justify-center gap-2 border-[hsl(var(--table-border))] bg-[hsl(var(--table-search-bg))] sm:flex-none lg:hidden"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filter
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1">
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
+
+          {/* Desktop: inline quick filters */}
+          <div className="hidden items-center gap-2 flex-wrap lg:flex">
           {/* Status Quick Filter */}
           <div className="relative">
             <Select
@@ -287,6 +320,8 @@ export default function OrdersTable(props: OrdersTableProps) {
               />
             </PopoverContent>
           </Popover>
+
+          </div>
 
           {/* Keep the Refresh Button */}
           <LoadingButton
@@ -581,6 +616,21 @@ export default function OrdersTable(props: OrdersTableProps) {
           </>
         )}
       </div>
+
+      {/* Mobile filter bottom sheet (opened by the Filter button above). */}
+      <OrdersFilterSheet
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        orderStatuses={orderStatuses}
+        selectedStatus={selectedStatus}
+        onStatusChange={onStatusFilterChange}
+        selectedPaymentStatus={selectedPaymentStatus}
+        onPaymentStatusChange={onPaymentStatusFilterChange}
+        dateRange={dateRange}
+        onDateRangeChange={onDateRangeChange}
+        resultCount={totalCount || orders.length}
+        onClearAll={clearAllFilters}
+      />
     </div>
   );
 }
