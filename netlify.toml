@@ -1,0 +1,18 @@
+# Netlify build configuration.
+#
+# Secrets scanning: Netlify scans the build output for the values of
+# configured environment variables and fails the deploy if it finds them.
+# Next.js *intentionally* inlines NEXT_PUBLIC_* variables into the browser
+# bundle, so the scanner false-positives on values that are public by design
+# (the Supabase project URL, the Supabase anon/publishable key — protected by
+# RLS, and the Clerk pk_ publishable key). Those keys are listed below so the
+# scanner ignores them.
+#
+# Deliberately NOT listed: SUPABASE_SERVICE_ROLE_KEY and CLERK_SECRET_KEY.
+# Those are real secrets, are read only server-side (never NEXT_PUBLIC_), and
+# Next.js keeps them as runtime process.env lookups — they never appear as
+# literals in any build artifact. They stay scanned so a genuine future leak
+# is still caught. Do not add them here, and do not set SECRETS_SCAN_ENABLED
+# to false — that would disable protection for the real secrets.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SENTRY_DSN,NEXT_PUBLIC_CLERK_SIGN_IN_URL"
