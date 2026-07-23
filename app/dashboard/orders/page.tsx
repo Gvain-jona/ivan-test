@@ -46,9 +46,9 @@ const OrdersPageContent: React.FC = () => {
     }
   }, [searchParams, handleViewOrderById, setCreateSheetOpen, router]);
 
+  // Horizontal padding comes from the layout's <main> (p-4 lg:p-6); don't
+  // double it here — mobile only has room for one gutter.
   return (
-    {/* Horizontal padding comes from the layout's <main> (p-4 lg:p-6);
-        don't double it here — mobile only has room for one gutter. */}
     <div className="space-y-5 min-h-screen py-4 lg:px-2">
       {/* Page Header */}
       <OrdersPageHeader
