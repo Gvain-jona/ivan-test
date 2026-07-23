@@ -1,8 +1,9 @@
-import React, { useCallback, memo } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import React, { memo } from 'react';
+import { Drawer } from 'vaul';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
 
 interface OrderSheetProps {
@@ -17,21 +18,20 @@ interface OrderSheetProps {
   customHeader?: React.ReactNode;
   /**
    * Sticky action bar pinned below the scrollable body (e.g. Cancel + Save).
-   * Stays put while the form scrolls and clears the safe-area inset, so the
-   * primary action is always reachable — the reference form behavior.
+   * Stays put while the form scrolls and clears the safe-area inset.
    */
   footer?: React.ReactNode;
 }
 
 /**
- * Base component for all migrated form sheets (order / client / product).
+ * The one sheet primitive (see DESIGN_PHILOSOPHY.md → "Overlays & sheets").
+ * Built on `vaul`, so it's a *real* sheet: drag-to-dismiss, focus trap, slide
+ * animation, scroll-lock, and keyboard-aware input repositioning — no more
+ * hand-rolled affordances.
  *
- * Platform-adaptive per docs/mobile-responsiveness/DESIGN_PHILOSOPHY.md:
- * - Mobile (< lg): a **bottom sheet** — grab handle, rounded top, capped
- *   height so the dimmed parent still shows, safe-area aware.
- * - Desktop (lg+): the **right-side panel** (unchanged), width by `size`.
- *
- * One wrapper, so every form that renders through it gets the same behavior.
+ * Platform-adaptive: a bottom drawer on mobile (grab handle that actually
+ * drags, rounded top, capped height) and a right-side panel on desktop. Every
+ * migrated form (order / client / product / field) renders through it.
  */
 const OrderSheet = memo(function OrderSheet({
   open,
@@ -43,7 +43,7 @@ const OrderSheet = memo(function OrderSheet({
   showCloseButton = true,
   onClose,
   customHeader,
-  footer
+  footer,
 }: OrderSheetProps) {
   // lg = 1024px, matching the shell's mobile/desktop breakpoint.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -65,76 +65,78 @@ const OrderSheet = memo(function OrderSheet({
     onOpenChange(false);
   };
 
-  const handleOpenChange = useCallback((value: boolean) => {
-    // Only call parent if the state is actually changing
-    if (value !== open) {
-      onOpenChange(value);
-    }
-  }, [onOpenChange, open]);
-
-  const side = isDesktop ? 'right' : 'bottom';
-  // Bottom sheet gets its shape (rounded top, capped height); the right panel
-  // gets its width. `p-0` in both — header/body own their padding.
-  const shapeClass = isDesktop ? getSizeClass() : 'max-h-[85dvh] rounded-t-2xl';
-
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent
-        side={side}
-        className={`flex flex-col gap-0 p-0 bg-background border-border/40 text-foreground ${shapeClass}`}
-        hideCloseButton={true}
-      >
-        {/* No grab handle until the sheet is actually draggable. A grip that
-            doesn't drag is a false affordance (INT-04; iOS hides the indicator
-            when a sheet has a single, non-resizable detent). It returns with
-            real drag-to-dismiss when the drawer primitive lands — see
-            INTERACTION_AUDIT.md, Foundation B. */}
-        <SheetHeader className="flex shrink-0 flex-row items-start justify-between border-b border-[hsl(var(--border))]/40 bg-[hsl(var(--card))] px-6 py-4 lg:p-6">
-          {customHeader ? (
-            <div className="flex-1">
-              {/* Always include a SheetTitle for accessibility, hidden when using customHeader */}
-              <VisuallyHidden>
-                <SheetTitle>{title || 'Order Details'}</SheetTitle>
-              </VisuallyHidden>
-              {customHeader}
-            </div>
-          ) : (
-            <div>
-              <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
-              {description && (
-                <p className="text-sm text-muted-foreground mt-1">{description}</p>
-              )}
-            </div>
+    <Drawer.Root
+      open={open}
+      onOpenChange={onOpenChange}
+      direction={isDesktop ? 'right' : 'bottom'}
+      repositionInputs
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+        <Drawer.Content
+          className={cn(
+            'fixed z-50 flex flex-col bg-background text-foreground outline-none',
+            isDesktop
+              ? cn('inset-y-0 right-0 h-full w-full border-l border-border/40', getSizeClass())
+              : 'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl border-t border-border/40',
           )}
-
-          {showCloseButton && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full ml-2 flex-shrink-0"
-              aria-label="Close panel"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          )}
-        </SheetHeader>
-
-        <div
-          className={`min-h-0 flex-1 overflow-auto ${
-            footer ? '' : 'pb-[env(safe-area-inset-bottom)] lg:pb-0'
-          }`}
         >
-          {children}
-        </div>
+          {/* Grab handle — mobile only, and it drags for real now (vaul). */}
+          {!isDesktop && (
+            <div className="flex shrink-0 justify-center pt-3 pb-1">
+              <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
+            </div>
+          )}
 
-        {footer && (
-          <div className="shrink-0 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            {footer}
+          <div className="flex shrink-0 flex-row items-start justify-between border-b border-border/40 bg-card px-6 py-4 lg:p-6">
+            {customHeader ? (
+              <div className="flex-1">
+                {/* Radix (via vaul) requires a Title for accessibility. */}
+                <VisuallyHidden>
+                  <Drawer.Title>{title || 'Details'}</Drawer.Title>
+                </VisuallyHidden>
+                {customHeader}
+              </div>
+            ) : (
+              <div>
+                <Drawer.Title className="text-xl font-semibold">{title}</Drawer.Title>
+                {description && (
+                  <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                )}
+              </div>
+            )}
+
+            {showCloseButton && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="ml-2 flex-shrink-0 rounded-full text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                aria-label="Close panel"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            )}
           </div>
-        )}
-      </SheetContent>
-    </Sheet>
+
+          <div
+            className={cn(
+              'min-h-0 flex-1 overflow-auto',
+              footer ? '' : 'pb-[env(safe-area-inset-bottom)] lg:pb-0',
+            )}
+          >
+            {children}
+          </div>
+
+          {footer && (
+            <div className="shrink-0 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {footer}
+            </div>
+          )}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 });
 

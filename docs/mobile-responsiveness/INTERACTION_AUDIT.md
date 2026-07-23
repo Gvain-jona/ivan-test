@@ -56,9 +56,19 @@ recent-order cards and "See all" now go to distinct, correct destinations.
   mounted in `app/dashboard/layout.tsx`. Home's quick-add, recent-order cards, empty state,
   and quick-action chips now open sheets **in place** (no navigation) — closes INT-01, INT-02,
   INT-03, INT-11. History-entry-on-open means **Back dismisses the sheet** — closes INT-12.
-- ⏳ **Foundation B** (vaul drawer primitive — drag/focus/motion, unifying OrderSheet + the
-  More sheet) next. Follow-up: migrate the orders page's own sheet state onto the host too,
-  for the full "one door" (guardrail in DESIGN_PHILOSOPHY.md).
+- ✅ **Foundation B shipped** — `OrderSheet` rebuilt on **`vaul`** (`app/components/ui/sheets/
+  OrderSheet.tsx`): a real sheet with drag-to-dismiss, focus trap, slide animation, scroll-lock,
+  and keyboard-aware input repositioning. Bottom drawer on mobile / right drawer on desktop.
+  The tab-bar **More sheet now renders through the same `OrderSheet`** — one sheet language
+  (closes INT-04 with a handle that *drags*, INT-06, INT-07, INT-08, INT-09). Keyboard-overlap
+  (old MOB-07 deep) is largely handled by vaul's `repositionInputs`.
+- ⚠️ **Caveat:** form sheets are conditionally mounted by the host (fresh form + no idle
+  fetch), so they get the enter animation and drag, but exit is instant (unmount cuts vaul's
+  close animation). The always-mounted More sheet animates both ways. If exit polish matters,
+  keep forms mounted + reset via key — deferred.
+- ⏳ Follow-up: migrate the orders page's own sheet state onto the host for full "one door";
+  the legacy custom `app/components/ui/sheet.tsx` can be retired once its remaining consumers
+  move over.
 
 ---
 

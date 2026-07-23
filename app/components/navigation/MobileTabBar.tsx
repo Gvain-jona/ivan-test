@@ -18,12 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import OrderSheet from '@/components/ui/sheets/OrderSheet';
 
 interface Destination {
   title: string;
@@ -111,13 +106,9 @@ export default function MobileTabBar() {
         </ul>
       </nav>
 
-      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="rounded-t-3xl border-border">
-          <SheetHeader className="text-left">
-            <SheetTitle>More</SheetTitle>
-          </SheetHeader>
-          <div className="mt-4 grid grid-cols-3 gap-3 pb-[env(safe-area-inset-bottom)]">
-            {MORE.map(({ title, icon: Icon, href, disabled }) => {
+      <OrderSheet open={moreOpen} onOpenChange={setMoreOpen} title="More">
+        <div className="grid grid-cols-3 gap-3 p-4">
+          {MORE.map(({ title, icon: Icon, href, disabled }) => {
               const active = isActive(pathname, href);
               const tile = (
                 <div
@@ -150,9 +141,8 @@ export default function MobileTabBar() {
                 </Link>
               );
             })}
-          </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+      </OrderSheet>
     </>
   );
 }
