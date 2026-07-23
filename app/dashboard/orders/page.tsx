@@ -24,22 +24,32 @@ const OrdersPageContent: React.FC = () => {
     createSheetOpen,
     setCreateSheetOpen,
     handleSaveOrder,
+    handleViewOrderById,
   } = useOrdersUI();
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Deep-link: `?new=1` (e.g. from the Home quick-add) opens the create
-  // sheet, then strips the param so a refresh doesn't reopen it.
+  // Deep-links from the mobile Home feed, both stripped after handling so a
+  // refresh doesn't reopen the sheet:
+  //   ?order=<id> — tapping a recent-order card opens that order's view sheet
+  //   ?new=1      — the quick-add bar opens the create sheet
   useEffect(() => {
-    if (searchParams?.get('new') === '1') {
+    if (!searchParams) return;
+    const orderId = searchParams.get('order');
+    if (orderId) {
+      handleViewOrderById(orderId);
+      router.replace('/dashboard/orders');
+    } else if (searchParams.get('new') === '1') {
       setCreateSheetOpen(true);
       router.replace('/dashboard/orders');
     }
-  }, [searchParams, setCreateSheetOpen, router]);
+  }, [searchParams, handleViewOrderById, setCreateSheetOpen, router]);
 
   return (
-    <div className="space-y-5 min-h-screen px-6 py-4">
+    {/* Horizontal padding comes from the layout's <main> (p-4 lg:p-6);
+        don't double it here — mobile only has room for one gutter. */}
+    <div className="space-y-5 min-h-screen py-4 lg:px-2">
       {/* Page Header */}
       <OrdersPageHeader
         title="Orders Management"

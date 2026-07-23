@@ -14,6 +14,7 @@ interface OrdersUIContextType {
   setViewSheetOpen: (open: boolean) => void;
   setCreateSheetOpen: (open: boolean) => void;
   handleViewOrder: (order: OrderSummary) => void;
+  handleViewOrderById: (orderId: string) => void;
   handleCreateOrder: () => void;
   handleDeleteOrder: (orderId: string) => Promise<boolean>;
   handleOrderStatusChange: (orderId: string, status: string) => Promise<boolean>;
@@ -35,6 +36,18 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
     setSelectedOrder(order);
     setViewSheetOpen(true);
   }, []);
+
+  /**
+   * Open the view sheet for an order known only by id — the deep-link path
+   * (e.g. tapping a card on the mobile Home feed → `?order=<id>`). The sheet
+   * fetches its own detail from the id via useOrder, so if the order isn't in
+   * the loaded page yet we seed a minimal summary and let the sheet hydrate.
+   */
+  const handleViewOrderById = useCallback((orderId: string) => {
+    const existing = store.orders.find((o) => o.id === orderId) ?? null;
+    setSelectedOrder(existing ?? ({ id: orderId } as OrderSummary));
+    setViewSheetOpen(true);
+  }, [store.orders]);
 
   const handleCreateOrder = useCallback(() => {
     setSelectedOrder(null);
@@ -91,6 +104,7 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
         setViewSheetOpen,
         setCreateSheetOpen,
         handleViewOrder,
+        handleViewOrderById,
         handleCreateOrder,
         handleDeleteOrder,
         handleOrderStatusChange,

@@ -5,6 +5,7 @@ import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { useOrganization } from '@/hooks/organization/useOrganization';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import OrderRow from './OrderRow';
+import OrderCard from './OrderCard';
 import { Button } from '@/app/components/ui/button';
 import {
   Search, RefreshCw, X, Calendar,
@@ -397,9 +398,40 @@ export default function OrdersTable(props: OrdersTableProps) {
       {/* Table Container - This is the scrollable area */}
       <div
         ref={tableContainerRef}
-        className="flex-1 min-h-0 overflow-auto relative w-full p-1"
+        className="flex-1 min-h-0 overflow-auto relative w-full p-3 lg:p-1"
       >
-        <div className="w-full">
+        {/* Mobile: card-first list (per DESIGN_PHILOSOPHY.md — order data is
+            cards on mobile, not a shrunk table). Desktop keeps the table. */}
+        <div className="space-y-3 lg:hidden">
+          {loading ? (
+            Array(5).fill(0).map((_, index) => (
+              <div
+                key={`card-skeleton-${index}`}
+                className="h-[152px] animate-pulse rounded-2xl border border-border bg-card"
+              />
+            ))
+          ) : !sortedOrders || sortedOrders.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center">
+              <p className="text-base font-medium text-foreground">No orders found</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try adjusting your filters or create a new order
+              </p>
+            </div>
+          ) : (
+            sortedOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                userRole={userRole}
+                onView={onView}
+                onDelete={onDelete}
+                onStatusChange={onStatusChange}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="hidden w-full lg:block">
           <table className="w-full table-fixed divide-y divide-[hsl(var(--table-border))] rounded-md overflow-hidden" style={{ width: '100%', tableLayout: 'fixed' }}>
             <thead className="sticky top-0 bg-[hsl(var(--table-header-bg))] z-10 w-full border-b border-[hsl(var(--table-border))] shadow-sm">
               <tr>
@@ -507,7 +539,7 @@ export default function OrdersTable(props: OrdersTableProps) {
               ) : !sortedOrders || sortedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center">
-                    <p className="text-base text-white">No orders found</p>
+                    <p className="text-base text-foreground">No orders found</p>
                     <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters or create a new order</p>
                   </td>
                 </tr>
@@ -532,7 +564,7 @@ export default function OrdersTable(props: OrdersTableProps) {
       </div>
 
       {/* Pagination using the TablePagination component - Fixed at the bottom */}
-      <div className="border-t border-table-border py-5 px-5 bg-gray-950 flex-shrink-0 rounded-b-md">
+      <div className="border-t border-table-border py-5 px-5 bg-[hsl(var(--table-background))] flex-shrink-0 rounded-b-md">
         {/* Always show pagination when there's at least one record */}
         {(sortedOrders && sortedOrders.length > 0) && (
           <>

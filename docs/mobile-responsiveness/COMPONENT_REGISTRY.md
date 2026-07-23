@@ -9,7 +9,8 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | ExpensesTable | `app/dashboard/expenses/_components/table/ExpensesTable.tsx` | No | MOB-01 |
 | MaterialPurchasesTable | `app/components/materials/MaterialPurchasesTable.tsx` | No | MOB-02 |
 | NotificationsDrawer | `app/components/notifications/NotificationsDrawer.tsx` | No | MOB-03 |
-| OrdersTableNew | `app/components/orders/OrdersTableNew.tsx` | Partial | Scrolls, but no mobile card view — MOB-04 |
+| OrdersTableNew | `app/components/orders/OrdersTableNew.tsx` | Yes | Card-first list on mobile (`lg:hidden`), table desktop-only (`hidden lg:block`) — MOB-04 fixed |
+| OrderCard | `app/components/orders/OrderCard.tsx` | Yes | Mobile order card (Home card language) with full action parity — tap-to-view, status dropdown, actions menu, badges |
 | AccountsSettingsTab (edit dialogs) | `app/dashboard/settings/_components/AccountsSettingsTab.tsx` | Partial | MOB-05, MOB-06 |
 | ProfitSettingsTab (edit dialogs) | `app/dashboard/settings/_components/ProfitSettingsTab.tsx` | Partial | MOB-05, MOB-06 |
 | UserManagementTab | `app/dashboard/settings/_components/UserManagementTab.tsx` | Partial | MOB-06, MOB-12 |

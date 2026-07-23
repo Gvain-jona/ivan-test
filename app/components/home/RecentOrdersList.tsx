@@ -59,7 +59,7 @@ export default function RecentOrdersList({ orders, isLoading }: RecentOrdersList
 function OrderCard({ order }: { order: OrderSummary }) {
   return (
     <Link
-      href="/dashboard/orders"
+      href={`/dashboard/orders?order=${order.id}`}
       className="block rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted"
     >
       <div className="flex items-center justify-between gap-3">
