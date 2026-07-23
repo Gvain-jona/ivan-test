@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { Clock, Plus, ChevronRight, PackageOpen } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useSheets } from '@/context/sheet-host';
 import StatusBadge from '@/components/orders/StatusBadge';
 import PaymentStatusBadge from '@/components/orders/PaymentStatusBadge';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
@@ -123,10 +124,12 @@ export default function RecentOrdersList({ orders, isLoading }: RecentOrdersList
 }
 
 function OrderCard({ order }: { order: OrderSummary }) {
+  const { openOrder } = useSheets();
   return (
-    <Link
-      href={`/dashboard/orders?order=${order.id}`}
-      className="block rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-muted"
+    <button
+      type="button"
+      onClick={() => openOrder(order.id)}
+      className="block w-full rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted"
     >
       <div className="flex items-center justify-between gap-3">
         <span className="truncate text-sm font-medium text-muted-foreground">
@@ -153,24 +156,26 @@ function OrderCard({ order }: { order: OrderSummary }) {
           <StatusBadge status={order.status} size="sm" />
         </div>
       </div>
-    </Link>
+    </button>
   );
 }
 
 function EmptyState() {
+  const { openCreateOrder } = useSheets();
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center">
       <PackageOpen className="h-8 w-8 text-muted-foreground" />
       <p className="text-sm text-muted-foreground">
         No orders yet. Create your first one to get started.
       </p>
-      <Link
-        href="/dashboard/orders?new=1"
+      <button
+        type="button"
+        onClick={openCreateOrder}
         className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform hover:scale-105"
       >
         <Plus className="h-4 w-4" />
         New order
-      </Link>
+      </button>
     </div>
   );
 }

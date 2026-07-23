@@ -1,5 +1,6 @@
 import React from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { SheetHostProvider } from '@/context/sheet-host';
 
 // Removed Suspense to fix hydration issues
 export default function DashboardRouteGroupLayout({
@@ -8,8 +9,10 @@ export default function DashboardRouteGroupLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DashboardLayout>
-      {children}
-    </DashboardLayout>
+    <SheetHostProvider>
+      <DashboardLayout>
+        {children}
+      </DashboardLayout>
+    </SheetHostProvider>
   );
 }

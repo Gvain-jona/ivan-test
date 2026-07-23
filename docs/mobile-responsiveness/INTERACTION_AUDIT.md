@@ -51,8 +51,14 @@ recent-order cards and "See all" now go to distinct, correct destinations.
   the drawer primitive). ✅ **INT-10** — disabled tiles now show a "Soon" label instead of
   dead silence. ✅ **INT-13** — scroll-top FAB tokenized (`bg-primary`) and lifted clear of
   the tab bar. INT-05 left as-is (product decision: search+add bar is accepted).
-- ⏳ Foundations A (open mechanism) and B (drawer primitive) pending the two decisions
-  below; default leaning A2 (state host + history) + `vaul`.
+- ✅ **Foundation A shipped** — `app/context/sheet-host.tsx`: a single `SheetHost` opened by
+  intent (`openCreateOrder` / `openOrder(id)` / `openCreateClient` / `openCreateProduct`),
+  mounted in `app/dashboard/layout.tsx`. Home's quick-add, recent-order cards, empty state,
+  and quick-action chips now open sheets **in place** (no navigation) — closes INT-01, INT-02,
+  INT-03, INT-11. History-entry-on-open means **Back dismisses the sheet** — closes INT-12.
+- ⏳ **Foundation B** (vaul drawer primitive — drag/focus/motion, unifying OrderSheet + the
+  More sheet) next. Follow-up: migrate the orders page's own sheet state onto the host too,
+  for the full "one door" (guardrail in DESIGN_PHILOSOPHY.md).
 
 ---
 

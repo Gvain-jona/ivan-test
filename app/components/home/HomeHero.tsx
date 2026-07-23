@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
 import { useAuth } from '@/app/context/auth-context';
+import { useSheets } from '@/context/sheet-host';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 /** Greeting varies with time of day, matching TopHeader's logic. */
@@ -45,6 +46,7 @@ function longDate(): string {
  */
 export default function HomeHero() {
   const { profile, user } = useAuth();
+  const { openCreateOrder } = useSheets();
   const name = firstName(profile?.full_name, user?.email);
   const avatarInitials = initials(profile?.full_name, user?.email);
 
@@ -78,10 +80,12 @@ export default function HomeHero() {
         </Link>
       </div>
 
-      {/* Primary quick action — styled like a command/search bar. */}
-      <Link
-        href="/dashboard/orders?new=1"
-        className="group flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 transition-colors hover:bg-muted"
+      {/* Primary quick action — opens the create-order sheet in place (no
+          navigation). */}
+      <button
+        type="button"
+        onClick={openCreateOrder}
+        className="group flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-muted"
       >
         <Search className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
         <span className="flex-1 truncate text-sm text-muted-foreground">
@@ -90,7 +94,7 @@ export default function HomeHero() {
         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
           <Plus className="h-4 w-4" />
         </span>
-      </Link>
+      </button>
     </section>
   );
 }
