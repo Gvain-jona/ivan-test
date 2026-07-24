@@ -35,9 +35,9 @@ describe('/api/documents', () => {
     expect(res.status).toBe(201)
     expect((await res.json()).document.status).toBe('draft')
 
-    // Counter key convention: document:<document_type>, org passed explicitly.
+    // Counter key convention: doc:<document_type>, matching v2.counters rows (not "document:").
     const [rpc] = db.callsFor('rpc:next_number')
-    expect(rpc.values).toEqual({ p_counter_key: 'document:invoice', p_org: 'org-4' })
+    expect(rpc.values).toEqual({ p_counter_key: 'doc:invoice', p_org: 'org-4' })
 
     const [insert] = db.callsFor('insert:documents')
     expect(insert.values).toMatchObject({

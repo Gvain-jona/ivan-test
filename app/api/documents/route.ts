@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: documentNumber, error: numberError } = await tenant.db.rpc('next_number', {
-      p_counter_key: `document:${parsed.data.document_type}`,
+      p_counter_key: `doc:${parsed.data.document_type}`,
       p_org: tenant.organizationId,
     });
     if (numberError) return handleSupabaseError(numberError);
