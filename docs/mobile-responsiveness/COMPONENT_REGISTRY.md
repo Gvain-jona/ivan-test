@@ -12,6 +12,7 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | OrdersTableNew | `app/components/orders/OrdersTableNew.tsx` | Yes | Card-first list on mobile (`lg:hidden`), table desktop-only (`hidden lg:block`) — MOB-04 fixed |
 | OrderCard | `app/components/orders/OrderCard.tsx` | Yes | Mobile order card (Home card language) with full action parity — tap-to-view, status dropdown, actions menu, badges |
 | OrdersFilterSheet | `app/components/orders/OrdersFilterSheet.tsx` | Yes | Mobile filter bottom sheet (the reference "Filter" pattern) on the shared OrderSheet primitive: Status/Payment/Date groups + Clear all (N) / Show N footer. A Filter button (`lg:hidden`) in OrdersTableNew opens it; desktop keeps the inline selects |
+| OrderViewSheet (+ tabs) | `app/components/orders/order-view/` | Yes | Renders through the OrderSheet primitive (bottom sheet on mobile). Tab bar scrolls horizontally at 375px; theme-token-correct after swapping 34 dark-only hardcodes (`text-white`/`#2B2B40`/`orange-500` → `foreground`/`border`/`primary`) so it holds in light mode. Items tab table scrolls in `overflow-x-auto` |
 | AccountsSettingsTab (edit dialogs) | `app/dashboard/settings/_components/AccountsSettingsTab.tsx` | Partial | MOB-05, MOB-06 |
 | ProfitSettingsTab (edit dialogs) | `app/dashboard/settings/_components/ProfitSettingsTab.tsx` | Partial | MOB-05, MOB-06 |
 | UserManagementTab | `app/dashboard/settings/_components/UserManagementTab.tsx` | Partial | MOB-06, MOB-12 |

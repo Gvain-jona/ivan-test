@@ -24,15 +24,15 @@ const OrderNotesTab: React.FC<OrderNotesTabProps> = ({ notes, onAddNote, isSubmi
   return (
     <div className="space-y-4">
       {notes.length === 0 ? (
-        <div className="border border-[#2B2B40] rounded-lg p-8 text-center text-muted-foreground">
+        <div className="border border-border/40 rounded-lg p-8 text-center text-muted-foreground">
           <StickyNote className="h-6 w-6 mx-auto mb-2 opacity-60" />
           <p className="text-sm">No notes on this order</p>
         </div>
       ) : (
         <div className="space-y-2">
           {notes.map(note => (
-            <div key={note.id} className="border border-[#2B2B40] rounded-lg p-3">
-              <p className="text-sm text-white whitespace-pre-wrap">{note.content}</p>
+            <div key={note.id} className="border border-border/40 rounded-lg p-3">
+              <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
               <p className="text-xs text-muted-foreground mt-1.5">
                 {new Date(note.created_at).toLocaleString()}
               </p>
@@ -42,7 +42,7 @@ const OrderNotesTab: React.FC<OrderNotesTabProps> = ({ notes, onAddNote, isSubmi
       )}
 
       {showForm ? (
-        <div className="border border-[#2B2B40] rounded-lg p-4 space-y-3">
+        <div className="border border-border/40 rounded-lg p-4 space-y-3">
           <Textarea
             value={content}
             onChange={e => setContent(e.target.value)}

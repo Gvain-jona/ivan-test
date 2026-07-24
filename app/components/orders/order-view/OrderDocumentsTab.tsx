@@ -44,7 +44,7 @@ const OrderDocumentsTab: React.FC<OrderDocumentsTabProps> = ({
   return (
     <div className="space-y-4">
       {documents.length === 0 ? (
-        <div className="border border-[#2B2B40] rounded-lg p-8 text-center text-muted-foreground">
+        <div className="border border-border/40 rounded-lg p-8 text-center text-muted-foreground">
           <FileText className="h-6 w-6 mx-auto mb-2 opacity-60" />
           <p className="text-sm">No documents on this order</p>
         </div>
@@ -53,10 +53,10 @@ const OrderDocumentsTab: React.FC<OrderDocumentsTabProps> = ({
           {documents.map(document => (
             <div
               key={document.id}
-              className="border border-[#2B2B40] rounded-lg p-3 flex items-center justify-between"
+              className="border border-border/40 rounded-lg p-3 flex items-center justify-between"
             >
               <div>
-                <p className="text-sm font-medium text-white">{document.document_number}</p>
+                <p className="text-sm font-medium text-foreground">{document.document_number}</p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {document.document_type}
                   {document.valid_until
@@ -73,7 +73,7 @@ const OrderDocumentsTab: React.FC<OrderDocumentsTabProps> = ({
       )}
 
       {showForm ? (
-        <div className="border border-[#2B2B40] rounded-lg p-4 space-y-3">
+        <div className="border border-border/40 rounded-lg p-4 space-y-3">
           <Select value={documentType} onValueChange={v => setDocumentType(v as DocumentType)}>
             <SelectTrigger>
               <SelectValue placeholder="Document type" />

@@ -120,7 +120,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-medium text-white">{clientName}</p>
+            <p className="text-sm font-medium text-foreground">{clientName}</p>
             <p className="text-xs text-muted-foreground">
               {summary?.order_date
                 ? new Date(summary.order_date).toLocaleDateString('en-US', {
@@ -133,16 +133,17 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 border-b border-[#2B2B40]">
+        {/* Tab bar — scrolls horizontally on narrow phones (5 tabs won't fit
+            at 375px); scrollbar hidden, swipe still works. */}
+        <div className="flex gap-1 overflow-x-auto border-b border-border/40 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={
                 activeTab === tab.key
-                  ? 'px-3 py-2 text-sm font-medium text-white border-b-2 border-orange-500'
-                  : 'px-3 py-2 text-sm text-muted-foreground hover:text-white'
+                  ? 'flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium text-foreground border-b-2 border-primary'
+                  : 'flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm text-muted-foreground hover:text-foreground'
               }
             >
               {tab.label}
