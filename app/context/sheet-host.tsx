@@ -124,7 +124,6 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           onOpenChange={(o) => !o && close()}
           order={sheet.order}
           onClose={close}
-          userRole="admin"
         />
       )}
 
