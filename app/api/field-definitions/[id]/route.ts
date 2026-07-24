@@ -18,7 +18,7 @@ const FIELD_COLUMNS =
  * field_name and entity are immutable (the machine key is embedded in
  * every record's custom_data); archiving is the delete path
  * (status: 'archived' — definitions are never hard-deleted).
- * Owner/admin only, same as creation.
+ * Owner only, same as creation.
  */
 export async function PATCH(
   request: NextRequest,
@@ -28,7 +28,7 @@ export async function PATCH(
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
     if (tenant.orgRole === 'staff') {
-      return handleApiError('FORBIDDEN', 'Only owners and admins can edit fields');
+      return handleApiError('FORBIDDEN', 'Only owners can edit fields');
     }
 
     const { id } = await params;
