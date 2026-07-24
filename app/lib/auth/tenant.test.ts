@@ -130,11 +130,18 @@ describe('resolveTenant', () => {
   })
 
   it('accepts an org role claim with no org: prefix', async () => {
-    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'admin' })
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'staff' })
     stubAdmin({ organization: { id: ORG_UUID } })
 
     const tenant = await resolveTenant()
 
-    expect(tenant!.orgRole).toBe('admin')
+    expect(tenant!.orgRole).toBe('staff')
+  })
+
+  it('returns null for the retired admin role', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'org:admin' })
+    stubAdmin({ organization: { id: ORG_UUID } })
+
+    expect(await resolveTenant()).toBeNull()
   })
 })

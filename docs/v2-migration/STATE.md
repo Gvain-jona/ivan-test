@@ -106,9 +106,16 @@ authoritative end-to-end:
   needed — instead of the old `user_settings.active_organization_id` +
   multi-membership lookup (that column/logic is retired; it was always
   read-only, nothing ever wrote to it). `orgRole`'s `org:` prefix is
-  stripped to match the app's `owner|admin|staff` strings — **Clerk's
-  dashboard custom org roles must be keyed exactly `owner`/`admin`/
-  `staff`** for this to be a straight match, not a translation.
+  stripped to match the app's role strings — **Clerk's dashboard custom
+  org roles must be keyed exactly** to match `OrgRole` in `tenant.ts`
+  for this to be a straight match, not a translation. **Role model is
+  currently just `owner`/`staff`, no `admin`** (trimmed 2026-07-24):
+  Clerk's free plan only gives 2 free custom org roles before requiring
+  the paid B2B Authentication add-on, and the built-in `org:admin`/
+  `org:member` don't line up with this app's role semantics, so a third
+  custom role was deferred rather than paid for. The org's Creator
+  Role (Clerk Dashboard → Organizations → Settings) must be set to the
+  custom `owner` role, not the default `org:admin`.
 - **Schema**: `v2.organizations.clerk_org_id` (text, unique, nullable)
   maps Clerk's `org_...` id to the existing internal uuid `id` — the
   uuid stays the FK anchor everywhere (orders, clients, …), no PK

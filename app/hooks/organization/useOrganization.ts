@@ -26,7 +26,7 @@ export const DEFAULT_ORDER_STATUSES = [
 export function useOrganization() {
   const { data, error, isLoading, mutate } = useSWR<{
     organization: Organization;
-    orgRole: 'owner' | 'admin' | 'staff';
+    orgRole: 'owner' | 'staff';
   }>(PLATFORM_API.ORGANIZATION, apiFetcher, {
     dedupingInterval: SWR_CACHE_TIMES.DROPDOWN_DEDUPE,
     revalidateOnFocus: false,

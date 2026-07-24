@@ -15,7 +15,7 @@ describe('GET /api/organization', () => {
   })
 
   it("returns the caller's org and role via the id-scoped accessor", async () => {
-    const { tenant, db } = createFakeTenant({ orgRole: 'admin' })
+    const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
     resolveTenantMock.mockResolvedValue(tenant)
     db.queue('select:organization', {
       data: { id: 'org-1', name: 'Ivan Prints', settings: { order_statuses: ['pending'] } },
@@ -26,7 +26,7 @@ describe('GET /api/organization', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.organization.name).toBe('Ivan Prints')
-    expect(body.orgRole).toBe('admin')
+    expect(body.orgRole).toBe('owner')
     // Reads go through organization(), never from('organizations').
     expect(db.callsFor('select:organization')).toHaveLength(1)
   })

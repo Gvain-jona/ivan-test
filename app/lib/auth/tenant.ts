@@ -5,7 +5,11 @@ import type { TenantDb } from './tenant-db'
 
 export type { TenantDb, OrgScopedTable } from './tenant-db'
 
-export type OrgRole = 'owner' | 'admin' | 'staff'
+// 'admin' deliberately dropped for now: Clerk's free plan gives 2 free
+// custom org roles, and keeping the app to owner/staff avoids the paid
+// B2B add-on. Re-add 'admin' as a custom Clerk role + here together
+// if/when a middle tier is needed.
+export type OrgRole = 'owner' | 'staff'
 
 export interface TenantContext {
   userId: string
@@ -61,12 +65,12 @@ export async function resolveTenant(): Promise<TenantContext | null> {
 
   if (!orgId || !rawOrgRole) return null
 
-  // Clerk role keys are namespaced (`org:admin`); strip the prefix to
+  // Clerk role keys are namespaced (`org:owner`); strip the prefix to
   // match the app's plain role strings. Configure Clerk's dashboard
-  // custom org roles as owner/admin/staff so this is a straight match,
-  // not a translation.
+  // custom org roles as owner/staff so this is a straight match, not a
+  // translation.
   const orgRole = rawOrgRole.replace(/^org:/, '')
-  if (orgRole !== 'owner' && orgRole !== 'admin' && orgRole !== 'staff') return null
+  if (orgRole !== 'owner' && orgRole !== 'staff') return null
 
   const admin = createV2AdminClient()
 
