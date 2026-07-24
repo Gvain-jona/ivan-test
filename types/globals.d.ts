@@ -10,4 +10,13 @@ declare global {
   interface CustomJwtSessionClaims {
     internal_user_id?: string
   }
+
+  /**
+   * Mirrors the same internal_user_id onto the Clerk User resource's
+   * public_metadata (source of the session claim above — see
+   * app/api/webhooks/clerk/route.ts, which sets this on user.created).
+   */
+  interface UserPublicMetadata {
+    internal_user_id?: string
+  }
 }

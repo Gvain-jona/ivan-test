@@ -18,6 +18,10 @@ import { useUser, useClerk } from '@clerk/nextjs';
  *   `profile.role` is fixed to 'staff' and `isAdmin`/`isManager` are
  *   false. Legacy admin screens are dark until their v2 cutover; v2
  *   role gates use `orgRole` from `resolveTenant()` server-side.
+ *   Deliberately NOT wired to Clerk's client-side org_role either —
+ *   that claim is fine for display (see TopHeader's org name/logo),
+ *   but authorization must only ever come from the server-resolved
+ *   orgRole, never a client-trusted value.
  * - `signIn`/`signInWithGoogle` no longer start a flow here — Clerk's
  *   sign-in page owns that — they just navigate to it.
  */

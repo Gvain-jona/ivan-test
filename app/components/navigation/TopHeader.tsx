@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
+import { useOrganization } from '@clerk/nextjs';
 import { cn } from '../../lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useAuth } from '@/app/context/auth-context';
@@ -77,16 +78,24 @@ type TopHeaderProps = {
 
 export default function TopHeader({
   className,
-  businessName = 'Ivan Prints',
+  businessName,
   appTitle = 'Business Management System',
   userName,
   userInitials,
   userAvatarUrl = '',
-  logoUrl = '',
+  logoUrl,
   announcement: propAnnouncement
 }: TopHeaderProps) {
   // Get user profile information from auth context
   const { user, profile, isLoading, profileError, refreshProfile } = useAuth();
+
+  // Clerk Organizations is the source of truth for org name/logo (see
+  // app/lib/auth/tenant.ts) — read live from Clerk rather than the
+  // v2.organizations mirror, since display doesn't need transactional
+  // consistency with the DB. Explicit props (if ever passed) still win.
+  const { organization } = useOrganization();
+  const resolvedBusinessName = businessName ?? organization?.name ?? 'YOKO';
+  const resolvedLogoUrl = logoUrl ?? organization?.imageUrl ?? '';
 
   // Use provided values or fallback to profile data
   const displayName = userName || profile?.full_name || user?.email?.split('@')[0] || 'User';
@@ -217,8 +226,8 @@ export default function TopHeader({
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 relative">
             <Image
-              src={logoUrl || '/images/default-logo.svg'}
-              alt={businessName}
+              src={resolvedLogoUrl || '/images/default-logo.svg'}
+              alt={resolvedBusinessName}
               fill
               sizes="(max-width: 768px) 24px, 32px"
               className="object-contain"
@@ -231,7 +240,7 @@ export default function TopHeader({
             />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-base font-bold text-foreground">{businessName}</h1>
+            <h1 className="text-base font-bold text-foreground">{resolvedBusinessName}</h1>
             <p className="text-xs text-muted-foreground">{appTitle}</p>
           </div>
         </div>

@@ -39,6 +39,11 @@ export type DatabaseV2 = {
           is_sandbox: boolean
           deleted_at: string | null
           settings: Json
+          /** Clerk's org_... id — Clerk Organizations is the source of
+           *  truth for name/logo/membership; this table mirrors it plus
+           *  app-only fields (settings, counters). Null for orgs
+           *  created before the Clerk-org sync existed. */
+          clerk_org_id: string | null
           created_at: string
           updated_at: string
         }
@@ -51,6 +56,7 @@ export type DatabaseV2 = {
           is_sandbox?: boolean
           deleted_at?: string | null
           settings?: Json
+          clerk_org_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -63,6 +69,7 @@ export type DatabaseV2 = {
           is_sandbox?: boolean
           deleted_at?: string | null
           settings?: Json
+          clerk_org_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -724,6 +731,18 @@ export type DatabaseV2 = {
       }
       current_org_id: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      /**
+       * Atomic first-provisioning for a new Clerk Organization (see
+       * supabase/migrations/20260724000000_add_clerk_org_mapping_and_
+       * provisioning.sql): org row + owner membership + starter
+       * counters. Called from app/api/webhooks/clerk on
+       * organization.created. Idempotent by clerk_org_id. Granted to
+       * service_role only.
+       */
+      provision_organization: {
+        Args: { p_clerk_org_id: string; p_name: string; p_owner_user_id: string; p_slug?: string | null }
         Returns: string
       }
     }

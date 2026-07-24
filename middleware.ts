@@ -6,7 +6,11 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 // /__clerk is Clerk's frontend-API auto-proxy path — never protect it
 // (proxy requests are intercepted before this handler when the proxy
 // is enabled, but keep it public-safe regardless).
-const isPublicRoute = createRouteMatcher(['/auth(.*)', '/api/healthz', '/__clerk(.*)'])
+// /api/webhooks/* stays non-public for the same reason as /api/cron:
+// Clerk's webhook deliveries carry no session (svix signature headers
+// instead), so auth.protect() would block every real delivery before
+// verifyWebhook() ever runs — that call is the actual gate.
+const isPublicRoute = createRouteMatcher(['/auth(.*)', '/api/healthz', '/api/webhooks(.*)', '/__clerk(.*)'])
 
 export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {

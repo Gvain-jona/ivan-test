@@ -4,9 +4,9 @@ import { auth } from '@clerk/nextjs/server'
 import { createV2AdminClient } from '@/utils/supabase/server-v2'
 
 /**
- * Unit tests for the Clerk identity step of resolveTenant(): who
- * resolves to a tenant and who doesn't. The membership/active-org
- * lookup runs against a stub admin client.
+ * Unit tests for resolveTenant(): Clerk identity (internal_user_id)
+ * plus Clerk Organizations tenancy (orgId/orgRole), resolved against
+ * the clerk_org_id mirror row via a stub admin client.
  */
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: vi.fn() }))
@@ -16,29 +16,21 @@ const authMock = vi.mocked(auth)
 const adminMock = vi.mocked(createV2AdminClient)
 
 const UUID = '11111111-2222-3333-4444-555555555555'
+const ORG_UUID = '99999999-8888-7777-6666-555555555555'
 
 function stubAdmin({
-  settings = null,
-  memberships = [],
-  membershipsError = null,
+  organization = null,
+  error = null,
 }: {
-  settings?: { active_organization_id: string } | null
-  memberships?: { organization_id: string; role: string }[]
-  membershipsError?: { message: string } | null
+  organization?: { id: string } | null
+  error?: { message: string } | null
 } = {}) {
   const client = {
     from: vi.fn((table: string) => {
-      if (table === 'user_settings') {
+      if (table === 'organizations') {
         return {
           select: () => ({
-            eq: () => ({ maybeSingle: async () => ({ data: settings, error: null }) }),
-          }),
-        }
-      }
-      if (table === 'organization_members') {
-        return {
-          select: () => ({
-            eq: async () => ({ data: membershipsError ? null : memberships, error: membershipsError }),
+            eq: () => ({ maybeSingle: async () => ({ data: organization, error }) }),
           }),
         }
       }
@@ -50,9 +42,22 @@ function stubAdmin({
   return client
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function signedIn(claims: Record<string, unknown> | null) {
-  authMock.mockResolvedValue({ userId: 'user_clerk123', sessionClaims: claims } as any)
+function signedIn({
+  claims,
+  orgId,
+  orgRole,
+}: {
+  claims: Record<string, unknown> | null
+  orgId?: string | null
+  orgRole?: string | null
+}) {
+  authMock.mockResolvedValue({
+    userId: 'user_clerk123',
+    sessionClaims: claims,
+    orgId: orgId ?? null,
+    orgRole: orgRole ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)
 }
 
 beforeEach(() => {
@@ -61,75 +66,75 @@ beforeEach(() => {
 
 describe('resolveTenant', () => {
   it('returns null when there is no Clerk session', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    authMock.mockResolvedValue({ userId: null, sessionClaims: null } as any)
+    authMock.mockResolvedValue({
+      userId: null,
+      sessionClaims: null,
+      orgId: null,
+      orgRole: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     expect(await resolveTenant()).toBeNull()
   })
 
   it('returns null for a signed-in user without the internal_user_id claim (unprovisioned)', async () => {
-    signedIn({})
+    signedIn({ claims: {}, orgId: 'org_abc', orgRole: 'org:owner' })
     stubAdmin()
     expect(await resolveTenant()).toBeNull()
     expect(adminMock).not.toHaveBeenCalled()
   })
 
   it('returns null when the claim is not a UUID (e.g. a raw Clerk id)', async () => {
-    signedIn({ internal_user_id: 'user_clerk123' })
+    signedIn({ claims: { internal_user_id: 'user_clerk123' }, orgId: 'org_abc', orgRole: 'org:owner' })
     stubAdmin()
     expect(await resolveTenant()).toBeNull()
     expect(adminMock).not.toHaveBeenCalled()
   })
 
-  it('returns null when the user has no memberships', async () => {
-    signedIn({ internal_user_id: UUID })
-    stubAdmin({ memberships: [] })
+  it('returns null when the user has no active organization (no org_id claim)', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: null, orgRole: null })
+    stubAdmin()
+    expect(await resolveTenant()).toBeNull()
+    expect(adminMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null when the org role does not match a known app role', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'org:guest' })
+    stubAdmin()
+    expect(await resolveTenant()).toBeNull()
+    expect(adminMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null when no organizations row mirrors this Clerk org yet (webhook lag)', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'org:owner' })
+    stubAdmin({ organization: null })
     expect(await resolveTenant()).toBeNull()
   })
 
-  it('resolves the tenant with the internal UUID as userId', async () => {
-    signedIn({ internal_user_id: UUID })
-    stubAdmin({ memberships: [{ organization_id: 'org-1', role: 'owner' }] })
+  it('returns null when the organizations lookup errors', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'org:owner' })
+    stubAdmin({ error: { message: 'boom' } })
+    expect(await resolveTenant()).toBeNull()
+  })
+
+  it('resolves the tenant, stripping the org: prefix from the role', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'org:owner' })
+    stubAdmin({ organization: { id: ORG_UUID } })
 
     const tenant = await resolveTenant()
 
     expect(tenant).not.toBeNull()
     expect(tenant!.userId).toBe(UUID)
-    expect(tenant!.organizationId).toBe('org-1')
+    expect(tenant!.organizationId).toBe(ORG_UUID)
     expect(tenant!.orgRole).toBe('owner')
     expect(tenant!.db).toBeDefined()
   })
 
-  it('prefers the active organization from user_settings when it matches a membership', async () => {
-    signedIn({ internal_user_id: UUID })
-    stubAdmin({
-      settings: { active_organization_id: 'org-2' },
-      memberships: [
-        { organization_id: 'org-1', role: 'owner' },
-        { organization_id: 'org-2', role: 'staff' },
-      ],
-    })
+  it('accepts an org role claim with no org: prefix', async () => {
+    signedIn({ claims: { internal_user_id: UUID }, orgId: 'org_abc', orgRole: 'admin' })
+    stubAdmin({ organization: { id: ORG_UUID } })
 
     const tenant = await resolveTenant()
 
-    expect(tenant!.organizationId).toBe('org-2')
-    expect(tenant!.orgRole).toBe('staff')
-  })
-
-  it('falls back to the first membership when active org does not match', async () => {
-    signedIn({ internal_user_id: UUID })
-    stubAdmin({
-      settings: { active_organization_id: 'org-gone' },
-      memberships: [{ organization_id: 'org-1', role: 'admin' }],
-    })
-
-    const tenant = await resolveTenant()
-
-    expect(tenant!.organizationId).toBe('org-1')
-  })
-
-  it('returns null when the membership query errors', async () => {
-    signedIn({ internal_user_id: UUID })
-    stubAdmin({ membershipsError: { message: 'boom' } })
-    expect(await resolveTenant()).toBeNull()
+    expect(tenant!.orgRole).toBe('admin')
   })
 })

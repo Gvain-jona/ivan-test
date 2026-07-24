@@ -27,44 +27,62 @@ export interface TenantContext {
  * Identity source: the Clerk session. The app-facing user id is NOT
  * the Clerk id (`user_…`, not a UUID) — it is the `internal_user_id`
  * UUID claim, set from Clerk `public_metadata.internal_user_id` via
- * the dashboard's session-token customization. Existing users carry
- * their pre-Clerk auth.users UUID there, so v2.organization_members
- * needed no remap. A signed-in user without the claim (not yet
- * provisioned) has no tenancy and resolves to null.
+ * the dashboard's session-token customization (for new signups, the
+ * Clerk webhook in app/api/webhooks/clerk sets this on `user.created`
+ * — see that route for the provisioning flow).
+ *
+ * Tenancy source: Clerk Organizations, not the old custom
+ * multi-membership model. `orgId`/`orgRole` are default Clerk session
+ * claims (populated whenever the user has an active organization —
+ * no custom "Customize session token" config needed, unlike
+ * internal_user_id). Clerk's own org-switcher is the sole "active
+ * org" signal now; there is no app-side equivalent —
+ * user_settings.active_organization_id is retired here (it was always
+ * read-only, nothing ever wrote to it).
+ *
+ * v2.organizations stays a thin mirror keyed by `clerk_org_id` (for
+ * app-only fields: order_statuses, currency, counters) — its internal
+ * uuid `id` is what feeds TenantDb/organizationId everywhere, unchanged.
+ * A brand-new Clerk org can have a few seconds' lag before its mirror
+ * row exists (webhook delivery isn't instant): this resolves to null
+ * in that window, same as any other unprovisioned case — see
+ * app/dashboard/layout.tsx for the "setting up" state that covers it.
  *
  * Data access stays on the service-role TenantDb until the RLS flip
  * (Supabase third-party auth + v2 policies); this function remains
  * the single swap point for that.
- *
- * Active org follows the handoff semantics: user_settings.
- * active_organization_id wins when it matches a real membership,
- * otherwise the first membership.
  */
 export async function resolveTenant(): Promise<TenantContext | null> {
-  const { userId: clerkUserId, sessionClaims } = await auth()
+  const { userId: clerkUserId, sessionClaims, orgId, orgRole: rawOrgRole } = await auth()
   if (!clerkUserId) return null
 
   const internalUserId = sessionClaims?.internal_user_id
   if (!internalUserId || !UUID_RE.test(internalUserId)) return null
 
+  if (!orgId || !rawOrgRole) return null
+
+  // Clerk role keys are namespaced (`org:admin`); strip the prefix to
+  // match the app's plain role strings. Configure Clerk's dashboard
+  // custom org roles as owner/admin/staff so this is a straight match,
+  // not a translation.
+  const orgRole = rawOrgRole.replace(/^org:/, '')
+  if (orgRole !== 'owner' && orgRole !== 'admin' && orgRole !== 'staff') return null
+
   const admin = createV2AdminClient()
 
-  const [{ data: settings }, { data: memberships, error }] = await Promise.all([
-    admin.from('user_settings').select('active_organization_id').eq('user_id', internalUserId).maybeSingle(),
-    admin.from('organization_members').select('organization_id, role').eq('user_id', internalUserId),
-  ])
+  const { data: organization, error } = await admin
+    .from('organizations')
+    .select('id')
+    .eq('clerk_org_id', orgId)
+    .maybeSingle()
 
-  if (error || !memberships || memberships.length === 0) return null
-
-  const membership =
-    memberships.find(m => m.organization_id === settings?.active_organization_id) ??
-    memberships[0]
+  if (error || !organization) return null
 
   return {
     userId: internalUserId,
-    organizationId: membership.organization_id,
-    orgRole: membership.role as OrgRole,
-    db: createTenantDb(admin, membership.organization_id),
+    organizationId: organization.id,
+    orgRole,
+    db: createTenantDb(admin, organization.id),
   }
 }
 

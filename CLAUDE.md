@@ -153,7 +153,7 @@ Other docs under `docs/` (e.g. `docs/index.md`, dated April 2025) are historical
 
 ## Environment Configuration
 
-Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` (server-only; build tolerates their absence but nothing can sign in without them). Also used: `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET` (validated against `Authorization: Bearer <CRON_SECRET>` in `app/api/cron/*` routes — don't loosen that check to a format-only check). `npm run env:local`/`env:cloud` swap which Supabase project `.env.local` points at.
+Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` (server-only; build tolerates their absence but nothing can sign in without them). Also used: `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET` (validated against `Authorization: Bearer <CRON_SECRET>` in `app/api/cron/*` routes — don't loosen that check to a format-only check), `CLERK_WEBHOOK_SIGNING_SECRET` (server-only; verifies deliveries to `app/api/webhooks/clerk`, the Clerk-Organizations-to-`v2` sync — see `docs/v2-migration/STATE.md` Phase 1.5). `npm run env:local`/`env:cloud` swap which Supabase project `.env.local` points at.
 
 ## Working with the Database
 

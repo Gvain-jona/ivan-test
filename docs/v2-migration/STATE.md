@@ -1,6 +1,6 @@
 # v2 platform migration — live state
 
-Last updated: 2026-07-17 (branch `clerk-auth-transition`). This is the
+Last updated: 2026-07-24 (branch `clerk-auth-transition`). This is the
 session-to-session ground truth for the v2 pivot: what has been decided, what is
 built, what is blocked, and on whom. Update it when any of that changes — this
 file exists so a fresh session doesn't have to re-derive the pivot from git
@@ -39,7 +39,7 @@ record; its "keep holding" verdict no longer applies.
 
 | Decision | Verdict |
 |---|---|
-| Auth end state | **Clerk** replaces Supabase Auth. **Phase 1 (identity swap) built 2026-07-17** on branch `clerk-auth-transition` — see "Clerk transition" section below. User-id strategy: **internal-UUID claim** (`internal_user_id` in the session token from Clerk `public_metadata`), existing users keep their old `auth.users` UUID so `organization_members` needed no remap. Clerk is **identity-only**: org membership + roles stay in `v2.organization_members`. Sign-in: Google + email code. Phase 2 (RLS flip via supabase-js `accessToken` callback + third-party auth) still pending, blocked on DB owner. |
+| Auth end state | **Clerk** replaces Supabase Auth. **Phase 1 (identity swap) built 2026-07-17**; **Phase 1.5 (Clerk Organizations as tenancy source of truth) built 2026-07-24** — see "Clerk transition" section below. User-id strategy: **internal-UUID claim** (`internal_user_id` in the session token from Clerk `public_metadata`), existing users keep their old `auth.users` UUID so `organization_members` needed no remap. Clerk Organizations (dashboard-enabled) is now authoritative for org identity/membership/roles — `v2.organizations` is a thin mirror (`clerk_org_id`, plus app-only `settings`/counters) synced by a webhook; `v2.organization_members` is written by that same webhook, not by hand. Sign-in: Google + email code. Phase 2 (RLS flip via supabase-js `accessToken` callback + third-party auth) still pending, blocked on DB owner — unrelated to the Organizations change above. |
 | Naming | "v2" only in identifiers that literally reference the DB schema (see CLAUDE.md). No v2 folders/routes/UI copy. |
 | Legacy code | Deleted at module cutover, rewound via git if needed. No parallel copies. |
 | API paths | Plain (`/api/orders`, `/api/clients`, …) — migrated routes replaced legacy in place. |
@@ -57,6 +57,7 @@ record; its "keep holding" verdict no longer applies.
 | **Field setup** | ✅ New (per-entity registry admin at `/dashboard/fields`). |
 | **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
 | Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. The orders-page façade stubs in `app/dashboard/orders/_context/` now serve only the unmigrated InvoicesTab (the Insights/Tasks tabs were deleted in orders cleanup Phase 1). `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
+| Notifications | 🌑 **Stubbed 2026-07-24** — `app/context/NotificationsContext.tsx` is now an interface-preserving stub (empty list, no-op mutations, `unreadCount` 0). The pre-stub implementation ran on the dead Supabase session and was defective anyway (unfiltered whole-table fetch + unfiltered realtime channel per session; an `if (loading)` guard deadlocked the initial fetch so it never rendered data). Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator) still mount against the stub as UI scaffold. `app/hooks/useRealNotifications.ts` is a second, parallel legacy implementation — dead, delete at this module's cutover. Real data layer comes with the v2 notifications module. |
 | Home dashboard | 🟡 **Rebuilt as the mobile-only Home feed (2026-07-22/23)** on live v2 order queries — greeting hero, quick-add, quick-action chips (New client/product `?new=1` deep-links), a "sales this month" snapshot, and a workflow-segmented recent-orders list. Desktop lands on Orders instead; Home is `lg:hidden` (see `docs/mobile-responsiveness/DESIGN_PHILOSOPHY.md`). **Scaffolded metric awaiting a read layer:** "sales this month" (`app/components/home/HomeSnapshot.tsx`, summed in `app/dashboard/home/page.tsx`) sums a **bounded** client-side order fetch (≤200 of the month's orders) — the count badge is accurate, the sum is approximate. Wire it to a real aggregate accessor when the **analytics/metrics** module cuts over — same read layer as the deferred order-page metrics below. Don't invent a bespoke endpoint before then. |
 
 ## Clerk transition (Phase 1 built 2026-07-17)
@@ -88,9 +89,60 @@ built on branch `clerk-auth-transition`:
 - **Provisioning**: `scripts/clerk-backfill.js` (run manually with
   `CLERK_SECRET_KEY` + `SUPABASE_SERVICE_ROLE_KEY`) find-or-creates Clerk
   users for every `organization_members` row and sets their
-  `internal_user_id` metadata. New-user provisioning (fresh UUID +
-  membership + counters bootstrap) is still an open follow-up.
+  `internal_user_id` metadata — kept only for pre-Clerk stragglers.
 - **Legacy modules are dark** (explicit scope decision — see module table).
+
+### Phase 1.5 — Clerk Organizations as tenancy source of truth (2026-07-24)
+
+New sign-ups go through Clerk's hosted org-creation flow (name, slug,
+logo) automatically — that was Clerk-dashboard config nobody had wired
+to the app's tenancy, so a new org owner finished onboarding and hit a
+dashboard that silently 401'd (no `v2.organization_members` row was
+ever created for them). Fixed by making Clerk Organizations
+authoritative end-to-end:
+
+- **`resolveTenant()`** (`app/lib/auth/tenant.ts`) now reads `orgId`/
+  `orgRole` — default Clerk session claims, no custom claim config
+  needed — instead of the old `user_settings.active_organization_id` +
+  multi-membership lookup (that column/logic is retired; it was always
+  read-only, nothing ever wrote to it). `orgRole`'s `org:` prefix is
+  stripped to match the app's `owner|admin|staff` strings — **Clerk's
+  dashboard custom org roles must be keyed exactly `owner`/`admin`/
+  `staff`** for this to be a straight match, not a translation.
+- **Schema**: `v2.organizations.clerk_org_id` (text, unique, nullable)
+  maps Clerk's `org_...` id to the existing internal uuid `id` — the
+  uuid stays the FK anchor everywhere (orders, clients, …), no PK
+  change. New `v2.provision_organization(p_clerk_org_id, p_name,
+  p_owner_user_id, p_slug)` RPC (SECURITY DEFINER, service_role only,
+  idempotent by `clerk_org_id`) atomically creates the org row, the
+  owner's membership, and starter counters. Migration:
+  `supabase/migrations/20260724000000_add_clerk_org_mapping_and_provisioning.sql`.
+  No logo column — logo stays Clerk-side, read live via `useOrganization()`.
+- **Webhook**: `app/api/webhooks/clerk/route.ts` syncs
+  `user.created` (mints `internal_user_id` — this is what closes the
+  "new-user provisioning" gap below, going forward), `organization.created`
+  (calls `provision_organization`), `organization.updated`, and
+  `organizationMembership.created|updated|deleted` (note: the installed
+  `@clerk/backend` SDK's `WebhookEvent` union uses **camelCase**
+  `organizationMembership.*`, not the snake_case shown in Clerk's own
+  docs table — verified against the installed package, not assumed).
+  Needs `CLERK_WEBHOOK_SIGNING_SECRET` (the endpoint's signing secret
+  from the Clerk dashboard) in env — added to `.env.template`.
+  `middleware.ts`'s public-route matcher now includes `/api/webhooks(.*)`
+  (found and fixed in the same session): Clerk's webhook deliveries
+  carry no session, only svix signature headers, so `clerkMiddleware()`'s
+  default `auth.protect()` would otherwise 401 every real delivery
+  before `verifyWebhook()` runs — same reasoning as `/api/cron`'s
+  bearer-token gate.
+- **UI gate**: `app/dashboard/layout.tsx` now calls `resolveTenant()`
+  and renders `ProvisioningPendingScreen` (auto-retries via
+  `router.refresh()`) instead of a silently-broken dashboard during the
+  few-second window before a brand-new org's webhook lands.
+- **Display**: `TopHeader` reads org name/logo live from Clerk's
+  `useOrganization()` (not the mirror) — display doesn't need
+  transactional consistency with the DB. Authorization still comes
+  **only** from server-resolved `orgRole`; the client-side Clerk claim
+  is display-only (see the guardrail comment in `auth-context.tsx`).
 
 **Phase 2 (not started, blocked on DB owner)**: register Clerk as Supabase
 third-party auth, v2 RLS policies reading the `internal_user_id` claim,
@@ -111,18 +163,27 @@ single swap point. Order creation still goes through the
 - **Clerk Phase 2 (DB owner)**: third-party-auth registration, v2 RLS
   policies on the `internal_user_id` claim, expose `v2` schema (see above).
 - **DB owner items** (flagged, not app work): trigger-based activity/audit log
-  on orders/payments; tenant provisioning (new org must get counters +
-  membership bootstrapped — `next_number` fails for orgs without seeded
-  counters, **including a `document:<document_type>` counter per type now
-  that `/api/documents` calls `next_number('document:invoice', ...)` etc. —
-  confirm this counter_key naming with the DB owner, it's an app-side
-  assumption, not a confirmed DB convention**); `validate_custom_data`
+  on orders/payments; ~~tenant provisioning (new org must get counters +
+  membership bootstrapped)~~ (resolved 2026-07-24 — `v2.provision_organization`
+  seeds `order`/`doc:invoice`/`doc:quotation` counters atomically on
+  `organization.created`, see Phase 1.5 above); `validate_custom_data`
   search_path hardening; ~~re-map the 3 seeded `organization_members` rows when
   Clerk user ids exist~~ (obsolete 2026-07-17 — the internal-UUID claim keeps
   the existing UUIDs, no remap needed); `v2.issue_document()` RPC (blocked on credit-note +
   partial-invoicing decisions — see orders-system-handoff.md §6/§12); a `v2`
   schema dump (or migration mirror) so DB-integration tests can run against
   local Supabase (see `test/README.md` layer 3).
+- **Fixed (2026-07-24): the counter_key convention is `doc:<type>`
+  (`doc:invoice`, `doc:quotation`), not `document:<type>`.** This had
+  surfaced a real bug (confirmed against live DB data across all 3
+  existing orgs): `/api/documents` (`route.ts:69`) called
+  `next_number('document:${document_type}', …)` — the wrong prefix —
+  so every document-create POST threw `next_number: no counter
+  document:invoice for organization …` against real data. Fixed with
+  the one-line `document:` → `doc:` change plus a hardened assertion
+  in `route.test.ts` that checks the actual RPC key string passed
+  (previously it asserted the buggy value, so the bug shipped without
+  a failing test).
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 
