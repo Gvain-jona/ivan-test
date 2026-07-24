@@ -1,6 +1,6 @@
 # Invoice Component
 
-This directory contains the refactored Invoice component system, which is used to generate, preview, customize, and download invoices for orders in the Ivan Prints Business Management System.
+This directory contains the refactored Invoice component system, which is used to generate, preview, customize, and download invoices for orders in the YOKO Business Management System.
 
 ## Component Structure
 

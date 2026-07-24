@@ -14,13 +14,13 @@ export default function SignInPage() {
         <div className="relative w-16 h-16">
           <Image
             src="/images/default-logo.svg"
-            alt="Ivan Prints Logo"
+            alt="YOKO Logo"
             className="signin-logo"
             fill
             priority
           />
         </div>
-        <h1 className="signin-title">Ivan Prints</h1>
+        <h1 className="signin-title">YOKO</h1>
         <p className="signin-subtitle">Print Management System</p>
       </div>
 
@@ -28,7 +28,7 @@ export default function SignInPage() {
 
       {/* Footer */}
       <div className="signin-footer">
-        &copy; {new Date().getFullYear()} Ivan Prints. All rights reserved.
+        &copy; {new Date().getFullYear()} YOKO. All rights reserved.
       </div>
     </div>
   );

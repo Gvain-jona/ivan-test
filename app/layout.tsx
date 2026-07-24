@@ -9,8 +9,8 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Ivan Prints Business Management System',
-  description: 'Comprehensive business management system for Ivan Prints',
+  title: 'YOKO Business Management System',
+  description: 'Comprehensive business management system for YOKO',
 };
 
 export default function RootLayout({

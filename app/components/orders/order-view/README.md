@@ -1,6 +1,6 @@
 # Order View Component
 
-This directory contains the refactored Order View component system, which is used to display order details, items, payments, and notes in the Ivan Prints Business Management System.
+This directory contains the refactored Order View component system, which is used to display order details, items, payments, and notes in the YOKO Business Management System.
 
 ## Component Structure
 

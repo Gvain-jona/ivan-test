@@ -1,6 +1,6 @@
 # Orders Management System
 
-This directory contains utilities and functions for managing orders in the Ivan Prints application.
+This directory contains utilities and functions for managing orders in the YOKO application.
 
 ## Key Components
 

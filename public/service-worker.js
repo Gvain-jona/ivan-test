@@ -107,7 +107,7 @@ self.addEventListener('push', (event) => {
   } catch (e) {
     // If the data isn't JSON, use it as the message
     notificationData = {
-      title: 'Ivan Prints',
+      title: 'YOKO',
       message: event.data ? event.data.text() : 'New notification',
       icon: '/logo.png',
       badge: '/badge.png',
@@ -127,7 +127,7 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification(notificationData.title || 'Ivan Prints', options)
+    self.registration.showNotification(notificationData.title || 'YOKO', options)
   );
 });
 
