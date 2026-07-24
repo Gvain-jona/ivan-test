@@ -143,6 +143,12 @@ export default function OrdersTable(props: OrdersTableProps) {
     });
   }, [orders, sortConfig]);
 
+  // Skeletons only when there is nothing to show. On key changes
+  // (filters/pagination) SWR keeps the previous rows via
+  // keepPreviousData while isLoading is true — keep showing them
+  // instead of flashing skeletons over data we already have.
+  const showSkeletons = loading && (!sortedOrders || sortedOrders.length === 0);
+
   // Get class names for sort headers
   const getSortIcon = (key: keyof OrderSummary) => {
     if (sortConfig.key !== key) return null;
@@ -438,7 +444,7 @@ export default function OrdersTable(props: OrdersTableProps) {
         {/* Mobile: card-first list (per DESIGN_PHILOSOPHY.md — order data is
             cards on mobile, not a shrunk table). Desktop keeps the table. */}
         <div className="space-y-3 lg:hidden">
-          {loading ? (
+          {showSkeletons ? (
             Array(5).fill(0).map((_, index) => (
               <div
                 key={`card-skeleton-${index}`}
@@ -531,7 +537,7 @@ export default function OrdersTable(props: OrdersTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--table-border))]">
-              {loading ? (
+              {showSkeletons ? (
                 Array(5).fill(0).map((_, index) => (
                   <tr key={`skeleton-${index}`}>
                     <td className="px-2 py-3 whitespace-nowrap client-column">

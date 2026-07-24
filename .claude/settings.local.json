@@ -21,7 +21,11 @@
       "mcp__paper__get_children",
       "mcp__paper__get_node_info",
       "mcp__paper__get_tree_summary",
-      "mcp__paper__find_nodes"
+      "mcp__paper__find_nodes",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "PowerShell(npm test)",
+      "PowerShell(npx tsc --noEmit)"
     ],
     "deny": []
   }

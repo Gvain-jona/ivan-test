@@ -131,7 +131,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#2B2B40]">
-            {isLoading ? (
+            {isLoading && products.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   Loading products…

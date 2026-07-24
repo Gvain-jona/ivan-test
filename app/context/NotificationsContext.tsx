@@ -1,8 +1,21 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { format, subDays } from 'date-fns';
+
+/**
+ * Notifications — interface-preserving stub until the module's v2
+ * cutover (tracked in docs/v2-migration/STATE.md).
+ *
+ * The previous implementation ran on the legacy Supabase session
+ * (dead since the Clerk cutover): it fetched the whole public
+ * `notifications` table with no user filter, opened an unfiltered
+ * realtime channel per session, and its `if (loading)` guard
+ * deadlocked the initial fetch so nothing ever rendered anyway.
+ * Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator)
+ * keep working against this empty state; the drawer UI stays as the
+ * scaffold for the real v2 read layer.
+ */
 
 interface Notification {
   id: string;
@@ -42,378 +55,104 @@ interface NotificationsContextType {
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NotificationStatus>('unread');
-  const supabase = createClient();
 
-  // Open/close drawer
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
-  // Group notifications by date
-  const groupNotificationsByDate = useCallback((notifications: Notification[]): NotificationGroup[] => {
-    const groups: Record<string, Notification[]> = {};
+  // TODO(v2 notifications module): real data layer. Everything below
+  // is inert until then — empty list, no-op mutations.
+  const fetchNotifications = useCallback(async () => {}, []);
+  const noopMutation = useCallback(async () => true, []);
 
-    notifications.forEach(notification => {
-      const date = new Date(notification.timestamp);
-      const today = new Date();
-      const yesterday = subDays(today, 1);
+  // Kept for the drawer's grouped rendering; pure date bucketing.
+  const groupNotificationsByDate = useCallback(
+    (notifications: Notification[]): NotificationGroup[] => {
+      const groups: Record<string, Notification[]> = {};
 
-      let groupKey: string;
+      notifications.forEach(notification => {
+        const date = new Date(notification.timestamp);
+        const today = new Date();
+        const yesterday = subDays(today, 1);
 
-      if (date.toDateString() === today.toDateString()) {
-        groupKey = 'Today';
-      } else if (date.toDateString() === yesterday.toDateString()) {
-        groupKey = 'Yesterday';
-      } else {
-        groupKey = format(date, 'MMMM d, yyyy');
-      }
-
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
-      }
-
-      groups[groupKey].push(notification);
-    });
-
-    // Convert the groups object to an array of NotificationGroup
-    return Object.entries(groups).map(([date, notifications]) => ({
-      date,
-      notifications: notifications.sort((a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      ),
-    })).sort((a, b) => {
-      if (a.date === 'Today') return -1;
-      if (b.date === 'Today') return 1;
-      if (a.date === 'Yesterday') return -1;
-      if (b.date === 'Yesterday') return 1;
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
-  }, []);
-
-  const toNotification = useCallback((item: { id: string; title: string; message: string; status: string; timestamp: string | null; created_at: string | null; [key: string]: unknown }): Notification => ({
-    id: item.id,
-    title: item.title || 'Notification',
-    message: item.message || '',
-    status: (item.status || 'unread') as NotificationStatus,
-    timestamp: (item.timestamp ?? item.created_at ?? new Date().toISOString()) as string,
-  }), []);
-
-  const fetchNotifications = useCallback(async () => {
-    // Prevent multiple simultaneous fetches
-    if (loading) {
-      console.log('[NotificationsContext] Skipping fetch - already loading');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        setError(error.message);
-        throw error;
-      }
-
-      const transformedData = (data || []).map(toNotification);
-      setNotifications(transformedData);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setError('Failed to load notifications. Please try again.');
-
-      // Set empty notifications array to prevent errors
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase, loading]);
-
-  const markAsRead = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      // Update local state first for immediate feedback
-      setNotifications(prev =>
-        prev.map(notification =>
-          notification.id === id
-            ? { ...notification, status: 'read' }
-            : notification
-        )
-      );
-
-      const { error } = await supabase
-        .from('notifications')
-        .update({ status: 'read' })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error marking notification as read:', error);
-        // Revert the local state change if the server update failed
-        setNotifications(prev =>
-          prev.map(notification =>
-            notification.id === id && notification.status === 'read'
-              ? { ...notification, status: 'unread' }
-              : notification
-          )
-        );
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      return false;
-    }
-  }, [supabase]);
-
-  const markAllAsRead = useCallback(async (): Promise<boolean> => {
-    try {
-      // Update local state first for immediate feedback
-      setNotifications(prev =>
-        prev.map(notification =>
-          notification.status === 'unread'
-            ? { ...notification, status: 'read' }
-            : notification
-        )
-      );
-
-      const { error } = await supabase
-        .from('notifications')
-        .update({ status: 'read' })
-        .eq('status', 'unread');
-
-      if (error) {
-        console.error('Error marking all notifications as read:', error);
-        // Revert the local state change if the server update failed
-        // Use a manual fetch instead of calling fetchNotifications to avoid dependency cycles
-        try {
-          const { data, error: fetchError } = await supabase
-            .from('notifications')
-            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
-            .order('created_at', { ascending: false });
-
-          if (!fetchError && data) {
-            setNotifications(data.map(toNotification));
-          }
-        } catch (fetchError) {
-          console.error('Error fetching notifications after failed update:', fetchError);
+        let groupKey: string;
+        if (date.toDateString() === today.toDateString()) {
+          groupKey = 'Today';
+        } else if (date.toDateString() === yesterday.toDateString()) {
+          groupKey = 'Yesterday';
+        } else {
+          groupKey = format(date, 'MMMM d, yyyy');
         }
-        return false;
-      }
 
-      return true;
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      return false;
-    }
-  }, [supabase]); // Remove fetchNotifications from dependencies
-
-  const archiveNotification = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      // Update local state first for immediate feedback
-      setNotifications(prev =>
-        prev.map(notification =>
-          notification.id === id
-            ? { ...notification, status: 'archived' }
-            : notification
-        )
-      );
-
-      const { error } = await supabase
-        .from('notifications')
-        .update({ status: 'archived' })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error archiving notification:', error);
-        // Revert the local state change if the server update failed
-        try {
-          const { data, error: fetchError } = await supabase
-            .from('notifications')
-            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
-            .order('created_at', { ascending: false });
-
-          if (!fetchError && data) {
-            setNotifications(data.map(toNotification));
-          }
-        } catch (fetchError) {
-          console.error('Error fetching notifications after failed update:', fetchError);
+        if (!groups[groupKey]) {
+          groups[groupKey] = [];
         }
-        return false;
-      }
+        groups[groupKey].push(notification);
+      });
 
-      return true;
-    } catch (error) {
-      console.error('Error archiving notification:', error);
-      return false;
-    }
-  }, [supabase]); // Remove fetchNotifications from dependencies
+      return Object.entries(groups)
+        .map(([date, notifications]) => ({
+          date,
+          notifications: notifications.sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          ),
+        }))
+        .sort((a, b) => {
+          if (a.date === 'Today') return -1;
+          if (b.date === 'Today') return 1;
+          if (a.date === 'Yesterday') return -1;
+          if (b.date === 'Yesterday') return 1;
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
+    },
+    [],
+  );
 
-  const deleteNotification = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      // Update local state first for immediate feedback
-      setNotifications(prev => prev.filter(notification => notification.id !== id));
-
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting notification:', error);
-        // Revert the local state change if the server update failed
-        try {
-          const { data, error: fetchError } = await supabase
-            .from('notifications')
-            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
-            .order('created_at', { ascending: false });
-
-          if (!fetchError && data) {
-            setNotifications(data.map(toNotification));
-          }
-        } catch (fetchError) {
-          console.error('Error fetching notifications after failed delete:', fetchError);
-        }
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-      return false;
-    }
-  }, [supabase]); // Remove fetchNotifications from dependencies
-
-  const deleteAllArchived = useCallback(async (): Promise<boolean> => {
-    try {
-      // Update local state first for immediate feedback
-      setNotifications(prev => prev.filter(notification => notification.status !== 'archived'));
-
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('status', 'archived');
-
-      if (error) {
-        console.error('Error deleting all archived notifications:', error);
-        // Revert the local state change if the server update failed
-        try {
-          const { data, error: fetchError } = await supabase
-            .from('notifications')
-            .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
-            .order('created_at', { ascending: false });
-
-          if (!fetchError && data) {
-            setNotifications(data.map(toNotification));
-          }
-        } catch (fetchError) {
-          console.error('Error fetching notifications after failed bulk delete:', fetchError);
-        }
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error deleting all archived notifications:', error);
-      return false;
-    }
-  }, [supabase]); // Remove fetchNotifications from dependencies
-
-  // Subscribe to new notifications
-  useEffect(() => {
-    const channel = supabase
-      .channel('notifications')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications'
-      }, () => {
-        // Use a function reference to avoid dependency issues
-        fetchNotifications();
-      })
-      .subscribe();
-
-    // Initial fetch
-    fetchNotifications();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]); // Remove fetchNotifications from dependencies
-
-  const unreadCount = notifications.filter(n => n.status === 'unread').length;
-
-  // Handle notification actions (for primary/secondary action buttons)
   const handleNotificationAction = useCallback((notificationId: string, action: string) => {
-    // Mark the notification as read when an action is taken
-    markAsRead(notificationId);
-
-    // Handle different action types
     switch (action) {
       case 'view_order':
-        // Navigate to order view
         window.location.href = `/dashboard/orders/view?id=${action.split(':')[1] || ''}`;
         break;
       case 'view_profile':
-        // Navigate to profile view
         window.location.href = `/dashboard/profile`;
         break;
-      case 'approve':
-        // Handle approval action
-        console.log('Approve action for notification:', notificationId);
-        break;
-      case 'reject':
-        // Handle rejection action
-        console.log('Reject action for notification:', notificationId);
-        break;
       default:
-        console.log('Unknown action:', action, 'for notification:', notificationId);
+        console.warn('Unknown action:', action, 'for notification:', notificationId);
     }
-  }, [markAsRead]);
+  }, []);
 
-  // Memoize the context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({
-    notifications,
-    unreadCount,
-    isDrawerOpen,
-    openDrawer,
-    closeDrawer,
-    activeTab,
-    setActiveTab,
-    loading,
-    error,
-    fetchNotifications,
-    markAsRead,
-    markAllAsRead,
-    archiveNotification,
-    deleteNotification,
-    deleteAllArchived,
-    groupNotificationsByDate,
-    handleNotificationAction,
-  }), [
-    notifications,
-    unreadCount,
-    isDrawerOpen,
-    openDrawer,
-    closeDrawer,
-    activeTab,
-    setActiveTab,
-    loading,
-    error,
-    fetchNotifications,
-    markAsRead,
-    markAllAsRead,
-    archiveNotification,
-    deleteNotification,
-    deleteAllArchived,
-    groupNotificationsByDate,
-    handleNotificationAction,
-  ]);
+  const contextValue = useMemo(
+    () => ({
+      notifications: [] as Notification[],
+      unreadCount: 0,
+      isDrawerOpen,
+      openDrawer,
+      closeDrawer,
+      activeTab,
+      setActiveTab,
+      loading: false,
+      error: null,
+      fetchNotifications,
+      markAsRead: noopMutation,
+      markAllAsRead: noopMutation,
+      archiveNotification: noopMutation,
+      deleteNotification: noopMutation,
+      deleteAllArchived: noopMutation,
+      groupNotificationsByDate,
+      handleNotificationAction,
+    }),
+    [
+      isDrawerOpen,
+      openDrawer,
+      closeDrawer,
+      activeTab,
+      fetchNotifications,
+      noopMutation,
+      groupNotificationsByDate,
+      handleNotificationAction,
+    ],
+  );
 
   return (
     <NotificationsContext.Provider value={contextValue}>

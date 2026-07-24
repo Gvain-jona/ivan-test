@@ -85,7 +85,9 @@ export default function RecentOrdersList({ orders, isLoading }: RecentOrdersList
         </Link>
       </div>
 
-      {isLoading ? (
+      {/* Skeletons only with nothing to show — keepPreviousData holds the
+          previous rows during revalidation, so don't flash over them. */}
+      {isLoading && orders.length === 0 ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
             <div

@@ -102,6 +102,9 @@ export default function FieldSetupPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#2B2B40]">
+                  {/* No `length === 0` gate here: the hook is keyed by the
+                      active tab, and keepPreviousData would otherwise show
+                      the previous entity's fields under the new tab. */}
                   {isLoading ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">

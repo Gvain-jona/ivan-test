@@ -141,7 +141,7 @@ export default function ClientsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#2B2B40]">
-            {isLoading ? (
+            {isLoading && clients.length === 0 ? (
               <tr>
                 <td
                   colSpan={3 + listFields.length}
