@@ -128,7 +128,10 @@ authoritative end-to-end:
 - **Webhook**: `app/api/webhooks/clerk/route.ts` syncs
   `user.created` (mints `internal_user_id` — this is what closes the
   "new-user provisioning" gap below, going forward), `organization.created`
-  (calls `provision_organization`), `organization.updated`, and
+  (calls `provision_organization`), `organization.updated`,
+  `organization.deleted` (archives the mirror row — `status='archived'`
+  + `deleted_at`, never a hard delete, since the row's uuid is the FK
+  anchor for the tenant's orders/clients/products), and
   `organizationMembership.created|updated|deleted` (note: the installed
   `@clerk/backend` SDK's `WebhookEvent` union uses **camelCase**
   `organizationMembership.*`, not the snake_case shown in Clerk's own

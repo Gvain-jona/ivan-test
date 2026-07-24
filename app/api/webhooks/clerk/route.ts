@@ -88,6 +88,21 @@ async function handleOrganizationUpdated(admin: Admin, org: OrgEvent) {
   if (error) throw error;
 }
 
+async function handleOrganizationDeleted(admin: Admin, clerkOrgId: string) {
+  // Archive, never hard-delete. The mirror row's internal uuid is the
+  // FK anchor for the tenant's orders/clients/products/counters, so a
+  // DELETE would cascade real business data into oblivion — the exact
+  // thing the archive-not-delete convention exists to prevent. Flip
+  // status to 'archived' and stamp deleted_at instead; access is
+  // already cut off Clerk-side (the org leaves the user's session, so
+  // resolveTenant() sees no orgId), this just keeps the mirror honest.
+  const { error } = await admin
+    .from('organizations')
+    .update({ status: 'archived', deleted_at: new Date().toISOString() })
+    .eq('clerk_org_id', clerkOrgId);
+  if (error) throw error;
+}
+
 async function handleMembershipUpsert(admin: Admin, membership: MembershipEvent) {
   const clerkUserId = membership.public_user_data?.user_id;
   if (!clerkUserId) return;
@@ -129,8 +144,36 @@ async function handleMembershipDeleted(admin: Admin, membership: MembershipEvent
   if (error) throw error;
 }
 
+type ClerkEvent = Awaited<ReturnType<typeof verifyWebhook>>;
+
+async function dispatch(admin: Admin, evt: ClerkEvent) {
+  switch (evt.type) {
+    case 'user.created':
+      await getOrCreateInternalUserId(evt.data.id);
+      break;
+    case 'organization.created':
+      await handleOrganizationCreated(admin, evt.data);
+      break;
+    case 'organization.updated':
+      await handleOrganizationUpdated(admin, evt.data);
+      break;
+    case 'organization.deleted':
+      if (evt.data.id) await handleOrganizationDeleted(admin, evt.data.id);
+      break;
+    case 'organizationMembership.created':
+    case 'organizationMembership.updated':
+      await handleMembershipUpsert(admin, evt.data);
+      break;
+    case 'organizationMembership.deleted':
+      await handleMembershipDeleted(admin, evt.data);
+      break;
+    default:
+      break;
+  }
+}
+
 export async function POST(request: NextRequest) {
-  let evt;
+  let evt: ClerkEvent;
   try {
     evt = await verifyWebhook(request);
   } catch (err) {
@@ -138,29 +181,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 });
   }
 
-  const admin = createV2AdminClient();
-
   try {
-    switch (evt.type) {
-      case 'user.created':
-        await getOrCreateInternalUserId(evt.data.id);
-        break;
-      case 'organization.created':
-        await handleOrganizationCreated(admin, evt.data);
-        break;
-      case 'organization.updated':
-        await handleOrganizationUpdated(admin, evt.data);
-        break;
-      case 'organizationMembership.created':
-      case 'organizationMembership.updated':
-        await handleMembershipUpsert(admin, evt.data);
-        break;
-      case 'organizationMembership.deleted':
-        await handleMembershipDeleted(admin, evt.data);
-        break;
-      default:
-        break;
-    }
+    await dispatch(createV2AdminClient(), evt);
   } catch (error) {
     console.error(`Clerk webhook handler error for ${evt.type}:`, error);
     return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });

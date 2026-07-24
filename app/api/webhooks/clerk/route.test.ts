@@ -189,6 +189,22 @@ describe('POST /api/webhooks/clerk', () => {
     expect(del).toHaveBeenCalled()
   })
 
+  it('organization.deleted archives the mirror row instead of hard-deleting it', async () => {
+    verifyWebhookMock.mockResolvedValue({
+      type: 'organization.deleted',
+      data: { id: 'org_clerk1', deleted: true },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+    const { update } = stubAdmin()
+
+    const res = await POST(fakeRequest())
+
+    expect(res.status).toBe(200)
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'archived', deleted_at: expect.any(String) }),
+    )
+  })
+
   it('an unhandled event type is a no-op 200', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     verifyWebhookMock.mockResolvedValue({ type: 'session.created', data: {} } as any)
