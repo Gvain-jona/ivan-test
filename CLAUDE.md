@@ -111,6 +111,17 @@ if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required')
 
 **New UI components — log responsiveness status**: when you create a new component under `app/components/` (or anywhere else in `app/`), add one row to `docs/mobile-responsiveness/COMPONENT_REGISTRY.md` — just the component name/path and a `Yes` / `No` / `Partial` on whether it holds up across breakpoints (~375px phone through desktop). This is a visibility log, not a gate: a `No` is a perfectly valid entry. It does not require fixing the component, does not block the work, and isn't a request for a write-up — one line is enough. The point is being able to see how much of the app actually scales as it grows, not enforcing that every component must.
 
+## Mobile UX & overlays — guardrails (read before UI work)
+
+Hard-won rules from the mobile refinement pass; follow them so the same mishaps don't recur. Rationale/details in `docs/mobile-responsiveness/{DESIGN_PHILOSOPHY,INTERACTION_AUDIT}.md`.
+
+- **Two products, shared modules.** Mobile is feed-first (Home is **mobile-only**, `lg:hidden`; desktop lands on Orders); desktop is module-pages + chrome (`TopHeader` is **desktop-only**). Don't converge them; don't put desktop chrome on mobile.
+- **One sheet, one door.** Every overlay uses the `OrderSheet` primitive (`vaul`; bottom sheet on mobile / right panel on desktop) and opens via the sheet host — `useSheets()` (`openCreateOrder()`, `openOrder(id)`, …). **Never navigate to another page to pop a modal**, never re-implement open/close state, never hand-roll a new sheet/dialog.
+- **Every signifier is wired.** A grab handle means the sheet drags; a leading icon means the action it depicts; the close **X is desktop-only** (mobile dismisses via drag / backdrop / Back). If you can't wire an affordance, don't show it.
+- **Theme tokens, never hardcoded colors.** `text-foreground` / `border-border` / `bg-primary`, not `text-white` / `#2B2B40` / `orange-500` — screens must hold in light *and* dark.
+- **No unlayered `globals.css` rule may set `display`/`position`/`visibility` on an element that also carries Tailwind utilities** — it silently overrides the utility (CSS-01 in `docs/code-review/AUDIT_PROGRESS.md`). Prefer the utility, or `@layer components`.
+- **Missing module/data → scaffold + track, don't fake.** Build the UI, mark interim data `TODO(v2 read layer)`, and log it in `docs/v2-migration/STATE.md`.
+
 ## v2 platform migration — naming convention
 
 The app is being rebuilt module-by-module against the multi-tenant `v2` Postgres schema (orders first). **Status, decisions, and blockers live in `docs/v2-migration/STATE.md`** — this section is only the naming rules:
