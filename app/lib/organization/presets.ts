@@ -10,20 +10,16 @@
  * selected pieces via POST /api/field-definitions and PATCH /api/organization.
  */
 
+import type { FieldOption } from '@/lib/fields/options';
+
 /**
  * A select option, metadata-rich (matches the object shape the v2
  * validate_custom_data trigger and value_in_options() now accept). `value`
  * is what's stored; `label` is displayed; `color`/`semantic` drive chips and
  * workflow logic (e.g. Home segmentation reads `semantic`, not hardcoded
- * status strings).
+ * status strings). Canonical shape lives in lib/fields/options.
  */
-export interface SelectOption {
-  value: string;
-  label: string;
-  color?: string;
-  is_default?: boolean;
-  semantic?: 'open' | 'won' | 'lost';
-}
+export type SelectOption = FieldOption;
 
 /** A starter field, shaped for POST /api/field-definitions. */
 export interface StarterField {

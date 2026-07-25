@@ -5,6 +5,7 @@ import useSWR, { useSWRConfig } from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { PLATFORM_API, buildKey, keysUnder, apiFetcher, apiRequest } from '@/lib/api/client';
 import type { DatabaseV2 } from '@/types/supabase-v2';
+import type { FieldOption } from '@/lib/fields/options';
 
 export type FieldEntity = 'client' | 'order' | 'order_item' | 'product';
 
@@ -30,7 +31,9 @@ export interface FieldDefinitionInput {
   field_type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'relation' | 'dimension';
   is_required?: boolean;
   is_unique?: boolean;
-  options?: string[];
+  is_system?: boolean;
+  options?: string[] | FieldOption[];
+  default_value?: unknown;
   related_entity?: string;
   display_field?: string;
   field_group?: string;

@@ -83,6 +83,25 @@ export const orderUpdateSchema = z
 
 export const fieldEntitySchema = z.enum(['client', 'order', 'order_item', 'product']);
 
+// A select field's options: either a legacy string array or the current
+// metadata-object array ({value,label,color,is_default,semantic}). The DB
+// (value_in_options) accepts both; validation stays structural.
+const selectOptionObject = z.object({
+  value: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  color: z.string().trim().min(1).optional(),
+  is_default: z.boolean().optional(),
+  semantic: z.enum(['open', 'won', 'lost']).optional(),
+});
+const fieldOptions = z.union([
+  z.array(z.string().trim().min(1)),
+  z.array(selectOptionObject),
+]) as unknown as z.ZodType<Json>;
+
+// A single jsonb default (any JSON shape); assertion reconciles zod's
+// `unknown` with the DB `Json` type, same pattern as customData.
+const jsonValue = z.unknown() as unknown as z.ZodType<Json>;
+
 export const fieldDefinitionCreateSchema = z.object({
   entity: fieldEntitySchema,
   field_name: z
@@ -92,7 +111,9 @@ export const fieldDefinitionCreateSchema = z.object({
   field_type: z.enum(['text', 'number', 'date', 'boolean', 'select', 'relation', 'dimension']),
   is_required: z.boolean().optional(),
   is_unique: z.boolean().optional(),
-  options: z.array(z.string().trim().min(1)).optional(),
+  is_system: z.boolean().optional(),
+  options: fieldOptions.optional(),
+  default_value: jsonValue.optional(),
   related_entity: z.string().trim().min(1).optional(),
   display_field: z.string().trim().min(1).optional(),
   conditions: customData.optional(),
