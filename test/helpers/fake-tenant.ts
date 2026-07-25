@@ -156,6 +156,7 @@ export class FakeTenantDb {
         q.call.columns = columns
         return q
       },
+      update: (values: Record<string, unknown>) => this.open('update:organization', values),
     }
   }
 

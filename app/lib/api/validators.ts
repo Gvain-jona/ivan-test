@@ -102,6 +102,21 @@ export const fieldDefinitionCreateSchema = z.object({
   sort_order: z.number().int().optional(),
 });
 
+/**
+ * PATCH /api/organization — org-level scalar settings only, merged into
+ * organizations.settings. name/slug/logo are Clerk-authoritative; order
+ * status values live in field_definitions (not here). Currency is checked
+ * for ISO-4217 *shape* only, not against a fixed list, so any real currency
+ * works — the preset list (app/lib/organization/presets.ts) is just a menu.
+ */
+export const organizationSettingsPatchSchema = z
+  .object({
+    currency: z.string().trim().regex(/^[A-Z]{3}$/, 'Expected a 3-letter ISO 4217 code'),
+    locale: z.string().trim().min(2).max(35),
+  })
+  .partial()
+  .refine(d => Object.keys(d).length > 0, { message: 'At least one setting is required' });
+
 export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),

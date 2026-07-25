@@ -36,9 +36,14 @@ export interface TenantDb {
     insert(values: Omit<V2Tables[T]['Insert'], 'organization_id'>): ReturnType<ReturnType<V2Client['from']>['insert']>
     update(values: V2Tables[T]['Update']): ReturnType<ReturnType<V2Client['from']>['update']>
   }
-  /** The caller's own organizations row (scoped by id, read-only). */
+  /**
+   * The caller's own organizations row (scoped by id). Only `settings`
+   * is app-writable via update() — name/slug/logo are Clerk-authoritative,
+   * and order status values live in field_definitions, not here.
+   */
   organization(): {
     select<Q extends string = '*'>(columns?: Q): ReturnType<ReturnType<V2Client['from']>['select']>
+    update(values: Pick<V2Tables['organizations']['Update'], 'settings'>): ReturnType<ReturnType<V2Client['from']>['update']>
   }
   /** RPCs take their org explicitly (p_org) — nothing to inject. */
   rpc<F extends keyof V2Functions & string>(
@@ -67,6 +72,8 @@ export function createTenantDb(client: V2Client, organizationId: string): Tenant
       return {
         select: (columns?: string) =>
           (client.from('organizations') as any).select(columns).eq('id', organizationId),
+        update: (values: object) =>
+          (client.from('organizations') as any).update(values).eq('id', organizationId),
       } as any
     },
     rpc(fn, args) {

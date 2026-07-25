@@ -210,9 +210,17 @@ single swap point. Order creation still goes through the
   and governs the `order.status` fixed column against an
   `entity='order', field_name='status'` select field-definition (enforced
   only when configured, so unconfigured orgs still transact). This is the
-  DB half of retiring the hardcoded `DEFAULT_ORDER_STATUSES`/`UGX` fallbacks;
-  the app half (`PATCH /api/organization`, presets, wizard, fallback removal)
-  is not built yet.
+  DB half of retiring the hardcoded `DEFAULT_ORDER_STATUSES`/`UGX` fallbacks.
+- **First-run app foundation (2026-07-25)** — `PATCH /api/organization`
+  (owner-only, merges org-scalar settings: currency/locale; name/slug/logo
+  stay Clerk-authoritative, status values stay in `field_definitions`) and a
+  presets-as-data module (`app/lib/organization/presets.ts`: currency menu,
+  print-shop status workflow, per-entity starter field sets — opt-in, applied
+  only on user action, never a silent fallback). `TenantDb.organization()`
+  gained a settings-only `update()`. **Still to build:** the first-run wizard
+  (needs `fieldDefinitionCreateSchema`/`CustomFieldsForm` extended for object
+  options), then removing the `DEFAULT_ORDER_STATUSES`/`UGX` read fallbacks
+  and wiring `formatCurrency` to org currency, then retiring `/dashboard/fields`.
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 
