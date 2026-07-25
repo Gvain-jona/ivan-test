@@ -169,6 +169,8 @@ export type DatabaseV2 = {
           field_type: string
           is_required: boolean
           is_unique: boolean
+          is_system: boolean
+          default_value: Json | null
           options: Json | null
           related_entity: string | null
           display_field: string | null
@@ -198,6 +200,8 @@ export type DatabaseV2 = {
           show_in_documents?: boolean
           inherit_from?: string | null
           sort_order?: number
+          is_system?: boolean
+          default_value?: Json | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -219,6 +223,8 @@ export type DatabaseV2 = {
           show_in_documents?: boolean
           inherit_from?: string | null
           sort_order?: number
+          is_system?: boolean
+          default_value?: Json | null
           status?: string
           created_at?: string
           updated_at?: string

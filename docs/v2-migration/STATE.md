@@ -176,8 +176,9 @@ single swap point. Order creation still goes through the
   on orders/payments; ~~tenant provisioning (new org must get counters +
   membership bootstrapped)~~ (resolved 2026-07-24 — `v2.provision_organization`
   seeds `order`/`doc:invoice`/`doc:quotation` counters atomically on
-  `organization.created`, see Phase 1.5 above); `validate_custom_data`
-  search_path hardening; ~~re-map the 3 seeded `organization_members` rows when
+  `organization.created`, see Phase 1.5 above); ~~`validate_custom_data`
+  search_path hardening~~ (resolved 2026-07-25, migration `20260725164737`);
+  ~~re-map the 3 seeded `organization_members` rows when
   Clerk user ids exist~~ (obsolete 2026-07-17 — the internal-UUID claim keeps
   the existing UUIDs, no remap needed); `v2.issue_document()` RPC (blocked on credit-note +
   partial-invoicing decisions — see orders-system-handoff.md §6/§12); a `v2`
@@ -194,6 +195,24 @@ single swap point. Order creation still goes through the
   in `route.test.ts` that checks the actual RPC key string passed
   (previously it asserted the buggy value, so the bug shipped without
   a failing test).
+- **Live v2 data reality (2026-07-25): the DB is a clean test env, not "3
+  orgs with real data."** Direct inspection of the live project
+  (`giwurfpxxktfsdyitgvr`) shows **one** org — "Ephra test" — with empty
+  `settings` (`{}`), and **zero** `field_definitions`/`clients`/`products`/
+  `orders`. Earlier notes referencing "3 existing orgs" are stale; treat this
+  as the ground truth for any backfill/migration risk assessment (currently:
+  ~nil).
+- **First-run/field-setup schema foundation landed (2026-07-25, migration
+  `20260725164737`)** — see `docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md`.
+  Adds `field_definitions.is_system` + `default_value`; a shared
+  `v2.value_in_options()` so select validation accepts object options
+  (`{value,label,color,is_default,semantic}`) alongside legacy string arrays;
+  and governs the `order.status` fixed column against an
+  `entity='order', field_name='status'` select field-definition (enforced
+  only when configured, so unconfigured orgs still transact). This is the
+  DB half of retiring the hardcoded `DEFAULT_ORDER_STATUSES`/`UGX` fallbacks;
+  the app half (`PATCH /api/organization`, presets, wizard, fallback removal)
+  is not built yet.
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

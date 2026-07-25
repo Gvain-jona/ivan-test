@@ -104,27 +104,37 @@ global page is retired — a single decontextualized registry doesn't match
 the model or the UX we want (the current Products page confirms this is the
 wrong shape). Field editing is always reached from the entity it belongs to.
 
-## Schema changes required **[DB owner]**
+## Schema changes — **APPLIED** 2026-07-25 (migration `20260725164737`)
 
-The v2 schema is owned DB-side; these are the app-requested changes to mirror
-in `supabase/migrations/`:
+Applied to the live v2 project via MCP `apply_migration` and mirrored in
+`supabase/migrations/20260725164737_field_definitions_system_defaults_and_status_governance.sql`.
+Verified end-to-end (object-options accepted, invalid status rejected,
+unconfigured org still transacts; test rows rolled back, zero residue).
 
-1. **Order status as a field definition** — seed/allow an
-   `entity='order', field_name='status'` select row per org; make
-   `order.status` validate against its `options`. Extend
-   `validate_custom_data` (or add a sibling check) to cover the `status`
-   column, since status is a fixed column, not a `custom_data` key.
-2. **`options` object shape** — support `{value,label,color,is_default,
-   semantic}`; trigger's "invalid select value" check compares against
-   `option.value`.
-3. **`field_definitions.is_system boolean`** — distinguish starter/protected
-   fields from user-added (wizard needs this; core fields like order `status`
-   must be undeletable).
-4. **`field_definitions.default_value jsonb`** — so "predefined values"
-   actually pre-fill.
-5. **Backfill** the 3 existing orgs: convert each
-   `settings.order_statuses` array into an order `status` field_definition
-   with sensible colors/semantics; then drop `settings.order_statuses`.
+1. ✅ **Order status governed by a field definition** — `validate_custom_data`
+   now checks the `order.status` fixed column against an
+   `entity='order', field_name='status'` **select** field-definition's
+   options. Enforced **only when such a field exists**, so an unconfigured
+   org still transacts (status had no DB constraint before this).
+2. ✅ **`options` object shape** — new shared `v2.value_in_options(options,
+   value)` accepts `{value,label,color,is_default,semantic}` object arrays,
+   plus legacy string arrays / keyed objects (non-breaking). The trigger's
+   select check and the status check both use it.
+3. ✅ **`field_definitions.is_system boolean`** (default false).
+4. ✅ **`field_definitions.default_value jsonb`** (nullable).
+   Also: `validate_custom_data` `search_path` hardened to `''` (was unset —
+   a previously-flagged item).
+
+**Backfill: not needed.** Live v2 is a clean test env — one org ("Ephra
+test") with empty `settings` and zero field_definitions/clients/orders. The
+docs' "3 orgs with real data" was stale. Nothing to convert; new orgs get
+their status field from the wizard/preset going forward.
+
+### Still DB-side, not yet done
+
+- Whether/where to also add a `status` field row automatically (vs the app
+  applying it as a preset) — current decision is app-applies (explicit,
+  pre-populated), so no auto-seed added to `provision_organization`.
 
 ## App-side changes
 
@@ -189,9 +199,10 @@ Proposed status workflow (option objects):
 
 ## Build sequence (dependency order)
 
-1. **[DB owner]** schema changes (status field, options objects, is_system,
-   default_value, trigger, backfill) — nothing app-side that removes
-   fallbacks is safe until orgs hold real values.
+1. ✅ **DONE (2026-07-25)** — schema foundation: `is_system`,
+   `default_value`, object-tolerant `value_in_options`, `order.status`
+   governance, `search_path` hardening (migration `20260725164737`). No
+   backfill needed (empty test env).
 2. `PATCH /api/organization` + presets-as-data module.
 3. Wizard UI (entity-by-entity: configure fields → create first record).
 4. Remove hardcoded fallbacks; wire currency through formatting.
