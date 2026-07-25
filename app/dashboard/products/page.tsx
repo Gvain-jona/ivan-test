@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { useProducts, useProductMutations } from '@/hooks/products/useProducts';
 import type { Product, ProductListParams } from '@/hooks/products/useProducts';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
@@ -32,6 +32,7 @@ const STATUS_BADGE: Record<string, string> = {
  */
 export default function ProductsPage() {
   const { toast } = useToast();
+  const fmt = useFormatCurrency();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<NonNullable<ProductListParams['status']>>('active');
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -149,7 +150,7 @@ export default function ProductsPage() {
                 <tr key={product.id} className="hover:bg-muted/10">
                   <td className="px-4 py-2.5 text-sm text-white">{product.name}</td>
                   <td className="px-4 py-2.5 text-sm text-white text-right">
-                    {product.selling_price != null ? formatCurrency(product.selling_price) : '—'}
+                    {product.selling_price != null ? fmt(product.selling_price) : '—'}
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge variant="secondary" className={STATUS_BADGE[product.status] ?? ''}>

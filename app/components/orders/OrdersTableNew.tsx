@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
-import { useOrganization } from '@/hooks/organization/useOrganization';
+import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import OrderRow from './OrderRow';
 import OrderCard from './OrderCard';
@@ -102,8 +102,8 @@ export default function OrdersTable(props: OrdersTableProps) {
     onDateRangeChange(undefined);
   };
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
-  // Status list is org-configurable in v2 (organizations.settings)
-  const { orderStatuses } = useOrganization();
+  // Status list comes from the order `status` field-definition (no fallback).
+  const { statusValues: orderStatuses } = useOrderStatuses();
 
   // Memoize row mouse enter/leave handlers
   const handleRowMouseEnter = useCallback((id: string) => {

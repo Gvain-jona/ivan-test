@@ -225,7 +225,21 @@ Proposed status workflow (option objects):
      Supabase). Logic is unit-tested (`apply-presets.test.ts`,
      `options.test.ts`); components logged Partial in the responsiveness
      registry until a running-app pass.
-4. Remove hardcoded fallbacks; wire currency through formatting.
+4. ✅ **DONE (2026-07-25)** — hardcoded fallbacks removed.
+   - `DEFAULT_ORDER_STATUSES` deleted. Order statuses now come from the order
+     `status` field-definition via `useOrderStatuses()` (empty until
+     configured — no fallback). Consumers migrated: `OrderFormSheet` (default
+     status = the workflow's `is_default`/first, not hardcoded `pending`),
+     `StatusDropdown`, `OrdersTableNew`/`OrdersFilterSheet`.
+   - `UGX` default removed. `useOrganization().currency` is now `null` until
+     set; new `useFormatCurrency()` renders plain grouped numbers until a
+     currency is chosen, else `Intl` currency. Wired into the live surfaces
+     (orders list/card/form, order-view tabs, Home snapshot + recent list,
+     products). Legacy/dark modules keep the standalone `formatCurrency` util
+     until their cutover.
+   - **Follow-up:** richer status rendering from option `label`/`color`/
+     `semantic` (StatusBadge data-driven, Home semantic segmentation) — the
+     data is there; the UI still renders by value string.
 5. Retire `/dashboard/fields`; move field editing per-entity.
 
 ## Open questions

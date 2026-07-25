@@ -1,6 +1,6 @@
 import React from 'react';
 import { Package } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import type { OrderItemsTabProps } from './types';
 
 /** Compact inline rendering of an item's custom_data (size, finish…). */
@@ -22,6 +22,7 @@ function describeCustomData(value: unknown): string {
  * with the product picker built for the order form.
  */
 const OrderItemsTab: React.FC<OrderItemsTabProps> = ({ order }) => {
+  const fmt = useFormatCurrency();
   const items = order.order_items ?? [];
 
   if (items.length === 0) {
@@ -56,13 +57,13 @@ const OrderItemsTab: React.FC<OrderItemsTabProps> = ({ order }) => {
                 </td>
                 <td className="px-4 py-2.5 text-sm text-foreground text-center">{item.quantity}</td>
                 <td className="px-4 py-2.5 text-sm text-foreground text-right">
-                  {formatCurrency(item.unit_price)}
+                  {fmt(item.unit_price)}
                 </td>
                 <td className="px-4 py-2.5 text-sm text-muted-foreground text-right">
-                  {item.discount ? formatCurrency(item.discount) : '—'}
+                  {item.discount ? fmt(item.discount) : '—'}
                 </td>
                 <td className="px-4 py-2.5 text-sm text-foreground text-right font-medium">
-                  {formatCurrency(item.total_amount)}
+                  {fmt(item.total_amount)}
                 </td>
               </tr>
             );

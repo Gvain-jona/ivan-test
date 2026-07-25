@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { Clock, Plus, ChevronRight, PackageOpen } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { useSheets } from '@/context/sheet-host';
 import StatusBadge from '@/components/orders/StatusBadge';
 import PaymentStatusBadge from '@/components/orders/PaymentStatusBadge';
@@ -127,6 +128,7 @@ export default function RecentOrdersList({ orders, isLoading }: RecentOrdersList
 
 function OrderCard({ order }: { order: OrderSummary }) {
   const { openOrder } = useSheets();
+  const fmt = useFormatCurrency();
   return (
     <button
       type="button"
@@ -153,7 +155,7 @@ function OrderCard({ order }: { order: OrderSummary }) {
         </span>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-foreground">
-            {formatCurrency(order.total_amount)}
+            {fmt(order.total_amount)}
           </span>
           <StatusBadge status={order.status} size="sm" />
         </div>

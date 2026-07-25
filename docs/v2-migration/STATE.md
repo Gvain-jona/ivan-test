@@ -228,9 +228,17 @@ single swap point. Order creation still goes through the
   `CustomFieldInput`). Onboarding completion persists in
   `settings.onboarding.completed`; `OnboardingGate` routes unfinished users
   in. **Visual QA pending** (no authed runtime here); pure logic unit-tested.
-  **Still to build:** remove the `DEFAULT_ORDER_STATUSES`/`UGX` read fallbacks
-  and wire `formatCurrency` to org currency (step 4), then retire the
-  standalone `/dashboard/fields` for per-entity editing (step 5).
+- **Hardcoded fallbacks removed (2026-07-25, step 4)** — this is the payoff of
+  the "no mandatory conditioning" goal. `DEFAULT_ORDER_STATUSES` deleted;
+  statuses now come from the order `status` field-definition via
+  `useOrderStatuses()` (empty until configured). The `UGX` default is gone:
+  `useOrganization().currency` is `null` until set, and the new
+  `useFormatCurrency()` renders plain numbers until a currency is chosen (then
+  `Intl` currency), wired into the live order/home/products surfaces. Legacy
+  dark modules keep the `formatCurrency` util until cutover. Follow-up:
+  data-driven status chips (`color`/`semantic`) — data present, UI still
+  renders by value. **Still to build:** retire the standalone
+  `/dashboard/fields` for per-entity editing (step 5).
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

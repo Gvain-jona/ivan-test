@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Clock } from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import StatusDropdown from './StatusDropdown';
@@ -42,6 +43,7 @@ export default function OrderCard({
   onDelete,
   onStatusChange,
 }: OrderCardProps) {
+  const fmt = useFormatCurrency();
   const clientName = order.clients?.name ?? 'Unknown';
   const orderRef = order.order_number || (order.id ? `#${order.id.substring(0, 8)}` : 'Unknown');
 
@@ -105,7 +107,7 @@ export default function OrderCard({
                 strong ? 'font-semibold' : 'font-medium',
               )}
             >
-              {formatCurrency(value || 0)}
+              {fmt(value || 0)}
             </p>
           </div>
         ))}

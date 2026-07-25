@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,8 @@ import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import { useClients } from '@/hooks/clients/useClients';
 import { useProducts } from '@/hooks/products/useProducts';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
-import { useOrganization } from '@/hooks/organization/useOrganization';
-import { formatCurrency } from '@/lib/utils';
+import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import type { OrderCreateInput } from '@/hooks/orders/useOrders';
 
 const PAYMENT_METHODS = [
@@ -76,13 +76,16 @@ interface OrderFormSheetProps {
 export default function OrderFormSheet({ open, onOpenChange, onSave, title }: OrderFormSheetProps) {
   const { clients } = useClients({ status: 'active', limit: 100 });
   const { products } = useProducts({ status: 'active', limit: 100 });
-  const { orderStatuses } = useOrganization();
+  const { statusValues, defaultStatus } = useOrderStatuses();
+  const fmt = useFormatCurrency();
   const { fieldDefinitions: orderFields } = useFieldDefinitions('order');
   const { fieldDefinitions: itemFields } = useFieldDefinitions('order_item');
 
   const [clientId, setClientId] = useState('');
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [status, setStatus] = useState('pending');
+  // No hardcoded default: the starting status is the workflow's default
+  // option (or its first), filled in once the field-definition loads.
+  const [status, setStatus] = useState('');
   const [customData, setCustomData] = useState<Record<string, unknown>>({});
   const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
   const [payments, setPayments] = useState<PaymentDraft[]>([]);
@@ -126,10 +129,15 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
         Number(item.unit_price) >= 0,
     );
 
+  // Seed the status once the workflow loads (or after a reset cleared it).
+  useEffect(() => {
+    if (!status && defaultStatus) setStatus(defaultStatus);
+  }, [status, defaultStatus]);
+
   const resetForm = () => {
     setClientId('');
     setOrderDate(new Date().toISOString().slice(0, 10));
-    setStatus('pending');
+    setStatus(defaultStatus);
     setCustomData({});
     setItems([emptyItem()]);
     setPayments([]);
@@ -237,7 +245,7 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {orderStatuses.map(s => (
+                  {statusValues.map(s => (
                     <SelectItem key={s} value={s}>
                       {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                     </SelectItem>
@@ -253,7 +261,7 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-muted-foreground">Items</h3>
-            <span className="text-sm text-white font-medium">{formatCurrency(orderTotal)}</span>
+            <span className="text-sm text-white font-medium">{fmt(orderTotal)}</span>
           </div>
           {items.map((item, index) => (
             <div key={index} className="border border-[#2B2B40] rounded-lg p-4 space-y-3">
@@ -273,7 +281,7 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
                         <SelectItem key={product.id} value={product.id}>
                           {product.name}
                           {product.selling_price != null
-                            ? ` — ${formatCurrency(product.selling_price)}`
+                            ? ` — ${fmt(product.selling_price)}`
                             : ''}
                         </SelectItem>
                       ))}

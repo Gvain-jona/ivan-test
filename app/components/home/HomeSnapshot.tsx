@@ -1,7 +1,7 @@
 'use client';
 
 import { TrendingUp } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 
 interface HomeSnapshotProps {
   /** Sum of order totals for the current calendar month. */
@@ -22,6 +22,7 @@ export default function HomeSnapshot({
   orderCount,
   isLoading,
 }: HomeSnapshotProps) {
+  const fmt = useFormatCurrency();
   if (isLoading) {
     return (
       <div className="animate-pulse rounded-3xl border border-border bg-card p-6">
@@ -44,7 +45,7 @@ export default function HomeSnapshot({
       </div>
 
       <p className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-        {formatCurrency(salesThisMonth)}
+        {fmt(salesThisMonth)}
       </p>
     </div>
   );

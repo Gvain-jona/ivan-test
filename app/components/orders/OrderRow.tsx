@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import StatusDropdown from './StatusDropdown';
 import OrderActions from './OrderActions';
 import { ChevronDown, ChevronRight, ShoppingBag, MessageSquare, Eye } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useOrder } from '@/hooks/orders/useOrders';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
@@ -26,6 +26,7 @@ interface OrderRowProps {
  * list payload stays light and the expanded data is always fresh.
  */
 function OrderRow(props: OrderRowProps) {
+  const fmt = useFormatCurrency();
   const {
     order,
     userRole,
@@ -154,13 +155,13 @@ function OrderRow(props: OrderRowProps) {
           />
         </td>
         <td className="financial-column">
-          <div className="text-sm text-white font-medium">{formatCurrency(order.total_amount || 0)}</div>
+          <div className="text-sm text-white font-medium">{fmt(order.total_amount || 0)}</div>
         </td>
         <td className="financial-column">
-          <div className="text-sm text-white">{formatCurrency(order.amount_paid || 0)}</div>
+          <div className="text-sm text-white">{fmt(order.amount_paid || 0)}</div>
         </td>
         <td className="financial-column">
-          <div className="text-sm text-white font-medium">{formatCurrency(order.balance || 0)}</div>
+          <div className="text-sm text-white font-medium">{fmt(order.balance || 0)}</div>
         </td>
         <td className="actions-column">
           <div className="w-full flex justify-end items-center space-x-1">
@@ -221,8 +222,8 @@ function OrderRow(props: OrderRowProps) {
                           <tr key={item.id} className="hover:bg-table-hover">
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white">{item.product_name_raw ?? '—'}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-center">{item.quantity}</td>
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right">{formatCurrency(item.unit_price)}</td>
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right font-medium">{formatCurrency(item.total_amount)}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right">{fmt(item.unit_price)}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right font-medium">{fmt(item.total_amount)}</td>
                           </tr>
                         ))
                       ) : (

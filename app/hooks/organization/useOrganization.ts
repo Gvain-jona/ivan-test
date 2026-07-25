@@ -9,15 +9,6 @@ type OrganizationRow = DatabaseV2['v2']['Tables']['organizations']['Row'];
 
 export type Organization = Pick<OrganizationRow, 'id' | 'name' | 'slug' | 'status' | 'settings'>;
 
-/** Statuses every org gets when it hasn't customized the list. */
-export const DEFAULT_ORDER_STATUSES = [
-  'pending',
-  'in_progress',
-  'completed',
-  'delivered',
-  'cancelled',
-];
-
 /**
  * The caller's active organization and its settings. Order statuses
  * are org-configurable (organizations.settings.order_statuses) — read
@@ -33,7 +24,6 @@ export function useOrganization() {
   });
 
   const settings = (data?.organization.settings ?? {}) as {
-    order_statuses?: string[];
     currency?: string;
     locale?: string;
     onboarding?: { completed?: boolean };
@@ -42,11 +32,12 @@ export function useOrganization() {
   return {
     organization: data?.organization ?? null,
     orgRole: data?.orgRole ?? null,
-    orderStatuses:
-      Array.isArray(settings.order_statuses) && settings.order_statuses.length > 0
-        ? settings.order_statuses
-        : DEFAULT_ORDER_STATUSES,
-    currency: settings.currency ?? 'UGX',
+    // Order statuses now live in the order `status` field-definition, not
+    // here — read them via useOrderStatuses(). No hardcoded fallback.
+    // Currency is null until the org sets it (no silent UGX default); the
+    // formatter (useFormatCurrency) renders plain numbers until then.
+    currency: settings.currency ?? null,
+    locale: settings.locale ?? null,
     onboardingCompleted: settings.onboarding?.completed === true,
     isLoading,
     error,

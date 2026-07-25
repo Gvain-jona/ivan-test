@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import type { OrderPaymentsTabProps } from './types';
 
 const PAYMENT_METHODS = [
@@ -31,6 +31,7 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
   onAddPayment,
   isSubmitting,
 }) => {
+  const fmt = useFormatCurrency();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]['value']>('cash');
@@ -52,15 +53,15 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
       <div className="border border-border/40 rounded-lg p-4 grid grid-cols-3 gap-4">
         <div>
           <p className="text-xs text-[#6D6D80]">Total</p>
-          <p className="text-base font-medium text-foreground">{formatCurrency(order.total_amount)}</p>
+          <p className="text-base font-medium text-foreground">{fmt(order.total_amount)}</p>
         </div>
         <div>
           <p className="text-xs text-[#6D6D80]">Paid</p>
-          <p className="text-base font-medium text-green-500">{formatCurrency(order.amount_paid)}</p>
+          <p className="text-base font-medium text-green-500">{fmt(order.amount_paid)}</p>
         </div>
         <div>
           <p className="text-xs text-[#6D6D80]">Balance</p>
-          <p className="text-base font-medium text-primary">{formatCurrency(balance)}</p>
+          <p className="text-base font-medium text-primary">{fmt(balance)}</p>
         </div>
       </div>
 
@@ -78,7 +79,7 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
               className="border border-border/40 rounded-lg p-3 flex items-center justify-between"
             >
               <div>
-                <p className="text-sm font-medium text-foreground">{formatCurrency(payment.amount)}</p>
+                <p className="text-sm font-medium text-foreground">{fmt(payment.amount)}</p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {payment.payment_method.replace(/_/g, ' ')}
                   {payment.notes ? ` · ${payment.notes}` : ''}
