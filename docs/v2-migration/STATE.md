@@ -217,10 +217,20 @@ single swap point. Order creation still goes through the
   presets-as-data module (`app/lib/organization/presets.ts`: currency menu,
   print-shop status workflow, per-entity starter field sets — opt-in, applied
   only on user action, never a silent fallback). `TenantDb.organization()`
-  gained a settings-only `update()`. **Still to build:** the first-run wizard
-  (needs `fieldDefinitionCreateSchema`/`CustomFieldsForm` extended for object
-  options), then removing the `DEFAULT_ORDER_STATUSES`/`UGX` read fallbacks
-  and wiring `formatCurrency` to org currency, then retiring `/dashboard/fields`.
+  gained a settings-only `update()`.
+- **First-run wizard built (2026-07-25)** — `app/components/onboarding/`
+  (`GettingStartedWizard`, `EntityFieldSetupStep`, `OnboardingGate`) + the
+  `/dashboard/getting-started` surface. Walks currency → product → client →
+  order, applies the starter field presets idempotently
+  (`starterFieldsToApply`), and reuses `FieldDefinitionFormSheet` for custom
+  fields. Object-shaped select options now flow end-to-end
+  (`app/lib/fields/options.ts`, extended `fieldDefinitionCreateSchema`,
+  `CustomFieldInput`). Onboarding completion persists in
+  `settings.onboarding.completed`; `OnboardingGate` routes unfinished users
+  in. **Visual QA pending** (no authed runtime here); pure logic unit-tested.
+  **Still to build:** remove the `DEFAULT_ORDER_STATUSES`/`UGX` read fallbacks
+  and wire `formatCurrency` to org currency (step 4), then retire the
+  standalone `/dashboard/fields` for per-entity editing (step 5).
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

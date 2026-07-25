@@ -36,6 +36,7 @@ export function useOrganization() {
     order_statuses?: string[];
     currency?: string;
     locale?: string;
+    onboarding?: { completed?: boolean };
   };
 
   return {
@@ -46,6 +47,7 @@ export function useOrganization() {
         ? settings.order_statuses
         : DEFAULT_ORDER_STATUSES,
     currency: settings.currency ?? 'UGX',
+    onboardingCompleted: settings.onboarding?.completed === true,
     isLoading,
     error,
     mutate,

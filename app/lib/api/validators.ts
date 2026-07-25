@@ -134,6 +134,9 @@ export const organizationSettingsPatchSchema = z
   .object({
     currency: z.string().trim().regex(/^[A-Z]{3}$/, 'Expected a 3-letter ISO 4217 code'),
     locale: z.string().trim().min(2).max(35),
+    // First-run wizard state (see FIRST_RUN_AND_FIELD_SETUP.md). Merged
+    // into settings; `completed` gates the onboarding redirect.
+    onboarding: z.object({ completed: z.boolean() }),
   })
   .partial()
   .refine(d => Object.keys(d).length > 0, { message: 'At least one setting is required' });

@@ -209,12 +209,22 @@ Proposed status workflow (option objects):
    status workflow, per-entity starter field sets). `TenantDb.organization()`
    gained a settings-only `update()`. Contract + unit + preset-shape tests
    added (81/81 green).
-3. Wizard UI (entity-by-entity: configure fields → create first record).
-   **Prereq:** extend `fieldDefinitionCreateSchema.options` to accept the
-   object shape (`{value,label,color,is_default,semantic}`) + `is_system`/
-   `default_value`, and teach `CustomFieldsForm`'s select rendering to read
-   `option.value`/`option.label` (both currently assume string options). The
-   DB already accepts objects (migration `20260725164737`).
+3. ✅ **DONE (2026-07-25)** — first-run wizard.
+   - Prereq shipped: object-options end-to-end (`app/lib/fields/options.ts`
+     `normalizeOptions`, `fieldDefinitionCreateSchema` union + `is_system`/
+     `default_value`, `CustomFieldInput` renders `value`/`label`).
+   - `app/components/onboarding/` — `GettingStartedWizard` (welcome →
+     currency → product → client → order), `EntityFieldSetupStep` (toggle
+     starter fields, add custom via `FieldDefinitionFormSheet`, apply
+     idempotently via `starterFieldsToApply`), `OnboardingGate` (routes
+     unfinished users to `/dashboard/getting-started`).
+   - Onboarding state persists in `settings.onboarding.completed` (PATCH
+     schema + `useOrganization().onboardingCompleted`); the wizard's finish
+     sets it and redirects to Orders.
+   - **Visual QA pending** — the app can't be run authed here (needs Clerk +
+     Supabase). Logic is unit-tested (`apply-presets.test.ts`,
+     `options.test.ts`); components logged Partial in the responsiveness
+     registry until a running-app pass.
 4. Remove hardcoded fallbacks; wire currency through formatting.
 5. Retire `/dashboard/fields`; move field editing per-entity.
 

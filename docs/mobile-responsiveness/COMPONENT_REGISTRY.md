@@ -47,3 +47,7 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | HomeQuickActions | `app/components/home/HomeQuickActions.tsx` | Yes | Horizontal-scroll quick-action chips (New client / New product → `?new=1` deep-links). Replaced HomeCategoryChips, which duplicated the tab bar |
 | HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | "Sales this month" momentum card (figure + month order count); single column |
 | RecentOrdersList | `app/components/home/RecentOrdersList.tsx` | Yes | Card-first order list grouped by workflow state (in progress / awaiting payment / …) — the mobile default for order data |
+| GettingStartedPage | `app/dashboard/getting-started/page.tsx` | Partial | First-run wizard host; centered `max-w-xl` column. Designed responsive but visual QA pending (needs authed runtime) |
+| GettingStartedWizard | `app/components/onboarding/GettingStartedWizard.tsx` | Partial | Entity-by-entity first-run steps (currency → product → client → order); single column, `flex-wrap` action rows. Visual QA pending |
+| EntityFieldSetupStep | `app/components/onboarding/EntityFieldSetupStep.tsx` | Partial | Toggle-able starter field rows + option chips (`flex-wrap`); reuses FieldDefinitionFormSheet for custom fields. Visual QA pending |
+| OnboardingGate | `app/components/onboarding/OnboardingGate.tsx` | Yes | Logic-only redirect wrapper (renders children unchanged); no layout of its own |

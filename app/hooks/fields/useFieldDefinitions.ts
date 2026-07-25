@@ -36,6 +36,7 @@ export interface FieldDefinitionInput {
   default_value?: unknown;
   related_entity?: string;
   display_field?: string;
+  conditions?: Record<string, unknown>;
   field_group?: string;
   show_in_documents?: boolean;
   sort_order?: number;

@@ -11,6 +11,7 @@ import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { NotificationsWrapper } from '../notifications/NotificationsWrapper';
 import NotificationPermissionRequest from '../ui/NotificationPermissionRequest';
 import { SimpleLoadingCoordinator } from '../loading';
+import OnboardingGate from '../onboarding/OnboardingGate';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -60,7 +61,7 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
                     full-width tab bar + safe area, tighter on desktop for
                     the floating pill. */}
                 <div className="pb-24 lg:pb-16">
-                  {children}
+                  <OnboardingGate>{children}</OnboardingGate>
                 </div>
               </Suspense>
             </SimpleLoadingCoordinator>
