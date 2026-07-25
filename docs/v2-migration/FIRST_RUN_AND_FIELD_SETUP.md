@@ -95,12 +95,14 @@ done/cancelled logic read `semantic` (`open | won | lost` or similar) from
 the option instead of matching hardcoded status strings. Applies to every
 select, not just status. Storage must tolerate both shapes during migration.
 
-### Proposed: retire the standalone `/dashboard/fields`
+### Decided: retire the standalone `/dashboard/fields`
 
 Field setup lives inside each entity (a "Fields" affordance on the
 Products/Clients/Orders surfaces) both during and after onboarding, so a
 field is always configured in the context of the entity it belongs to. The
-global page is retired. **(Open — confirm.)**
+global page is retired — a single decontextualized registry doesn't match
+the model or the UX we want (the current Products page confirms this is the
+wrong shape). Field editing is always reached from the entity it belongs to.
 
 ## Schema changes required **[DB owner]**
 
@@ -144,7 +146,7 @@ in `supabase/migrations/`:
    `ClientFormSheet`, product form already render custom fields via
    `CustomFieldsForm`).
 
-## Proposed starter field sets (print-shop template — tune before build)
+## Starter field sets (print-shop template — accepted 2026-07-25)
 
 Fixed columns are always present (shown, not toggleable). Listed custom
 fields are the predefined, toggleable starter set.
@@ -197,8 +199,17 @@ Proposed status workflow (option objects):
 
 ## Open questions
 
-- Confirm retiring the standalone `/dashboard/fields` (per-entity editing).
-- Exact `semantic` vocabulary for status options (drives Home segmentation).
+- Exact `semantic` vocabulary for status options (drives Home segmentation) —
+  starter uses `open | won | lost`; confirm this covers the workflow logic.
 - Whether the wizard is skippable / resumable, and how "onboarding complete"
   is determined (derive from data vs a stored flag — no settings writer today,
   so a flag needs the new PATCH route or Clerk metadata).
+
+## Settled
+
+- Guided entity-by-entity first-run; "explicit apply, pre-populated" presets.
+- `field_definitions` as the single entity-config engine, tied per-entity.
+- Retire the standalone `/dashboard/fields`; field editing reached per-entity.
+- Order status unifies into a `field_definitions` select (column stays).
+- Select `options` become metadata objects.
+- Print-shop starter field sets (above) accepted as the first template.
