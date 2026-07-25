@@ -54,7 +54,7 @@ record; its "keep holding" verdict no longer applies.
 | **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, create form, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. Item add/edit on existing orders is a follow-up. |
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
-| **Field setup** | ✅ New (per-entity registry admin at `/dashboard/fields`). |
+| **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and starter fields are applied in the first-run wizard. |
 | **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
 | Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. The orders-page façade stubs in `app/dashboard/orders/_context/` now serve only the unmigrated InvoicesTab (the Insights/Tasks tabs were deleted in orders cleanup Phase 1). `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
 | Notifications | 🌑 **Stubbed 2026-07-24** — `app/context/NotificationsContext.tsx` is now an interface-preserving stub (empty list, no-op mutations, `unreadCount` 0). The pre-stub implementation ran on the dead Supabase session and was defective anyway (unfiltered whole-table fetch + unfiltered realtime channel per session; an `if (loading)` guard deadlocked the initial fetch so it never rendered data). Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator) still mount against the stub as UI scaffold. `app/hooks/useRealNotifications.ts` is a second, parallel legacy implementation — dead, delete at this module's cutover. Real data layer comes with the v2 notifications module. |
@@ -237,8 +237,13 @@ single swap point. Order creation still goes through the
   `Intl` currency), wired into the live order/home/products surfaces. Legacy
   dark modules keep the `formatCurrency` util until cutover. Follow-up:
   data-driven status chips (`color`/`semantic`) — data present, UI still
-  renders by value. **Still to build:** retire the standalone
-  `/dashboard/fields` for per-entity editing (step 5).
+  renders by value.
+- **`/dashboard/fields` retired (2026-07-25, step 5)** — field editing is now
+  per-entity: `EntityFieldsManager` behind a "Fields" toggle on Products,
+  Clients, and Orders (order + order_item). Global nav entries removed, page
+  deleted. This completes the first-run/field-setup arc (steps 1–5); what
+  remains is **visual QA of the whole flow in a running authed app** and the
+  data-driven-status-chip follow-up.
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

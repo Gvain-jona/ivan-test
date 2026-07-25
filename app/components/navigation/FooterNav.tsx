@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import {
   Package,
   Boxes,
-  SlidersHorizontal,
   Banknote,
   ShoppingBag,
   CheckSquare,
@@ -48,7 +47,6 @@ const getNavigationItems = (unreadCount: number): NavItemType[] => [
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: User, href: '/dashboard/clients' },
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
-  { title: 'Fields', icon: SlidersHorizontal, href: '/dashboard/fields' },
   { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
   { type: 'separator' },

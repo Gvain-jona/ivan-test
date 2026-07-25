@@ -9,7 +9,6 @@ import {
   Users,
   Banknote,
   Boxes,
-  SlidersHorizontal,
   ShoppingBag,
   BarChart3,
   User,
@@ -42,7 +41,6 @@ const PRIMARY: Destination[] = [
 /** Secondary destinations — revealed from the More sheet. */
 const MORE: Destination[] = [
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
-  { title: 'Fields', icon: SlidersHorizontal, href: '/dashboard/fields' },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
   { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', disabled: true },
   { title: 'Settings', icon: Settings, href: '/dashboard/settings' },

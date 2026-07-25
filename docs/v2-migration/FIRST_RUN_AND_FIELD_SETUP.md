@@ -240,7 +240,13 @@ Proposed status workflow (option objects):
    - **Follow-up:** richer status rendering from option `label`/`color`/
      `semantic` (StatusBadge data-driven, Home semantic segmentation) — the
      data is there; the UI still renders by value string.
-5. Retire `/dashboard/fields`; move field editing per-entity.
+5. ✅ **DONE (2026-07-25)** — retired `/dashboard/fields`. New reusable
+   `EntityFieldsManager` (add/edit/archive one entity's fields inline, reusing
+   `FieldDefinitionFormSheet`) surfaced behind a "Fields" toggle on the
+   Products, Clients, and Orders pages (Orders covers both `order` and
+   `order_item`). Global nav entries (FooterNav, MobileTabBar) removed and the
+   standalone page deleted. Inline (not sheet-nested) to avoid stacking the
+   field-form sheet under another sheet.
 
 ## Open questions
 

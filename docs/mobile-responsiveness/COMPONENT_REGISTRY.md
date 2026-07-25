@@ -37,7 +37,8 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | OrderFormSheet (v2 rebuild) | `app/components/orders/OrderFormSheet.tsx` | Yes | All field grids collapse `sm:` → 1 col; payment rows stack. Bottom sheet on mobile with a **sticky Cancel/Save footer** (via OrderSheet `footer`) |
 | ProductsPage | `app/dashboard/products/page.tsx` | Yes | Header/controls stack on mobile; table scrolls in `overflow-x-auto` |
 | ProductFormSheet | `app/components/products/ProductFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
-| FieldSetupPage | `app/dashboard/fields/page.tsx` | Partial | Entity tab bar may overflow on ~375px; table scrolls horizontally |
+| ~~FieldSetupPage~~ | ~~`app/dashboard/fields/page.tsx`~~ | — | **Removed 2026-07-25** — retired; field editing moved per-entity via `EntityFieldsManager` |
+| EntityFieldsManager | `app/components/fields/EntityFieldsManager.tsx` | Partial | Inline per-entity field list (add/edit/archive) behind a "Fields" toggle on Products/Clients/Orders; card rows with `flex-wrap` badges. Visual QA pending |
 | FieldDefinitionFormSheet | `app/components/fields/FieldDefinitionFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
 | ClientsPage | `app/dashboard/clients/page.tsx` | Yes | Controls stack on mobile; table scrolls in `overflow-x-auto` |
 | ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
