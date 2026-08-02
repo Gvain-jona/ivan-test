@@ -38,8 +38,18 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | ProductsPage | `app/dashboard/products/page.tsx` | Yes | Header/controls stack on mobile; table scrolls in `overflow-x-auto` |
 | ProductFormSheet | `app/components/products/ProductFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
 | ~~FieldSetupPage~~ | ~~`app/dashboard/fields/page.tsx`~~ | — | **Removed 2026-07-25** — retired; field editing moved per-entity via `EntityFieldsManager` |
-| EntityFieldsManager | `app/components/fields/EntityFieldsManager.tsx` | Partial | Inline per-entity field list (add/edit/archive) behind a "Fields" toggle on Products/Clients/Orders; card rows with `flex-wrap` badges. Visual QA pending |
-| FieldDefinitionFormSheet | `app/components/fields/FieldDefinitionFormSheet.tsx` | Yes | Grids collapse `sm:` → 1 col |
+| StatusWorkflowEditor | `app/components/fields/StatusWorkflowEditor.tsx` | Partial | Drill-in workflow editor; stage rows pack colour + name + tag + controls on one line and get tight at 375px — check whether the semantic tag should wrap below the name |
+| WorkflowStageRow | `app/components/fields/WorkflowStageRow.tsx` | Partial | One stage row; name input flexes, controls are fixed-width. Same 375px caveat as above |
+| StatusWorkflowDrillIn | `app/components/onboarding/StatusWorkflowDrillIn.tsx` | Yes | Hosts the editor and owns save timing; no layout of its own |
+| EntityFieldList | `app/components/onboarding/EntityFieldList.tsx` | Yes | Renders the row list; no layout of its own |
+| FieldEditor | `app/components/fields/FieldEditor.tsx` | Yes | Inline field editor: stacked single-column groups (label / type / options / rules / archive), all full-width |
+| FieldOptionsEditor | `app/components/fields/FieldOptionsEditor.tsx` | Yes | `flex-wrap` option chips + a full-width add row |
+| EditableFieldRow | `app/components/fields/EditableFieldRow.tsx` | Yes | Composition of FieldRow + FieldEditor for a field that exists; no layout of its own |
+| StarterFieldRow | `app/components/onboarding/StarterFieldRow.tsx` | Yes | Same composition for a starter that doesn't exist yet (edits staged until Continue); no layout of its own |
+| FieldComposer | `app/components/fields/FieldComposer.tsx` | Partial | Single-row form (input + type select + Add) that stays horizontal at 375px; the input flexes but the row gets tight — check whether the type select should drop below on narrow screens |
+| FieldRow | `app/components/fields/FieldRow.tsx` | Yes | One field in an entity's list: switch + tinted type tag + wrapping option chips. Meta line and chips both `flex-wrap`; switch stays pinned right. Shared by setup and (from phase 7) the field manager |
+| EntityFieldsManager | `app/components/fields/EntityFieldsManager.tsx` | Yes | Inline per-entity field list behind a "Fields" toggle on Products/Clients/Orders. Rebuilt on the shared FieldRow / FieldEditor / FieldComposer; single-column, no dialog |
+| ~~FieldDefinitionFormSheet~~ | ~~`app/components/fields/FieldDefinitionFormSheet.tsx`~~ | — | **Removed 2026-07-31** — create/edit moved inline (composer + in-row editor); the sheet also couldn't save object-shaped select options |
 | ClientsPage | `app/dashboard/clients/page.tsx` | Yes | Controls stack on mobile; table scrolls in `overflow-x-auto` |
 | ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
 | SignInPage (Clerk) | `app/auth/signin/[[...rest]]/page.tsx` | Yes | Clerk `<SignIn />` card is responsive by default; branding shell reuses signin.css |
@@ -48,7 +58,14 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | HomeQuickActions | `app/components/home/HomeQuickActions.tsx` | Yes | Horizontal-scroll quick-action chips (New client / New product → `?new=1` deep-links). Replaced HomeCategoryChips, which duplicated the tab bar |
 | HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | "Sales this month" momentum card (figure + month order count); single column |
 | RecentOrdersList | `app/components/home/RecentOrdersList.tsx` | Yes | Card-first order list grouped by workflow state (in progress / awaiting payment / …) — the mobile default for order data |
-| GettingStartedPage | `app/dashboard/getting-started/page.tsx` | Partial | First-run wizard host; centered `max-w-xl` column. Designed responsive but visual QA pending (needs authed runtime) |
-| GettingStartedWizard | `app/components/onboarding/GettingStartedWizard.tsx` | Partial | Entity-by-entity first-run steps (currency → product → client → order); single column, `flex-wrap` action rows. Visual QA pending |
-| EntityFieldSetupStep | `app/components/onboarding/EntityFieldSetupStep.tsx` | Partial | Toggle-able starter field rows + option chips (`flex-wrap`); reuses FieldDefinitionFormSheet for custom fields. Visual QA pending |
+| GettingStartedPage | `app/dashboard/getting-started/page.tsx` | Yes | First-run wizard host; renders without dashboard chrome (DashboardLayout suppresses it for this route), so the shell owns the viewport |
+| GettingStartedWizard | `app/components/onboarding/GettingStartedWizard.tsx` | Partial | Step switchboard on `SetupShell`; layout is the shell's. Visual QA pending (needs authed runtime) |
+| SetupShell | `app/components/onboarding/SetupShell.tsx` | Yes | Full-height two columns (340px rail + panel), not a floating card. Rail never scrolls; only the panel's content does, with the step title and footer hoisted out of the scroll area via portals. Below `lg` the columns stack and the rail becomes a header band. Also exports SectionLabel / StepHeading / StepFooter |
+| OrgLogo | `app/components/onboarding/OrgLogo.tsx` | Yes | Square org mark from Clerk `imageUrl`, initials only as a pre-load fallback; size-driven, no layout of its own |
+| StepTracker | `app/components/onboarding/StepTracker.tsx` | Yes | Vertical rail tracker on `lg`, horizontal indicator strip below (labels `sr-only`); both from one step model |
+| WelcomeStep | `app/components/onboarding/WelcomeStep.tsx` | Yes | Centred intro; `max-w-md` copy block, single CTA |
+| CurrencyStep | `app/components/onboarding/CurrencyStep.tsx` | Yes | `flex-wrap` shortlist chips reflow 3→2→1 per row; below them a full-width search box and a `max-h-64` scrolling list of all 158 currencies. Rows are name (truncates) + code, so they hold at 375px. The ISO-code text composer it used to carry is gone |
+| currency-picker-parts | `app/components/onboarding/currency-picker-parts.tsx` | Yes | `CurrencyChip` + `CurrencyListRow`, the two radio presentations of the one currency choice; no layout of their own |
+| FirstRecordsStep | `app/components/onboarding/FirstRecordsStep.tsx` | Partial | Three entity rows (icon + text + action); text truncates, but the row stays horizontal at 375px — check the button doesn't crowd the label. Visual QA pending |
+| EntityFieldSetupStep | `app/components/onboarding/EntityFieldSetupStep.tsx` | Partial | Toggle-able starter field rows + option chips (`flex-wrap`); custom fields come from the inline `FieldComposer` (the old FieldDefinitionFormSheet dialog is deleted, not an alternative). Rebuilt in redesign phases 3-4. Visual QA pending |
 | OnboardingGate | `app/components/onboarding/OnboardingGate.tsx` | Yes | Logic-only redirect wrapper (renders children unchanged); no layout of its own |

@@ -11,6 +11,7 @@
  */
 
 import type { FieldOption } from '@/lib/fields/options';
+import { slugifyOptionValue } from '@/lib/fields/slug';
 
 /**
  * A select option, metadata-rich (matches the object shape the v2
@@ -39,29 +40,26 @@ export type StarterEntity = 'product' | 'client' | 'order';
 
 /** Slug a human label into a stable, machine-safe option value. */
 function toOption(label: string): SelectOption {
-  return {
-    value: label
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, ''),
-    label,
-  };
+  return { value: slugifyOptionValue(label), label };
 }
 
 /**
- * Currency menu for the settings picker — a convenience list, not a default.
- * Any valid ISO-4217 code is accepted by PATCH /api/organization; this just
- * saves typing for common cases.
+ * The shortlist the currency picker shows first — the currencies this market
+ * most plausibly prices in, not a default and not the limit. Every other
+ * currency is browsable underneath it (`lib/organization/currencies.ts`), and
+ * PATCH /api/organization accepts any ISO-4217 code regardless. Each code here
+ * must also exist in ALL_CURRENCIES, or the shortlist would offer something
+ * the list below it can't find; a colocated test enforces that.
  */
-export const CURRENCY_OPTIONS: { code: string; label: string }[] = [
-  { code: 'UGX', label: 'Ugandan Shilling (USh)' },
-  { code: 'KES', label: 'Kenyan Shilling (KSh)' },
-  { code: 'TZS', label: 'Tanzanian Shilling (TSh)' },
-  { code: 'RWF', label: 'Rwandan Franc (FRw)' },
-  { code: 'NGN', label: 'Nigerian Naira (₦)' },
-  { code: 'USD', label: 'US Dollar ($)' },
-  { code: 'EUR', label: 'Euro (€)' },
-  { code: 'GBP', label: 'British Pound (£)' },
+export const CURRENCY_OPTIONS: { code: string; label: string; symbol: string }[] = [
+  { code: 'UGX', label: 'Ugandan Shilling', symbol: 'USh' },
+  { code: 'KES', label: 'Kenyan Shilling', symbol: 'KSh' },
+  { code: 'TZS', label: 'Tanzanian Shilling', symbol: 'TSh' },
+  { code: 'RWF', label: 'Rwandan Franc', symbol: 'FRw' },
+  { code: 'NGN', label: 'Nigerian Naira', symbol: '₦' },
+  { code: 'USD', label: 'US Dollar', symbol: '$' },
+  { code: 'EUR', label: 'Euro', symbol: '€' },
+  { code: 'GBP', label: 'British Pound', symbol: '£' },
 ];
 
 /**
@@ -80,10 +78,24 @@ export const ORDER_STATUS_WORKFLOW: SelectOption[] = [
 ];
 
 /**
+ * The real columns every record of an entity always has, in display terms.
+ *
+ * These are NOT field_definitions and can't be toggled — they're fixed v2
+ * columns. Setup shows them so "toggle off what you don't need" can't be read
+ * as "a product needs no name": the list makes the floor visible before the
+ * choices start. Labels only; nothing here is written anywhere.
+ */
+export const FIXED_FIELDS: Record<StarterEntity, string[]> = {
+  product: ['Name', 'Selling price'],
+  client: ['Client name'],
+  order: ['Client', 'Order date', 'Amounts'],
+};
+
+/**
  * Print-shop starter field sets per entity (accepted 2026-07-25). Fixed
- * columns (product.name/selling_price, client.name, order client/date/amounts)
- * are always present and not represented here — these are the toggleable
- * predefined custom fields shown in each entity's setup step.
+ * columns (see FIXED_FIELDS) are always present and not represented here —
+ * these are the toggleable predefined custom fields shown in each entity's
+ * setup step.
  */
 export const STARTER_FIELDS: Record<StarterEntity, StarterField[]> = {
   product: [

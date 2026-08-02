@@ -25,7 +25,20 @@
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs",
       "PowerShell(npm test)",
-      "PowerShell(npx tsc --noEmit)"
+      "PowerShell(npx tsc --noEmit)",
+      "Bash(npx tailwindcss *)",
+      "Bash(npm run *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"tsc-exit:$?\")",
+      "Bash(npm test *)",
+      "Bash(echo \"tsc:$?\")",
+      "PowerShell(npm run build)",
+      "Bash(cp app/types/supabase-v2.ts /tmp/sv2.bak)",
+      "Bash(node -e ' *)",
+      "Bash(npx next *)",
+      "mcp__e39d9428-b487-40af-afbc-148cd2293dba__execute_sql",
+      "Bash(rm .currencies.json)"
     ],
     "deny": []
   }

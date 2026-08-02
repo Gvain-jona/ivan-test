@@ -237,12 +237,23 @@ Proposed status workflow (option objects):
      (orders list/card/form, order-view tabs, Home snapshot + recent list,
      products). Legacy/dark modules keep the standalone `formatCurrency` util
      until their cutover.
+   - **Amended 2026-08-02 — currency is required in the wizard.** The
+     no-currency path above is a display fallback, not a supported end state:
+     `v2.issue_document()` refuses to raise any invoice or quotation without
+     `settings.locale.currency` ("complete setup first"). Setup previously let
+     it be skipped and then stamped onboarding complete, so the shop hit that
+     error on its first invoice. `CurrencyStep` now disables Continue until a
+     code is chosen, and the wizard prefills the org's saved currency so a
+     second pass isn't blocked on an answer already given. `useFormatCurrency`
+     keeps the plain-number fallback for orgs that predate this.
    - **Follow-up:** richer status rendering from option `label`/`color`/
      `semantic` (StatusBadge data-driven, Home semantic segmentation) — the
      data is there; the UI still renders by value string.
 5. ✅ **DONE (2026-07-25)** — retired `/dashboard/fields`. New reusable
-   `EntityFieldsManager` (add/edit/archive one entity's fields inline, reusing
-   `FieldDefinitionFormSheet`) surfaced behind a "Fields" toggle on the
+   `EntityFieldsManager` (add/edit/archive one entity's fields inline; it was
+   built on `FieldDefinitionFormSheet`, since rebuilt on the shared
+   `FieldRow`/`FieldEditor`/`FieldComposer` parts — the sheet is deleted)
+   surfaced behind a "Fields" toggle on the
    Products, Clients, and Orders pages (Orders covers both `order` and
    `order_item`). Global nav entries (FooterNav, MobileTabBar) removed and the
    standalone page deleted. Inline (not sheet-nested) to avoid stacking the

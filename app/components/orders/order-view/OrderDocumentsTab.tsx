@@ -12,32 +12,37 @@ import {
 import type { DocumentType } from '@/hooks/documents/useDocuments';
 import type { OrderDocumentsTabProps } from './types';
 
+/**
+ * Only the types every org is provisioned with. document_type is org-defined
+ * — the DB accepts exactly those with a matching `doc:{type}` counter — so
+ * proforma/receipt/po stay out of the picker until the counters are readable
+ * and this list can be built from them. Offering an option that always fails
+ * is worse than not offering it.
+ */
 const DOCUMENT_TYPE_OPTIONS: { value: DocumentType; label: string }[] = [
   { value: 'quotation', label: 'Quotation' },
-  { value: 'proforma', label: 'Proforma' },
   { value: 'invoice', label: 'Invoice' },
-  { value: 'receipt', label: 'Receipt' },
-  { value: 'po', label: 'Purchase Order' },
 ];
 
 /**
- * OrderDocumentsTab lists documents (polymorphic documents engine) and
- * creates new drafts. Every document created here is a 'draft' — the
- * DB-side issue_document() RPC that will assign a final number/snapshot
- * and move it to sent/issued doesn't exist yet (see
- * docs/v2-migration/orders-system-handoff.md §6/§12), so there's no
- * "Issue" action wired up yet, only creation and listing.
+ * OrderDocumentsTab lists an order's documents and issues new ones.
+ *
+ * Issuing is final, not a draft step: v2.issue_document() numbers the
+ * document, freezes a snapshot of the order and org settings, and writes the
+ * financials in one go. An issued document can't be edited afterwards — a
+ * mistake is corrected with a credit note. Invoices additionally allow only
+ * one live document per order; reissuing means voiding the old one first.
  */
 const OrderDocumentsTab: React.FC<OrderDocumentsTabProps> = ({
   documents,
-  onCreateDocument,
+  onIssueDocument,
   isSubmitting,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [documentType, setDocumentType] = useState<DocumentType>('invoice');
 
   const handleSubmit = async () => {
-    await onCreateDocument(documentType);
+    await onIssueDocument(documentType);
     setShowForm(false);
   };
 
@@ -55,18 +60,27 @@ const OrderDocumentsTab: React.FC<OrderDocumentsTabProps> = ({
               key={document.id}
               className="border border-border/40 rounded-lg p-3 flex items-center justify-between"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">{document.document_number}</p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {document.document_type}
+                  {document.due_date
+                    ? ` · due ${new Date(document.due_date).toLocaleDateString()}`
+                    : ''}
                   {document.valid_until
                     ? ` · valid until ${new Date(document.valid_until).toLocaleDateString()}`
                     : ''}
                 </p>
               </div>
-              <Badge variant="outline" className="capitalize">
-                {document.status}
-              </Badge>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                {/* Frozen at issue — the document's own currency, not the org's current one. */}
+                <span className="text-sm font-medium text-foreground">
+                  {document.currency} {Number(document.total ?? 0).toLocaleString()}
+                </span>
+                <Badge variant="outline" className="capitalize">
+                  {document.status}
+                </Badge>
+              </div>
             </div>
           ))}
         </div>
@@ -92,7 +106,7 @@ const OrderDocumentsTab: React.FC<OrderDocumentsTabProps> = ({
             </Button>
             <Button size="sm" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Create Draft
+              Issue
             </Button>
           </div>
         </div>

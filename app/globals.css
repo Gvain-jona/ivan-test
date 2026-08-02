@@ -214,6 +214,60 @@
     --status-completed: 152 76% 40%;
     --status-delivered: 262 83% 58%;
     --status-cancelled: 0 84% 60%;
+
+    /* First-run setup surfaces - light theme.
+       Three elevation levels the setup canvas needs: the page recedes, the
+       step panel sits between, rows and the rail sit forward. The base
+       card/muted tokens can't express this — in light, --card (98%) is
+       darker than --background (100%), which would put the card *behind*
+       the page. See docs/v2-migration/ONBOARDING_REDESIGN.md. */
+    --setup-canvas: 228 16% 94%;
+    --setup-panel: 228 30% 97%;
+    --setup-surface: 0 0% 100%;
+
+    /* Feedback accents - light theme. Only --destructive exists in the base
+       set; the wizard's save note, guardrails and info strips need the other
+       three. Each foreground is measured >= 4.5:1 on its own background. */
+    --success: 142 72% 29%;
+    --success-bg: 141 84% 93%;
+    --warning: 23 83% 31%;
+    --warning-bg: 48 96% 89%;
+    --info: 224 76% 48%;
+    --info-bg: 214 95% 93%;
+
+    /* Field option palette - light theme. The named colours a select option
+       or status stage can carry (FieldOption.color), also used for field
+       type tags. Keep in sync with OPTION_COLORS in app/lib/fields/colors.ts
+       — that module is the only thing that should reference these.
+
+       Three roles per colour, because one value can't do both jobs:
+         --opt-X     vivid, for the stage dot / swatch. Decorative non-text
+                     UI, measured >= 3:1 on the row surface.
+         --opt-X-fg  darker, for chip label text. Measured >= 4.5:1 on -bg;
+                     the vivid value only reaches ~3-4:1 and chip text is
+                     small.
+         --opt-X-bg  chip background. */
+    --opt-slate: 215 16% 47%;
+    --opt-slate-fg: 215 25% 27%;
+    --opt-slate-bg: 210 40% 96%;
+    --opt-amber: 32 95% 44%;
+    --opt-amber-fg: 23 83% 31%;
+    --opt-amber-bg: 48 96% 89%;
+    --opt-blue: 221 83% 53%;
+    --opt-blue-fg: 224 76% 48%;
+    --opt-blue-bg: 214 95% 93%;
+    --opt-violet: 262 83% 58%;
+    --opt-violet-fg: 263 70% 50%;
+    --opt-violet-bg: 251 91% 95%;
+    --opt-teal: 175 84% 32%;
+    --opt-teal-fg: 175 77% 26%;
+    --opt-teal-bg: 167 85% 89%;
+    --opt-green: 142 76% 36%;
+    --opt-green-fg: 142 72% 29%;
+    --opt-green-bg: 141 84% 93%;
+    --opt-red: 0 72% 51%;
+    --opt-red-fg: 0 74% 42%;
+    --opt-red-bg: 0 93% 94%;
   }
 
   .dark {
@@ -260,6 +314,46 @@
     --status-completed: 152 76% 40%;
     --status-delivered: 262 83% 58%;
     --status-cancelled: 0 84% 60%;
+
+    /* First-run setup surfaces - dark theme. Same recessed -> raised order
+       as light, inverted: the canvas is the darkest, rows the lightest. */
+    --setup-canvas: 0 0% 5%;
+    --setup-panel: 0 0% 9%;
+    --setup-surface: 0 0% 13%;
+
+    /* Feedback accents - dark theme. Lighter foregrounds, deep tinted
+       backgrounds (the light-theme pairs invert to unreadable). */
+    --success: 142 69% 58%;
+    --success-bg: 142 45% 16%;
+    --warning: 43 96% 56%;
+    --warning-bg: 35 50% 18%;
+    --info: 213 94% 68%;
+    --info-bg: 217 50% 20%;
+
+    /* Field option palette - dark theme. Here the vivid value already clears
+       4.5:1 on the deep -bg, so dot and label share it and -fg matches
+       --opt-X (kept as its own var so call sites stay theme-agnostic). */
+    --opt-slate: 215 20% 65%;
+    --opt-slate-fg: 215 20% 65%;
+    --opt-slate-bg: 215 20% 20%;
+    --opt-amber: 43 96% 56%;
+    --opt-amber-fg: 43 96% 56%;
+    --opt-amber-bg: 35 50% 18%;
+    --opt-blue: 213 94% 68%;
+    --opt-blue-fg: 213 94% 68%;
+    --opt-blue-bg: 217 50% 20%;
+    --opt-violet: 255 92% 76%;
+    --opt-violet-fg: 255 92% 76%;
+    --opt-violet-bg: 258 45% 22%;
+    --opt-teal: 172 66% 50%;
+    --opt-teal-fg: 172 66% 50%;
+    --opt-teal-bg: 174 45% 16%;
+    --opt-green: 142 69% 58%;
+    --opt-green-fg: 142 69% 58%;
+    --opt-green-bg: 142 45% 16%;
+    --opt-red: 0 91% 71%;
+    --opt-red-fg: 0 91% 71%;
+    --opt-red-bg: 0 45% 20%;
   }
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import ProvisioningPendingScreen from '../components/layout/ProvisioningPendingScreen';
+import OnboardingGate from '../components/onboarding/OnboardingGate';
 import { SheetHostProvider } from '@/context/sheet-host';
 import { resolveTenant } from '@/lib/auth/tenant';
 
@@ -20,11 +21,17 @@ export default async function DashboardRouteGroupLayout({
     return <ProvisioningPendingScreen />;
   }
 
+  // The gate wraps the layout rather than sitting inside it: DashboardLayout
+  // renders the setup route without chrome, so a gate nested in its main would
+  // never run on the very route it has to redirect away from once onboarding
+  // is complete.
   return (
     <SheetHostProvider>
-      <DashboardLayout>
-        {children}
-      </DashboardLayout>
+      <OnboardingGate>
+        <DashboardLayout>
+          {children}
+        </DashboardLayout>
+      </OnboardingGate>
     </SheetHostProvider>
   );
 }

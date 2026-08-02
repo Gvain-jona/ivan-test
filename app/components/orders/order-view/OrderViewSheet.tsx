@@ -35,7 +35,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   const orderId = open ? summary?.id ?? null : null;
   const { order, payments, isLoading, mutate: refreshOrder } = useOrder(orderId);
   const { notes, addNote } = useNotes('order', orderId);
-  const { documents, createDocument } = useDocuments('order', orderId);
+  const { documents, issueDocument } = useDocuments('order', orderId);
   const { addPayment } = useOrderMutations();
 
   const clientName = order?.clients?.name ?? summary?.clients?.name ?? 'Unknown';
@@ -78,15 +78,19 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
     }
   };
 
-  const handleCreateDocument = async (documentType: DocumentType) => {
+  const handleIssueDocument = async (documentType: DocumentType) => {
     setIsSubmitting(true);
     try {
-      await createDocument({ document_type: documentType });
-      toast({ title: 'Document created', description: 'Saved as a draft' });
+      // Issued, not drafted: numbered and frozen the moment it's created.
+      const document = await issueDocument({ document_type: documentType });
+      toast({
+        title: 'Document issued',
+        description: document.document_number ?? 'Numbered and finalised',
+      });
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create document',
+        description: error instanceof Error ? error.message : 'Failed to issue document',
         variant: 'destructive',
       });
     } finally {
@@ -178,7 +182,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             {activeTab === 'documents' && (
               <OrderDocumentsTab
                 documents={documents}
-                onCreateDocument={handleCreateDocument}
+                onIssueDocument={handleIssueDocument}
                 isSubmitting={isSubmitting}
               />
             )}

@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { PLATFORM_API, buildKey, apiFetcher, apiRequest, keysUnder } from '@/lib/api/client';
 import { mutate as globalMutate } from 'swr';
-import type { DatabaseV2, Json } from '@/types/supabase-v2';
+import type { DatabaseV2 } from '@/types/supabase-v2';
 
 type DocumentRow = DatabaseV2['v2']['Tables']['documents']['Row'];
 
@@ -22,21 +22,23 @@ export type DocumentStatus =
   | 'issued'
   | 'void';
 
-export interface DocumentCreateInput {
-  entity_type: DocumentEntityType;
+export interface DocumentIssueInput {
+  entity_type: 'order';
   entity_id: string;
   document_type: DocumentType;
-  snapshot?: Record<string, Json>;
-  valid_until?: string;
+  /** Overrides settings.documents.terms_days for this invoice only. */
+  terms_days?: number;
+  /** Overrides settings.documents.quote_validity_days for this quotation. */
+  validity_days?: number;
 }
 
 /**
  * Documents for one record via the polymorphic documents engine. Pass
  * null ids to pause fetching (e.g. while a sheet is closed).
  *
- * Creation goes through the interim next_number()-then-insert path in
- * POST /api/documents until v2.issue_document() ships — see the route's
- * own comment and docs/v2-migration/orders-system-handoff.md §6/§12.
+ * Reading is polymorphic; issuing is not. `issueDocument` is only present
+ * for orders, because v2.issue_document() only knows how to freeze an
+ * order — receipts arrive with the payments cutover.
  */
 export function useDocuments(entityType: DocumentEntityType, entityId: string | null | undefined) {
   const key = entityId
@@ -49,13 +51,16 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
   );
 
-  const createDocument = useCallback(
-    async (input: Omit<DocumentCreateInput, 'entity_type' | 'entity_id'>) => {
-      if (!entityId) throw new Error('Cannot create a document without an entity id');
+  const issueDocument = useCallback(
+    async (input: Omit<DocumentIssueInput, 'entity_type' | 'entity_id'>) => {
+      if (!entityId) throw new Error('Cannot issue a document without an entity id');
+      if (entityType !== 'order') {
+        throw new Error(`Documents can only be issued from orders, not ${entityType}`);
+      }
       const { document } = await apiRequest<{ document: DocumentRecord }>(
         PLATFORM_API.DOCUMENTS,
         'POST',
-        { ...input, entity_type: entityType, entity_id: entityId },
+        { ...input, entity_type: 'order', entity_id: entityId },
       );
       await mutate();
       return document;
@@ -63,7 +68,7 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
     [entityType, entityId, mutate],
   );
 
-  return { documents: data?.documents ?? [], isLoading, error, createDocument, mutate };
+  return { documents: data?.documents ?? [], isLoading, error, issueDocument, mutate };
 }
 
 export function useDocumentMutations() {

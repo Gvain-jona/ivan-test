@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, memo, Suspense } from 'react';
+import { usePathname } from 'next/navigation';
 import { cn } from '../../lib/utils';
 import TopHeader from '../navigation/TopHeader';
 import FooterNav from '../navigation/FooterNav';
@@ -11,7 +12,7 @@ import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { NotificationsWrapper } from '../notifications/NotificationsWrapper';
 import NotificationPermissionRequest from '../ui/NotificationPermissionRequest';
 import { SimpleLoadingCoordinator } from '../loading';
-import OnboardingGate from '../onboarding/OnboardingGate';
+import { SETUP_PATH } from '@/lib/onboarding/steps';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -20,11 +21,21 @@ type DashboardLayoutProps = {
 
 function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   // Toggle mobile menu
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  // First-run setup owns the whole viewport: it renders its own shell and,
+  // until onboarding completes, OnboardingGate sends every other route back
+  // here — so app chrome would only offer dead ends. The parent layout still
+  // provides SheetHostProvider, which the "create your first record" actions
+  // need. A route group can't express this: App Router layouts always nest.
+  if (pathname === SETUP_PATH) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
@@ -61,7 +72,7 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
                     full-width tab bar + safe area, tighter on desktop for
                     the floating pill. */}
                 <div className="pb-24 lg:pb-16">
-                  <OnboardingGate>{children}</OnboardingGate>
+                  {children}
                 </div>
               </Suspense>
             </SimpleLoadingCoordinator>

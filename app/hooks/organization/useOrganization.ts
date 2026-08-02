@@ -7,12 +7,18 @@ import type { DatabaseV2 } from '@/types/supabase-v2';
 
 type OrganizationRow = DatabaseV2['v2']['Tables']['organizations']['Row'];
 
-export type Organization = Pick<OrganizationRow, 'id' | 'name' | 'slug' | 'status' | 'settings'>;
+export type Organization = Pick<
+  OrganizationRow,
+  'id' | 'name' | 'slug' | 'status' | 'settings' | 'onboarding_completed_at'
+>;
 
 /**
- * The caller's active organization and its settings. Order statuses
- * are org-configurable (organizations.settings.order_statuses) — read
- * them from here, never from a hardcoded enum.
+ * The caller's active organization and its config.
+ *
+ * organizations.settings is a DB-governed map of blocks (locale, tax,
+ * documents, identity) — currency lives at settings.locale.currency, not
+ * at the top level. Order statuses are not here at all: they live in the
+ * order `status` field-definition (useOrderStatuses).
  */
 export function useOrganization() {
   const { data, error, isLoading, mutate } = useSWR<{
@@ -24,21 +30,16 @@ export function useOrganization() {
   });
 
   const settings = (data?.organization.settings ?? {}) as {
-    currency?: string;
-    locale?: string;
-    onboarding?: { completed?: boolean };
+    locale?: { currency?: string; date_format?: string; timezone?: string };
   };
 
   return {
     organization: data?.organization ?? null,
     orgRole: data?.orgRole ?? null,
-    // Order statuses now live in the order `status` field-definition, not
-    // here — read them via useOrderStatuses(). No hardcoded fallback.
-    // Currency is null until the org sets it (no silent UGX default); the
-    // formatter (useFormatCurrency) renders plain numbers until then.
-    currency: settings.currency ?? null,
-    locale: settings.locale ?? null,
-    onboardingCompleted: settings.onboarding?.completed === true,
+    // Null until the org sets it (no silent UGX default); the formatter
+    // (useFormatCurrency) renders plain numbers until then.
+    currency: settings.locale?.currency ?? null,
+    onboardingCompleted: data?.organization.onboarding_completed_at != null,
     isLoading,
     error,
     mutate,

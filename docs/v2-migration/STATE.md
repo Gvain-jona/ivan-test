@@ -54,7 +54,7 @@ record; its "keep holding" verdict no longer applies.
 | **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, create form, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. Item add/edit on existing orders is a follow-up. |
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
-| **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and starter fields are applied in the first-run wizard. |
+| **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and starter fields are applied in the first-run wizard. Rebuilt dialog-free 2026-07-31 (inline composer + in-row editor + status workflow editor; `FieldDefinitionFormSheet` deleted) — same components in setup and steady state. |
 | **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
 | Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. The orders-page façade stubs in `app/dashboard/orders/_context/` now serve only the unmigrated InvoicesTab (the Insights/Tasks tabs were deleted in orders cleanup Phase 1). `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
 | Notifications | 🌑 **Stubbed 2026-07-24** — `app/context/NotificationsContext.tsx` is now an interface-preserving stub (empty list, no-op mutations, `unreadCount` 0). The pre-stub implementation ran on the dead Supabase session and was defective anyway (unfiltered whole-table fetch + unfiltered realtime channel per session; an `if (loading)` guard deadlocked the initial fetch so it never rendered data). Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator) still mount against the stub as UI scaffold. `app/hooks/useRealNotifications.ts` is a second, parallel legacy implementation — dead, delete at this module's cutover. Real data layer comes with the v2 notifications module. |
@@ -226,8 +226,10 @@ single swap point. Order creation still goes through the
   fields. Object-shaped select options now flow end-to-end
   (`app/lib/fields/options.ts`, extended `fieldDefinitionCreateSchema`,
   `CustomFieldInput`). Onboarding completion persists in
-  `settings.onboarding.completed`; `OnboardingGate` routes unfinished users
-  in. **Visual QA pending** (no authed runtime here); pure logic unit-tested.
+  `organizations.onboarding_completed_at` (see the 2026-07-31 settings
+  reconciliation below — it was `settings.onboarding.completed` until then);
+  `OnboardingGate` routes unfinished users in. **Visual QA pending** (no
+  authed runtime here); pure logic unit-tested.
 - **Hardcoded fallbacks removed (2026-07-25, step 4)** — this is the payoff of
   the "no mandatory conditioning" goal. `DEFAULT_ORDER_STATUSES` deleted;
   statuses now come from the order `status` field-definition via
@@ -244,6 +246,196 @@ single swap point. Order creation still goes through the
   deleted. This completes the first-run/field-setup arc (steps 1–5); what
   remains is **visual QA of the whole flow in a running authed app** and the
   data-driven-status-chip follow-up.
+- **Onboarding redesigned (2026-07-29 → 31)** — the wizard above was rebuilt
+  against the Pencil canvas; see `ONBOARDING_REDESIGN.md` for the gap map,
+  decisions and per-phase record. What changed materially:
+  - **New setup surface** — `/dashboard/getting-started` renders without the
+    dashboard chrome (`DashboardLayout` suppresses it for that route), as a
+    rail + panel: `SetupShell`, `StepTracker`, and a 6-step model in
+    `app/lib/onboarding/steps.ts` (welcome + 5 counted steps, ending in a
+    **First records** step). Back on every step; `OnboardingGate` is now
+    bidirectional and lifted into `app/dashboard/layout.tsx`, since a
+    chrome-less route would otherwise trap a user who'd already finished.
+  - **No dialogs left in field setup.** `FieldDefinitionFormSheet` is
+    **deleted**. Adding is an inline `FieldComposer` (plain-language type
+    picker, client-side duplicate check, add→flash→auto-expand); editing is
+    `FieldEditor` inside the row; archiving is an **Undo toast, not a
+    confirm**. `EntityFieldsManager` was rebuilt on the same components, so
+    setup and steady state behave identically. Note the deleted sheet could
+    never save a preset select — it filtered options to strings.
+  - **Status workflow editor** (`StatusWorkflowEditor`) — rename, reorder,
+    recolour, set the semantic tag and the starting stage. Renaming changes
+    `label` only; `value` is frozen because it's what sits in `order.status`.
+    This is the UI half of the data-driven-status follow-up above.
+  - **New theme tokens** in `globals.css` + `tailwind.config.ts`: setup
+    surfaces, `success`/`warning`/`info`, and an `opt-*` field-option palette
+    (vivid dot / AA-contrast label / background per colour) consumed via
+    `app/lib/fields/colors.ts`. The shared `Switch` primitive was fixed —
+    it hardcoded `orange-600`/`gray-700` and only read correctly in dark.
+  - **Known gaps**, all logged in `ONBOARDING_REDESIGN.md`: field type is
+    read-only in the editor (v2 can't guard a retype over existing data);
+    `relation` is absent from the composer until its target can be set;
+    stage reorder is buttons, not drag; multi-select is out of scope. Visual
+    QA in a running authed app is still outstanding.
+  - **Trigger interaction to know about**: `validate_custom_data` checks
+    `order.status` against the status field's `options` on every order write,
+    so the workflow editor can lock orders out of saving. Emptying the stage
+    list is now blocked (an empty `options` array is *not* "unconstrained" to
+    `value_in_options` — only NULL is; `[]` rejects every status write).
+    **Still open**: removing a stage that orders are currently in makes those
+    orders un-saveable — needs a usage check before removal.
+- **DB drift review + settings reconciliation (2026-07-31)** — the DB had moved
+  15 migrations ahead of anything the app knew about (13 of them 2026-07-29/30):
+  the money model was rewritten (`payments` lost `entity_type`/`entity_id`,
+  gained `direction`/`party_*`; new `v2.payment_allocations`; `orders.amount_paid`
+  now trigger-derived from allocations; new `record_payment`, `void_document`,
+  `v_payment_unallocated`, `v_payment_breakdown`, `reconcile_money`), storage was
+  locked down (buckets private, `attachments.file_url` → `bucket`+`storage_path`,
+  org-folder-scoped `storage.objects` policies), `documents` became a real
+  financial record (currency/tax/totals/`due_date`/`issued_at`, immutable once
+  issued, `doc:{type}` counter required) with **`v2.issue_document()` now
+  shipped**, and `counters` gained `period_key`/`reset_policy`.
+
+  The one that reached the app: **`fix_04` made `organizations.settings` a
+  governed schema** — a trigger whitelists the blocks `identity`, `tax`,
+  `documents`, `locale`, `platform_access` and moved currency to
+  `locale.currency`. Verified against the live DB: `{currency}`,
+  `{onboarding:{...}}` and a string `locale` are all **rejected**, so the
+  wizard's first write and its finish write both failed and `OnboardingGate`
+  looped. Reconciled by moving in both directions rather than bending either:
+  - the app now speaks the block shape — `PATCH /api/organization` takes
+    `{settings:{locale|tax|documents|identity}}` and **deep-merges per block**
+    (the old shallow spread would have wiped a block's untouched keys);
+    `useOrganization` reads `settings.locale.currency`.
+  - the DB learned about onboarding — new column
+    `organizations.onboarding_completed_at`
+    (`supabase/migrations/20260731054912_organizations_onboarding_state.sql`,
+    applied to the live project 2026-07-31).
+    Deliberately **not** a settings block: settings is config that gets frozen
+    into issued document snapshots, and setup progress must never be able to
+    land on an invoice.
+  - `useFormatCurrency` no longer stores a BCP-47 tag. The DB's locale block
+    defines currency/date_format/timezone and no format locale; grouping now
+    follows the reader's runtime locale, which is the right owner for it.
+
+  **Closed out the same day** (was listed here as still open):
+  - `POST /api/documents` no longer hand-rolls next_number + insert (it would
+    have failed on every call — `currency` is `NOT NULL` with the default
+    dropped). It now issues via `issue_document()`, so numbering, the frozen
+    snapshot and all financials are the DB's business. The route's input schema
+    changed with it: `documentCreateSchema` → **`documentIssueSchema`**, which
+    takes no caller-supplied snapshot (that was a forgery vector) — client hook
+    renamed `createDocument` → `issueDocument`, UI copy "Create Draft" → "Issue".
+  - `app/types/supabase-v2.ts` refreshed against live introspection:
+    `payments`, `counters`, `documents`, `attachments` corrected and
+    `payment_allocations` added. Re-verified 2026-08-02 — **all 15 v2 tables
+    now match the live schema column-for-column, and all 11 declared RPC
+    signatures match `pg_get_function_arguments`.**
+  - Correcting the types surfaced a **silently broken production route**:
+    `POST /api/orders/[id]/payments` was still inserting the dropped
+    `entity_type`/`entity_id`. Rewritten to write the cash event and its
+    allocation in one transaction via `record_payment_as_org`, resolving the
+    allocation target up front (**SINGLE RECEIVABLE**: once an order has a live
+    invoice, `validate_payment_allocation()` refuses an allocation aimed at the
+    order, so the route targets the invoice rather than letting the trigger
+    reject a payment the user already entered).
+
+  **Two new claim-injecting shims** (`20260731055624_issue_document_as_org_shim`,
+  `20260731070723_record_payment_as_org_shim`), same pattern and lifetime as
+  `create_order_as_org`: the service-role connection carries no
+  `request.jwt.claims`, so `v2.current_org_id()` is null and the underlying
+  function can't resolve a tenant. Each shim `set_config`s the claims from
+  `p_org` then delegates. **All three retire in Phase 2.** They take the org as
+  an *argument*, so EXECUTE on them is the right to act as any tenant —
+  `service_role` only, **never `authenticated`**; `resolveTenant()` is what
+  proves the caller owns `p_org`.
+
+  **Typing constraint to not undo**: `DatabaseV2['v2']['Views']` must stay
+  empty (`{ [_ in never]: never }`). Declaring non-empty `Views` widens
+  supabase-js's relation union and collapses every uninstantiated
+  `from().select()` result to `{}`, breaking property access across the
+  codebase. The two view row types are exported standalone at the bottom of the
+  file instead (`PaymentUnallocatedRow`, `PaymentBreakdownRow`). Revisit only
+  together with retyping `TenantDb`'s builders.
+- **Onboarding audit vs. app + v2 schema (2026-08-02)** — full sweep of the
+  first-run system against the live DB. Two breaks fixed, one still open.
+
+  **P0, fixed: tenant provisioning was dead, so onboarding was unreachable.**
+  `v2.provision_organization` existed **twice** — the repo's 4-arg form
+  (`20260724000000`) and a 5-arg form added DB-side out-of-band (seeds the
+  `identity`/`tax`/`documents`/`platform_access` settings blocks + optional
+  `p_currency`). The Clerk webhook calls it with exactly four named args and
+  `p_currency` defaults, so the call matched **both** candidates. Confirmed
+  against the live DB, not inferred:
+  `42725  function v2.provision_organization(...) is not unique`.
+  Chain: every `organization.created` delivery 500s → no `v2.organizations`
+  row is ever written → `resolveTenant()` returns null → the new tenant sits on
+  `ProvisioningPendingScreen` forever, and `organizationMembership.created`
+  then fails too (`organization … not yet mirrored`). The only existing org
+  predates the second overload, which is why nothing surfaced.
+  Fix: `20260802170231_fix_provision_organization_overload` drops the
+  superseded 4-arg form (the 5-arg one is a strict superset) — no app change
+  needed, the webhook's existing call now resolves uniquely. Verified by
+  re-probing. **The 5-arg form had also shipped with default PUBLIC execute** —
+  `SECURITY DEFINER` taking the owner's user id as a *parameter*, i.e. the
+  right to mint an org and name any user its owner; unreachable only because
+  `v2` isn't exposed to PostgREST yet, and Phase 2 exposes it. Same migration
+  locks it to `service_role`.
+  - **Lesson for the drift habit**: the earlier review compared *columns* and
+    found nothing here. This class — duplicate overloads, and grants — is
+    invisible to a column diff. Sweep `pg_proc` for
+    `count(*) > 1 group by proname` and for PUBLIC/`anon`/`authenticated` on
+    `SECURITY DEFINER` whenever checking DB drift.
+  - **Still latent, flagged not fixed**: `v2.next_number(text, uuid)` is
+    `SECURITY DEFINER`, takes `p_org` as an argument, and is granted to
+    `authenticated`. Same shape of hole (burn another org's counter), lower
+    severity, and unreachable until Phase 2 exposes `v2` — fix with the RLS flip.
+
+  **P1, fixed: the app called currency optional; the DB requires it.**
+  `v2.issue_document()` opens with
+  `if v_currency is null then raise 'organization has no locale.currency
+  configured - complete setup first'`. But `CurrencyStep` said "Choosing is
+  optional" and the wizard did `if (!currency) return advance()` — so a user
+  could skip it, get `onboarding_completed_at` stamped, then have every invoice
+  and quotation fail while being told to complete setup they'd just finished.
+  Currency is now required (Continue disabled without one), and the wizard
+  prefills from `settings.locale.currency` so a second pass isn't blocked on a
+  decision already made.
+
+  **Verified sound, no change needed**: `field_definitions` entity/type/name
+  checks all accept what `STARTER_FIELDS` sends; the `status` starter is locked
+  on (`is_system` → `FieldRow locked`), so an org can't finish setup without a
+  workflow; `create_order` defaults status to `'pending'`, which is *not* in
+  `ORDER_STATUS_WORKFLOW`, but `OrderFormSheet` always sends the workflow's
+  `is_default`, so the trigger never sees it; `orders.client_id` is `NOT NULL`,
+  matching `FirstRecordsStep`'s "Needs a client first" lock.
+
+  **Open, needs a product call**: onboarding collects currency only. `identity`
+  (address, phone, tax id), `tax` and `documents` (terms, footer, bank details)
+  are never asked for, and `issue_document` snapshots `settings.identity` as
+  the invoice issuer. New orgs at least get `identity.legal_name` from
+  provisioning; **the pre-existing org has no `identity` block at all, so its
+  invoices would render a blank issuer.** Either extend the wizard or add an
+  org-settings surface before anyone issues a real invoice.
+- **DB moved again on 2026-08-01 (5 migrations), app unaffected** —
+  `v2_parent_composite_unique_keys` + four composite-FK migrations added
+  `UNIQUE (id, organization_id)` on the parents and cross-org-proof FKs on the
+  children: `orders(client_id, organization_id) → clients`,
+  `order_items → orders` (cascade) and `→ products`,
+  `documents(related_document_id, …) → documents`,
+  `payment_allocations(payment_id, …) → payments` (cascade). Tenant isolation
+  moving from convention into the schema. **Purely additive — no app change
+  needed**, since every write path already sets `organization_id` from
+  `tenant.organizationId` and resolves parents within the same org. Recorded
+  here because the repo's `supabase/migrations/` only mirrors *app-requested*
+  changes, so DB-owned work like this leaves no trace in the tree.
+- **Onboarding is not enforced** — `OnboardingGate` is a client-side redirect
+  that renders children first, fails open when `/api/organization` errors, and
+  has no API-route counterpart. A user can reach the dashboard unconfigured;
+  nothing leaks (tenancy is still server-side via `resolveTenant()`), but the
+  app is degraded rather than blocked: no field_definitions, no statuses, no
+  currency. Deliberate today ("unconfigured org still transacts"); revisit if
+  onboarding needs to be a real gate.
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

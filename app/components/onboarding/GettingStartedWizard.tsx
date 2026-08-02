@@ -1,56 +1,78 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, PackagePlus, Users, ClipboardList, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, ClipboardList, Coins, Loader2, Package, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { useSheets } from '@/context/sheet-host';
 import { useOrganization } from '@/hooks/organization/useOrganization';
 import { apiRequest, PLATFORM_API } from '@/lib/api/client';
-import { CURRENCY_OPTIONS } from '@/lib/organization/presets';
+import {
+  STEP_COUNT,
+  nextStep,
+  previousStep,
+  stepNumber,
+  type SetupStepId,
+} from '@/lib/onboarding/steps';
+import CurrencyStep from './CurrencyStep';
 import EntityFieldSetupStep from './EntityFieldSetupStep';
-
-type StepId = 'welcome' | 'currency' | 'product' | 'client' | 'order';
-const STEP_ORDER: StepId[] = ['welcome', 'currency', 'product', 'client', 'order'];
-
-/** The setup steps that show a progress count (welcome is the intro). */
-const NUMBERED: StepId[] = STEP_ORDER.filter(s => s !== 'welcome');
+import FirstRecordsStep from './FirstRecordsStep';
+import SetupShell, { StepFooter, StepHeading } from './SetupShell';
+import WelcomeStep from './WelcomeStep';
 
 /**
- * First-run wizard: teaches the model by walking product -> client ->
- * order in dependency order, configuring each entity's fields in place and
- * offering to create the first record. Currency comes first (an org-level
- * scalar). Finishing marks onboarding complete so the gate stops routing
- * here. See docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md.
+ * First-run wizard: teaches the model by walking product -> client -> order in
+ * dependency order, configuring each entity's fields in place and closing with
+ * an invitation to create the first records. Currency comes first (an
+ * org-level scalar). Finishing marks onboarding complete so the gate stops
+ * routing here. See docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md and
+ * ONBOARDING_REDESIGN.md.
  */
 export default function GettingStartedWizard() {
   const router = useRouter();
   const { toast } = useToast();
-  const { mutate } = useOrganization();
-  const { openCreateProduct, openCreateClient, openCreateOrder } = useSheets();
+  const { currency: savedCurrency, mutate } = useOrganization();
 
-  const [step, setStep] = useState<StepId>('welcome');
+  const [step, setStep] = useState<SetupStepId>('welcome');
   const [currency, setCurrency] = useState<string>('');
   const [busy, setBusy] = useState(false);
 
-  const goto = (s: StepId) => setStep(s);
-  const stepNumber = NUMBERED.indexOf(step) + 1;
+  // Reflect what the org already has. The wizard's step is component state, so
+  // a reload or a second pass restarts at the intro — without this, a currency
+  // that IS set would show unselected and, now that it's required, block
+  // Continue on a decision the user already made.
+  useEffect(() => {
+    if (!currency && savedCurrency) setCurrency(savedCurrency);
+  }, [currency, savedCurrency]);
+
+  const advance = () => {
+    const next = nextStep(step);
+    if (next) setStep(next);
+  };
+  const back = () => {
+    const previous = previousStep(step);
+    if (previous) setStep(previous);
+  };
+  /** Every step except the intro can go back; the intro has nowhere to go. */
+  const onBack = previousStep(step) ? back : undefined;
 
   const saveCurrency = async () => {
-    if (!currency) return goto('product');
+    // Required, not optional: v2.issue_document() refuses to raise an invoice
+    // or quotation without settings.locale.currency. Continue is disabled
+    // without one; this guard is the non-UI half of the same rule.
+    if (!currency) return;
+    // Already the org's currency (a second pass through setup) — nothing to
+    // write, so skip the round trip.
+    if (currency === savedCurrency) return advance();
     setBusy(true);
     try {
-      await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', { currency });
+      // settings.locale.currency — a block, not a top-level key. The DB
+      // trigger whitelists blocks and rejects anything else.
+      await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', {
+        settings: { locale: { currency } },
+      });
       await mutate();
-      goto('product');
+      advance();
     } catch (error) {
       toast({
         title: 'Could not save currency',
@@ -65,7 +87,7 @@ export default function GettingStartedWizard() {
   const finish = async () => {
     setBusy(true);
     try {
-      await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', { onboarding: { completed: true } });
+      await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', { onboarding_completed: true });
       await mutate();
       router.replace('/dashboard/orders');
     } catch (error) {
@@ -79,129 +101,99 @@ export default function GettingStartedWizard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-6 py-2">
-      {step !== 'welcome' && (
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Step {stepNumber} of {NUMBERED.length}
-        </p>
-      )}
-
-      {step === 'welcome' && (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-            <Sparkles className="h-6 w-6 text-primary" />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold text-foreground">Let&apos;s set up your workspace</h1>
-            <p className="text-sm text-muted-foreground">
-              Your business runs on three linked things — <strong>products</strong> you sell,
-              the <strong>clients</strong> you sell to, and the <strong>orders</strong> that tie
-              them together. We&apos;ll set up what each one tracks, so the app fits how you work.
-              You can change anything later.
-            </p>
-          </div>
-          <Button onClick={() => goto('currency')}>Get started</Button>
-        </div>
-      )}
+    <SetupShell current={step}>
+      {step === 'welcome' && <WelcomeStep onStart={advance} />}
 
       {step === 'currency' && (
-        <div className="space-y-5">
-          <StepHeading title="Your currency" hint="Used across orders, payments, and documents." />
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a currency" />
-            </SelectTrigger>
-            <SelectContent>
-              {CURRENCY_OPTIONS.map(c => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex justify-end gap-3 border-t border-border pt-4">
-            <Button variant="ghost" onClick={() => goto('product')} disabled={busy}>
-              Skip
-            </Button>
-            <Button onClick={saveCurrency} disabled={busy}>
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Continue
-            </Button>
-          </div>
-        </div>
+        <>
+          <StepHeading
+            stepNumber={stepNumber(step)}
+            stepCount={STEP_COUNT}
+            icon={<Coins className="h-5 w-5" />}
+            title="Your currency"
+            hint="Required — orders, payments, and every invoice you issue are priced in it."
+          />
+          <CurrencyStep
+            value={currency}
+            onChange={setCurrency}
+            onContinue={saveCurrency}
+            onBack={onBack}
+            busy={busy}
+          />
+        </>
       )}
 
       {step === 'product' && (
-        <div className="space-y-5">
+        <>
           <StepHeading
-            icon={<PackagePlus className="h-5 w-5 text-primary" />}
+            stepNumber={stepNumber(step)}
+            stepCount={STEP_COUNT}
+            icon={<Package className="h-5 w-5" />}
             title="Your product catalog"
             hint="What you sell. Keep the fields that fit, add your own, or create your first product."
           />
           <EntityFieldSetupStep
             entity="product"
-            onContinue={() => goto('client')}
-            onCreateFirst={openCreateProduct}
-            createLabel="Create your first product"
+            onContinue={advance}
+            onBack={onBack}
           />
-        </div>
+        </>
       )}
 
       {step === 'client' && (
-        <div className="space-y-5">
+        <>
           <StepHeading
-            icon={<Users className="h-5 w-5 text-primary" />}
+            stepNumber={stepNumber(step)}
+            stepCount={STEP_COUNT}
+            icon={<Users className="h-5 w-5" />}
             title="Your clients"
             hint="Who you sell to. Only a name is required — everything else is yours to define."
           />
           <EntityFieldSetupStep
             entity="client"
-            onContinue={() => goto('order')}
-            onCreateFirst={openCreateClient}
-            createLabel="Create your first client"
+            onContinue={advance}
+            onBack={onBack}
           />
-        </div>
+        </>
       )}
 
       {step === 'order' && (
-        <div className="space-y-5">
+        <>
           <StepHeading
-            icon={<ClipboardList className="h-5 w-5 text-primary" />}
+            stepNumber={stepNumber(step)}
+            stepCount={STEP_COUNT}
+            icon={<ClipboardList className="h-5 w-5" />}
             title="Your orders"
             hint="This includes your status workflow — the stages an order moves through."
           />
           <EntityFieldSetupStep
             entity="order"
-            onContinue={finish}
-            onCreateFirst={openCreateOrder}
-            createLabel="Create your first order"
+            onContinue={advance}
+            onBack={onBack}
           />
-        </div>
+        </>
       )}
-    </div>
-  );
-}
 
-function StepHeading({
-  title,
-  hint,
-  icon,
-}: {
-  title: string;
-  hint: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      {icon && (
-        <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
-          {icon}
-        </div>
+      {step === 'records' && (
+        <>
+          <StepHeading
+            stepNumber={stepNumber(step)}
+            stepCount={STEP_COUNT}
+            icon={<Check className="h-5 w-5" strokeWidth={3} />}
+            tone="success"
+            title="Your workspace is set up"
+            hint="Add a first record to each if you like — or head straight to the dashboard and do it as work comes in."
+          />
+          <FirstRecordsStep />
+          <StepFooter onBack={onBack} disabled={busy}>
+            <Button onClick={finish} disabled={busy}>
+              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Go to my dashboard
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          </StepFooter>
+        </>
       )}
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{hint}</p>
-      </div>
-    </div>
+    </SetupShell>
   );
 }

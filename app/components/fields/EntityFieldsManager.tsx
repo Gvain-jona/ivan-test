@@ -1,146 +1,185 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Pencil, Archive, ArchiveRestore, SlidersHorizontal } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArchiveRestore } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  useFieldDefinitions,
-  useFieldDefinitionMutations,
-} from '@/hooks/fields/useFieldDefinitions';
-import type { FieldDefinition, FieldEntity } from '@/hooks/fields/useFieldDefinitions';
-import FieldDefinitionFormSheet from '@/components/fields/FieldDefinitionFormSheet';
-import { useToast } from '@/components/ui/use-toast';
 import { normalizeOptions } from '@/lib/fields/options';
+import type { FieldEntity } from '@/hooks/fields/useFieldDefinitions';
+import EditableFieldRow from './EditableFieldRow';
+import FieldComposer, { FIELD_EXAMPLE, type ComposedField } from './FieldComposer';
+import FieldRow from './FieldRow';
+import StatusWorkflowDrillIn from './StatusWorkflowDrillIn';
+import { useFieldActions } from './use-field-actions';
 
 interface EntityFieldsManagerProps {
   entity: FieldEntity;
-  /** Singular human label for empty-state copy, e.g. "product". */
+  /** Singular human label for copy, e.g. "product". */
   entityLabel: string;
 }
 
 /**
- * Manage one entity's custom fields in place — the per-entity replacement
- * for the retired standalone /dashboard/fields page (field setup lives with
- * the entity it belongs to). Add/edit reuses FieldDefinitionFormSheet;
- * archiving hides a field from forms without touching stored data.
+ * Manage one entity's custom fields in place — the per-entity replacement for
+ * the retired standalone /dashboard/fields page.
+ *
+ * Uses the same row, editor and composer as first-run setup, so a field is
+ * added and edited identically whether it's someone's first day or their
+ * hundredth. There is no create/edit dialog: adding is a line in the list and
+ * editing happens inside the row.
  */
 export default function EntityFieldsManager({ entity, entityLabel }: EntityFieldsManagerProps) {
-  const { toast } = useToast();
-  const { fieldDefinitions, isLoading, mutate } = useFieldDefinitions(entity, { status: 'all' });
-  const { updateField, archiveField } = useFieldDefinitionMutations();
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<FieldDefinition | null>(null);
+  const { fieldDefinitions, isLoading, addField, saveField, saveOptions, restore, archive } =
+    useFieldActions(entity);
 
-  const openCreate = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
-  const openEdit = (field: FieldDefinition) => {
-    setEditing(field);
-    setFormOpen(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [drillIn, setDrillIn] = useState<string | null>(null);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const active = fieldDefinitions.filter(f => f.status === 'active');
+  const archived = fieldDefinitions.filter(f => f.status === 'archived');
+  // Archived names still occupy their machine key, so they count as taken.
+  const taken = useMemo(
+    () => new Set(fieldDefinitions.map(f => f.field_name)),
+    [fieldDefinitions],
+  );
+
+  const handleAdd = async (field: ComposedField) => {
+    const created = await addField({ entity, ...field });
+    setJustAdded(created.id);
+    setExpanded(created.id);
+    window.setTimeout(
+      () => setJustAdded(current => (current === created.id ? null : current)),
+      1200,
+    );
   };
 
-  const handleArchiveToggle = async (field: FieldDefinition) => {
-    try {
-      if (field.status === 'archived') {
-        await updateField(field.id, { status: 'active' });
-        toast({ title: 'Field restored', description: field.field_label });
-      } else {
-        await archiveField(field.id);
-        toast({ title: 'Field archived', description: field.field_label });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update field',
-        variant: 'destructive',
-      });
-    }
-  };
+  const drillField = drillIn ? fieldDefinitions.find(f => f.field_name === drillIn) : undefined;
+  if (drillField) {
+    return (
+      <StatusWorkflowDrillIn
+        entityLabel={entityLabel}
+        persistence="immediate"
+        initialOptions={normalizeOptions(drillField.options)}
+        onSave={options => saveOptions(drillField.id, options)}
+        onBack={() => setDrillIn(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Custom fields on every {entityLabel}. Validated by the database; archiving hides a field
-          without touching saved data.
-        </p>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          New field
-        </Button>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Custom fields on every {entityLabel}. Validated by the database; archiving hides a field
+        without touching saved data.
+      </p>
 
       {isLoading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Loading fields…</p>
-      ) : fieldDefinitions.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
-          <SlidersHorizontal className="h-6 w-6 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No custom fields on {entityLabel}s yet.</p>
-        </div>
       ) : (
-        <ul className="space-y-2">
-          {fieldDefinitions.map(field => {
-            const optionCount =
-              field.field_type === 'select' ? normalizeOptions(field.options).length : 0;
-            return (
-              <li
+        <div className="space-y-2">
+          {active.map(field =>
+            field.is_system ? (
+              <FieldRow
                 key={field.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-foreground">{field.field_label}</span>
-                    <Badge variant="outline" className="text-xs font-normal capitalize">
-                      {field.field_type}
-                      {optionCount ? ` · ${optionCount}` : ''}
-                    </Badge>
-                    {field.is_required && (
-                      <Badge variant="secondary" className="text-xs font-normal">
-                        Required
-                      </Badge>
-                    )}
-                    {field.status === 'archived' && (
-                      <Badge variant="secondary" className="text-xs font-normal">
-                        Archived
-                      </Badge>
-                    )}
-                  </div>
-                  <span className="font-mono text-xs text-muted-foreground">{field.field_name}</span>
-                </div>
-                <div className="flex flex-shrink-0 gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(field)}>
-                    <Pencil className="h-4 w-4" />
-                    <span className="sr-only">Edit {field.field_label}</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleArchiveToggle(field)}>
-                    {field.status === 'archived' ? (
-                      <ArchiveRestore className="h-4 w-4" />
-                    ) : (
-                      <Archive className="h-4 w-4" />
-                    )}
-                    <span className="sr-only">
-                      {field.status === 'archived' ? 'Restore' : 'Archive'} {field.field_label}
-                    </span>
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                label={field.field_label}
+                fieldType={field.field_type}
+                options={normalizeOptions(field.options)}
+                checked
+                locked
+                lockedReason="system field, can't be removed"
+                onToggleExpand={() => setDrillIn(field.field_name)}
+              />
+            ) : (
+              <EditableFieldRow
+                key={field.id}
+                field={field}
+                entityLabel={entityLabel}
+                expanded={expanded === field.id}
+                justAdded={justAdded === field.id}
+                onToggleExpand={() =>
+                  setExpanded(current => (current === field.id ? null : field.id))
+                }
+                onSave={edits => saveField(field.id, edits)}
+                onArchive={() => {
+                  setExpanded(null);
+                  void archive(field.id, field.field_label);
+                }}
+              />
+            ),
+          )}
+
+          {active.length === 0 && (
+            <p className="py-2 text-sm text-muted-foreground">
+              No custom fields on {entityLabel}s yet — add one below.
+            </p>
+          )}
+        </div>
       )}
 
-      <FieldDefinitionFormSheet
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        entity={entity}
-        field={editing}
-        onSaved={() => {
-          setFormOpen(false);
-          void mutate();
-        }}
+      <FieldComposer
+        example={FIELD_EXAMPLE[entity]}
+        taken={taken}
+        entityLabel={entityLabel}
+        onAdd={handleAdd}
       />
+
+      {archived.length > 0 && (
+        <ArchivedFields
+          fields={archived}
+          open={showArchived}
+          onToggle={() => setShowArchived(open => !open)}
+          onRestore={id => void restore(id)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Archived fields, folded away. They're kept visible-on-demand rather than
+ * hidden outright because archiving is reversible and their data is still
+ * readable — a field that vanished entirely would look deleted.
+ */
+function ArchivedFields({
+  fields,
+  open,
+  onToggle,
+  onRestore,
+}: {
+  fields: { id: string; field_label: string; field_type: string }[];
+  open: boolean;
+  onToggle: () => void;
+  onRestore: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {open ? 'Hide' : 'Show'} archived ({fields.length})
+      </button>
+
+      {open &&
+        fields.map(field => (
+          <div
+            key={field.id}
+            className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card p-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-muted-foreground">{field.field_label}</p>
+              <p className="text-[11px] text-muted-foreground">
+                Archived · hidden from forms, saved data kept
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => onRestore(field.id)}>
+              <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" />
+              Restore
+            </Button>
+          </div>
+        ))}
     </div>
   );
 }

@@ -11,6 +11,13 @@ const nextConfig = {
   },
   images: {
     domains: [],
+    // Clerk is the source of truth for org/user images (see lib/auth/tenant).
+    // Without these, next/image throws "hostname not configured" in
+    // production — dev hides it because `unoptimized` is on below.
+    remotePatterns: [
+      { protocol: 'https', hostname: 'img.clerk.com' },
+      { protocol: 'https', hostname: 'images.clerk.dev' },
+    ],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

@@ -64,4 +64,19 @@ describe('currency options', () => {
     expect(CURRENCY_OPTIONS.length).toBeGreaterThan(0);
     for (const c of CURRENCY_OPTIONS) expect(c.code).toMatch(/^[A-Z]{3}$/);
   });
+
+  // The picker renders "CODE · Name", so the name must be the name alone —
+  // the symbol is a separate field, not baked into the label.
+  it('carry a bare name and a separate symbol', () => {
+    for (const c of CURRENCY_OPTIONS) {
+      expect(c.label.trim()).not.toBe('');
+      expect(c.label).not.toMatch(/[()]/);
+      expect(c.symbol.trim()).not.toBe('');
+    }
+  });
+
+  it('have no duplicate codes', () => {
+    const codes = CURRENCY_OPTIONS.map(c => c.code);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
 });

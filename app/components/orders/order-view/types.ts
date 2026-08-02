@@ -43,6 +43,6 @@ export interface OrderNotesTabProps {
 
 export interface OrderDocumentsTabProps {
   documents: DocumentRecord[];
-  onCreateDocument: (documentType: DocumentType) => Promise<void>;
+  onIssueDocument: (documentType: DocumentType) => Promise<void>;
   isSubmitting: boolean;
 }
