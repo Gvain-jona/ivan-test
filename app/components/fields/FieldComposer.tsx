@@ -92,14 +92,21 @@ export default function FieldComposer({
 
   return (
     <div className="space-y-1.5">
+      {/*
+        Below `sm` the name gets the full width and the type + Add pair drops
+        beneath it. On one row at 375px the input was ~165px, which truncated
+        the placeholder mid-word ("Add a field — e.g. Finis") — the example is
+        the part that explains what the field is for, so losing it costs the
+        hint its point.
+      */}
       <form
-        className="flex items-center gap-2 rounded-xl border border-border bg-setup-surface p-2 focus-within:border-primary"
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-setup-surface p-2 focus-within:border-primary"
         onSubmit={event => {
           event.preventDefault();
           void submit();
         }}
       >
-        <Plus className="ml-1 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        <Plus className="ml-1 hidden h-4 w-4 flex-shrink-0 text-muted-foreground sm:block" />
         <input
           ref={inputRef}
           value={label}
@@ -110,13 +117,13 @@ export default function FieldComposer({
           placeholder={`Add a field — e.g. ${example}`}
           aria-label="New field name"
           disabled={disabled}
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+          className="w-full min-w-0 bg-transparent px-1 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50 sm:w-auto sm:flex-1 sm:px-0 sm:py-0"
         />
 
         <Select value={type} onValueChange={value => setType(value as FieldTypeName)}>
           <SelectTrigger
             aria-label="Field type"
-            className="h-8 w-auto flex-shrink-0 gap-1 border-0 bg-muted px-2 text-xs font-semibold"
+            className="h-11 w-auto flex-shrink-0 gap-1 border-0 bg-muted px-3 text-xs font-semibold sm:h-8 sm:px-2"
           >
             {selected?.label ?? 'Text'}
           </SelectTrigger>
@@ -144,7 +151,12 @@ export default function FieldComposer({
           </SelectContent>
         </Select>
 
-        <Button type="submit" size="sm" disabled={!canAdd} className="flex-shrink-0">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!canAdd}
+          className="ml-auto h-11 flex-shrink-0 px-5 sm:ml-0 sm:h-8 sm:px-3"
+        >
           {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Add'}
         </Button>
       </form>

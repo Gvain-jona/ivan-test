@@ -36,7 +36,10 @@ function EntityRow({
 }: EntityRowProps) {
   const done = count > 0;
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-border bg-setup-surface p-3">
+    /* The action drops to its own full-width line on a phone: inline, it left
+       the label and hint ~135px and truncated copy that is already only three
+       or four words. */
+    <li className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-setup-surface p-3">
       <span
         className={cn(
           'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
@@ -66,6 +69,7 @@ function EntityRow({
         variant={emphasis && !done ? 'default' : 'outline'}
         onClick={onAdd}
         disabled={!!blockedReason}
+        className="h-11 w-full sm:h-8 sm:w-auto"
       >
         {done ? 'Add another' : `Add a ${singular}`}
       </Button>

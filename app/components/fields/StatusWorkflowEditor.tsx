@@ -84,7 +84,7 @@ export default function StatusWorkflowEditor({
           size="icon"
           onClick={onBack}
           aria-label="Back to fields"
-          className="h-8 w-8 flex-shrink-0"
+          className="h-11 w-11 flex-shrink-0 sm:h-8 sm:w-8"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -149,17 +149,24 @@ export default function StatusWorkflowEditor({
           add();
         }}
       >
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-2">
+        {/* Same wrap as FieldComposer: the stage name owns the first line on
+            touch, its tag and Add sit beneath with real tap targets. */}
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2">
           <input
             value={draft}
             onChange={event => setDraft(event.target.value)}
             placeholder="Name a stage — e.g. Proofing"
             aria-label="New stage name"
             disabled={disabled}
-            className="min-w-0 flex-1 bg-transparent px-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+            className="w-full min-w-0 bg-transparent px-1 py-1.5 text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50 sm:w-auto sm:flex-1 sm:py-0"
           />
           <SemanticSelect value={draftSemantic} onChange={setDraftSemantic} disabled={disabled} />
-          <Button type="submit" size="sm" disabled={!canAdd}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!canAdd}
+            className="ml-auto h-11 px-5 sm:ml-0 sm:h-8 sm:px-3"
+          >
             Add
           </Button>
         </div>

@@ -45,8 +45,18 @@ export function WorkflowStageRow({
   disabled?: boolean;
 }) {
   return (
-    <div className="group flex items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5">
-      <div className="flex flex-col">
+    /*
+     * Below `sm` the name takes a line of its own and the controls wrap beneath
+     * it: at 375px a single row left the input ~100px (~13 characters) and every
+     * control a 12–24px tap target, well under the 44px the mobile design
+     * philosophy mandates. `flex-wrap` + a full-width, order-first input gets
+     * both without a second copy of the markup — from `sm` up the row is
+     * unchanged.
+     */
+    <div className="group flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 sm:gap-1.5">
+      {/* Reorder sits side-by-side on touch (two 44px targets can't stack in a
+          row this tall) and returns to a stacked pair on pointer devices. */}
+      <div className="flex flex-row sm:flex-col">
         <ReorderButton direction="up" disabled={disabled || first} onClick={() => onMove(-1)} />
         <ReorderButton direction="down" disabled={disabled || last} onClick={() => onMove(1)} />
       </div>
@@ -65,12 +75,19 @@ export function WorkflowStageRow({
         onChange={event => onUpdate({ label: event.target.value })}
         aria-label={`Rename ${stage.label}`}
         disabled={disabled}
-        className="min-w-0 flex-1 bg-transparent px-1 text-[13px] font-semibold text-foreground outline-none disabled:opacity-50"
+        className="order-first w-full min-w-0 bg-transparent px-1 py-1 text-[13px] font-semibold text-foreground outline-none disabled:opacity-50 sm:order-none sm:w-auto sm:flex-1 sm:py-0"
       />
 
       {stage.is_default ? (
-        <span className="flex-shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-          starts here
+        /* The badge's width is what made this row wrap a line further than the
+           others on a phone, so on touch the same fact is a filled flag — the
+           counterpart to the outline flag every other row shows. */
+        <span
+          aria-label="Starting stage"
+          className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded bg-primary/10 text-primary sm:min-h-0 sm:min-w-0 sm:px-1.5 sm:py-0.5 sm:text-[10px] sm:font-semibold"
+        >
+          <Flag className="h-4 w-4 fill-current sm:hidden" />
+          <span className="hidden sm:inline">starts here</span>
         </span>
       ) : (
         <button
@@ -78,9 +95,11 @@ export function WorkflowStageRow({
           onClick={onSetDefault}
           disabled={disabled}
           aria-label={`Make ${stage.label} the starting stage`}
-          className="flex-shrink-0 rounded p-1 text-muted-foreground opacity-60 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 disabled:pointer-events-none"
+          /* Full opacity on touch: `group-hover` never fires without a pointer,
+             so the hover-reveal would have left this permanently dimmed. */
+          className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:text-foreground focus-visible:opacity-100 disabled:pointer-events-none sm:min-h-0 sm:min-w-0 sm:p-1 sm:opacity-60 sm:group-hover:opacity-100"
         >
-          <Flag className="h-3 w-3" />
+          <Flag className="h-4 w-4 sm:h-3 sm:w-3" />
         </button>
       )}
 
@@ -98,9 +117,9 @@ export function WorkflowStageRow({
           onClick={onRemove}
           disabled={disabled}
           aria-label={`Remove ${stage.label}`}
-          className="flex-shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
+          className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-destructive disabled:pointer-events-none disabled:opacity-50 sm:min-h-0 sm:min-w-0 sm:p-1"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
         </button>
       )}
     </div>
@@ -123,9 +142,9 @@ function ReorderButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={`Move ${direction}`}
-      className="rounded text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+      className="flex min-h-11 min-w-11 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:min-h-0 sm:min-w-0"
     >
-      <Icon className="h-3 w-3" />
+      <Icon className="h-4 w-4 sm:h-3 sm:w-3" />
     </button>
   );
 }
@@ -149,9 +168,9 @@ function ColorPicker({
           type="button"
           disabled={disabled}
           aria-label={`Colour for ${label}`}
-          className="flex flex-shrink-0 items-center gap-0.5 rounded p-0.5 disabled:pointer-events-none disabled:opacity-50"
+          className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-0.5 rounded disabled:pointer-events-none disabled:opacity-50 sm:min-h-0 sm:min-w-0 sm:p-0.5"
         >
-          <span className={cn('h-3.5 w-3.5 rounded-full', OPTION_COLORS[current].dot)} />
+          <span className={cn('h-4 w-4 rounded-full sm:h-3.5 sm:w-3.5', OPTION_COLORS[current].dot)} />
           <ChevronDown className="h-3 w-3 text-muted-foreground" />
         </button>
       </PopoverTrigger>
@@ -192,7 +211,7 @@ export function SemanticSelect({
       <SelectTrigger
         aria-label="What this stage means"
         className={cn(
-          'h-6 w-auto flex-shrink-0 gap-1 border-0 px-1.5 text-[10px] font-semibold',
+          'h-11 w-auto flex-shrink-0 gap-1 border-0 px-2.5 text-[11px] font-semibold sm:h-6 sm:px-1.5 sm:text-[10px]',
           optionColorClasses(SEMANTIC_COLORS[value]).chip,
         )}
       >

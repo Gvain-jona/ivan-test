@@ -75,8 +75,15 @@ export default function SetupShell({ current, children }: SetupShellProps) {
             {children}
           </div>
 
-          {/* Pinned: Continue is always one click away, never scrolled past. */}
-          <div ref={setFooter} className="flex-shrink-0 px-5 pb-5 sm:px-6 sm:pb-6 lg:px-10 lg:pb-10" />
+          {/* Pinned: Continue is always one click away, never scrolled past.
+              The bottom pad clears the home-indicator inset, or falls back to
+              the design's spacing where there is none — same treatment as
+              OrderSheet's footer and MobileTabBar. Without it the primary
+              action sits inside the gesture zone on a notched phone. */}
+          <div
+            ref={setFooter}
+            className="flex-shrink-0 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:px-10 lg:pb-10"
+          />
         </section>
       </div>
     </SetupSlots.Provider>
@@ -160,7 +167,13 @@ export function StepFooter({
   const { footer } = useContext(SetupSlots);
 
   const content = (
-    <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+    /*
+     * Both footer actions are 44px on touch and return to the default 36px
+     * from `sm` up. Applied to the container rather than each step's button so
+     * a new step can't miss it — every step passes its primary action through
+     * this slot.
+     */
+    <div className="flex items-center justify-between gap-3 border-t border-border pt-4 [&_button]:h-11 sm:[&_button]:h-9">
       {onBack ? (
         <Button type="button" variant="outline" onClick={onBack} disabled={disabled}>
           <ArrowLeft className="mr-1.5 h-4 w-4" />
