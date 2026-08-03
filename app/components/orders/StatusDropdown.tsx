@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import StatusBadge from './StatusBadge';
 import { CheckCircle, Clock, PauseCircle, Truck, AlertCircle, ArrowRightCircle, Loader2 } from 'lucide-react';
 import { CustomDropdown, CustomDropdownItem } from './CustomDropdown';
-import { useOrganization } from '@/hooks/organization/useOrganization';
+import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
 
 interface StatusDropdownProps {
   order: OrderSummary;
@@ -14,8 +14,8 @@ interface StatusDropdownProps {
 
 function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps) {
   const canChangeStatus = userRole === 'admin' || userRole === 'manager';
-  // Statuses are org-configurable (organizations.settings.order_statuses)
-  const { orderStatuses } = useOrganization();
+  // Statuses come from the order `status` field-definition (no fallback).
+  const { statusValues } = useOrderStatuses();
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -154,7 +154,7 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
       contentClassName="w-48 bg-background border-table-border z-50"
       sideOffset={5}
     >
-      {orderStatuses.map(statusOption => {
+      {statusValues.map(statusOption => {
         const config = getStatusConfig(statusOption);
         const isActive = displayStatus === statusOption;
         const isChangingThis = isLoading && changingStatus === statusOption;

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Boxes, Pencil, Archive } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plus, Search, Boxes, Pencil, Archive, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,10 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { useProducts, useProductMutations } from '@/hooks/products/useProducts';
 import type { Product, ProductListParams } from '@/hooks/products/useProducts';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
+import EntityFieldsManager from '@/components/fields/EntityFieldsManager';
 import { useToast } from '@/components/ui/use-toast';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -31,10 +33,12 @@ const STATUS_BADGE: Record<string, string> = {
  */
 export default function ProductsPage() {
   const { toast } = useToast();
+  const fmt = useFormatCurrency();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<NonNullable<ProductListParams['status']>>('active');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [showFields, setShowFields] = useState(false);
 
   const { products, total, isLoading, mutate } = useProducts({
     status,
@@ -47,6 +51,18 @@ export default function ProductsPage() {
     setEditing(null);
     setSheetOpen(true);
   };
+
+  // Deep-link: `?new=1` (e.g. the Home quick-action chip) opens the create
+  // sheet, then strips the param so a refresh doesn't reopen it.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams?.get('new') === '1') {
+      setEditing(null);
+      setSheetOpen(true);
+      router.replace('/dashboard/products');
+    }
+  }, [searchParams, router]);
 
   const openEdit = (product: Product) => {
     setEditing(product);
@@ -76,11 +92,27 @@ export default function ProductsPage() {
             The catalog that feeds order items — prices are defaults, always overridable per order.
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFields(v => !v)}
+            aria-pressed={showFields}
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+            Fields
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Product
+          </Button>
+        </div>
       </div>
+
+      {showFields && (
+        <div className="rounded-xl border border-border bg-card/40 p-4">
+          <EntityFieldsManager entity="product" entityLabel="product" />
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-2">
@@ -118,7 +150,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#2B2B40]">
-            {isLoading ? (
+            {isLoading && products.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   Loading products…
@@ -136,7 +168,7 @@ export default function ProductsPage() {
                 <tr key={product.id} className="hover:bg-muted/10">
                   <td className="px-4 py-2.5 text-sm text-white">{product.name}</td>
                   <td className="px-4 py-2.5 text-sm text-white text-right">
-                    {product.selling_price != null ? formatCurrency(product.selling_price) : '—'}
+                    {product.selling_price != null ? fmt(product.selling_price) : '—'}
                   </td>
                   <td className="px-4 py-2.5">
                     <Badge variant="secondary" className={STATUS_BADGE[product.status] ?? ''}>

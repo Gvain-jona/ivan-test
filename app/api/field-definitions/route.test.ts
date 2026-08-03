@@ -22,7 +22,7 @@ describe('POST /api/field-definitions', () => {
     expect((await POST(jsonRequest('/api/field-definitions', VALID_FIELD))).status).toBe(401)
   })
 
-  it('rejects staff with 403 (owner/admin gate) before touching the db', async () => {
+  it('rejects staff with 403 (owner-only gate) before touching the db', async () => {
     const { tenant, db } = createFakeTenant({ orgRole: 'staff' })
     resolveTenantMock.mockResolvedValue(tenant)
     const res = await POST(jsonRequest('/api/field-definitions', VALID_FIELD))
@@ -39,8 +39,8 @@ describe('POST /api/field-definitions', () => {
     expect(res.status).toBe(400)
   })
 
-  it('creates for an admin and returns 201', async () => {
-    const { tenant, db } = createFakeTenant({ orgRole: 'admin' })
+  it('creates for an owner and returns 201', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
     resolveTenantMock.mockResolvedValue(tenant)
     db.queue('insert:field_definitions', { data: { id: 'f-1', field_name: 'delivery_date' } })
 

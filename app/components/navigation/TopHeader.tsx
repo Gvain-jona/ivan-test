@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
+import { useOrganization } from '@clerk/nextjs';
 import { cn } from '../../lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useAuth } from '@/app/context/auth-context';
@@ -77,16 +78,24 @@ type TopHeaderProps = {
 
 export default function TopHeader({
   className,
-  businessName = 'Ivan Prints',
+  businessName,
   appTitle = 'Business Management System',
   userName,
   userInitials,
   userAvatarUrl = '',
-  logoUrl = '',
+  logoUrl,
   announcement: propAnnouncement
 }: TopHeaderProps) {
   // Get user profile information from auth context
   const { user, profile, isLoading, profileError, refreshProfile } = useAuth();
+
+  // Clerk Organizations is the source of truth for org name/logo (see
+  // app/lib/auth/tenant.ts) — read live from Clerk rather than the
+  // v2.organizations mirror, since display doesn't need transactional
+  // consistency with the DB. Explicit props (if ever passed) still win.
+  const { organization } = useOrganization();
+  const resolvedBusinessName = businessName ?? organization?.name ?? 'YOKO';
+  const resolvedLogoUrl = logoUrl ?? organization?.imageUrl ?? '';
 
   // Use provided values or fallback to profile data
   const displayName = userName || profile?.full_name || user?.email?.split('@')[0] || 'User';
@@ -168,9 +177,16 @@ export default function TopHeader({
 
   return (
     <>
-      {/* Profile Error Alert */}
+      {/* Profile Error Alert — desktop-only, like the rest of this header.
+          TopHeader is chrome that belongs to desktop; on mobile every screen
+          owns its own top (product decision 2026-07-23), so nothing from here
+          renders on a phone. Desktop shows it as a fixed top overlay (the
+          header's `mt-12` below compensates for it). */}
       {profileError && (
-        <Alert variant="error" className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between">
+        <Alert
+          variant="error"
+          className="z-50 hidden items-center justify-between lg:flex lg:fixed lg:top-0 lg:left-0 lg:right-0"
+        >
           <AlertDescription>
             Unable to load your profile data. This may affect some features.
           </AlertDescription>
@@ -179,7 +195,7 @@ export default function TopHeader({
             variant="outline"
             onClick={handleProfileRefresh}
             disabled={isRefreshing}
-            className="ml-2 bg-background"
+            className="bg-background sm:ml-2"
           >
             {isRefreshing ? (
               <>
@@ -195,8 +211,11 @@ export default function TopHeader({
           </Button>
         </Alert>
       )}
+      {/* Branded header is desktop-only chrome. On mobile it's dropped:
+          it competes with each screen's own top (e.g. the Home greeting
+          hero) and eats vertical space a phone should give to content. */}
       <header className={cn(
-        "top-header px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
+        "top-header hidden lg:flex lg:items-center px-4 lg:px-6 sticky top-0 z-20 transition-all duration-200",
         scrolled && "shadow-md backdrop-blur-md bg-[hsl(var(--card))]/90 border-b border-[hsl(var(--border))]/60",
         !scrolled && "bg-[hsl(var(--card))] border-b border-[hsl(var(--border))]/40",
         profileError && "mt-12", // Add margin when error is shown
@@ -207,8 +226,8 @@ export default function TopHeader({
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 relative">
             <Image
-              src={logoUrl || '/images/default-logo.svg'}
-              alt={businessName}
+              src={resolvedLogoUrl || '/images/default-logo.svg'}
+              alt={resolvedBusinessName}
               fill
               sizes="(max-width: 768px) 24px, 32px"
               className="object-contain"
@@ -221,7 +240,7 @@ export default function TopHeader({
             />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-base font-bold text-foreground">{businessName}</h1>
+            <h1 className="text-base font-bold text-foreground">{resolvedBusinessName}</h1>
             <p className="text-xs text-muted-foreground">{appTitle}</p>
           </div>
         </div>

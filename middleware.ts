@@ -1,22 +1,22 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { updateSession } from './app/utils/supabase/middleware'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
-const PUBLIC_PREFIXES = ['/auth/', '/api/healthz']
+// Parity with the pre-Clerk gate: everything is protected except the
+// auth pages and the health check. /api/cron/* stays non-public here
+// (as before); its own CRON_SECRET bearer check is the real gate.
+// /__clerk is Clerk's frontend-API auto-proxy path — never protect it
+// (proxy requests are intercepted before this handler when the proxy
+// is enabled, but keep it public-safe regardless).
+// /api/webhooks/* stays non-public for the same reason as /api/cron:
+// Clerk's webhook deliveries carry no session (svix signature headers
+// instead), so auth.protect() would block every real delivery before
+// verifyWebhook() ever runs — that call is the actual gate.
+const isPublicRoute = createRouteMatcher(['/auth(.*)', '/api/healthz', '/api/webhooks(.*)', '/__clerk(.*)'])
 
-export async function middleware(request: NextRequest) {
-  const { response, user } = await updateSession(request)
-  const { pathname } = request.nextUrl
-
-  const isPublic = PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))
-  if (!user && !isPublic) {
-    const signIn = new URL('/auth/signin', request.url)
-    signIn.searchParams.set('next', pathname)
-    return NextResponse.redirect(signIn)
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request)) {
+    await auth.protect()
   }
-
-  return response
-}
+})
 
 export const config = {
   matcher: [

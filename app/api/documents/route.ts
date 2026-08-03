@@ -6,12 +6,13 @@ import {
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { documentCreateSchema } from '@/lib/api/validators';
-import type { Json } from '@/types/supabase-v2';
+import { documentIssueSchema } from '@/lib/api/validators';
 
 const DOCUMENT_COLUMNS =
   'id, entity_type, entity_id, document_type, document_number, snapshot, ' +
-  'status, valid_until, created_by, created_at, updated_at';
+  'status, currency, exchange_rate, amounts_include_tax, subtotal, ' +
+  'discount_total, tax_total, total, valid_until, due_date, issued_at, ' +
+  'related_document_id, created_by, created_at, updated_at';
 
 /**
  * GET /api/documents?entity_type=order&entity_id=<uuid> — documents for
@@ -44,43 +45,56 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/documents — create a draft document.
+ * POST /api/documents — issue a document from an order.
  *
- * INTERIM: v2.issue_document() (the RPC that will atomically assign the
- * number, freeze the snapshot, and set status) does not exist yet — see
- * docs/v2-migration/orders-system-handoff.md §6/§12. Until it lands, this
- * route calls v2.next_number() and inserts as two separate steps, same
- * "explicitly-labeled stand-in" treatment as create_order_as_org. Risk is
- * limited to a skipped document_number on a mid-request crash — no
- * orphaned financial data, since documents don't drive order totals.
- * Replace with a single issue_document() call when it ships.
+ * One RPC does the whole thing: v2.issue_document() allocates the number,
+ * resolves org settings, computes tax, freezes the snapshot and writes the
+ * financials atomically. It replaces the old next_number()-then-insert
+ * stand-in, which could no longer work anyway — documents.currency became
+ * NOT NULL with no default, and computing the totals route-side would have
+ * meant a second, drifting implementation of the ledger.
+ *
+ * It goes through the issue_document_as_org shim because the service-role
+ * connection carries no JWT claims for current_org_id() to read; the org
+ * comes from resolveTenant(), not the caller. Same arrangement as
+ * create_order_as_org, and both retire together in Phase 2.
+ *
+ * The result is an ISSUED document, not a draft: numbered, immutable, and
+ * for invoices subject to the one-live-invoice-per-order rule (void before
+ * reissuing). PDF rendering is a separate concern by design — a slow render
+ * can't fail an issue, and a template change can't alter an issued document.
  */
 export async function POST(request: NextRequest) {
   try {
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    const parsed = documentCreateSchema.safeParse(await request.json());
+    const parsed = documentIssueSchema.safeParse(await request.json());
     if (!parsed.success) {
       return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
-    const { data: documentNumber, error: numberError } = await tenant.db.rpc('next_number', {
-      p_counter_key: `document:${parsed.data.document_type}`,
-      p_org: tenant.organizationId,
-    });
-    if (numberError) return handleSupabaseError(numberError);
+    const { terms_days, validity_days } = parsed.data;
+    const options: Record<string, number> = {};
+    if (terms_days !== undefined) options.terms_days = terms_days;
+    if (validity_days !== undefined) options.validity_days = validity_days;
+
+    const { data: documentId, error: issueError } = await tenant.db.rpc(
+      'issue_document_as_org',
+      {
+        p_org: tenant.organizationId,
+        p_user: tenant.userId,
+        p_order_id: parsed.data.entity_id,
+        p_document_type: parsed.data.document_type,
+        p_options: options,
+      },
+    );
+    if (issueError) return handleSupabaseError(issueError);
 
     const { data, error } = await tenant.db
       .from('documents')
-      .insert({
-        ...parsed.data,
-        document_number: documentNumber,
-        created_by: tenant.userId,
-        status: 'draft',
-        snapshot: (parsed.data.snapshot ?? {}) as Json,
-      })
       .select(DOCUMENT_COLUMNS)
+      .eq('id', documentId)
       .single();
 
     if (error) return handleSupabaseError(error);

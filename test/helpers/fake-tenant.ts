@@ -60,6 +60,10 @@ class FakeQuery implements PromiseLike<QueuedResult> {
     this.call.filters.push(['ilike', column, pattern])
     return this
   }
+  not(column: string, operator: string, value: unknown) {
+    this.call.filters.push(['not', column, operator, value])
+    return this
+  }
   gte(column: string, value: unknown) {
     this.call.filters.push(['gte', column, value])
     return this
@@ -156,6 +160,7 @@ export class FakeTenantDb {
         q.call.columns = columns
         return q
       },
+      update: (values: Record<string, unknown>) => this.open('update:organization', values),
     }
   }
 

@@ -138,7 +138,7 @@ export interface UserSettings {
 export const defaultSettings: UserSettings = {
   appearance: {
     theme: 'system',
-    companyName: 'IVAN PRINTS',
+    companyName: 'YOKO',
     companyLogo: '/images/default-logo.svg',
   },
   layout: {

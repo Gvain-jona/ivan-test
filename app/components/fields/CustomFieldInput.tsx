@@ -12,6 +12,7 @@ import {
 import { useClients } from '@/hooks/clients/useClients';
 import { useProducts } from '@/hooks/products/useProducts';
 import type { FieldDefinition } from '@/hooks/fields/useFieldDefinitions';
+import { normalizeOptions } from '@/lib/fields/options';
 
 interface CustomFieldInputProps {
   field: FieldDefinition;
@@ -159,9 +160,7 @@ export function CustomFieldInput(props: CustomFieldInputProps) {
       );
 
     case 'select': {
-      const options = Array.isArray(field.options)
-        ? field.options.filter((o): o is string => typeof o === 'string')
-        : [];
+      const options = normalizeOptions(field.options);
       return (
         <Select
           value={typeof value === 'string' ? value : undefined}
@@ -173,8 +172,8 @@ export function CustomFieldInput(props: CustomFieldInputProps) {
           </SelectTrigger>
           <SelectContent>
             {options.map(option => (
-              <SelectItem key={option} value={option}>
-                {option}
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>

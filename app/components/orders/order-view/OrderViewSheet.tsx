@@ -35,7 +35,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
   const orderId = open ? summary?.id ?? null : null;
   const { order, payments, isLoading, mutate: refreshOrder } = useOrder(orderId);
   const { notes, addNote } = useNotes('order', orderId);
-  const { documents, createDocument } = useDocuments('order', orderId);
+  const { documents, issueDocument } = useDocuments('order', orderId);
   const { addPayment } = useOrderMutations();
 
   const clientName = order?.clients?.name ?? summary?.clients?.name ?? 'Unknown';
@@ -78,15 +78,19 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
     }
   };
 
-  const handleCreateDocument = async (documentType: DocumentType) => {
+  const handleIssueDocument = async (documentType: DocumentType) => {
     setIsSubmitting(true);
     try {
-      await createDocument({ document_type: documentType });
-      toast({ title: 'Document created', description: 'Saved as a draft' });
+      // Issued, not drafted: numbered and frozen the moment it's created.
+      const document = await issueDocument({ document_type: documentType });
+      toast({
+        title: 'Document issued',
+        description: document.document_number ?? 'Numbered and finalised',
+      });
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create document',
+        description: error instanceof Error ? error.message : 'Failed to issue document',
         variant: 'destructive',
       });
     } finally {
@@ -120,7 +124,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-medium text-white">{clientName}</p>
+            <p className="text-sm font-medium text-foreground">{clientName}</p>
             <p className="text-xs text-muted-foreground">
               {summary?.order_date
                 ? new Date(summary.order_date).toLocaleDateString('en-US', {
@@ -133,16 +137,17 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 border-b border-[#2B2B40]">
+        {/* Tab bar — scrolls horizontally on narrow phones (5 tabs won't fit
+            at 375px); scrollbar hidden, swipe still works. */}
+        <div className="flex gap-1 overflow-x-auto border-b border-border/40 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={
                 activeTab === tab.key
-                  ? 'px-3 py-2 text-sm font-medium text-white border-b-2 border-orange-500'
-                  : 'px-3 py-2 text-sm text-muted-foreground hover:text-white'
+                  ? 'flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium text-foreground border-b-2 border-primary'
+                  : 'flex-shrink-0 whitespace-nowrap px-3 py-2 text-sm text-muted-foreground hover:text-foreground'
               }
             >
               {tab.label}
@@ -177,7 +182,7 @@ const OrderViewSheet: React.FC<OrderViewSheetProps> = ({
             {activeTab === 'documents' && (
               <OrderDocumentsTab
                 documents={documents}
-                onCreateDocument={handleCreateDocument}
+                onIssueDocument={handleIssueDocument}
                 isSubmitting={isSubmitting}
               />
             )}

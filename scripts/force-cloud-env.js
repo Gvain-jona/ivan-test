@@ -8,9 +8,18 @@
 const fs = require('fs');
 const path = require('path');
 
-// Cloud Supabase credentials
-const CLOUD_SUPABASE_URL = 'https://giwurfpxxktfsdyitgvr.supabase.co';
-const CLOUD_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdpd3VyZnB4eGt0ZnNkeWl0Z3ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxOTQxNTMsImV4cCI6MjA1ODc3MDE1M30.fi86AKeND0mFfrCBZyor3qNUM6bZNOrePE9nzJ9Gvck';
+// Cloud Supabase credentials — sourced from the environment, never hardcoded.
+// The URL is public; keep a default for convenience. The anon key must be
+// provided (export it or place it in a gitignored .env before running).
+const CLOUD_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://giwurfpxxktfsdyitgvr.supabase.co';
+const CLOUD_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+if (!CLOUD_SUPABASE_ANON_KEY) {
+  console.error(
+    'Set NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment before running this script.'
+  );
+  process.exit(1);
+}
 
 // Create or update .env file
 const envPath = path.join(__dirname, '../.env');

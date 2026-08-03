@@ -46,6 +46,17 @@ describe('createTenantDb', () => {
     expect(calls.eq).toEqual([['organization_id', 'org-1']])
   })
 
+  it('scopes organization settings updates to the org id', () => {
+    const { client, calls } = stubClient()
+    const db = createTenantDb(client, 'org-1')
+
+    db.organization().update({ settings: { currency: 'USD' } })
+
+    expect(calls.from).toEqual([['organizations']])
+    expect(calls.update).toEqual([[{ settings: { currency: 'USD' } }]])
+    expect(calls.eq).toEqual([['id', 'org-1']])
+  })
+
   it('injects organization_id into inserts', () => {
     const { client, calls } = stubClient()
     const db = createTenantDb(client, 'org-1')

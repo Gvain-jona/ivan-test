@@ -111,6 +111,17 @@ if (!user) return handleApiError('UNAUTHORIZED', 'Authentication required')
 
 **New UI components — log responsiveness status**: when you create a new component under `app/components/` (or anywhere else in `app/`), add one row to `docs/mobile-responsiveness/COMPONENT_REGISTRY.md` — just the component name/path and a `Yes` / `No` / `Partial` on whether it holds up across breakpoints (~375px phone through desktop). This is a visibility log, not a gate: a `No` is a perfectly valid entry. It does not require fixing the component, does not block the work, and isn't a request for a write-up — one line is enough. The point is being able to see how much of the app actually scales as it grows, not enforcing that every component must.
 
+## Mobile UX & overlays — guardrails (read before UI work)
+
+Hard-won rules from the mobile refinement pass; follow them so the same mishaps don't recur. Rationale/details in `docs/mobile-responsiveness/{DESIGN_PHILOSOPHY,INTERACTION_AUDIT}.md`.
+
+- **Two products, shared modules.** Mobile is feed-first (Home is **mobile-only**, `lg:hidden`; desktop lands on Orders); desktop is module-pages + chrome (`TopHeader` is **desktop-only**). Don't converge them; don't put desktop chrome on mobile.
+- **One sheet, one door.** Every overlay uses the `OrderSheet` primitive (`vaul`; bottom sheet on mobile / right panel on desktop) and opens via the sheet host — `useSheets()` (`openCreateOrder()`, `openOrder(id)`, …). **Never navigate to another page to pop a modal**, never re-implement open/close state, never hand-roll a new sheet/dialog.
+- **Every signifier is wired.** A grab handle means the sheet drags; a leading icon means the action it depicts; the close **X is desktop-only** (mobile dismisses via drag / backdrop / Back). If you can't wire an affordance, don't show it.
+- **Theme tokens, never hardcoded colors.** `text-foreground` / `border-border` / `bg-primary`, not `text-white` / `#2B2B40` / `orange-500` — screens must hold in light *and* dark.
+- **No unlayered `globals.css` rule may set `display`/`position`/`visibility` on an element that also carries Tailwind utilities** — it silently overrides the utility (CSS-01 in `docs/code-review/AUDIT_PROGRESS.md`). Prefer the utility, or `@layer components`.
+- **Missing module/data → scaffold + track, don't fake.** Build the UI, mark interim data `TODO(v2 read layer)`, and log it in `docs/v2-migration/STATE.md`.
+
 ## v2 platform migration — naming convention
 
 The app is being rebuilt module-by-module against the multi-tenant `v2` Postgres schema (orders first). **Status, decisions, and blockers live in `docs/v2-migration/STATE.md`** — this section is only the naming rules:
@@ -130,13 +141,19 @@ Other docs under `docs/` (e.g. `docs/index.md`, dated April 2025) are historical
 
 ## Authentication
 
-Real auth is enforced two ways: root `middleware.ts` redirects unauthenticated requests (except `/auth/*` and `/api/healthz`) to `/auth/signin`, and individual API routes additionally check auth themselves (defense in depth — don't remove the route-level check because middleware "already handles it"). Sign-in is magic-link based; only emails present in the `allowed_emails` table can sign in. Legacy roles (`admin`/`manager`/`staff`) live on the `profiles` table; v2 org roles (`owner`/`admin`/`staff` — there is **no `manager`** in v2) live on `organization_members`.
+**Identity is Clerk** (since 2026-07-17, branch `clerk-auth-transition`): root `middleware.ts` is `clerkMiddleware()` and redirects unauthenticated requests (except `/auth/*` and `/api/healthz`) to the Clerk `<SignIn />` page at `/auth/signin`; v2 API routes additionally check auth via `resolveTenant()` themselves (defense in depth — don't remove the route-level check because middleware "already handles it"). Sign-in methods (Google + email code) and sign-up restriction (invite-only, replacing the old `allowed_emails` table) are Clerk-dashboard config, not code. The old Supabase-auth routes (`/auth/callback` etc.), magic-link flow, and `app/lib/auth/{session-utils,profile-utils,authorization}.ts` were deleted at the auth cutover.
 
-**Interim v2 tenancy** (until Clerk lands): `resolveTenant()` takes identity from the Supabase session, resolves the active org via `organization_members`, and returns a service-role client — tenant isolation is the explicit `organization_id` filter in each route, not RLS. The decided end state is **Clerk** (see `docs/v2-migration/STATE.md` for what that swap is blocked on); when it lands, `resolveTenant()` is the only place that changes, and the `create_order_as_org` SQL shim gets dropped.
+**User ids**: the app-facing user id is the `internal_user_id` **UUID claim** on the Clerk session token (set from `public_metadata.internal_user_id`, typed in `types/globals.d.ts`) — never use the raw Clerk `user_…` id against the DB. Existing users carry their pre-Clerk `auth.users` UUID, so `v2.organization_members` rows still match. `scripts/clerk-backfill.js` provisions this metadata. A signed-in user without the claim has no tenancy (v2 routes 401).
+
+**Roles**: legacy `profiles` roles are dead (the client `useAuth()` façade in `app/context/auth-context.tsx` hard-codes `isAdmin`/`isManager` to false); v2 org roles live on `organization_members` and reach routes as `tenant.orgRole`. Currently just **`owner`/`staff`** — no `admin`, no `manager`. `admin` was deliberately dropped (2026-07-24): Clerk's free plan gives 2 free custom org roles before requiring the paid B2B add-on, and Clerk's own built-in `org:admin`/`org:member` don't match this app's role semantics, so the model was trimmed to fit rather than pay for a third custom role. Re-add `admin` as a custom Clerk role + in `app/lib/auth/tenant.ts`'s `OrgRole` type together if a middle tier becomes necessary.
+
+**Legacy modules are dark**: expenses, materials, accounts, invoicing, and analytics depended on the Supabase session and are non-functional until their v2 cutovers (explicit decision — don't "fix" a legacy route's auth ad hoc; migrate the module).
+
+**v2 tenancy** (until the RLS flip): `resolveTenant()` takes identity from Clerk, resolves the active org via `organization_members`, and returns the service-role-backed `TenantDb` — tenant isolation is the constructed `organization_id` scoping, not RLS. Phase 2 (Supabase third-party auth + v2 RLS + dropping the `create_order_as_org` shim) changes only `resolveTenant()` — see `docs/v2-migration/STATE.md`.
 
 ## Environment Configuration
 
-Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only). Also used: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET` (validated against `Authorization: Bearer <CRON_SECRET>` in `app/api/cron/*` routes — don't loosen that check to a format-only check). `npm run env:local`/`env:cloud` swap which Supabase project `.env.local` points at.
+Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` (server-only; build tolerates their absence but nothing can sign in without them). Also used: `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `CRON_SECRET` (validated against `Authorization: Bearer <CRON_SECRET>` in `app/api/cron/*` routes — don't loosen that check to a format-only check), `CLERK_WEBHOOK_SIGNING_SECRET` (server-only; verifies deliveries to `app/api/webhooks/clerk`, the Clerk-Organizations-to-`v2` sync — see `docs/v2-migration/STATE.md` Phase 1.5). `npm run env:local`/`env:cloud` swap which Supabase project `.env.local` points at.
 
 ## Working with the Database
 

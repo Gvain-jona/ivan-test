@@ -12,7 +12,6 @@ export interface OrderViewSheetProps {
   onOpenChange: (open: boolean) => void;
   order: OrderSummary | null;
   onClose: () => void;
-  userRole?: string;
 }
 
 export interface OrderDetailsTabProps {
@@ -44,6 +43,6 @@ export interface OrderNotesTabProps {
 
 export interface OrderDocumentsTabProps {
   documents: DocumentRecord[];
-  onCreateDocument: (documentType: DocumentType) => Promise<void>;
+  onIssueDocument: (documentType: DocumentType) => Promise<void>;
   isSubmitting: boolean;
 }

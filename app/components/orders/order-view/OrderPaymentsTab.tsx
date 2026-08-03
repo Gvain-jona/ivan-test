@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import type { OrderPaymentsTabProps } from './types';
 
 const PAYMENT_METHODS = [
@@ -31,6 +31,7 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
   onAddPayment,
   isSubmitting,
 }) => {
+  const fmt = useFormatCurrency();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]['value']>('cash');
@@ -49,24 +50,24 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
   return (
     <div className="space-y-4">
       {/* Balance strip */}
-      <div className="border border-[#2B2B40] rounded-lg p-4 grid grid-cols-3 gap-4">
+      <div className="border border-border/40 rounded-lg p-4 grid grid-cols-3 gap-4">
         <div>
           <p className="text-xs text-[#6D6D80]">Total</p>
-          <p className="text-base font-medium text-white">{formatCurrency(order.total_amount)}</p>
+          <p className="text-base font-medium text-foreground">{fmt(order.total_amount)}</p>
         </div>
         <div>
           <p className="text-xs text-[#6D6D80]">Paid</p>
-          <p className="text-base font-medium text-green-500">{formatCurrency(order.amount_paid)}</p>
+          <p className="text-base font-medium text-green-500">{fmt(order.amount_paid)}</p>
         </div>
         <div>
           <p className="text-xs text-[#6D6D80]">Balance</p>
-          <p className="text-base font-medium text-orange-500">{formatCurrency(balance)}</p>
+          <p className="text-base font-medium text-primary">{fmt(balance)}</p>
         </div>
       </div>
 
       {/* Payments list */}
       {payments.length === 0 ? (
-        <div className="border border-[#2B2B40] rounded-lg p-8 text-center text-muted-foreground">
+        <div className="border border-border/40 rounded-lg p-8 text-center text-muted-foreground">
           <Wallet className="h-6 w-6 mx-auto mb-2 opacity-60" />
           <p className="text-sm">No payments recorded</p>
         </div>
@@ -75,10 +76,10 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
           {payments.map(payment => (
             <div
               key={payment.id}
-              className="border border-[#2B2B40] rounded-lg p-3 flex items-center justify-between"
+              className="border border-border/40 rounded-lg p-3 flex items-center justify-between"
             >
               <div>
-                <p className="text-sm font-medium text-white">{formatCurrency(payment.amount)}</p>
+                <p className="text-sm font-medium text-foreground">{fmt(payment.amount)}</p>
                 <p className="text-xs text-muted-foreground capitalize">
                   {payment.payment_method.replace(/_/g, ' ')}
                   {payment.notes ? ` · ${payment.notes}` : ''}
@@ -94,7 +95,7 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
 
       {/* Add payment */}
       {showForm ? (
-        <div className="border border-[#2B2B40] rounded-lg p-4 space-y-3">
+        <div className="border border-border/40 rounded-lg p-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="payment-amount">Amount</Label>

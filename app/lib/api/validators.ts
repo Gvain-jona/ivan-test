@@ -83,6 +83,25 @@ export const orderUpdateSchema = z
 
 export const fieldEntitySchema = z.enum(['client', 'order', 'order_item', 'product']);
 
+// A select field's options: either a legacy string array or the current
+// metadata-object array ({value,label,color,is_default,semantic}). The DB
+// (value_in_options) accepts both; validation stays structural.
+const selectOptionObject = z.object({
+  value: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  color: z.string().trim().min(1).optional(),
+  is_default: z.boolean().optional(),
+  semantic: z.enum(['open', 'won', 'lost']).optional(),
+});
+const fieldOptions = z.union([
+  z.array(z.string().trim().min(1)),
+  z.array(selectOptionObject),
+]) as unknown as z.ZodType<Json>;
+
+// A single jsonb default (any JSON shape); assertion reconciles zod's
+// `unknown` with the DB `Json` type, same pattern as customData.
+const jsonValue = z.unknown() as unknown as z.ZodType<Json>;
+
 export const fieldDefinitionCreateSchema = z.object({
   entity: fieldEntitySchema,
   field_name: z
@@ -92,7 +111,9 @@ export const fieldDefinitionCreateSchema = z.object({
   field_type: z.enum(['text', 'number', 'date', 'boolean', 'select', 'relation', 'dimension']),
   is_required: z.boolean().optional(),
   is_unique: z.boolean().optional(),
-  options: z.array(z.string().trim().min(1)).optional(),
+  is_system: z.boolean().optional(),
+  options: fieldOptions.optional(),
+  default_value: jsonValue.optional(),
   related_entity: z.string().trim().min(1).optional(),
   display_field: z.string().trim().min(1).optional(),
   conditions: customData.optional(),
@@ -101,6 +122,92 @@ export const fieldDefinitionCreateSchema = z.object({
   inherit_from: z.string().trim().min(1).optional(),
   sort_order: z.number().int().optional(),
 });
+
+/**
+ * organizations.settings is a DB-governed schema: a trigger
+ * (v2.validate_organization_settings) whitelists the top-level blocks and
+ * type-checks their contents. These schemas mirror the block *shape* so a
+ * typo fails as a 400 here rather than a trigger error on the round trip —
+ * but the trigger remains the authority on semantics, exactly as it is for
+ * custom_data. Keep `.strict()` in step with the DB whitelist.
+ *
+ * Currency is checked for ISO-4217 *shape* only, not against a fixed list,
+ * so any real currency works — the preset list
+ * (app/lib/organization/presets.ts) is just a menu.
+ */
+const currencyCode = z.string().trim().regex(/^[A-Z]{3}$/, 'Expected a 3-letter ISO 4217 code');
+
+const settingsBlocks = z
+  .object({
+    locale: z
+      .object({
+        currency: currencyCode,
+        date_format: z.string().trim().min(1),
+        timezone: z.string().trim().min(1),
+      })
+      .partial()
+      .strict(),
+    tax: z
+      .object({
+        registered: z.boolean(),
+        label: z.string().trim().min(1),
+        rate: z.number().min(0).max(100),
+        inclusive: z.boolean(),
+        number: z.string().trim().min(1),
+      })
+      .partial()
+      .strict(),
+    documents: z
+      .object({
+        terms_days: z.number().int().min(0),
+        quote_validity_days: z.number().int().min(0),
+        footer: z.string(),
+        bank_details: z.string(),
+        show_bank_details: z.boolean(),
+      })
+      .partial()
+      .strict(),
+    identity: z
+      .object({
+        legal_name: z.string().trim().min(1),
+        trading_name: z.string().trim().min(1),
+        address: z.string(),
+        phone: z.string().trim().min(1),
+        email: z.string().trim().email(),
+        tax_id: z.string().trim().min(1),
+        website: z.string().trim().min(1),
+        logo_attachment_id: z.string().uuid(),
+      })
+      .partial()
+      .strict(),
+  })
+  .partial()
+  .strict();
+
+export type OrganizationSettingsBlocks = z.infer<typeof settingsBlocks>;
+
+/**
+ * PATCH /api/organization. name/slug/logo are Clerk-authoritative and order
+ * status values live in field_definitions — neither belongs here.
+ *
+ * `settings` blocks are deep-merged into organizations.settings.
+ * `onboarding_completed` is NOT a settings block: it writes the
+ * onboarding_completed_at column, because settings is config that gets
+ * frozen into document snapshots and setup progress is neither.
+ */
+export const organizationSettingsPatchSchema = z
+  .object({
+    settings: settingsBlocks,
+    onboarding_completed: z.boolean(),
+  })
+  .partial()
+  .strict()
+  .refine(d => d.settings !== undefined || d.onboarding_completed !== undefined, {
+    message: 'At least one setting is required',
+  })
+  .refine(d => d.settings === undefined || Object.keys(d.settings).length > 0, {
+    message: 'settings must name at least one block',
+  });
 
 export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -119,12 +226,30 @@ export const documentStatusSchema = z.enum([
   'void',
 ]);
 
-export const documentCreateSchema = z.object({
-  entity_type: documentEntitySchema,
+/**
+ * POST /api/documents — issue a document from an order.
+ *
+ * No caller-supplied snapshot or totals: v2.issue_document() reads the order,
+ * resolves org settings, computes tax and freezes the snapshot itself. That
+ * is the point — a client that can hand over the financial content of an
+ * invoice can forge one, and the numbers would drift from the order the
+ * moment either side changed.
+ *
+ * Orders only. `documents.entity_type` also permits payment/expense/client,
+ * but nothing DB-side can issue those yet (receipts arrive with the payments
+ * cutover, expenses with theirs), so accepting them here would just produce a
+ * confusing failure deeper in.
+ */
+export const documentIssueSchema = z.object({
+  entity_type: z.literal('order', {
+    errorMap: () => ({ message: 'Only orders can be issued as documents today' }),
+  }),
   entity_id: z.string().uuid(),
   document_type: documentTypeSchema,
-  snapshot: customData.optional(),
-  valid_until: isoDate.optional(),
+  /** Overrides settings.documents.terms_days for this invoice only. */
+  terms_days: z.number().int().min(0).optional(),
+  /** Overrides settings.documents.quote_validity_days for this quotation. */
+  validity_days: z.number().int().min(0).optional(),
 });
 
 /**

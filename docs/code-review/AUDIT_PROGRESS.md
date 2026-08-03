@@ -23,7 +23,7 @@
 | SEC-02 | CRITICAL | Auth middleware never enforces authentication (`middleware.ts`) | ✅ FIXED | `6afe05a` |
 | SEC-03 | CRITICAL | Mock admin grants full access without credentials (`auth-context.tsx`) | ✅ FIXED | `6afe05a` |
 | SEC-04 | HIGH | Open redirect via protocol-relative URLs (`auth/callback/route.ts`) | ✅ FIXED | `6afe05a` |
-| SEC-05 | HIGH | IDOR: no ownership check on resource endpoints | ⏸ DEFERRED | — |
+| SEC-05 | HIGH | IDOR: no ownership check on resource endpoints | ✅ MITIGATED (migrated routes) / ⏸ residual = Phase 2 RLS | — |
 | SEC-06 | HIGH | Unauthenticated GET `/api/settings/app` | ✅ FIXED | `756e3de` |
 | SEC-07 | MEDIUM | PUT `/api/orders` uses unsafe type cast, no Zod validation | ✅ FIXED | `58c0410` |
 | SEC-08 | MEDIUM | Falsy check on payment amount — no real type validation | ✅ FIXED | `58c0410` |
@@ -35,7 +35,12 @@
 
 ### Deferred decisions
 
-**SEC-05 (IDOR):** Requires a Supabase RLS migration (`supabase/migrations/`) to add ownership policies on `orders`, `expenses`, and `material_purchases`. Deferred because SQL migrations need to be run against the live database and validated against the existing RLS setup. The API-layer check (Option A in the report) is a safe interim but was not applied because it would require touching every `[id]` route. **Do before first external user access.**
+**SEC-05 (IDOR):** *Re-assessed 2026-07-24 after the v2 migration.* The finding predates the `TenantDb` wrapper and no longer describes the live surface:
+
+- **Migrated routes** (orders, clients, products, documents, field-definitions) read/write exclusively through `tenant.db`, whose `select`/`update` **auto-append `.eq('organization_id', …)`** and whose `insert` injects it ([app/lib/auth/tenant-db.ts](../../app/lib/auth/tenant-db.ts)). So a `[id]` route's `.eq('id', id)` runs as `.eq('organization_id', myOrg).eq('id', id)` — a cross-org id matches nothing and returns 404, not another org's row. Verified across all five migrated `[id]` routes; no data route bypasses the wrapper with a raw admin client (only `app/api/webhooks/clerk` uses `createV2AdminClient` directly, by design). The API-layer ownership check this finding asked for is therefore already enforced **by construction**, not per-route convention.
+- **`expenses` / `material_purchases`** (the other two tables named here) are still legacy/dark modules — with no Supabase session under Clerk they 401 every request until their v2 cutover, at which point they adopt the same wrapper and inherit the same scoping.
+
+**Residual work** is not per-route checks (they'd be redundant) but the **Phase 2 RLS flip** (Supabase third-party Clerk auth + v2 policies), which makes RLS a second boundary for when `tenant.db` stops being the sole one — already tracked in `docs/v2-migration/STATE.md`. **Do the RLS flip before relying on anything other than the wrapper.**
 
 **SEC-11 (allowed_emails RLS):** Requires a migration to replace the `"Authenticated users can read allowed_emails"` policy with an admin-only policy. Deferred alongside SEC-05. Low risk in current deployment (closed-user system). **Do before first external user access.**
 
@@ -92,6 +97,16 @@
 | `app/hooks/materials/useMaterialPurchases.ts` | 1,159 | Combined list + detail + mutation logic | 🔲 Planned refactor |
 | `app/lib/services/analytics-service.ts` | 919 | All analytics aggregation in one service | 🔲 Planned refactor |
 
+### CSS layering — unlayered `globals.css` rules override Tailwind utilities
+
+| ID | Finding | Status | Commit |
+|----|---------|--------|--------|
+| CSS-01 | Custom component rules in `app/globals.css` are **unlayered** and sit after `@tailwind utilities`, so at equal specificity they win over any colliding utility class. Manifested as `.top-header { display:flex }` defeating the `hidden lg:block` on the header — rendering the desktop-only header on mobile. | ✅ FIXED (that instance) — `549e247`; systemic fix ⏸ DEFERRED |
+
+**Systemic fix (deferred to a later session):** move the component-scoped rules in `globals.css` into `@layer components` so Tailwind utilities always win, making this collision class structurally impossible. Deferred because it's an ~800-line precedence change and some table/calendar rules currently rely on beating utilities — it needs an incremental migration with a visual pass on the tables + date picker (can't be verified headlessly). Full sweep 2026-07-23: `.top-header` was the **only** live collision; **no** global rule targets forms/inputs/buttons/dialogs/sheets, and there are **zero** `visibility:` overrides — so the form/sheet work is unaffected.
+
+**Guardrail until then (keep in mind while working):** do not add unlayered `globals.css` rules that set `display` / `position` / `visibility` on elements that also carry Tailwind utilities — prefer the utility, or put the rule in `@layer components`.
+
 ---
 
 ## Dependency Audit (DEPENDENCY_REVIEW.md)
@@ -144,5 +159,5 @@
 | Critical security issues | 3 | 0 |
 | High severity (security + reliability) | 6 | 0 |
 | Medium severity | 7 | 0 |
-| Low severity | 5 | 2 (SEC-05, SEC-11 — deferred, migration required) |
-| Deferred (by decision) | — | 2 security (RLS migrations) + 4 refactoring files |
+| Low severity | 5 | 1 (SEC-11 — deferred, migration required) |
+| Deferred (by decision) | — | 1 security (SEC-11 RLS migration) + 4 refactoring files. SEC-05 mitigated by the TenantDb wrapper; residual RLS is Phase 2 (STATE.md) |

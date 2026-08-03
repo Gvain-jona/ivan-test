@@ -79,6 +79,36 @@ const config: Config = {
   				completed: 'hsl(var(--status-completed))',
   				delivered: 'hsl(var(--status-delivered))',
   				cancelled: 'hsl(var(--status-cancelled))'
+  			},
+  			// First-run setup surfaces (page -> panel -> rows). See globals.css.
+  			setup: {
+  				canvas: 'hsl(var(--setup-canvas))',
+  				panel: 'hsl(var(--setup-panel))',
+  				surface: 'hsl(var(--setup-surface))'
+  			},
+  			// Feedback accents the base token set lacks (only destructive exists).
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				bg: 'hsl(var(--success-bg))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				bg: 'hsl(var(--warning-bg))'
+  			},
+  			info: {
+  				DEFAULT: 'hsl(var(--info))',
+  				bg: 'hsl(var(--info-bg))'
+  			},
+  			// Field option / status stage palette. Consume via
+  			// app/lib/fields/colors.ts, not by composing class names by hand.
+  			opt: {
+  				slate: { DEFAULT: 'hsl(var(--opt-slate))', fg: 'hsl(var(--opt-slate-fg))', bg: 'hsl(var(--opt-slate-bg))' },
+  				amber: { DEFAULT: 'hsl(var(--opt-amber))', fg: 'hsl(var(--opt-amber-fg))', bg: 'hsl(var(--opt-amber-bg))' },
+  				blue: { DEFAULT: 'hsl(var(--opt-blue))', fg: 'hsl(var(--opt-blue-fg))', bg: 'hsl(var(--opt-blue-bg))' },
+  				violet: { DEFAULT: 'hsl(var(--opt-violet))', fg: 'hsl(var(--opt-violet-fg))', bg: 'hsl(var(--opt-violet-bg))' },
+  				teal: { DEFAULT: 'hsl(var(--opt-teal))', fg: 'hsl(var(--opt-teal-fg))', bg: 'hsl(var(--opt-teal-bg))' },
+  				green: { DEFAULT: 'hsl(var(--opt-green))', fg: 'hsl(var(--opt-green-fg))', bg: 'hsl(var(--opt-green-bg))' },
+  				red: { DEFAULT: 'hsl(var(--opt-red))', fg: 'hsl(var(--opt-red-fg))', bg: 'hsl(var(--opt-red-bg))' }
   			}
   		},
   		borderRadius: {

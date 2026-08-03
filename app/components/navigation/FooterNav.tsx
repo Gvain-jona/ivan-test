@@ -3,10 +3,8 @@
 import React, { memo, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  Home,
   Package,
   Boxes,
-  SlidersHorizontal,
   Banknote,
   ShoppingBag,
   CheckSquare,
@@ -20,6 +18,7 @@ import { NotificationsIndicator } from '@/components/notifications/Notifications
 import { useNotifications } from '@/context/NotificationsContext';
 
 import { ExpandableTabs } from '@/components/ui/expandable-tabs';
+import MobileTabBar from './MobileTabBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NavigationError } from '@/components/ui/navigation-error';
@@ -42,13 +41,12 @@ import { useTabNavigation } from '@/hooks/ui/useTabNavigation';
 import { useRoutePrefetching } from '@/hooks/ui/useRoutePrefetching';
 
 // Define navigation items with consistent navigation approach
+// Home is a mobile-only surface (see DESIGN_PHILOSOPHY.md), so the desktop
+// pill starts at Orders — desktop's landing destination.
 const getNavigationItems = (unreadCount: number): NavItemType[] => [
-  // Home page removed temporarily
-  // { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: User, href: '/dashboard/clients' },
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
-  { title: 'Fields', icon: SlidersHorizontal, href: '/dashboard/fields' },
   { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
   { type: 'separator' },
@@ -239,18 +237,23 @@ function FooterNavComponent({ className }: FooterNavProps) {
       {showScrollTop && (
         <Button
           onClick={scrollToTop}
-          className="fixed bottom-20 right-4 z-50 h-10 w-10 rounded-full bg-orange-500 hover:bg-orange-600 text-white shadow-lg p-0"
+          className="fixed bottom-24 right-4 z-50 h-11 w-11 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg p-0 lg:bottom-20"
           aria-label="Scroll to top"
         >
           <ArrowUp size={18} />
         </Button>
       )}
 
-      {/* Footer Navigation */}
+      {/* Mobile bottom tab bar (lg:hidden) — the phone-appropriate nav:
+          4 primary routes + a More sheet, distinct from the desktop pill. */}
+      <MobileTabBar />
+
+      {/* Desktop floating pill (hidden below lg) — the full destination
+          set in the signature expandable pill. */}
       <div
         ref={footerNavRef}
         className={cn(
-        "fixed bottom-2 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 footer-nav",
+        "hidden lg:block fixed bottom-2 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 footer-nav",
         isScrollingDown && !navVisible ? "translate-y-24 opacity-0" : "translate-y-0 opacity-100",
         className
       )}>

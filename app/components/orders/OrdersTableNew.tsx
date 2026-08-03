@@ -2,13 +2,15 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
-import { useOrganization } from '@/hooks/organization/useOrganization';
+import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import OrderRow from './OrderRow';
+import OrderCard from './OrderCard';
+import OrdersFilterSheet from './OrdersFilterSheet';
 import { Button } from '@/app/components/ui/button';
 import {
   Search, RefreshCw, X, Calendar,
-  CreditCard, ClipboardList
+  CreditCard, ClipboardList, SlidersHorizontal
 } from 'lucide-react';
 import { useLoading, LoadingButton } from '@/components/loading';
 import { Skeleton } from '@/app/components/ui/skeleton';
@@ -84,10 +86,24 @@ export default function OrdersTable(props: OrdersTableProps) {
   } = props;
 
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'ascending' });
+
+  // Number of active filter groups (drives the mobile Filter button badge).
+  const activeFilterCount =
+    (selectedStatus.length > 0 ? 1 : 0) +
+    (selectedPaymentStatus.length > 0 ? 1 : 0) +
+    (dateRange ? 1 : 0);
+
+  const clearAllFilters = () => {
+    onSearch('');
+    onStatusFilterChange([]);
+    onPaymentStatusFilterChange([]);
+    onDateRangeChange(undefined);
+  };
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
-  // Status list is org-configurable in v2 (organizations.settings)
-  const { orderStatuses } = useOrganization();
+  // Status list comes from the order `status` field-definition (no fallback).
+  const { statusValues: orderStatuses } = useOrderStatuses();
 
   // Memoize row mouse enter/leave handlers
   const handleRowMouseEnter = useCallback((id: string) => {
@@ -126,6 +142,12 @@ export default function OrdersTable(props: OrdersTableProps) {
       return 0;
     });
   }, [orders, sortConfig]);
+
+  // Skeletons only when there is nothing to show. On key changes
+  // (filters/pagination) SWR keeps the previous rows via
+  // keepPreviousData while isLoading is true — keep showing them
+  // instead of flashing skeletons over data we already have.
+  const showSkeletons = loading && (!sortedOrders || sortedOrders.length === 0);
 
   // Get class names for sort headers
   const getSortIcon = (key: keyof OrderSummary) => {
@@ -172,6 +194,24 @@ export default function OrdersTable(props: OrdersTableProps) {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+          {/* Mobile: one Filter button opens the bottom sheet. The inline
+              quick filters below are desktop-only. */}
+          <Button
+            variant="outline"
+            onClick={() => setFilterOpen(true)}
+            className="relative h-9 flex-1 justify-center gap-2 border-[hsl(var(--table-border))] bg-[hsl(var(--table-search-bg))] sm:flex-none lg:hidden"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filter
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 rounded-full px-1">
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
+
+          {/* Desktop: inline quick filters */}
+          <div className="hidden items-center gap-2 flex-wrap lg:flex">
           {/* Status Quick Filter */}
           <div className="relative">
             <Select
@@ -287,6 +327,8 @@ export default function OrdersTable(props: OrdersTableProps) {
             </PopoverContent>
           </Popover>
 
+          </div>
+
           {/* Keep the Refresh Button */}
           <LoadingButton
             variant="outline"
@@ -397,9 +439,40 @@ export default function OrdersTable(props: OrdersTableProps) {
       {/* Table Container - This is the scrollable area */}
       <div
         ref={tableContainerRef}
-        className="flex-1 min-h-0 overflow-auto relative w-full p-1"
+        className="flex-1 min-h-0 overflow-auto relative w-full p-3 lg:p-1"
       >
-        <div className="w-full">
+        {/* Mobile: card-first list (per DESIGN_PHILOSOPHY.md — order data is
+            cards on mobile, not a shrunk table). Desktop keeps the table. */}
+        <div className="space-y-3 lg:hidden">
+          {showSkeletons ? (
+            Array(5).fill(0).map((_, index) => (
+              <div
+                key={`card-skeleton-${index}`}
+                className="h-[152px] animate-pulse rounded-2xl border border-border bg-card"
+              />
+            ))
+          ) : !sortedOrders || sortedOrders.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center">
+              <p className="text-base font-medium text-foreground">No orders found</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try adjusting your filters or create a new order
+              </p>
+            </div>
+          ) : (
+            sortedOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                userRole={userRole}
+                onView={onView}
+                onDelete={onDelete}
+                onStatusChange={onStatusChange}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="hidden w-full lg:block">
           <table className="w-full table-fixed divide-y divide-[hsl(var(--table-border))] rounded-md overflow-hidden" style={{ width: '100%', tableLayout: 'fixed' }}>
             <thead className="sticky top-0 bg-[hsl(var(--table-header-bg))] z-10 w-full border-b border-[hsl(var(--table-border))] shadow-sm">
               <tr>
@@ -464,7 +537,7 @@ export default function OrdersTable(props: OrdersTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--table-border))]">
-              {loading ? (
+              {showSkeletons ? (
                 Array(5).fill(0).map((_, index) => (
                   <tr key={`skeleton-${index}`}>
                     <td className="px-2 py-3 whitespace-nowrap client-column">
@@ -507,7 +580,7 @@ export default function OrdersTable(props: OrdersTableProps) {
               ) : !sortedOrders || sortedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center">
-                    <p className="text-base text-white">No orders found</p>
+                    <p className="text-base text-foreground">No orders found</p>
                     <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters or create a new order</p>
                   </td>
                 </tr>
@@ -532,7 +605,7 @@ export default function OrdersTable(props: OrdersTableProps) {
       </div>
 
       {/* Pagination using the TablePagination component - Fixed at the bottom */}
-      <div className="border-t border-table-border py-5 px-5 bg-gray-950 flex-shrink-0 rounded-b-md">
+      <div className="border-t border-table-border py-5 px-5 bg-[hsl(var(--table-background))] flex-shrink-0 rounded-b-md">
         {/* Always show pagination when there's at least one record */}
         {(sortedOrders && sortedOrders.length > 0) && (
           <>
@@ -549,6 +622,21 @@ export default function OrdersTable(props: OrdersTableProps) {
           </>
         )}
       </div>
+
+      {/* Mobile filter bottom sheet (opened by the Filter button above). */}
+      <OrdersFilterSheet
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        orderStatuses={orderStatuses}
+        selectedStatus={selectedStatus}
+        onStatusChange={onStatusFilterChange}
+        selectedPaymentStatus={selectedPaymentStatus}
+        onPaymentStatusChange={onPaymentStatusFilterChange}
+        dateRange={dateRange}
+        onDateRangeChange={onDateRangeChange}
+        resultCount={totalCount || orders.length}
+        onClearAll={clearAllFilters}
+      />
     </div>
   );
 }

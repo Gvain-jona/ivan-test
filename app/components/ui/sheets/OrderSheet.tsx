@@ -1,8 +1,10 @@
-import React, { useCallback, memo } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import React, { memo } from 'react';
+import { Drawer } from 'vaul';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 interface OrderSheetProps {
   open: boolean;
@@ -14,11 +16,22 @@ interface OrderSheetProps {
   showCloseButton?: boolean;
   onClose?: () => void;
   customHeader?: React.ReactNode;
+  /**
+   * Sticky action bar pinned below the scrollable body (e.g. Cancel + Save).
+   * Stays put while the form scrolls and clears the safe-area inset.
+   */
+  footer?: React.ReactNode;
 }
 
 /**
- * Base component for all order-related side sheets
- * Provides consistent styling and animations for side panel content
+ * The one sheet primitive (see DESIGN_PHILOSOPHY.md → "Overlays & sheets").
+ * Built on `vaul`, so it's a *real* sheet: drag-to-dismiss, focus trap, slide
+ * animation, scroll-lock, and keyboard-aware input repositioning — no more
+ * hand-rolled affordances.
+ *
+ * Platform-adaptive: a bottom drawer on mobile (grab handle that actually
+ * drags, rounded top, capped height) and a right-side panel on desktop. Every
+ * migrated form (order / client / product / field) renders through it.
  */
 const OrderSheet = memo(function OrderSheet({
   open,
@@ -29,9 +42,13 @@ const OrderSheet = memo(function OrderSheet({
   description,
   showCloseButton = true,
   onClose,
-  customHeader
+  customHeader,
+  footer,
 }: OrderSheetProps) {
-  // Map size to width class
+  // lg = 1024px, matching the shell's mobile/desktop breakpoint.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+  // Desktop right-panel width by size.
   const getSizeClass = () => {
     switch (size) {
       case 'sm': return 'sm:max-w-md';
@@ -43,71 +60,86 @@ const OrderSheet = memo(function OrderSheet({
     }
   };
 
-  // Simple function to handle close button click
   const handleClose = () => {
-    // Call onClose if provided
-    if (onClose) {
-      onClose();
-    }
-
-    // Just call onOpenChange with false
-    console.log('Close button clicked');
+    if (onClose) onClose();
     onOpenChange(false);
   };
 
-  // Simple pass-through function for sheet state changes
-  const handleOpenChange = useCallback((value: boolean) => {
-    // Only call parent if the state is actually changing
-    if (value !== open) {
-      console.log(`Sheet state change requested: ${value}`);
-      onOpenChange(value);
-    }
-  }, [onOpenChange, open]);
-
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent
-        side="right"
-        className={`p-0 bg-background border-border/40 text-foreground ${getSizeClass()}`}
-        hideCloseButton={true}
-      >
-        <div className="h-full flex flex-col">
-          <SheetHeader className="p-6 border-b border-[hsl(var(--border))]/40 flex flex-row justify-between items-start bg-[hsl(var(--card))]">
+    <Drawer.Root
+      open={open}
+      onOpenChange={onOpenChange}
+      direction={isDesktop ? 'right' : 'bottom'}
+      repositionInputs
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+        <Drawer.Content
+          className={cn(
+            'fixed z-50 flex flex-col bg-background text-foreground outline-none',
+            isDesktop
+              ? cn('inset-y-0 right-0 h-full w-full border-l border-border/40', getSizeClass())
+              : 'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl border-t border-border/40',
+          )}
+        >
+          {/* Grab handle — mobile only, and it drags for real now (vaul). */}
+          {!isDesktop && (
+            <div className="flex shrink-0 justify-center pt-3 pb-1">
+              <div className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
+            </div>
+          )}
+
+          <div className="flex shrink-0 flex-row items-start justify-between border-b border-border/40 bg-card px-6 py-4 lg:p-6">
             {customHeader ? (
               <div className="flex-1">
-                {/* Always include a SheetTitle for accessibility, but visually hide it if using customHeader */}
+                {/* Radix (via vaul) requires a Title for accessibility. */}
                 <VisuallyHidden>
-                  <SheetTitle>{title || 'Order Details'}</SheetTitle>
+                  <Drawer.Title>{title || 'Details'}</Drawer.Title>
                 </VisuallyHidden>
                 {customHeader}
               </div>
             ) : (
               <div>
-                <SheetTitle className="text-xl font-semibold">{title}</SheetTitle>
+                <Drawer.Title className="text-xl font-semibold">{title}</Drawer.Title>
                 {description && (
-                  <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{description}</p>
                 )}
               </div>
             )}
 
-            {/* Always show close button for better UX */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full ml-2 flex-shrink-0"
-              aria-label="Close panel"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </SheetHeader>
+            {/* Desktop only. On mobile the sheet is dismissed by drag-down,
+                backdrop tap, or Back — the X is redundant chrome that just
+                eats header space (per product decision 2026-07-23). */}
+            {showCloseButton && isDesktop && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="ml-2 flex-shrink-0 rounded-full text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                aria-label="Close panel"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
 
-          <div className="flex-1 overflow-auto">
+          <div
+            className={cn(
+              'min-h-0 flex-1 overflow-auto',
+              footer ? '' : 'pb-[env(safe-area-inset-bottom)] lg:pb-0',
+            )}
+          >
             {children}
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+
+          {footer && (
+            <div className="shrink-0 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {footer}
+            </div>
+          )}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 });
 

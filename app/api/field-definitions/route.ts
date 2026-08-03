@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/field-definitions — define a custom field (owner/admin only;
+ * POST /api/field-definitions — define a custom field (owner only;
  * field definitions shape every form and validation rule in the org).
  */
 export async function POST(request: NextRequest) {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
     if (tenant.orgRole === 'staff') {
-      return handleApiError('FORBIDDEN', 'Only owners and admins can define fields');
+      return handleApiError('FORBIDDEN', 'Only owners can define fields');
     }
 
     const parsed = fieldDefinitionCreateSchema.safeParse(await request.json());

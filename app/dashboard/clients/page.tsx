@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Users, Pencil, Archive } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plus, Search, Users, Pencil, Archive, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import { useClients, useClientMutations } from '@/hooks/clients/useClients';
 import type { Client, ClientListParams } from '@/hooks/clients/useClients';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import ClientFormSheet from '@/components/clients/ClientFormSheet';
+import EntityFieldsManager from '@/components/fields/EntityFieldsManager';
 import { useToast } from '@/components/ui/use-toast';
 
 /**
@@ -29,6 +31,7 @@ export default function ClientsPage() {
   const [status, setStatus] = useState<NonNullable<ClientListParams['status']>>('active');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
+  const [showFields, setShowFields] = useState(false);
 
   const { clients, total, isLoading, mutate } = useClients({
     status,
@@ -44,6 +47,18 @@ export default function ClientsPage() {
     setEditing(null);
     setSheetOpen(true);
   };
+
+  // Deep-link: `?new=1` (e.g. the Home quick-action chip) opens the create
+  // sheet, then strips the param so a refresh doesn't reopen it.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams?.get('new') === '1') {
+      setEditing(null);
+      setSheetOpen(true);
+      router.replace('/dashboard/clients');
+    }
+  }, [searchParams, router]);
 
   const openEdit = (client: Client) => {
     setEditing(client);
@@ -77,14 +92,30 @@ export default function ClientsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Clients</h1>
           <p className="text-sm text-muted-foreground">
-            Everyone you take orders for — fields beyond the name come from Field Setup.
+            Everyone you take orders for — fields beyond the name come from the Fields panel.
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Client
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFields(v => !v)}
+            aria-pressed={showFields}
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />
+            Fields
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Client
+          </Button>
+        </div>
       </div>
+
+      {showFields && (
+        <div className="rounded-xl border border-border bg-card/40 p-4">
+          <EntityFieldsManager entity="client" entityLabel="client" />
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-2">
@@ -128,7 +159,7 @@ export default function ClientsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#2B2B40]">
-            {isLoading ? (
+            {isLoading && clients.length === 0 ? (
               <tr>
                 <td
                   colSpan={3 + listFields.length}

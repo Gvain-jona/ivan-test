@@ -93,6 +93,22 @@ export default function ProductFormSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={product ? `Edit ${product.name}` : 'New Product'}
+      footer={
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleSubmit} disabled={!name.trim() || submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+            {product ? 'Save Changes' : 'Create Product'}
+          </Button>
+        </div>
+      }
     >
       <div className="p-4 space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -136,16 +152,6 @@ export default function ProductFormSheet({
         </div>
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
-
-        <div className="flex justify-end gap-2 border-t border-[#2B2B40] pt-4">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!name.trim() || submitting}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            {product ? 'Save Changes' : 'Create Product'}
-          </Button>
-        </div>
       </div>
     </OrderSheet>
   );

@@ -150,25 +150,13 @@ const DEFAULT_SWR_CONFIG = {
   fetcher,
   // Use the base configuration from our factory
   ...createSWRConfig('list'),
-  // Use a more efficient cache provider with size limit to prevent memory leaks
-  provider: () => {
-    // Create a Map with a maximum size of 100 entries
-    const cache = new Map();
-    const MAX_SIZE = 100;
-
-    // Override set method to limit cache size
-    const originalSet = cache.set.bind(cache);
-    cache.set = (key, value) => {
-      // If cache is full, remove the oldest entry
-      if (cache.size >= MAX_SIZE) {
-        const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
-      }
-      return originalSet(key, value);
-    };
-
-    return cache;
-  },
+  // Cache provider: SWR's default unbounded Map. The previous
+  // hand-rolled 100-entry cap evicted in FIFO order (no recency
+  // update on reads), so actively-used keys were dropped mid-session
+  // — remounting a view then hit a cold cache and flashed skeletons.
+  // If memory ever becomes a real concern, use a true LRU
+  // (e.g. lru-cache, the provider SWR's own docs recommend), never a
+  // FIFO.
   // Custom error retry function with exponential backoff
   onErrorRetry: (error: Error & { status?: number }, key: string, config: SWRConfiguration, revalidate: Revalidator, { retryCount }: Required<RevalidatorOptions>) => {
     // Don't retry on 404s
@@ -199,19 +187,9 @@ const DEFAULT_SWR_CONFIG = {
   onError: function(error: Error, key: string) {
     console.error(`Error loading ${key}:`, error);
   },
-  // Use a comparison function that ignores undefined values
-  compare: function(a: unknown, b: unknown) {
-    if (a === b) return true;
-    if (!a || !b) return false;
-    if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false;
-      return a.every(function(item, i) { return item === b[i]; });
-    }
-    if (typeof a === 'object' && typeof b === 'object') {
-      return JSON.stringify(a) === JSON.stringify(b);
-    }
-    return false;
-  }
+  // No custom `compare`: SWR's default stable deep-equality is both
+  // correct and cheaper than the JSON.stringify comparison that used
+  // to run here on every cache write.
 };
 
 /**
@@ -238,30 +216,10 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Create a shared cache that persists across renders
-  const [sharedCache] = useState(() => {
-    // Create a Map with a maximum size of 100 entries
-    const cache = new Map();
-    const MAX_SIZE = 100;
-
-    // Override set method to limit cache size
-    const originalSet = cache.set.bind(cache);
-    cache.set = (key, value) => {
-      // If cache is full, remove the oldest entry
-      if (cache.size >= MAX_SIZE) {
-        const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
-      }
-      return originalSet(key, value);
-    };
-
-    return cache;
-  });
-
-  // Enhanced SWR config with shared cache and middleware
+  // Enhanced SWR config with middleware (cache provider is SWR's
+  // default Map — see the note on DEFAULT_SWR_CONFIG)
   const enhancedConfig = {
     ...DEFAULT_SWR_CONFIG,
-    provider: () => sharedCache,
     use: [
       ((useSWRNext: SWRHook) => {
         // Named as a hook so rules-of-hooks recognizes SWR's middleware

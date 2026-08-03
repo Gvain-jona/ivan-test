@@ -18,11 +18,13 @@ describe('/api/documents', () => {
     expect((await GET(getRequest('/api/documents'))).status).toBe(400)
   })
 
-  it('POST draft flow (interim shim): next_number first, then insert as draft', async () => {
+  it('POST issues through the RPC and returns the frozen document', async () => {
     const { tenant, db } = createFakeTenant({ organizationId: 'org-4', userId: 'user-4' })
     resolveTenantMock.mockResolvedValue(tenant)
-    db.queue('rpc:next_number', { data: 'INV-0007' })
-    db.queue('insert:documents', { data: { id: 'd-1', document_number: 'INV-0007', status: 'draft' } })
+    db.queue('rpc:issue_document_as_org', { data: 'd-1' })
+    db.queue('select:documents', {
+      data: { id: 'd-1', document_number: 'INV-0007', status: 'issued', currency: 'UGX', total: 300 },
+    })
 
     const res = await POST(
       jsonRequest('/api/documents', {
@@ -33,35 +35,63 @@ describe('/api/documents', () => {
     )
 
     expect(res.status).toBe(201)
-    expect((await res.json()).document.status).toBe('draft')
+    const { document } = await res.json()
+    // Issued, not draft: numbering, snapshot and financials all happen inside
+    // the RPC, so the route never invents any of them.
+    expect(document.status).toBe('issued')
+    expect(document.currency).toBe('UGX')
 
-    // Counter key convention: document:<document_type>, org passed explicitly.
-    const [rpc] = db.callsFor('rpc:next_number')
-    expect(rpc.values).toEqual({ p_counter_key: 'document:invoice', p_org: 'org-4' })
-
-    const [insert] = db.callsFor('insert:documents')
-    expect(insert.values).toMatchObject({
-      document_number: 'INV-0007',
-      status: 'draft', // POST only ever creates drafts until issue_document()
-      created_by: 'user-4',
+    const [rpc] = db.callsFor('rpc:issue_document_as_org')
+    expect(rpc.values).toEqual({
+      p_org: 'org-4',
+      p_user: 'user-4',
+      p_order_id: ORDER_UUID,
+      p_document_type: 'invoice',
+      p_options: {},
     })
+    // No hand-rolled numbering left: the counter is the RPC's business.
+    expect(db.callsFor('rpc:next_number')).toHaveLength(0)
+    expect(db.callsFor('insert:documents')).toHaveLength(0)
   })
 
-  it('POST surfaces a counter failure without inserting', async () => {
+  it('POST passes terms/validity overrides through as options', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
-    db.queue('rpc:next_number', { data: null, error: { code: 'P0001', message: 'No counter seeded' } })
+    db.queue('rpc:issue_document_as_org', { data: 'd-2' })
+    db.queue('select:documents', { data: { id: 'd-2' } })
+
+    await POST(
+      jsonRequest('/api/documents', {
+        entity_type: 'order',
+        entity_id: ORDER_UUID,
+        document_type: 'quotation',
+        validity_days: 14,
+      }),
+    )
+
+    const [rpc] = db.callsFor('rpc:issue_document_as_org')
+    const values = rpc.values as { p_options: Record<string, number> }
+    expect(values.p_options).toEqual({ validity_days: 14 })
+  })
+
+  it('POST surfaces an RPC failure without reading a document back', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('rpc:issue_document_as_org', {
+      data: null,
+      error: { code: 'P0001', message: 'order already has a live invoice' },
+    })
 
     const res = await POST(
       jsonRequest('/api/documents', {
         entity_type: 'order',
         entity_id: ORDER_UUID,
-        document_type: 'receipt',
+        document_type: 'invoice',
       }),
     )
 
     expect(res.status).toBeGreaterThanOrEqual(400)
-    expect(db.callsFor('insert:documents')).toHaveLength(0)
+    expect(db.callsFor('select:documents')).toHaveLength(0)
   })
 
   it('POST rejects an unknown document_type with 400', async () => {
@@ -75,5 +105,21 @@ describe('/api/documents', () => {
       }),
     )
     expect(res.status).toBe(400)
+  })
+
+  // Nothing DB-side can issue a non-order document yet; failing here beats
+  // failing inside the RPC with a less obvious message.
+  it('POST rejects a non-order entity_type with 400', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    const res = await POST(
+      jsonRequest('/api/documents', {
+        entity_type: 'client',
+        entity_id: ORDER_UUID,
+        document_type: 'invoice',
+      }),
+    )
+    expect(res.status).toBe(400)
+    expect(db.callsFor('rpc:issue_document_as_org')).toHaveLength(0)
   })
 })

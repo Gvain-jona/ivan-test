@@ -206,7 +206,9 @@ legacy `useOrders`/`useOrder` re-export from `hooks/loading.ts`. Grep confirms
 no `@/hooks/useOrders` imports remain — the dual orders fetch path is gone.
 
 Deviations from the original list:
-- `OrderViewSheet.tsx.new` was already gone before Phase 1 (stale entry).
+- `OrderViewSheet.tsx.new` was **wrongly** recorded here as already gone — it
+  was in fact still present (byte-identical to the `OrderViewSheet.tsx`
+  re-export shim) and was deleted later, in the Phase 5 sweep below.
 - `hooks/use-data.ts` and `_data/sample-orders.ts` were initially kept (their
   only importers were the home dashboard), then deleted the same day when the
   **entire home dashboard was removed** — it was unreachable (no nav link,
@@ -252,6 +254,28 @@ Resolutions chosen (user stance: no dead weight, no hollow UI):
    use `useOrdersStore` + `useOrdersUI` directly.
 2. All stubs deleted; no `@/types/orders` usage remains on the orders page.
 3. Page-local types already live next to the store.
+
+### Phase 5 — Dead-file sweep (from the 2026-07-24 orders audit) — ✅ DONE 2026-07-24
+
+Files a health audit found still present with **zero live importers** — none
+were in the original inventory above except `.tsx.new`. Deleted after grep
+confirmed no code references (`tsc --noEmit` + orders tests green after):
+
+- `app/components/orders/OrderViewSheet.tsx.new` — leftover byte-identical copy
+  of the `OrderViewSheet.tsx` re-export shim.
+- `app/components/orders/OrdersTable.tsx` — unused re-export shim → `OrdersTableNew`;
+  `OrdersTab` imports `OrdersTableNew` directly, nothing imported this.
+- `app/lib/orders/db.ts` — dead `updateOrderTotals`; referenced the **legacy
+  `order_payments` table** (v2 recomputes via DB trigger + generated columns).
+- `app/lib/orders/calculations.ts` — dead; only `db.ts` imported it.
+
+Still-live sibling kept: `app/lib/orders/validators.ts` — mostly dead legacy
+schemas, but `PaymentMethodSchema` is still imported by the legacy
+expenses/material-purchases payment routes. Delete when those modules migrate.
+
+Not addressed by this sweep (bigger, tracked separately): the module-wide
+hardcoded-color / theme-token debt in `OrderRow`, `OrderFormSheet`, and the
+`order-view/*` tab bodies — see the mobile-responsiveness docs, not this file.
 
 ---
 

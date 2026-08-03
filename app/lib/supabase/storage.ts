@@ -4,7 +4,19 @@ import { createClient } from '@/utils/supabase/client';
  * Utility functions for working with Supabase Storage
  */
 
-const supabase = createClient();
+// Lazily instantiate the browser client on first use. Creating it at
+// module scope makes @supabase/ssr throw ("URL and API key are
+// required") the moment this module is imported without Supabase env
+// vars present — which breaks `next build` page-data collection for any
+// route that imports it (e.g. /api/storage/init). Deferring keeps the
+// build tolerant of a missing env and only requires it at call time.
+let client: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!client) {
+    client = createClient();
+  }
+  return client;
+}
 
 const BUCKETS = {
   ORDERS: 'orders',
@@ -25,7 +37,7 @@ export async function initializeStorageBuckets() {
 
     // Check and create buckets if they don't exist
     for (const bucketName of Object.values(BUCKETS)) {
-      const { data: buckets } = await supabase.storage.listBuckets();
+      const { data: buckets } = await getSupabase().storage.listBuckets();
 
       const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
 
@@ -33,7 +45,7 @@ export async function initializeStorageBuckets() {
         // Make logos bucket public, others private by default
         const isPublic = bucketName === BUCKETS.LOGOS || bucketName === BUCKETS.INVOICES;
 
-        const { error } = await supabase.storage.createBucket(bucketName, {
+        const { error } = await getSupabase().storage.createBucket(bucketName, {
           public: isPublic,
           fileSizeLimit: 10485760, // 10MB
         });
@@ -63,11 +75,11 @@ export async function initializeStorageBuckets() {
  */
 export async function ensureBucketExists(bucketName: string, isPublic = false) {
   try {
-    const { data: buckets } = await supabase.storage.listBuckets();
+    const { data: buckets } = await getSupabase().storage.listBuckets();
     const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
 
     if (!bucketExists) {
-      const { error } = await supabase.storage.createBucket(bucketName, {
+      const { error } = await getSupabase().storage.createBucket(bucketName, {
         public: isPublic,
         fileSizeLimit: 10485760, // 10MB
       });
@@ -80,7 +92,7 @@ export async function ensureBucketExists(bucketName: string, isPublic = false) {
 
     // If the bucket exists but we need to update its public status
     if (bucketExists) {
-      const { error } = await supabase.storage.updateBucket(bucketName, {
+      const { error } = await getSupabase().storage.updateBucket(bucketName, {
         public: isPublic
       });
 
@@ -108,7 +120,7 @@ export async function uploadFile(
   // Ensure the bucket exists and is properly configured
   await ensureBucketExists(bucketName, bucketName === BUCKETS.LOGOS || bucketName === BUCKETS.INVOICES);
 
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from(bucketName)
     .upload(path, file, options);
 
@@ -123,7 +135,7 @@ export async function uploadFile(
  * Get a public URL for a file in Supabase Storage
  */
 export function getPublicUrl(bucketName: string, path: string) {
-  const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
+  const { data } = getSupabase().storage.from(bucketName).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -131,7 +143,7 @@ export function getPublicUrl(bucketName: string, path: string) {
  * Delete a file from Supabase Storage
  */
 export async function deleteFile(bucketName: string, path: string) {
-  const { error } = await supabase.storage.from(bucketName).remove([path]);
+  const { error } = await getSupabase().storage.from(bucketName).remove([path]);
 
   if (error) {
     throw error;

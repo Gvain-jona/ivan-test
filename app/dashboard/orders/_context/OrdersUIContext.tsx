@@ -1,23 +1,23 @@
 'use client';
 
-import type { ReactNode} from 'react';
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
+import React, { createContext, useContext, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { useOrderMutations } from '@/hooks/orders/useOrders';
-import type { OrderSummary, OrderCreateInput } from '@/hooks/orders/useOrders';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
+import { useSheets } from '@/context/sheet-host';
 import { useOrdersStore } from './OrdersStoreContext';
 
+/**
+ * Orders-page UI actions. Opening the create/view sheets is delegated to the
+ * app-wide sheet host (see DESIGN_PHILOSOPHY.md → "Overlays & sheets") — this
+ * context no longer owns any sheet state; it only wires the list-row actions
+ * (view / delete / status change) to the store and the host.
+ */
 interface OrdersUIContextType {
-  selectedOrder: OrderSummary | null;
-  viewSheetOpen: boolean;
-  createSheetOpen: boolean;
-  setViewSheetOpen: (open: boolean) => void;
-  setCreateSheetOpen: (open: boolean) => void;
   handleViewOrder: (order: OrderSummary) => void;
   handleCreateOrder: () => void;
   handleDeleteOrder: (orderId: string) => Promise<boolean>;
   handleOrderStatusChange: (orderId: string, status: string) => Promise<boolean>;
-  handleSaveOrder: (input: OrderCreateInput) => Promise<{ success: boolean; error?: unknown }>;
 }
 
 const OrdersUIContext = createContext<OrdersUIContextType | undefined>(undefined);
@@ -25,21 +25,14 @@ const OrdersUIContext = createContext<OrdersUIContextType | undefined>(undefined
 export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
   const store = useOrdersStore();
-  const { createOrder } = useOrderMutations();
+  const { openOrder, openCreateOrder } = useSheets();
 
-  const [selectedOrder, setSelectedOrder] = useState<OrderSummary | null>(null);
-  const [viewSheetOpen, setViewSheetOpen] = useState(false);
-  const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const handleViewOrder = useCallback(
+    (order: OrderSummary) => openOrder(order.id),
+    [openOrder],
+  );
 
-  const handleViewOrder = useCallback((order: OrderSummary) => {
-    setSelectedOrder(order);
-    setViewSheetOpen(true);
-  }, []);
-
-  const handleCreateOrder = useCallback(() => {
-    setSelectedOrder(null);
-    setCreateSheetOpen(true);
-  }, []);
+  const handleCreateOrder = useCallback(() => openCreateOrder(), [openCreateOrder]);
 
   /** v2 never hard-deletes — routed to status 'cancelled'. */
   const handleDeleteOrder = useCallback(
@@ -62,39 +55,13 @@ export const OrdersUIProvider: React.FC<{ children: ReactNode }> = ({ children }
     [store, toast],
   );
 
-  const handleSaveOrder = useCallback(
-    async (input: OrderCreateInput): Promise<{ success: boolean; error?: unknown }> => {
-      try {
-        await createOrder(input);
-        toast({ title: 'Order Created', description: 'New order has been created' });
-        setCreateSheetOpen(false);
-        await store.refresh();
-        return { success: true };
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to save order',
-          variant: 'destructive',
-        });
-        return { success: false, error };
-      }
-    },
-    [createOrder, store, toast],
-  );
-
   return (
     <OrdersUIContext.Provider
       value={{
-        selectedOrder,
-        viewSheetOpen,
-        createSheetOpen,
-        setViewSheetOpen,
-        setCreateSheetOpen,
         handleViewOrder,
         handleCreateOrder,
         handleDeleteOrder,
         handleOrderStatusChange,
-        handleSaveOrder,
       }}
     >
       {children}
