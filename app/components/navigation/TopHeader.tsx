@@ -235,7 +235,8 @@ export default function TopHeader({
                 // Fallback to a colored div if image fails to load
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
-                target.parentElement!.style.backgroundColor = '#f97316'; // Orange color
+                // Brand-following fallback tile when the logo fails to load.
+                target.parentElement!.style.backgroundColor = 'hsl(var(--primary))';
               }}
             />
           </div>
@@ -265,15 +266,15 @@ export default function TopHeader({
                     themed
                     variant="outline"
                     className={cn(
-                      'animate-pulse-attention hover:animate-none border-black/10 bg-white shadow-md',
-                      'hover:bg-white hover:border-black/20',
-                      'w-full text-black'
+                      'animate-pulse-attention hover:animate-none border-border bg-card shadow-md',
+                      'hover:bg-accent hover:border-border',
+                      'w-full text-card-foreground'
                     )}
                   >
-                    <AnnouncementTag className="bg-black text-white">
+                    <AnnouncementTag className="bg-foreground text-background">
                       {announcement.tag || 'New'}
                     </AnnouncementTag>
-                    <AnnouncementTitle className="text-black">
+                    <AnnouncementTitle className="text-card-foreground">
                       {announcement.message || 'Announcement'}
                       {activeAnnouncements.length > 1 && (
                         <span className="text-xs ml-2 opacity-70">
@@ -290,14 +291,14 @@ export default function TopHeader({
                     themed
                     variant="outline"
                     className={cn(
-                      'animate-pulse-attention border-black/10 bg-white shadow-md',
-                      'w-full text-black'
+                      'animate-pulse-attention border-border bg-card shadow-md',
+                      'w-full text-card-foreground'
                     )}
                   >
-                    <AnnouncementTag className="bg-black text-white">
+                    <AnnouncementTag className="bg-foreground text-background">
                       {announcement.tag || 'New'}
                     </AnnouncementTag>
-                    <AnnouncementTitle className="text-black">
+                    <AnnouncementTitle className="text-card-foreground">
                       {announcement.message || 'Announcement'}
                       {activeAnnouncements.length > 1 && (
                         <span className="text-xs ml-2 opacity-70">
@@ -316,11 +317,18 @@ export default function TopHeader({
       {/* User Info */}
       <div className="flex items-center min-w-[180px] justify-end">
         <div className="flex items-center gap-3 whitespace-nowrap">
+          <ThemeSwitcher />
           <Avatar className="h-8 w-8 border-2 border-border/40 flex-shrink-0">
             {userAvatarUrl ? (
               <AvatarImage src={userAvatarUrl} alt={displayName} />
             ) : null}
-            <AvatarFallback className="bg-gradient-to-r from-primary to-orange-600 text-white">{displayInitials}</AvatarFallback>
+            {/* Brand-derived, so it follows the org colour. Was a gradient
+                mixing --primary with a literal orange-600, which broke the
+                moment the brand stopped being orange; the flat pair is the
+                one whose contrast is actually verified. */}
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {displayInitials}
+            </AvatarFallback>
           </Avatar>
           <div className="hidden md:block text-left flex-shrink-0">
             <p className="text-sm font-medium truncate max-w-[150px]">{displayName}</p>

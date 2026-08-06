@@ -7,6 +7,33 @@ import { resolveTenant } from '@/lib/auth/tenant'
 vi.mock('@/lib/auth/tenant', () => ({ resolveTenant: vi.fn() }))
 const resolveTenantMock = vi.mocked(resolveTenant)
 
+// The brand colour lives in Clerk org metadata, not the v2 row, so the route
+// reaches Clerk directly for that one key — see app/lib/theme/brand.ts.
+const clerk = vi.hoisted(() => ({
+  auth: vi.fn(),
+  updateOrganizationMetadata: vi.fn(),
+}))
+vi.mock('@clerk/nextjs/server', () => ({
+  auth: clerk.auth,
+  clerkClient: async () => ({
+    organizations: { updateOrganizationMetadata: clerk.updateOrganizationMetadata },
+  }),
+}))
+
+/** Signed in, with an active Clerk org and an optional brand claim. */
+function signedIn(brandColor?: string) {
+  clerk.auth.mockResolvedValue({
+    orgId: 'org_clerk_1',
+    sessionClaims: brandColor ? { brand_color: brandColor } : {},
+  })
+}
+
+beforeEach(() => {
+  clerk.auth.mockReset()
+  clerk.updateOrganizationMetadata.mockReset()
+  signedIn()
+})
+
 describe('GET /api/organization', () => {
   beforeEach(() => resolveTenantMock.mockReset())
 
@@ -30,6 +57,32 @@ describe('GET /api/organization', () => {
     expect(body.orgRole).toBe('owner')
     // Reads go through organization(), never from('organizations').
     expect(db.callsFor('select:organization')).toHaveLength(1)
+  })
+
+  it('serves the brand colour from the Clerk session claim', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
+    resolveTenantMock.mockResolvedValue(tenant)
+    signedIn('ocean')
+    db.queue('select:organization', { data: { id: 'org-1', name: 'Ivan Prints' } })
+
+    const body = await (await GET()).json()
+
+    expect(body.brand_color).toBe('ocean')
+  })
+
+  it('falls back to the default preset when the claim is missing or unknown', async () => {
+    for (const claim of [undefined, 'chartreuse']) {
+      const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
+      resolveTenantMock.mockResolvedValue(tenant)
+      signedIn(claim)
+      db.queue('select:organization', { data: { id: 'org-1' } })
+
+      const body = await (await GET()).json()
+
+      // A claim is untrusted input; an unrecognised value must not reach the
+      // stylesheet, it must degrade to the shipped default.
+      expect(body.brand_color).toBe('ember')
+    }
   })
 })
 
@@ -124,5 +177,46 @@ describe('PATCH /api/organization', () => {
     expect(typeof values.onboarding_completed_at).toBe('string')
     // No settings in the patch means no read-modify-write at all.
     expect(db.callsFor('select:organization')).toHaveLength(0)
+  })
+
+  it('writes the brand colour to Clerk metadata, not to the org row', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:organization', { data: { id: 'org-1' } })
+
+    const res = await PATCH(jsonRequest('/api/organization', { brand_color: 'teal' }, 'PATCH'))
+
+    expect(res.status).toBe(200)
+    expect(clerk.updateOrganizationMetadata).toHaveBeenCalledWith('org_clerk_1', {
+      publicMetadata: { brand_color: 'teal' },
+    })
+    // Nothing in the row changed, so the route reads instead of issuing an
+    // empty update.
+    expect(db.callsFor('update:organization')).toHaveLength(0)
+    expect(db.callsFor('select:organization')).toHaveLength(1)
+    // Echoed back so the client can repaint before the claim refreshes.
+    expect((await res.json()).brand_color).toBe('teal')
+  })
+
+  it('rejects an unknown brand colour with 400 and writes nothing', async () => {
+    const { tenant } = createFakeTenant({ orgRole: 'owner' })
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await PATCH(
+      jsonRequest('/api/organization', { brand_color: 'chartreuse' }, 'PATCH'),
+    )
+
+    expect(res.status).toBe(400)
+    expect(clerk.updateOrganizationMetadata).not.toHaveBeenCalled()
+  })
+
+  it('forbids staff from changing the brand colour (403)', async () => {
+    const { tenant } = createFakeTenant({ orgRole: 'staff' })
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await PATCH(jsonRequest('/api/organization', { brand_color: 'teal' }, 'PATCH'))
+
+    expect(res.status).toBe(403)
+    expect(clerk.updateOrganizationMetadata).not.toHaveBeenCalled()
   })
 })

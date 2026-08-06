@@ -36,10 +36,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SWRProvider>
+      {/* Follows the OS preference. enableSystem was false while light mode
+          was unexercised — the three UIs that offer a "System" option
+          (ThemeSwitcher, the profile context menu, the organization settings
+          page) all silently fell back to dark. enableColorScheme stays at its
+          default so native controls and scrollbars follow too. */}
       <ThemeProvider
         attribute="class"
-        defaultTheme="dark"
-        enableSystem={false}
+        defaultTheme="system"
+        enableSystem
         disableTransitionOnChange
       >
         <AuthProvider>

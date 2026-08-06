@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { SignIn } from '@clerk/nextjs';
+import ThemedSignIn from '../ThemedSignIn';
 import '../signin.css';
 
 export default function SignInPage() {
@@ -24,7 +24,7 @@ export default function SignInPage() {
         <p className="signin-subtitle">Print Management System</p>
       </div>
 
-      <SignIn path="/auth/signin" fallbackRedirectUrl="/dashboard/orders" />
+      <ThemedSignIn />
 
       {/* Footer */}
       <div className="signin-footer">

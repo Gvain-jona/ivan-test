@@ -35,14 +35,14 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-950 px-4 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
       <div className="max-w-md">
-        <h1 className="mb-4 text-6xl font-bold text-orange-500">404</h1>
-        <h2 className="mb-6 text-2xl font-semibold text-white">Page Not Found</h2>
-        <p className="mb-8 text-gray-400">
+        <h1 className="mb-4 text-6xl font-bold text-primary">404</h1>
+        <h2 className="mb-6 text-2xl font-semibold text-foreground">Page Not Found</h2>
+        <p className="mb-8 text-muted-foreground">
           The route you requested could not be found.
         </p>
-        <div className="text-sm text-gray-500 mb-4">
+        <div className="text-sm text-muted-foreground mb-4">
           <p>===== NOT FOUND PAGE RENDERED =====</p>
           <p>This should only show for genuinely missing routes</p>
           {clientInfo.timestamp && (
@@ -56,7 +56,7 @@ export default function NotFound() {
         </div>
         <Link
           href="/dashboard/orders"
-          className="inline-flex items-center justify-center rounded-md bg-orange-500 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
         >
           Go to Orders
         </Link>

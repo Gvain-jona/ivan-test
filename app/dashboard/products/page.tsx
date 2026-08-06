@@ -21,9 +21,9 @@ import EntityFieldsManager from '@/components/fields/EntityFieldsManager';
 import { useToast } from '@/components/ui/use-toast';
 
 const STATUS_BADGE: Record<string, string> = {
-  active: 'bg-emerald-500/10 text-emerald-400',
-  draft: 'bg-amber-500/10 text-amber-400',
-  archived: 'bg-slate-500/10 text-slate-400',
+  active: 'bg-opt-green-bg text-opt-green-fg',
+  draft: 'bg-opt-amber-bg text-opt-amber-fg',
+  archived: 'bg-opt-slate-bg text-opt-slate-fg',
 };
 
 /**
@@ -87,7 +87,7 @@ export default function ProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-white">Products</h1>
+          <h1 className="text-xl font-semibold text-foreground">Products</h1>
           <p className="text-sm text-muted-foreground">
             The catalog that feeds order items — prices are defaults, always overridable per order.
           </p>
@@ -139,8 +139,8 @@ export default function ProductsPage() {
       </div>
 
       {/* Table */}
-      <div className="border border-[#2B2B40] rounded-lg overflow-x-auto">
-        <table className="w-full divide-y divide-[#2B2B40]">
+      <div className="border border-border rounded-lg overflow-x-auto">
+        <table className="w-full divide-y divide-border">
           <thead className="bg-muted/10">
             <tr>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Name</th>
@@ -149,7 +149,7 @@ export default function ProductsPage() {
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2B2B40]">
+          <tbody className="divide-y divide-border">
             {isLoading && products.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -166,8 +166,8 @@ export default function ProductsPage() {
             ) : (
               products.map(product => (
                 <tr key={product.id} className="hover:bg-muted/10">
-                  <td className="px-4 py-2.5 text-sm text-white">{product.name}</td>
-                  <td className="px-4 py-2.5 text-sm text-white text-right">
+                  <td className="px-4 py-2.5 text-sm text-foreground">{product.name}</td>
+                  <td className="px-4 py-2.5 text-sm text-foreground text-right">
                     {product.selling_price != null ? fmt(product.selling_price) : '—'}
                   </td>
                   <td className="px-4 py-2.5">

@@ -53,7 +53,7 @@ function OrderActions(props: OrderActionsProps) {
     // Add visual feedback with a slight delay before action
     const element = e.currentTarget as HTMLElement;
     if (element) {
-      element.classList.add('bg-gray-700/70');
+      element.classList.add('bg-accent');
     }
 
     // Execute the action after a small delay
@@ -69,7 +69,7 @@ function OrderActions(props: OrderActionsProps) {
         setTimeout(() => {
           isProcessingRef.current = false;
           if (element) {
-            element.classList.remove('bg-gray-700/70');
+            element.classList.remove('bg-accent');
           }
         }, 300);
       }, 50);
@@ -90,7 +90,7 @@ function OrderActions(props: OrderActionsProps) {
     // Add visual feedback with a slight delay before action
     const element = e.currentTarget as HTMLElement;
     if (element) {
-      element.classList.add('bg-red-900/30');
+      element.classList.add('bg-destructive/20');
     }
 
     // Close the dropdown first
@@ -107,7 +107,7 @@ function OrderActions(props: OrderActionsProps) {
         setTimeout(() => {
           isProcessingRef.current = false;
           if (element) {
-            element.classList.remove('bg-red-900/30');
+            element.classList.remove('bg-destructive/20');
           }
         }, 300);
       }, 50);
@@ -135,7 +135,7 @@ function OrderActions(props: OrderActionsProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-table-header hover:text-white hover:bg-table-hover interactive-element relative z-10"
+            className="h-8 w-8 p-0 text-table-header hover:text-foreground hover:bg-table-hover interactive-element relative z-10"
           >
             <span className="sr-only">Open menu</span>
             <MoreVertical className="h-4 w-4" />
@@ -151,7 +151,7 @@ function OrderActions(props: OrderActionsProps) {
         <CustomDropdownSeparator className="bg-table-border" />
         <div className="group">
           <CustomDropdownItem
-            className="text-white focus:bg-table-hover focus:text-white"
+            className="text-foreground focus:bg-accent focus:text-accent-foreground"
             onClick={(e) => handleSafeAction(onView, e)}
           >
             <Eye className="mr-2 h-4 w-4" />

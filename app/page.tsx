@@ -43,17 +43,17 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900 p-8 shadow-lg">
+      <div className="w-full max-w-md space-y-8 rounded-lg bg-card p-8 shadow-lg">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-white">YOKO</h1>
-          <p className="mt-2 text-gray-400">Business Management System</p>
+          <h1 className="text-3xl font-bold text-foreground">YOKO</h1>
+          <p className="mt-2 text-muted-foreground">Business Management System</p>
           <div className="mt-6">
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               {isLoading || processingAuth ? 'Processing authentication...' : 'Redirecting...'}
             </p>
             <div className="mt-4 flex justify-center">
-              <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-800">
-                <div className="animate-pulse h-full w-full bg-blue-500"></div>
+              <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                <div className="animate-pulse h-full w-full bg-primary"></div>
               </div>
             </div>
           </div>

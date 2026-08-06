@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { z } from 'zod';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
@@ -12,6 +13,7 @@ import {
   type OrganizationSettingsBlocks,
 } from '@/lib/api/validators';
 import type { OrganizationWritable } from '@/lib/auth/tenant-db';
+import { resolveBrandColor } from '@/lib/theme/brand';
 import type { Json } from '@/types/supabase-v2';
 
 const ORG_COLUMNS = 'id, name, slug, status, settings, onboarding_completed_at';
@@ -40,8 +42,13 @@ function mergeSettings(
 
 /**
  * GET /api/organization — the caller's active org: name, slug, settings
- * blocks, and whether first-run setup is done. Org-level config lives in
- * settings; order status values live in field_definitions, not here.
+ * blocks, whether first-run setup is done, and the brand colour. Org-level
+ * config lives in settings; order status values live in field_definitions,
+ * not here.
+ *
+ * brand_color is not a column — it comes from Clerk org metadata via
+ * resolveBrandColor(), and is served here so the client has one contract for
+ * org config rather than reaching into the Clerk SDK separately.
  */
 export async function GET() {
   try {
@@ -55,7 +62,11 @@ export async function GET() {
 
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({ organization: data, orgRole: tenant.orgRole });
+    return NextResponse.json({
+      organization: data,
+      orgRole: tenant.orgRole,
+      brand_color: await resolveBrandColor(),
+    });
   } catch (error) {
     return handleUnexpectedError(error);
   }
@@ -96,14 +107,35 @@ async function buildUpdate(
 }
 
 /**
+ * The brand colour is the one patch key that does not touch the v2 row:
+ * Clerk owns org visual identity (name, slug, logo), so the colour lives in
+ * its public_metadata and reaches the app as a session claim. See
+ * app/lib/theme/brand.ts.
+ *
+ * Uses the Clerk orgId from auth() rather than tenant.organizationId — the
+ * latter is the v2 mirror's uuid, which Clerk's API would not recognise.
+ */
+async function writeBrandColor(brandColor: string): Promise<boolean> {
+  const { orgId } = await auth();
+  if (!orgId) return false;
+
+  const client = await clerkClient();
+  await client.organizations.updateOrganizationMetadata(orgId, {
+    publicMetadata: { brand_color: brandColor },
+  });
+  return true;
+}
+
+/**
  * PATCH /api/organization — update org-level config. Owner only.
  *
- * Two different destinations, deliberately: `settings` blocks are merged
- * into the settings jsonb (whose shape the DB trigger governs), while
- * `onboarding_completed` writes its own column. Setup progress is
- * lifecycle state, and settings is config that gets frozen into issued
- * document snapshots — mixing them would let a wizard flag turn up on an
- * invoice.
+ * Three destinations, deliberately: `settings` blocks are merged into the
+ * settings jsonb (whose shape the DB trigger governs), `onboarding_completed`
+ * writes its own column, and `brand_color` writes Clerk org metadata. Setup
+ * progress is lifecycle state, and settings is config that gets frozen into
+ * issued document snapshots — mixing them would let a wizard flag turn up on
+ * an invoice. The brand colour belongs with the name and logo Clerk already
+ * owns.
  *
  * Owner-edited + low-concurrency, so read-modify-write on the jsonb is
  * acceptable (no atomic jsonb merge needed). The read is skipped entirely
@@ -122,18 +154,32 @@ export async function PATCH(request: NextRequest) {
       return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
+    if (parsed.data.brand_color !== undefined) {
+      const written = await writeBrandColor(parsed.data.brand_color);
+      if (!written) {
+        return handleApiError('UNAUTHORIZED', 'No active organization');
+      }
+    }
+
     const { values, readError } = await buildUpdate(tenant, parsed.data);
     if (readError) return handleSupabaseError(readError);
 
-    const { data, error } = await tenant.db
-      .organization()
-      .update(values)
-      .select(ORG_COLUMNS)
-      .single();
+    // A brand-colour-only patch touches nothing in the row; issuing an
+    // empty update would be a pointless write, so read instead.
+    const accessor = tenant.db.organization();
+    const { data, error } =
+      Object.keys(values).length > 0
+        ? await accessor.update(values).select(ORG_COLUMNS).single()
+        : await accessor.select(ORG_COLUMNS).single();
 
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({ organization: data });
+    // brand_color is echoed back so the client can repaint immediately —
+    // the session claim it normally rides on refreshes on a delay.
+    return NextResponse.json({
+      organization: data,
+      ...(parsed.data.brand_color !== undefined && { brand_color: parsed.data.brand_color }),
+    });
   } catch (error) {
     return handleUnexpectedError(error);
   }

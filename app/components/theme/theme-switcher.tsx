@@ -11,8 +11,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Moon, Sun, Laptop } from "lucide-react"
 
+const THEMES = [
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
+  { value: "system", label: "System", Icon: Laptop },
+] as const
+
+/**
+ * Desktop theme control, rendered in TopHeader. Items carry no colour classes
+ * of their own — DropdownMenuItem already styles itself from the tokens, and
+ * the explicit text-white here made every label invisible in light mode.
+ */
 export function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
   const [open, setOpen] = React.useState(false)
 
   // Handle theme change with explicit dropdown closing
@@ -36,32 +47,17 @@ export function ThemeSwitcher() {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="bg-[hsl(var(--card))] border-[hsl(var(--border))]/40"
-        sideOffset={8}
-      >
-        <DropdownMenuItem
-          onClick={() => handleThemeChange("light")}
-          className="text-white focus:bg-white/[0.02] focus:text-white cursor-pointer"
-        >
-          <Sun className="mr-2 h-4 w-4" />
-          <span>Light</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleThemeChange("dark")}
-          className="text-white focus:bg-white/[0.02] focus:text-white cursor-pointer"
-        >
-          <Moon className="mr-2 h-4 w-4" />
-          <span>Dark</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleThemeChange("system")}
-          className="text-white focus:bg-white/[0.02] focus:text-white cursor-pointer"
-        >
-          <Laptop className="mr-2 h-4 w-4" />
-          <span>System</span>
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="bg-card border-border/40" sideOffset={8}>
+        {THEMES.map(({ value, label, Icon }) => (
+          <DropdownMenuItem
+            key={value}
+            onClick={() => handleThemeChange(value)}
+            className="cursor-pointer"
+          >
+            <Icon className="mr-2 h-4 w-4" />
+            <span>{label}</span>
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   )

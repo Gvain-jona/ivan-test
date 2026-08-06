@@ -86,7 +86,7 @@ export function NotificationsMenu() {
                 </p>
               </div>
 
-              <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
             </div>
           )})}
         </div>

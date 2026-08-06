@@ -11,6 +11,7 @@ import {
   Boxes,
   ShoppingBag,
   BarChart3,
+  Building2,
   User,
   Settings,
   MoreHorizontal,
@@ -43,6 +44,7 @@ const MORE: Destination[] = [
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
   { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', disabled: true },
+  { title: 'Organization', icon: Building2, href: '/dashboard/organization' },
   { title: 'Settings', icon: Settings, href: '/dashboard/settings' },
   { title: 'Profile', icon: User, href: '/dashboard/profile' },
 ];

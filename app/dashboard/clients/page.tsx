@@ -90,7 +90,7 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-white">Clients</h1>
+          <h1 className="text-xl font-semibold text-foreground">Clients</h1>
           <p className="text-sm text-muted-foreground">
             Everyone you take orders for — fields beyond the name come from the Fields panel.
           </p>
@@ -141,8 +141,8 @@ export default function ClientsPage() {
       </div>
 
       {/* Table */}
-      <div className="border border-[#2B2B40] rounded-lg overflow-x-auto">
-        <table className="w-full divide-y divide-[#2B2B40]">
+      <div className="border border-border rounded-lg overflow-x-auto">
+        <table className="w-full divide-y divide-border">
           <thead className="bg-muted/10">
             <tr>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Name</th>
@@ -158,7 +158,7 @@ export default function ClientsPage() {
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2B2B40]">
+          <tbody className="divide-y divide-border">
             {isLoading && clients.length === 0 ? (
               <tr>
                 <td
@@ -181,7 +181,7 @@ export default function ClientsPage() {
             ) : (
               clients.map(client => (
                 <tr key={client.id} className="hover:bg-muted/10">
-                  <td className="px-4 py-2.5 text-sm text-white">{client.name}</td>
+                  <td className="px-4 py-2.5 text-sm text-foreground">{client.name}</td>
                   {listFields.map(field => (
                     <td
                       key={field.field_name}
@@ -195,8 +195,8 @@ export default function ClientsPage() {
                       variant="secondary"
                       className={
                         client.status === 'active'
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-slate-500/10 text-slate-400'
+                          ? 'bg-opt-green-bg text-opt-green-fg'
+                          : 'bg-opt-slate-bg text-opt-slate-fg'
                       }
                     >
                       {client.status}

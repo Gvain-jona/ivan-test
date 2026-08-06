@@ -33,15 +33,15 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({ order }) => {
       {/* Order Information Section */}
       <div className="border border-border/40 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-[#6D6D80]">Order Information</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Order Information</h3>
           <StatusBadge status={order.status} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <div className="flex items-start gap-2">
-            <CalendarIcon className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+            <CalendarIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
             <div>
-              <p className="text-xs text-[#6D6D80]">Order Date</p>
+              <p className="text-xs text-muted-foreground">Order Date</p>
               <p className="text-sm text-foreground">
                 {order.order_date ? new Date(order.order_date).toLocaleDateString() : '—'}
               </p>
@@ -49,9 +49,9 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({ order }) => {
           </div>
 
           <div className="flex items-start gap-2">
-            <Tag className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+            <Tag className="h-4 w-4 text-muted-foreground mt-0.5" />
             <div>
-              <p className="text-xs text-[#6D6D80]">Order Items</p>
+              <p className="text-xs text-muted-foreground">Order Items</p>
               <p className="text-sm text-foreground">{order.order_items?.length ?? 0} Items</p>
             </div>
           </div>
@@ -59,9 +59,9 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({ order }) => {
           {/* Org-defined custom fields, from the field registry */}
           {fieldDefinitions.map(field => (
             <div key={field.field_name} className="flex items-start gap-2">
-              <Tag className="h-4 w-4 text-[#6D6D80] mt-0.5" />
+              <Tag className="h-4 w-4 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-xs text-[#6D6D80]">{field.field_label}</p>
+                <p className="text-xs text-muted-foreground">{field.field_label}</p>
                 <p className="text-sm text-foreground">
                   {formatFieldValue(customData[field.field_name])}
                 </p>
@@ -74,22 +74,22 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({ order }) => {
       {/* Financial Summary Section */}
       <div className="border border-border/40 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-[#6D6D80]">Financial Summary</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Financial Summary</h3>
           <PaymentStatusBadge status={order.payment_status ?? 'unpaid'} />
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs text-[#6D6D80]">Total Amount</p>
+              <p className="text-xs text-muted-foreground">Total Amount</p>
               <p className="text-lg font-medium text-foreground">{fmt(order.total_amount)}</p>
             </div>
             <div>
-              <p className="text-xs text-[#6D6D80]">Amount Paid</p>
-              <p className="text-lg font-medium text-green-500">{fmt(order.amount_paid)}</p>
+              <p className="text-xs text-muted-foreground">Amount Paid</p>
+              <p className="text-lg font-medium text-success">{fmt(order.amount_paid)}</p>
             </div>
             <div>
-              <p className="text-xs text-[#6D6D80]">Balance Due</p>
+              <p className="text-xs text-muted-foreground">Balance Due</p>
               <p className="text-lg font-medium text-primary">
                 {fmt(order.balance ?? order.total_amount - order.amount_paid)}
               </p>
@@ -97,7 +97,7 @@ const OrderDetailsTab: React.FC<OrderDetailsTabProps> = ({ order }) => {
           </div>
 
           {order.payment_status === 'paid' && (
-            <div className="flex items-center justify-center mt-2 text-green-500 bg-green-500/10 rounded-md py-1">
+            <div className="flex items-center justify-center mt-2 text-success bg-success-bg rounded-md py-1">
               <CheckCircle className="h-4 w-4 mr-2" />
               <span className="text-sm">Fully Paid</span>
             </div>

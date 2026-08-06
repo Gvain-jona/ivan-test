@@ -36,17 +36,17 @@ const OrderItemsTab: React.FC<OrderItemsTabProps> = ({ order }) => {
 
   return (
     <div className="border border-border/40 rounded-lg overflow-hidden">
-      <table className="w-full divide-y divide-[#2B2B40]">
+      <table className="w-full divide-y divide-border">
         <thead className="bg-muted/10">
           <tr>
-            <th className="px-4 py-2 text-left text-xs font-medium text-[#6D6D80]">Item</th>
-            <th className="px-4 py-2 text-center text-xs font-medium text-[#6D6D80]">Qty</th>
-            <th className="px-4 py-2 text-right text-xs font-medium text-[#6D6D80]">Unit Price</th>
-            <th className="px-4 py-2 text-right text-xs font-medium text-[#6D6D80]">Discount</th>
-            <th className="px-4 py-2 text-right text-xs font-medium text-[#6D6D80]">Total</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Item</th>
+            <th className="px-4 py-2 text-center text-xs font-medium text-muted-foreground">Qty</th>
+            <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Unit Price</th>
+            <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Discount</th>
+            <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Total</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#2B2B40]">
+        <tbody className="divide-y divide-border">
           {items.map(item => {
             const extra = describeCustomData(item.custom_data);
             return (

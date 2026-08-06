@@ -32,21 +32,21 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   const getNotificationIcon = () => {
     switch (notification.type) {
       case 'comment':
-        return <MessageSquare className="h-4 w-4 text-blue-500" />;
+        return <MessageSquare className="h-4 w-4 text-opt-blue" />;
       case 'invitation':
-        return <UserPlus className="h-4 w-4 text-purple-500" />;
+        return <UserPlus className="h-4 w-4 text-opt-violet" />;
       case 'status_change':
-        return <AlertCircle className="h-4 w-4 text-orange-500" />;
+        return <AlertCircle className="h-4 w-4 text-opt-amber" />;
       case 'due_date':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return <Clock className="h-4 w-4 text-opt-amber" />;
       case 'payment':
-        return <DollarSign className="h-4 w-4 text-green-500" />;
+        return <DollarSign className="h-4 w-4 text-opt-green" />;
       case 'mention':
-        return <AtSign className="h-4 w-4 text-pink-500" />;
+        return <AtSign className="h-4 w-4 text-opt-red" />;
       case 'assignment':
-        return <CheckCircle className="h-4 w-4 text-cyan-500" />;
+        return <CheckCircle className="h-4 w-4 text-opt-teal" />;
       default:
-        return <MessageSquare className="h-4 w-4 text-blue-500" />;
+        return <MessageSquare className="h-4 w-4 text-opt-blue" />;
     }
   };
 
@@ -77,7 +77,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
     >
       {/* Status indicator */}
       {notification.status === 'unread' && (
-        <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500" />
+        <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary" />
       )}
       {notification.status === 'archived' && (
         <div className="absolute top-4 right-4 text-xs text-muted-foreground">

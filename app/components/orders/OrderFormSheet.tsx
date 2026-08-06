@@ -261,10 +261,10 @@ export default function OrderFormSheet({ open, onOpenChange, onSave, title }: Or
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-muted-foreground">Items</h3>
-            <span className="text-sm text-white font-medium">{fmt(orderTotal)}</span>
+            <span className="text-sm text-foreground font-medium">{fmt(orderTotal)}</span>
           </div>
           {items.map((item, index) => (
-            <div key={index} className="border border-[#2B2B40] rounded-lg p-4 space-y-3">
+            <div key={index} className="border border-border rounded-lg p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Product</Label>
