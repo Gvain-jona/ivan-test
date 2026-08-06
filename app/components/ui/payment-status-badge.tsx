@@ -1,7 +1,8 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { CreditCard, DollarSign, Clock, Ban, AlertCircle, CheckCircle } from 'lucide-react';
+import { OPTION_COLORS } from '@/lib/fields/colors';
+import { CreditCard, DollarSign, Ban, AlertCircle, CheckCircle } from 'lucide-react';
 
 type PaymentStatus =
   | 'paid'
@@ -33,58 +34,44 @@ export const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({
         return {
           icon: <CheckCircle className="h-3 w-3 mr-1" />,
           label: 'Paid',
-          className: 'bg-green-500/15 text-green-400 border-green-500/30',
+          className: OPTION_COLORS.green.chip,
         };
-      case 'partial':
-        // Different styling based on percentage
-        if (percentage >= 75) {
-          return {
-            icon: <DollarSign className="h-3 w-3 mr-1" />,
-            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
-            className: 'bg-green-500/15 text-green-400 border-green-500/30',
-          };
-        } else if (percentage >= 50) {
-          return {
-            icon: <DollarSign className="h-3 w-3 mr-1" />,
-            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
-            className: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-          };
-        } else if (percentage >= 25) {
-          return {
-            icon: <DollarSign className="h-3 w-3 mr-1" />,
-            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
-            className: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-          };
-        } else {
-          return {
-            icon: <DollarSign className="h-3 w-3 mr-1" />,
-            label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
-            className: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-          };
-        }
+      case 'partial': {
+        // Warmer as the outstanding balance grows: green -> blue -> amber -> red.
+        const partial =
+          percentage >= 75 ? OPTION_COLORS.green
+          : percentage >= 50 ? OPTION_COLORS.blue
+          : percentage >= 25 ? OPTION_COLORS.amber
+          : OPTION_COLORS.red;
+        return {
+          icon: <DollarSign className="h-3 w-3 mr-1" />,
+          label: showPercentage ? `Paid ${percentage}%` : 'Partially Paid',
+          className: partial.chip,
+        };
+      }
       case 'unpaid':
         return {
           icon: <Ban className="h-3 w-3 mr-1" />,
           label: 'Not Paid',
-          className: 'bg-red-500/15 text-red-400 border-red-500/30',
+          className: OPTION_COLORS.red.chip,
         };
       case 'overdue':
         return {
           icon: <AlertCircle className="h-3 w-3 mr-1" />,
           label: 'Overdue',
-          className: 'bg-red-900 text-red-300 hover:bg-red-900/80',
+          className: OPTION_COLORS.red.chip,
         };
       case 'refunded':
         return {
           icon: <Ban className="h-3 w-3 mr-1" />,
           label: 'Refunded',
-          className: 'bg-gray-800 text-gray-300 hover:bg-gray-800/80',
+          className: OPTION_COLORS.slate.chip,
         };
       default:
         return {
           icon: <CreditCard className="h-3 w-3 mr-1" />,
           label: status ? status.replace(/_/g, ' ') : 'Unknown',
-          className: 'bg-gray-800 text-gray-300 hover:bg-gray-800/80',
+          className: OPTION_COLORS.slate.chip,
         };
     }
   };

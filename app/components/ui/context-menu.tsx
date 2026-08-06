@@ -276,7 +276,9 @@ function ContextMenu({
         return (
           <div className="profile-menu">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-orange-600 flex items-center justify-center text-white font-medium">
+              {/* Brand-following: the old gradient mixed --primary with a
+                  literal orange-600 and pinned white text on it. */}
+              <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-medium">
                 {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
               </div>
               <div>
@@ -294,13 +296,18 @@ function ContextMenu({
                 <span>Profile Settings</span>
               </div>
 
-              {/* Disabled App Settings button */}
-              <div
-                className="w-full flex items-center px-2 py-2 text-sm rounded-md opacity-70 cursor-not-allowed"
+              {/* Organization settings — brand colour and appearance. Was a
+                  dead "App Settings" row pointing at the legacy page. */}
+              <button
+                className="w-full flex items-center px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-md"
+                onClick={() => {
+                  onOpenChange(false);
+                  router.push('/dashboard/organization');
+                }}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                <span>App Settings</span>
-              </div>
+                <span>Organization</span>
+              </button>
 
               {/* Theme toggle - still active */}
               <button

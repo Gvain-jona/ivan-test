@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { OPTION_COLORS } from '@/lib/fields/colors';
 
 interface PaymentStatusBadgeProps {
   status: string;
@@ -7,16 +8,19 @@ interface PaymentStatusBadgeProps {
 }
 
 const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({ status, size = 'md' }) => {
+  // Palette chips rather than saturated fills with pinned white text: the
+  // old `bg-status-completed text-white` pair was never contrast-checked, and
+  // `bg-brand text-white` breaks outright once the org brand is a light hue.
   const getStatusStyles = () => {
     switch (status) {
       case 'unpaid':
-        return 'bg-red-500 text-white';
+        return OPTION_COLORS.red.chip;
       case 'partial':
-        return 'bg-brand text-white';
+        return OPTION_COLORS.amber.chip;
       case 'paid':
-        return 'bg-status-completed text-white';
+        return OPTION_COLORS.green.chip;
       default:
-        return 'bg-gray-500 text-white';
+        return OPTION_COLORS.slate.chip;
     }
   };
 

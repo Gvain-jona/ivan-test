@@ -17,49 +17,54 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
   // Statuses come from the order `status` field-definition (no fallback).
   const { statusValues } = useOrderStatuses();
 
+  /**
+   * The active item is tinted with its stage colour; the rest stay neutral.
+   * `-fg` is the palette's text role (AA on the menu surface in both themes)
+   * — the previous `text-*-400` values only had contrast on a dark menu.
+   */
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'in_progress':
         return {
           icon: <ArrowRightCircle className="h-4 w-4 mr-2" />,
           label: 'In Progress',
-          className: 'text-blue-400 hover:bg-blue-500/10 focus:bg-blue-500/10'
+          className: 'text-opt-blue-fg',
         };
       case 'paused':
         return {
           icon: <PauseCircle className="h-4 w-4 mr-2" />,
           label: 'Paused',
-          className: 'text-slate-400 hover:bg-slate-500/10 focus:bg-slate-500/10'
+          className: 'text-opt-slate-fg',
         };
       case 'pending':
         return {
           icon: <Clock className="h-4 w-4 mr-2" />,
           label: 'Pending',
-          className: 'text-amber-400 hover:bg-amber-500/10 focus:bg-amber-500/10'
+          className: 'text-opt-amber-fg',
         };
       case 'completed':
         return {
           icon: <CheckCircle className="h-4 w-4 mr-2" />,
           label: 'Completed',
-          className: 'text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10'
+          className: 'text-opt-green-fg',
         };
       case 'delivered':
         return {
           icon: <Truck className="h-4 w-4 mr-2" />,
           label: 'Delivered',
-          className: 'text-purple-400 hover:bg-purple-500/10 focus:bg-purple-500/10'
+          className: 'text-opt-violet-fg',
         };
       case 'cancelled':
         return {
           icon: <AlertCircle className="h-4 w-4 mr-2" />,
           label: 'Cancelled',
-          className: 'text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10'
+          className: 'text-opt-red-fg',
         };
       default:
         return {
           icon: <Clock className="h-4 w-4 mr-2" />,
           label: (status as string).split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-          className: 'text-slate-400 hover:bg-slate-500/10 focus:bg-slate-500/10'
+          className: 'text-opt-slate-fg',
         };
     }
   };
@@ -162,8 +167,8 @@ function StatusDropdown({ order, onStatusChange, userRole }: StatusDropdownProps
           <CustomDropdownItem
             key={statusOption}
             className={cn(
-              'focus:text-white',
-              isActive ? config.className : 'text-white',
+              'focus:text-accent-foreground',
+              isActive ? config.className : 'text-foreground',
               isChangingThis ? 'opacity-70 pointer-events-none' : ''
             )}
             onClick={(e) => handleStatusChange(statusOption, e)}

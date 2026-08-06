@@ -52,15 +52,15 @@ const OrderPaymentsTab: React.FC<OrderPaymentsTabProps> = ({
       {/* Balance strip */}
       <div className="border border-border/40 rounded-lg p-4 grid grid-cols-3 gap-4">
         <div>
-          <p className="text-xs text-[#6D6D80]">Total</p>
+          <p className="text-xs text-muted-foreground">Total</p>
           <p className="text-base font-medium text-foreground">{fmt(order.total_amount)}</p>
         </div>
         <div>
-          <p className="text-xs text-[#6D6D80]">Paid</p>
-          <p className="text-base font-medium text-green-500">{fmt(order.amount_paid)}</p>
+          <p className="text-xs text-muted-foreground">Paid</p>
+          <p className="text-base font-medium text-success">{fmt(order.amount_paid)}</p>
         </div>
         <div>
-          <p className="text-xs text-[#6D6D80]">Balance</p>
+          <p className="text-xs text-muted-foreground">Balance</p>
           <p className="text-base font-medium text-primary">{fmt(balance)}</p>
         </div>
       </div>

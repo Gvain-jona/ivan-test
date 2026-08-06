@@ -44,6 +44,9 @@ record; its "keep holding" verdict no longer applies.
 | Legacy code | Deleted at module cutover, rewound via git if needed. No parallel copies. |
 | API paths | Plain (`/api/orders`, `/api/clients`, …) — migrated routes replaced legacy in place. |
 | Activity log | **DB-side** (triggers), not app-side route logging — recommended to DB owner, deliberately not built in the app. |
+| Theme default | **System** (`defaultTheme="system" enableSystem`, 2026-08-06). Was forced dark with `enableSystem={false}`, which silently downgraded the "System" option in all three UIs that offered it. Flipped only after the live v2 surface was tokenized — see "Theming" below. |
+| Brand colour storage | **Clerk organization `public_metadata.brand_color`**, not `v2.organizations` (2026-08-06). Clerk already owns org visual identity (name, slug, logo); putting the colour there needs no migration and no change to the DB-owned `validate_organization_settings` whitelist, which would otherwise have rejected a new `settings.branding` block. Reaches the app as the session claim `brand_color`. |
+| Brand colour input | **A closed preset set**, not a free colour picker (8 presets in `app/lib/theme/brand-presets.ts`). Every light/dark pair is contrast-solved at authoring time and enforced by `brand-presets.test.ts`, so no org choice can produce unreadable buttons. A free picker later swaps the lookup in `resolveBrandTokens()` for oklch ramp generation behind the same seam — nothing downstream changes. |
 | Testing stance | No live tenant data dependency; mock up a trial/playground org when a test bed is needed. **Since 2026-07-13 a Vitest suite is live** (`npm test`): unit tests on the `TenantDb` wrapper + route contract tests on all migrated routes against a fake tenant DB. Newly migrated modules add colocated `route.test.ts` files in the same PR — pattern in `test/README.md`. DB-integration tests blocked on a v2 schema dump (DB owner). |
 | Scope discipline | Quality over quantity — ship the load-bearing pieces, park the rest as explicit follow-ups (below), don't half-build. |
 
@@ -436,6 +439,63 @@ single swap point. Order creation still goes through the
   app is degraded rather than blocked: no field_definitions, no statuses, no
   currency. Deliberate today ("unconfigured org still transacts"); revisit if
   onboarding needs to be a real gate.
+
+## Theming — system default + per-org brand (2026-08-06)
+
+**Requires a Clerk dashboard change to take effect.** Add a session-token
+custom claim `brand_color` ← `{{org.public_metadata.brand_color}}` under
+"Customize session token", same mechanism as `internal_user_id`. Without it
+`resolveBrandColor()` always falls back to the `ember` default — the app works,
+it just can't see an org's choice. (Fallback if that proves awkward: fetch the
+org via `clerkClient()` in `app/dashboard/layout.tsx`, at one extra API call
+per dashboard render.)
+
+How it flows: claim → `resolveBrandColor()` (`app/lib/theme/brand.ts`) →
+`brandCssText()` → `<BrandStyle />`, rendered in `app/dashboard/layout.tsx`
+(which already awaits `resolveTenant()`, so it costs no extra round trip and
+the root layout stays org-free — `/` and `/auth/signin` pay no auth cost).
+
+Three cascade rules the injection depends on, each a real footgun:
+1. It must be a `<style>` **element**, never a `style=""` attribute — an inline
+   declaration outranks every selector, so `.dark` could never override
+   `:root` and the brand would be stuck at its light value.
+2. The block is **unlayered**, so it outranks `globals.css`'s `@layer base`
+   tokens regardless of source order.
+3. `.dark` must come **after** `:root` — equal specificity on the same
+   `<html>`, so source order decides. Verified in-browser, and asserted in
+   `app/lib/theme/brand-presets.test.ts`.
+
+Brand reach is deliberately narrow: `--primary`, `--primary-foreground`,
+`--accent`, `--accent-foreground`, `--ring`. Surfaces, `--status-*`, `--chart-*`
+and the `opt-*` palette stay neutral and fixed. `--accent` was full-saturation
+brand orange and is consumed as the **hover surface** by 13 shadcn primitives,
+so every menu hover was a saturated block; it is now a low-chroma brand tint.
+
+Owner-only writes go through `PATCH /api/organization` with a `brand_color`
+key, which routes to Clerk rather than the row — the same "one endpoint, three
+destinations" shape `onboarding_completed` already established. The response
+echoes the id so the client can repaint before the session token refreshes
+(~1 min), via `app/components/theme/apply-brand.ts`.
+
+**Light-mode remediation was scoped to the live v2 surface only.** Of 1,409
+hardcoded colour occurrences across 182 files, ~930 sit in modules that are
+dark until their cutovers (invoices, expenses, materials, analytics, tasks,
+the legacy settings tabs) and will be rewritten then — fixing them now is
+throwaway work. They are deliberately untouched and light mode will look wrong
+there until each module migrates. Status chips across the live surface now read
+from `app/lib/fields/colors.ts`, the existing contrast-verified palette.
+
+Known-and-accepted leftovers on the live surface: overlay scrims stay
+`bg-black/50-80` (shadcn's own convention, correct on both canvases), and the
+decorative category dots in `context-menu.tsx` sit inside the notifications and
+search menus, both `disabled: true` in the nav.
+
+New org settings surface at `/dashboard/organization` — brand picker (owner
+only; staff sees it read-only) plus a working theme preference. It does **not**
+extend `/dashboard/settings`, which is legacy throughout: it reads and writes
+`public.user_settings` through the Supabase browser client (no session since
+the Clerk cutover) and its Save button has no handler. The `identity` / `tax` /
+`documents` blocks flagged below belong on this new page.
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 

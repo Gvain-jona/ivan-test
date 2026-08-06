@@ -1,19 +1,18 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-  darkMode: ['class', 'class'],
+  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-  safelist: [
-    // Add any classes that might be used dynamically
-    'bg-orange-500',
-    'text-orange-500',
-    'border-orange-500',
-  ],
+  // No safelist: nothing in app/ composes a class name dynamically (no
+  // `bg-${...}` anywhere), so every class is statically discoverable. The
+  // old entries force-preserved bg/text/border-orange-500, which contradicted
+  // the "theme tokens, never hardcoded colours" rule in CLAUDE.md — the brand
+  // colour is an org setting now, not a palette class.
   theme: {
   	container: {
   		center: true,

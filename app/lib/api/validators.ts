@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Json } from '@/types/supabase-v2';
+import { BRAND_PRESET_IDS } from '@/lib/theme/brand-presets';
 
 /**
  * v2 API schemas — STRUCTURAL validation only. Field-level rules for
@@ -190,21 +191,32 @@ export type OrganizationSettingsBlocks = z.infer<typeof settingsBlocks>;
  * PATCH /api/organization. name/slug/logo are Clerk-authoritative and order
  * status values live in field_definitions — neither belongs here.
  *
- * `settings` blocks are deep-merged into organizations.settings.
- * `onboarding_completed` is NOT a settings block: it writes the
- * onboarding_completed_at column, because settings is config that gets
- * frozen into document snapshots and setup progress is neither.
+ * Three keys, three destinations, on purpose:
+ *   settings ............. deep-merged into organizations.settings
+ *   onboarding_completed . writes the onboarding_completed_at column, because
+ *                          settings is config that gets frozen into document
+ *                          snapshots and setup progress is neither
+ *   brand_color .......... writes Clerk org public_metadata, where the rest
+ *                          of the org's visual identity already lives (see
+ *                          app/lib/theme/brand.ts)
  */
 export const organizationSettingsPatchSchema = z
   .object({
     settings: settingsBlocks,
     onboarding_completed: z.boolean(),
+    // A closed set, not a free colour: every preset's light/dark pair is
+    // contrast-verified at authoring time (app/lib/theme/brand-presets.ts).
+    brand_color: z.enum(BRAND_PRESET_IDS),
   })
   .partial()
   .strict()
-  .refine(d => d.settings !== undefined || d.onboarding_completed !== undefined, {
-    message: 'At least one setting is required',
-  })
+  .refine(
+    d =>
+      d.settings !== undefined ||
+      d.onboarding_completed !== undefined ||
+      d.brand_color !== undefined,
+    { message: 'At least one setting is required' },
+  )
   .refine(d => d.settings === undefined || Object.keys(d.settings).length > 0, {
     message: 'settings must name at least one block',
   });

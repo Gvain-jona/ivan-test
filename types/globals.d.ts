@@ -9,6 +9,14 @@ declare global {
    */
   interface CustomJwtSessionClaims {
     internal_user_id?: string
+    /**
+     * The org's brand colour preset id, from
+     * org.public_metadata.brand_color — same "Customize session token"
+     * mechanism as internal_user_id. Typed as string because a claim is
+     * untrusted input; isBrandPresetId() narrows it. See
+     * app/lib/theme/brand.ts.
+     */
+    brand_color?: string
   }
 
   /**
@@ -18,5 +26,14 @@ declare global {
    */
   interface UserPublicMetadata {
     internal_user_id?: string
+  }
+
+  /**
+   * Clerk Organization public_metadata. Clerk owns org visual identity
+   * (name, slug, logo), so the brand colour lives here rather than in
+   * v2.organizations — see app/lib/theme/brand.ts for the rationale.
+   */
+  interface OrganizationPublicMetadata {
+    brand_color?: string
   }
 }

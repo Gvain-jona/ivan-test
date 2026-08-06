@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { OPTION_COLORS } from '@/lib/fields/colors';
 import { CheckCircle, Clock, PauseCircle, Truck, AlertCircle, ArrowRightCircle, ChevronDown, Loader2 } from 'lucide-react';
 
 interface StatusBadgeProps {
@@ -13,49 +14,55 @@ interface StatusBadgeProps {
 }
 
 function StatusBadge({ status, size = 'md', onClick, showDropdownIndicator = false, className: propClassName, isLoading = false, loadingStatus = null }: StatusBadgeProps) {
+  /**
+   * Chips come from the shared option palette, which carries a verified
+   * bg/text pair per theme. The hand-rolled `*-500/15 text-*-400` + `dark:`
+   * overrides they replaced set a light-theme value that was really a second
+   * dark value — both variants assumed a dark canvas.
+   */
   const getStatusConfig = () => {
     switch (status) {
       case 'in_progress':
         return {
           icon: <ArrowRightCircle className="h-4 w-4 mr-1.5" />,
           label: 'In Progress',
-          className: 'bg-blue-500/15 text-blue-400 border-blue-500/30 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30'
+          className: OPTION_COLORS.blue.chip,
         };
       case 'paused':
         return {
           icon: <PauseCircle className="h-4 w-4 mr-1.5" />,
           label: 'Paused',
-          className: 'bg-slate-500/15 text-slate-400 border-slate-500/30 dark:bg-slate-800/20 dark:text-slate-300 dark:border-slate-700/30'
+          className: OPTION_COLORS.slate.chip,
         };
       case 'pending':
         return {
           icon: <Clock className="h-4 w-4 mr-1.5" />,
           label: 'Pending',
-          className: 'bg-amber-500/15 text-amber-400 border-amber-500/30 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/30'
+          className: OPTION_COLORS.amber.chip,
         };
       case 'completed':
         return {
           icon: <CheckCircle className="h-4 w-4 mr-1.5" />,
           label: 'Completed',
-          className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/30'
+          className: OPTION_COLORS.green.chip,
         };
       case 'delivered':
         return {
           icon: <Truck className="h-4 w-4 mr-1.5" />,
           label: 'Delivered',
-          className: 'bg-purple-500/15 text-purple-400 border-purple-500/30 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800/30'
+          className: OPTION_COLORS.violet.chip,
         };
       case 'cancelled':
         return {
           icon: <AlertCircle className="h-4 w-4 mr-1.5" />,
           label: 'Cancelled',
-          className: 'bg-rose-500/15 text-rose-400 border-rose-500/30 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800/30'
+          className: OPTION_COLORS.red.chip,
         };
       default:
         return {
           icon: <Clock className="h-4 w-4 mr-1.5" />,
           label: (status as string).split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-          className: 'bg-slate-500/15 text-slate-400 border-slate-500/30 dark:bg-slate-800/20 dark:text-slate-300 dark:border-slate-700/30'
+          className: OPTION_COLORS.slate.chip,
         };
     }
   };
@@ -88,7 +95,7 @@ function StatusBadge({ status, size = 'md', onClick, showDropdownIndicator = fal
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center rounded-md font-medium shadow-sm border cursor-pointer interactive-element',
+        'inline-flex items-center justify-center rounded-md font-medium shadow-sm border border-transparent cursor-pointer interactive-element',
         getSizeClass(),
         className,
         propClassName,

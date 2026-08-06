@@ -4,6 +4,7 @@ import ProvisioningPendingScreen from '../components/layout/ProvisioningPendingS
 import OnboardingGate from '../components/onboarding/OnboardingGate';
 import { SheetHostProvider } from '@/context/sheet-host';
 import { resolveTenant } from '@/lib/auth/tenant';
+import BrandStyle from '../components/theme/BrandStyle';
 
 // Removed Suspense to fix hydration issues
 export default async function DashboardRouteGroupLayout({
@@ -27,6 +28,10 @@ export default async function DashboardRouteGroupLayout({
   // is complete.
   return (
     <SheetHostProvider>
+      {/* Overrides the default brand tokens in globals.css with the active
+          org's. Sits here rather than in the root layout because this is
+          already the org-aware boundary — see BrandStyle. */}
+      <BrandStyle />
       <OnboardingGate>
         <DashboardLayout>
           {children}

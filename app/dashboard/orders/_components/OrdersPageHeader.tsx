@@ -30,7 +30,7 @@ const OrdersPageHeader: React.FC<OrdersPageHeaderProps> = ({
       {onCreateOrder && (
         <Button
           onClick={onCreateOrder}
-          className="bg-orange-500 hover:bg-orange-600 text-white font-semibold flex items-center gap-2 px-5 py-2.5 h-11 shadow-md hover:shadow-lg hover:translate-y-[-1px] transition-all duration-200 rounded-lg text-base"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-2 px-5 py-2.5 h-11 shadow-md hover:shadow-lg hover:translate-y-[-1px] transition-all duration-200 rounded-lg text-base"
           size="lg"
         >
           <PlusCircle className="h-5 w-5" />

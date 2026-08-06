@@ -8,6 +8,30 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useOrder } from '@/hooks/orders/useOrders';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
 import { useNotes } from '@/hooks/notes/useNotes';
+import { OPTION_COLORS, OPTION_COLOR_NAMES } from '@/lib/fields/colors';
+
+/**
+ * Status tints for the client avatar and its corner dot, from the shared
+ * option palette so they hold in light and dark. The hues match the
+ * --status-* tokens for the same stages.
+ */
+type OrderStatusKey = 'completed' | 'in_progress' | 'pending' | 'delivered' | 'cancelled';
+
+const STATUS_TINT: Record<OrderStatusKey, string> = {
+  completed: OPTION_COLORS.green.chip,
+  in_progress: OPTION_COLORS.blue.chip,
+  pending: OPTION_COLORS.amber.chip,
+  delivered: OPTION_COLORS.violet.chip,
+  cancelled: OPTION_COLORS.red.chip,
+};
+
+const STATUS_DOT: Record<OrderStatusKey, string> = {
+  completed: OPTION_COLORS.green.dot,
+  in_progress: OPTION_COLORS.blue.dot,
+  pending: OPTION_COLORS.amber.dot,
+  delivered: OPTION_COLORS.violet.dot,
+  cancelled: OPTION_COLORS.red.dot,
+};
 
 interface OrderRowProps {
   order: OrderSummary;
@@ -54,20 +78,17 @@ function OrderRow(props: OrderRowProps) {
       .slice(0, 2);
   };
 
+  /**
+   * Deterministic avatar tint from the client's name. Uses the shared option
+   * palette, whose chip pairs are contrast-verified in both themes — the
+   * previous list was saturated *-500 fills with hardcoded white (and one
+   * black) text, none of which survives a light background.
+   */
   const getAvatarColor = (name: string): string => {
-    if (!name) return 'bg-orange-500 text-white';
-    const colors = [
-      'bg-orange-500 text-white',
-      'bg-blue-500 text-white',
-      'bg-green-500 text-white',
-      'bg-purple-500 text-white',
-      'bg-red-500 text-white',
-      'bg-yellow-500 text-black',
-      'bg-teal-500 text-white',
-      'bg-indigo-500 text-white',
-    ];
+    const palette = OPTION_COLOR_NAMES;
+    if (!name) return OPTION_COLORS[palette[0]].chip;
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[index % colors.length];
+    return OPTION_COLORS[palette[index % palette.length]].chip;
   };
 
   return (
@@ -100,37 +121,36 @@ function OrderRow(props: OrderRowProps) {
                 e.preventDefault();
                 setIsExpanded(!isExpanded);
               }}
-              className="group inline-flex items-center text-sm text-table-header hover:text-white focus:outline-none interactive-element relative z-10 flex-shrink-0 dropdown-icon"
+              className="group inline-flex items-center text-sm text-table-header hover:text-foreground focus:outline-none interactive-element relative z-10 flex-shrink-0 dropdown-icon"
               aria-expanded={isExpanded}
               aria-label={isExpanded ? "Collapse order details" : "Expand order details"}
             >
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-table-header group-hover:text-white" />
+                <ChevronDown className="h-4 w-4 text-table-header group-hover:text-foreground" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-table-header group-hover:text-white" />
+                <ChevronRight className="h-4 w-4 text-table-header group-hover:text-foreground" />
               )}
             </button>
             <div className="relative">
-              <Avatar className={cn("h-10 w-10 border-2 shadow-md",
-                order.status === 'completed' ? 'border-green-500/50 bg-green-500/10' :
-                order.status === 'in_progress' ? 'border-blue-500/50 bg-blue-500/10' :
-                order.status === 'pending' ? 'border-amber-500/50 bg-amber-500/10' :
-                order.status === 'delivered' ? 'border-purple-500/50 bg-purple-500/10' :
-                order.status === 'cancelled' ? 'border-red-500/50 bg-red-500/10' :
-                `${getAvatarColor(clientName)} ${getAvatarColor(clientName).replace('bg-', 'border-')}`
-              )}>
-                <AvatarFallback className="text-sm font-medium">{getInitials(clientName)}</AvatarFallback>
+              <Avatar
+                className={cn(
+                  'h-10 w-10 border-2 border-border shadow-md',
+                  STATUS_TINT[order.status as OrderStatusKey] ?? getAvatarColor(clientName),
+                )}
+              >
+                <AvatarFallback className="bg-transparent text-sm font-medium">
+                  {getInitials(clientName)}
+                </AvatarFallback>
               </Avatar>
-              <span className={cn("absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-background",
-                order.status === 'completed' ? 'bg-green-500' :
-                order.status === 'in_progress' ? 'bg-blue-500' :
-                order.status === 'pending' ? 'bg-amber-500' :
-                order.status === 'delivered' ? 'bg-purple-500' :
-                order.status === 'cancelled' ? 'bg-red-500' : 'bg-green-500'
-              )}></span>
+              <span
+                className={cn(
+                  'absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-background',
+                  STATUS_DOT[order.status as OrderStatusKey] ?? OPTION_COLORS.green.dot,
+                )}
+              ></span>
             </div>
             <div>
-              <div className="text-sm font-medium text-white max-w-[220px] line-clamp-1">{clientName}</div>
+              <div className="text-sm font-medium text-foreground max-w-[220px] line-clamp-1">{clientName}</div>
               <div className="text-xs text-muted-foreground flex items-center gap-1 max-w-[220px]">
                 <span className="font-medium text-primary truncate">{order.order_number || (order.id ? `#${order.id.substring(0, 8)}` : 'Unknown')}</span>
               </div>
@@ -139,7 +159,7 @@ function OrderRow(props: OrderRowProps) {
         </td>
 
         <td className="date-column">
-          <div className="text-sm text-white">
+          <div className="text-sm text-foreground">
             {order.order_date ? new Date(order.order_date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -155,13 +175,13 @@ function OrderRow(props: OrderRowProps) {
           />
         </td>
         <td className="financial-column">
-          <div className="text-sm text-white font-medium">{fmt(order.total_amount || 0)}</div>
+          <div className="text-sm text-foreground font-medium">{fmt(order.total_amount || 0)}</div>
         </td>
         <td className="financial-column">
-          <div className="text-sm text-white">{fmt(order.amount_paid || 0)}</div>
+          <div className="text-sm text-foreground">{fmt(order.amount_paid || 0)}</div>
         </td>
         <td className="financial-column">
-          <div className="text-sm text-white font-medium">{fmt(order.balance || 0)}</div>
+          <div className="text-sm text-foreground font-medium">{fmt(order.balance || 0)}</div>
         </td>
         <td className="actions-column">
           <div className="w-full flex justify-end items-center space-x-1">
@@ -173,7 +193,7 @@ function OrderRow(props: OrderRowProps) {
                   onView(order);
                 }, 50);
               }}
-              className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-md interactive-element relative z-10 shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+              className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-md interactive-element relative z-10 shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground"
               aria-label="View Order"
               title="View Order"
             >
@@ -198,7 +218,7 @@ function OrderRow(props: OrderRowProps) {
             <div className="space-y-5 w-full overflow-x-auto">
               {/* Order Items Table */}
               <div>
-                <h4 className="text-sm font-medium text-white mb-2 flex items-center gap-1.5">
+                <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
                   <ShoppingBag className="h-4 w-4 text-primary" />
                   Order Items
                 </h4>
@@ -206,10 +226,10 @@ function OrderRow(props: OrderRowProps) {
                   <table className="w-full divide-y divide-table-border table-fixed">
                     <thead className="bg-[hsl(var(--table-header-bg))]">
                       <tr>
-                        <th scope="col" className="w-2/5 px-4 py-2 text-left text-xs font-medium text-white">Item</th>
-                        <th scope="col" className="w-1/5 px-4 py-2 text-center text-xs font-medium text-white">Quantity</th>
-                        <th scope="col" className="w-1/5 px-4 py-2 text-right text-xs font-medium text-white">Unit Price</th>
-                        <th scope="col" className="w-1/5 px-4 py-2 text-right text-xs font-medium text-white">Total</th>
+                        <th scope="col" className="w-2/5 px-4 py-2 text-left text-xs font-medium text-foreground">Item</th>
+                        <th scope="col" className="w-1/5 px-4 py-2 text-center text-xs font-medium text-foreground">Quantity</th>
+                        <th scope="col" className="w-1/5 px-4 py-2 text-right text-xs font-medium text-foreground">Unit Price</th>
+                        <th scope="col" className="w-1/5 px-4 py-2 text-right text-xs font-medium text-foreground">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-table-border">
@@ -220,10 +240,10 @@ function OrderRow(props: OrderRowProps) {
                       ) : detail?.order_items?.length ? (
                         detail.order_items.map((item) => (
                           <tr key={item.id} className="hover:bg-table-hover">
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white">{item.product_name_raw ?? '—'}</td>
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-center">{item.quantity}</td>
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right">{fmt(item.unit_price)}</td>
-                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-white text-right font-medium">{fmt(item.total_amount)}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-foreground">{item.product_name_raw ?? '—'}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-foreground text-center">{item.quantity}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-foreground text-right">{fmt(item.unit_price)}</td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-foreground text-right font-medium">{fmt(item.total_amount)}</td>
                           </tr>
                         ))
                       ) : (
@@ -238,7 +258,7 @@ function OrderRow(props: OrderRowProps) {
 
               {/* Notes Section */}
               <div className="w-full">
-                <h4 className="text-sm font-medium text-white mb-2 flex items-center gap-1.5">
+                <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
                   <MessageSquare className="h-4 w-4 text-primary" />
                   Notes
                 </h4>
@@ -259,7 +279,7 @@ function OrderRow(props: OrderRowProps) {
                                 {new Date(note.created_at).toLocaleDateString()}
                               </p>
                             </div>
-                            <p className="text-sm text-white">{note.content}</p>
+                            <p className="text-sm text-foreground">{note.content}</p>
                           </div>
                         </div>
                       </div>

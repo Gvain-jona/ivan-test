@@ -259,7 +259,7 @@ function FooterNavComponent({ className }: FooterNavProps) {
       )}>
         <ExpandableTabs
           tabs={navigationItems}
-          activeColor="text-orange-500"
+          activeColor="text-primary"
           className="border-border bg-popover backdrop-blur-md shadow-lg px-2 py-1.5"
           onChange={handleTabChangeWithContext}
           initialSelectedIndex={activeTabIndex !== -1 ? activeTabIndex : initialTab}

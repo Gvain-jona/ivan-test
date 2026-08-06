@@ -73,7 +73,10 @@ export default function HomeHero() {
             {profile?.avatar_url ? (
               <AvatarImage src={profile.avatar_url} alt={name} />
             ) : null}
-            <AvatarFallback className="bg-gradient-to-br from-primary to-orange-600 font-semibold text-white">
+            {/* Flat brand pair, not a gradient into a literal orange-600:
+                the org's colour may not be orange, and only this pair has
+                verified contrast. */}
+            <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
               {avatarInitials}
             </AvatarFallback>
           </Avatar>

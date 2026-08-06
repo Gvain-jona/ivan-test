@@ -50,18 +50,18 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       // Custom fallback UI
       return this.props.fallback || (
-        <div className="flex flex-col items-center justify-center min-h-[300px] p-6 bg-gray-900/50 rounded-lg border border-red-900/30">
-          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">Something went wrong</h2>
-          <p className="text-gray-400 text-center mb-6 max-w-md">
+        <div className="flex flex-col items-center justify-center min-h-[300px] p-6 bg-card rounded-lg border border-destructive/30">
+          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Something went wrong</h2>
+          <p className="text-muted-foreground text-center mb-6 max-w-md">
             An error occurred while loading this content. This could be due to a temporary issue or a problem with the application.
           </p>
           
           {/* Error details (collapsed by default) */}
-          <details className="mb-6 w-full max-w-md bg-gray-800/50 rounded-md p-3 text-sm">
-            <summary className="cursor-pointer text-gray-300 font-medium">Error Details</summary>
-            <div className="mt-2 p-2 bg-gray-950 rounded text-gray-400 overflow-auto max-h-[200px]">
-              <p className="font-mono text-red-400">{this.state.error?.toString()}</p>
+          <details className="mb-6 w-full max-w-md bg-muted rounded-md p-3 text-sm">
+            <summary className="cursor-pointer text-foreground font-medium">Error Details</summary>
+            <div className="mt-2 p-2 bg-background rounded text-muted-foreground overflow-auto max-h-[200px]">
+              <p className="font-mono text-destructive">{this.state.error?.toString()}</p>
               {this.state.errorInfo && (
                 <pre className="mt-2 text-xs">{this.state.errorInfo.componentStack}</pre>
               )}

@@ -211,12 +211,12 @@ export function CustomDropdownItem({
 
       // Add visual feedback with a slight delay before action
       const element = e.currentTarget as HTMLElement;
-      element.classList.add('bg-gray-700/70');
+      element.classList.add('bg-accent');
 
       // Execute the click handler after a small delay
       setTimeout(() => {
         onClick(e);
-        element.classList.remove('bg-gray-700/70');
+        element.classList.remove('bg-accent');
 
         // Reset processing flag after a short delay to prevent rapid re-clicks
         setTimeout(() => {
@@ -230,7 +230,7 @@ export function CustomDropdownItem({
     <div
       className={cn(
         "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors interactive-element",
-        "hover:bg-gray-800/50 active:bg-gray-700/70 focus:bg-gray-800/50",
+        "hover:bg-accent active:bg-accent focus:bg-accent",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         disabled && "opacity-50 cursor-not-allowed",
         className

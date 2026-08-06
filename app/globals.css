@@ -179,7 +179,22 @@
     --popover: 0 0% 98%;
     --popover-foreground: 0 0% 3.9%;
 
-    --primary: 16 100% 50%; /* Vibrant orange - consistent across themes */
+    /* ---- BRAND TOKENS (org-overridable) - light -------------------------
+       The only five tokens an organization's brand colour drives. Everything
+       below this block stays neutral and fixed. The default is the "ember"
+       preset; app/lib/theme/brand-presets.ts holds the full set and
+       app/dashboard/layout.tsx injects the active org's values as an
+       unlayered :root/.dark pair, which outranks these @layer base rules.
+
+       Light and dark carry *different* lightness on purpose. A brand colour
+       tuned for a white page is too dark on a near-black one, and the text
+       that sits on it flips polarity with it — that is what
+       --primary-foreground is a per-theme token for.
+
+       Measured (WCAG 2 AA, normal text needs 4.5:1):
+         --primary-foreground on --primary ......... 4.6:1
+         --accent-foreground  on --accent .......... 11.7:1 */
+    --primary: 16 100% 42.5%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 96%;
@@ -188,15 +203,22 @@
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 16 100% 45%; /* Slightly darker orange - consistent across themes */
-    --accent-foreground: 0 0% 9%;
+    /* --accent is the *hover surface* in every shadcn primitive (dropdown,
+       select, command, context menu) - a low-chroma brand tint, not the brand
+       colour itself. It used to be full-saturation orange, which turned every
+       menu hover into a saturated block. */
+    --accent: 16 60% 96%;
+    --accent-foreground: 16 60% 20%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 16 100% 50%;
+    /* Focus ring follows the brand in both themes (it used to be neutral grey
+       in dark, which read as an unrelated element). */
+    --ring: 16 100% 42.5%;
+    /* ---- end brand tokens ---------------------------------------------- */
 
     --radius: 0.5rem;
 
@@ -281,8 +303,16 @@
     --popover: 0 0% 7%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 16 100% 50%; /* Vibrant orange - consistent across themes */
-    --primary-foreground: 0 0% 100%;
+    /* ---- BRAND TOKENS (org-overridable) - dark --------------------------
+       Same five tokens as :root, lifted for a near-black canvas. The brand
+       gets brighter and its foreground flips to near-black - the standard
+       dark-mode treatment, and the reason these are per-theme tokens.
+
+       Measured (WCAG 2 AA, normal text needs 4.5:1):
+         --primary-foreground on --primary ......... 6.0:1
+         --accent-foreground  on --accent .......... 13.4:1 */
+    --primary: 16 100% 58%;
+    --primary-foreground: 0 0% 9%;
 
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
@@ -290,7 +320,8 @@
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
 
-    --accent: 16 100% 45%; /* Slightly darker orange - consistent across themes */
+    /* Hover surface, not the brand colour - see the :root note above. */
+    --accent: 16 45% 18%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -298,7 +329,8 @@
 
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --ring: 16 100% 58%;
+    /* ---- end brand tokens ---------------------------------------------- */
 
     /* Chart colors - dark theme */
     --chart-1: 220 70% 50%;
@@ -377,8 +409,10 @@ body {
   --table-stripe: 0 0% 98%;
   --table-expanded-bg: 0 0% 97%;
   --table-expanded-title: 0 0% 30%;
-  --table-note-border: 16 100% 50%;
-  --table-pagination-active: 16 100% 50%;
+  /* Brand-derived: follow --primary rather than restating the orange, so an
+     org's colour reaches the table too. */
+  --table-note-border: var(--primary);
+  --table-pagination-active: var(--primary);
   --table-pagination-hover: 0 0% 90%;
 }
 
@@ -391,8 +425,8 @@ body {
   --table-stripe: 0 0% 7%;
   --table-expanded-bg: 0 0% 9%;
   --table-expanded-title: 0 0% 90%;
-  --table-note-border: 16 100% 50%;
-  --table-pagination-active: 16 100% 50%;
+  --table-note-border: var(--primary);
+  --table-pagination-active: var(--primary);
   --table-pagination-hover: 0 0% 15%;
 }
 
@@ -439,7 +473,7 @@ body {
 /* Card styling for dashboard panels */
 .dashboard-card {
   background-color: hsl(var(--card));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-card);
   border-radius: 0.5rem;
   border-width: 1px;
   border-color: hsl(var(--border));
@@ -459,13 +493,13 @@ body {
 
 /* Trend indicators */
 .trend-up {
-  color: rgb(34, 197, 94);
+  color: hsl(var(--success));
   font-weight: 500;
   font-size: 0.75rem;
 }
 
 .trend-down {
-  color: rgb(239, 68, 68);
+  color: hsl(var(--destructive));
   font-weight: 500;
   font-size: 0.75rem;
 }
@@ -560,7 +594,7 @@ body {
 .app-table th button:hover,
 .table-container th button:hover,
 .order-subrow th button:hover {
-  color: white;
+  color: hsl(var(--foreground));
 }
 
 .app-table th button span,
@@ -736,7 +770,7 @@ tr.hover\:bg-table-hover:hover {
 
 .pagination-button-active {
   background-color: hsl(var(--table-pagination-active));
-  color: white;
+  color: hsl(var(--primary-foreground));
 }
 
 .pagination-button-inactive {
@@ -842,7 +876,7 @@ tr.hover\:bg-table-hover:hover {
   line-height: 1;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--muted-foreground);
+  color: hsl(var(--muted-foreground));
 }
 
 .rdp-cell {
@@ -948,8 +982,8 @@ tr.hover\:bg-table-hover:hover {
 /* Override global table styles for react-day-picker */
 .rdp-root {
   --rdp-cell-size: 40px;
-  --rdp-accent-color: #ffffff;
-  --rdp-background-color: rgba(0, 0, 0, 0.05);
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-background-color: hsl(var(--muted));
   font-family: inherit;
   color: inherit;
   font-size: 1rem;
@@ -1006,13 +1040,16 @@ tr.hover\:bg-table-hover:hover {
   width: 100% !important;
 }
 
-/* Custom styling for Sonner toast notifications */
+/* Shadow tokens. Both themes carry their own values: an alpha tuned for a
+   near-black canvas is a heavy smudge on a white one. */
 :root {
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .dark {
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 /* Base toast styling */
@@ -1082,13 +1119,13 @@ tr.hover\:bg-table-hover:hover {
 
 /* Weekday headers */
 .rdp-head_cell {
-  color: var(--muted-foreground) !important;
+  color: hsl(var(--muted-foreground)) !important;
   font-weight: 500 !important;
 }
 
 /* Disabled days */
 .rdp-day_disabled {
-  color: var(--muted-foreground) !important;
+  color: hsl(var(--muted-foreground)) !important;
   opacity: 0.5 !important;
 }
 

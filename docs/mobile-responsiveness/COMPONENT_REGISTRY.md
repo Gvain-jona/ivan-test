@@ -69,3 +69,8 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | FirstRecordsStep | `app/components/onboarding/FirstRecordsStep.tsx` | Partial | Three entity rows (icon + text + action); text truncates, but the row stays horizontal at 375px — check the button doesn't crowd the label. Visual QA pending |
 | EntityFieldSetupStep | `app/components/onboarding/EntityFieldSetupStep.tsx` | Partial | Toggle-able starter field rows + option chips (`flex-wrap`); custom fields come from the inline `FieldComposer` (the old FieldDefinitionFormSheet dialog is deleted, not an alternative). Rebuilt in redesign phases 3-4. Visual QA pending |
 | OnboardingGate | `app/components/onboarding/OnboardingGate.tsx` | Yes | Logic-only redirect wrapper (renders children unchanged); no layout of its own |
+| OrganizationSettingsPage | `app/dashboard/organization/page.tsx` | Yes | Single `max-w-3xl` column, `px-4 sm:px-6`; sections stack. No table, no chrome of its own |
+| BrandColorPicker | `app/components/organization/BrandColorPicker.tsx` | Yes | `flex-wrap` swatch chips reflow 4→3→2 per row at 375px; owner-only (staff renders the same chips disabled) |
+| ThemePreference | `app/components/organization/ThemePreference.tsx` | Yes | Three `flex-wrap` chips (Light/Dark/System); fits one row at 375px |
+| BrandStyle | `app/components/theme/BrandStyle.tsx` | Yes | Emits a `<style>` element only — no rendered layout |
+| ThemedSignIn | `app/auth/signin/ThemedSignIn.tsx` | Yes | Clerk's `<SignIn />` with a theme-reactive appearance; Clerk owns the card's own responsiveness |
