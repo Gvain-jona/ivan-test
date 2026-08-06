@@ -50,3 +50,12 @@ logs
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Pencil design canvas. A ~1MB .pen JSON document (saved without the
+# extension) that the Pencil MCP tools read and write in place — design
+# source, not app source. Ignored so it can't be swept into a commit by
+# `git add .`; do NOT move or delete it, the tools address it by this path.
+/yoko
+
+# Claude Code local dev-server config (per-machine, not shared)
+/.claude/launch.json
