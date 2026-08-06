@@ -11,16 +11,8 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to the console for debugging
-    console.error('===== APP ERROR BOUNDARY TRIGGERED =====');
-    console.error('Error:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Timestamp:', new Date().toISOString());
-    console.error('Error digest:', error.digest);
-    console.error('Current URL:', typeof window !== 'undefined' ? window.location.href : 'Server-side rendering');
-    console.error('Current pathname:', typeof window !== 'undefined' ? window.location.pathname : 'Server-side rendering');
-    console.error('Window history length:', typeof window !== 'undefined' ? window.history.length : 'Server-side rendering');
+    // The Error object already carries message, stack and digest.
+    console.error('Application error:', error);
   }, [error]);
 
   return (
@@ -31,12 +23,15 @@ export default function ErrorPage({
         <p className="mb-8 text-muted-foreground">
           An unexpected error occurred. Our team has been notified.
         </p>
-        <div className="text-sm text-muted-foreground mb-4">
-          <p>Error ID: {error.digest || 'unknown'}</p>
-          <p>Error Message: {error.message || 'No message'}</p>
-          <p>Timestamp: {new Date().toISOString()}</p>
-          <p>Path: {typeof window !== 'undefined' ? window.location.pathname : 'Unknown'}</p>
-        </div>
+        {/* The digest is worth showing — it's what support can correlate to a
+            server log. The raw message, path and timestamp are not. */}
+        {error.digest && (
+          <p className="mb-8 text-sm text-muted-foreground">
+            Reference ID: <span className="font-mono">{error.digest}</span>
+            <br />
+            Quote this if you contact support.
+          </p>
+        )}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={() => reset()}
