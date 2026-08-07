@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { resolveTenant } from '@/lib/auth/tenant';
 import {
   handleApiError,
@@ -13,10 +14,78 @@ const ORDER_DETAIL_COLUMNS =
   'balance, payment_status, custom_data, created_at, updated_at, ' +
   'clients(id, name), order_items(*)';
 
+/** One payment as this order sees it: the cash event, at its allocated amount. */
+interface OrderPayment {
+  id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  notes: string | null;
+  created_at: string;
+}
+
+interface AllocationWithPayment {
+  amount: number;
+  payments: Omit<OrderPayment, 'amount'> | null;
+}
+
 /**
- * GET /api/orders/[id] — order (with client + items embedded) and
- * its payments as a sibling key; payments are polymorphic
- * (entity_type/entity_id), so they can't be embedded by PostgREST.
+ * The payments settling one order.
+ *
+ * Payments no longer record what they pay for: the 2026-07-29 money rewrite
+ * dropped entity_type/entity_id from v2.payments and moved that relationship
+ * into v2.payment_allocations. Two consequences this read has to honour:
+ *
+ * - SINGLE RECEIVABLE. Once the order has a live invoice the debt is the
+ *   invoice's, and validate_payment_allocation() refuses an allocation aimed
+ *   at the order — so newer payments point at the *document*. Reading only
+ *   target_type='order' would report "paid nothing" on every invoiced order.
+ *   Voided documents are safe to include: void_document() releases their
+ *   allocations, so they simply match none.
+ * - One payment can settle several targets, so this order's line is the
+ *   ALLOCATED amount, never payments.amount. Using the latter would make the
+ *   list sum past orders.amount_paid on any split payment.
+ */
+async function fetchOrderPayments(
+  tenant: NonNullable<Awaited<ReturnType<typeof resolveTenant>>>,
+  orderId: string,
+): Promise<{ payments: OrderPayment[] } | { error: PostgrestError }> {
+  const { data: documents, error: documentsError } = await tenant.db
+    .from('documents')
+    .select('id')
+    .eq('entity_type', 'order')
+    .eq('entity_id', orderId);
+  if (documentsError) return { error: documentsError };
+
+  const targetIds = [
+    orderId,
+    ...((documents ?? []) as { id: string }[]).map(document => document.id),
+  ];
+
+  const { data, error } = await tenant.db
+    .from('payment_allocations')
+    .select('amount, payments(id, payment_date, payment_method, notes, created_at)')
+    .in('target_type', ['order', 'document'])
+    .in('target_id', targetIds);
+  if (error) return { error };
+
+  const payments = ((data ?? []) as unknown as AllocationWithPayment[])
+    .flatMap(row => (row.payments ? [{ ...row.payments, amount: row.amount }] : []))
+    // payment_date is a DATE, so same-day payments tie; created_at breaks it.
+    .sort(
+      (a, b) =>
+        b.payment_date.localeCompare(a.payment_date) ||
+        b.created_at.localeCompare(a.created_at),
+    );
+
+  return { payments };
+}
+
+/**
+ * GET /api/orders/[id] — order (with client + items embedded) and the
+ * payments settling it as a sibling key. Payments reach an order through
+ * payment_allocations rather than a column on payments, so PostgREST can't
+ * embed them from here — see fetchOrderPayments.
  */
 export async function GET(
   _request: NextRequest,
@@ -37,16 +106,10 @@ export async function GET(
     if (error) return handleSupabaseError(error);
     if (!order) return handleApiError('NOT_FOUND', 'Order not found');
 
-    const { data: payments, error: paymentsError } = await tenant.db
-      .from('payments')
-      .select('id, amount, payment_date, payment_method, notes, created_at')
-      .eq('entity_type', 'order')
-      .eq('entity_id', id)
-      .order('payment_date', { ascending: false });
+    const result = await fetchOrderPayments(tenant, id);
+    if ('error' in result) return handleSupabaseError(result.error);
 
-    if (paymentsError) return handleSupabaseError(paymentsError);
-
-    return NextResponse.json({ order, payments });
+    return NextResponse.json({ order, payments: result.payments });
   } catch (error) {
     return handleUnexpectedError(error);
   }
