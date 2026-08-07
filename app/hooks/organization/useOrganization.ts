@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { PLATFORM_API, apiFetcher } from '@/lib/api/client';
 import { DEFAULT_BRAND_PRESET, isBrandPresetId } from '@/lib/theme/brand-presets';
+import type { OrganizationSettingsBlocks } from '@/lib/api/validators';
 import type { DatabaseV2 } from '@/types/supabase-v2';
 
 type OrganizationRow = DatabaseV2['v2']['Tables']['organizations']['Row'];
@@ -35,13 +36,15 @@ export function useOrganization() {
     revalidateOnFocus: false,
   });
 
-  const settings = (data?.organization.settings ?? {}) as {
-    locale?: { currency?: string; date_format?: string; timezone?: string };
-  };
+  // Typed with the same shape the PATCH validator accepts, so a block read
+  // here and a block written back can't drift apart.
+  const settings = (data?.organization.settings ?? {}) as OrganizationSettingsBlocks;
 
   return {
     organization: data?.organization ?? null,
     orgRole: data?.orgRole ?? null,
+    /** The DB-governed blocks: locale, tax, documents, identity. */
+    settings,
     // Null until the org sets it (no silent UGX default); the formatter
     // (useFormatCurrency) renders plain numbers until then.
     currency: settings.locale?.currency ?? null,

@@ -284,9 +284,13 @@ having nowhere to live. They do — `settingsBlocks` in
 [`validators.ts:141`](../../app/lib/api/validators.ts) already whitelists
 `tax` and `identity`. F3 is ~80% buildable with no DB involvement.
 
-**Ambiguity to resolve:** the tax number appears in two whitelisted blocks
-(`tax.number` and `identity.tax_id`). Confirm which one `issue_document`
-snapshots before F3 writes to either.
+**Ambiguity resolved 2026-08-07:** the tax number appears in two whitelisted
+blocks (`tax.number` and `identity.tax_id`). The form writes
+**`identity.tax_id`**, on the evidence in STATE.md that `issue_document`
+snapshots `settings.identity` as the invoice issuer — so that is the copy that
+reaches a document. `tax.number` is left unwritten; if it turns out to serve
+tax *reporting* rather than the letterhead, it gets its own field then, rather
+than two inputs writing the same fact today.
 
 ---
 
@@ -298,7 +302,7 @@ snapshots before F3 writes to either.
 | `STARTER_FIELDS.order_item` with `size` | B2a2, every item row | ✅ 2026-08-07 — offered inside the Orders step, see below |
 | Org-wide `GET /api/documents` | F1 | ✅ 2026-08-07 — entity pair now optional (still required together), + type/status/search/paging, `useDocumentList` |
 | `GET`/`PATCH /api/counters` | F3 numbering | ✅ 2026-08-07 — owner-gated, `current_value` increase-only, cannot create a counter, `useCounters` |
-| Org settings: `identity` / `tax` / `documents` blocks | F3 (minus numbering) | 🔲 Also closes STATE.md's flagged "existing org has no `identity` block, so its invoices render a blank issuer" — which blocks issuing any real invoice |
+| Org settings: `identity` / `tax` / `documents` blocks | F3 (minus numbering) | ✅ 2026-08-07 — three forms on `/dashboard/organization`; closes the blank-issuer blocker |
 | `show_in_documents` toggle in `EntityFieldsManager` | F3 "fields that print" | 🔲 Column + both schemas exist; nothing writes it |
 | Client + product detail routes | C2, D2 | 🔲 Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
 | Centralised payment-state formatter | T6 | 🔲 |
@@ -315,6 +319,26 @@ Two decisions taken while building these, worth not relitigating:
 
 **Not built on purpose:** the `reference` input on `OrderPaymentsTab`. B4
 replaces that component, so the field lands with the hub rather than twice.
+
+### A settings block cannot be cleared (found 2026-08-07)
+
+Building the settings forms surfaced a limit worth knowing before F3's
+remaining rows are wired.
+
+The blocks are `.strict()` and most of their strings are `.min(1)`, so sending
+`''` is a 400 while omitting a key means "leave it alone". **A key that already
+has a value therefore cannot be emptied** — an owner who deletes their phone
+number and saves would otherwise watch nothing happen and be told it worked.
+
+Handled rather than hidden: `settingsBlockPayload()` drops what the schema
+would reject, `unclearableKeys()` works out what the user tried to remove, and
+the save toast names those fields instead of claiming a clean success. Real
+clearing needs the DB-side schema to accept null or empty for those keys — a
+small ask to bundle with G1/G2 rather than a separate trip.
+
+`false` and `0` are deliberately *not* treated as empty: "not registered for
+tax" and "a 0% rate" are answers, and filtering on falsiness would silently
+refuse to save either. That's what `settings-patch.test.ts` pins down.
 
 ### Order lines are set up inside the Orders step (decided 2026-08-07)
 

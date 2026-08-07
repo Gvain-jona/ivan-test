@@ -1,4 +1,7 @@
 import BrandColorPicker from '@/components/organization/BrandColorPicker';
+import BusinessIdentityForm from '@/components/organization/BusinessIdentityForm';
+import DocumentDefaultsForm from '@/components/organization/DocumentDefaultsForm';
+import TaxSettingsForm from '@/components/organization/TaxSettingsForm';
 import ThemePreference from '@/components/organization/ThemePreference';
 
 export const metadata = { title: 'Organization settings' };
@@ -12,9 +15,11 @@ export const metadata = { title: 'Organization settings' };
  * cutover, and its Save button has no handler. Nothing org-scoped should be
  * built on it.
  *
- * Appearance is the first section. The identity / tax / documents blocks
- * that onboarding never collects (see docs/v2-migration/STATE.md) belong
- * here too, and this is the surface they should land on.
+ * Ordered by consequence, not by category. Business details come first
+ * because they are the only settings that can be *too late*: issue_document()
+ * freezes them into a document's snapshot, and an issued snapshot is
+ * immutable — so an invoice sent before they're filled in keeps a blank
+ * letterhead permanently. Appearance is last because it is always reversible.
  */
 export default function OrganizationSettingsPage() {
   return (
@@ -22,11 +27,17 @@ export default function OrganizationSettingsPage() {
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-foreground">Organization settings</h1>
         <p className="text-[13px] text-muted-foreground">
-          Appearance and branding for everyone in this organization.
+          Shared by everyone in this organization. Owners can change them.
         </p>
       </header>
 
       <div className="space-y-8 rounded-xl border border-border bg-card p-4 sm:p-6">
+        <BusinessIdentityForm />
+        <div className="h-px bg-border" />
+        <TaxSettingsForm />
+        <div className="h-px bg-border" />
+        <DocumentDefaultsForm />
+        <div className="h-px bg-border" />
         <BrandColorPicker />
         <div className="h-px bg-border" />
         <ThemePreference />
