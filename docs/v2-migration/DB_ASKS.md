@@ -3,6 +3,11 @@
 Raised 2026-08-07, from reconciling the 26-frame surface redesign
 (`APP_REDESIGN.md`) against the live `v2` schema.
 
+**Verified against the live database** (`giwurfpxxktfsdyitgvr`), reading
+`pg_proc` sources directly — not against `orders-system-handoff.md`, which is
+stale in at least two places noted below. Every claim here about what a
+function does or doesn't do was read, not inferred.
+
 This is the whole list. It is short on purpose: two working principles kept it
 that way — the DB models correctly while the UI translates, and anything not a
 core column becomes a `field_definitions` entry rather than a migration. Applying
@@ -15,6 +20,10 @@ merits rather than assumed necessary.
 **Priority:** A1 and A2 block screens that are otherwise ready to build. A3
 blocks consolidated invoicing. A4 and A5 are correctness papercuts that can ride
 along with any of the above.
+
+**A1, A2 and A3 are all additive** — new columns and function bodies, nothing
+dropped or retyped, and the project currently holds no orders or documents, so
+there is no backfill and no migration risk to weigh.
 
 ---
 
@@ -36,7 +45,7 @@ A shop gives 10% off an order. There is no column for it.
 This is the one place where storage and presentation genuinely cannot be
 decoupled: the stored number *is* the thing being discussed.
 
-### Proposed
+### Proposed — three parts, all needed together
 
 ```sql
 alter table v2.orders
@@ -44,16 +53,29 @@ alter table v2.orders
   add column discount_value numeric not null default 0;
 ```
 
-and `recompute_order_totals()` subtracting it after the line sum, so
-`total_amount` — and therefore the generated `balance` and `payment_status` —
-already account for it.
+**1. `recompute_order_totals()`** currently reads, in full:
 
-### Questions
+```sql
+total_amount = COALESCE((SELECT SUM(total_amount) FROM v2.order_items
+                         WHERE order_id = v_order), 0)
+```
 
-1. Should `issue_document()` carry this into `documents.discount_total`, so an
-   invoice shows the same discount the order does? We assume yes.
-2. Is a discount that exceeds the line subtotal worth a constraint, or is
-   clamping the app's job?
+It needs to subtract the order discount after that sum, so `total_amount` — and
+therefore the generated `balance` and `payment_status` — account for it.
+
+**2. `issue_document()` hardcodes `discount_total` to `0`** in its insert. Left
+as-is, an invoice would show the pre-discount total while the order shows the
+discounted one. It also needs the discount in `snapshot.totals`, which is what
+the rendered document reads.
+
+**3.** The trigger fires on `order_items` changes. Editing the discount alone
+touches only `orders`, so it needs its own trigger or the app has to nudge a
+line — worth deciding DB-side rather than working around in the app.
+
+### Question
+
+Is a discount exceeding the line subtotal worth a constraint, or is clamping
+the app's job?
 
 ---
 
@@ -105,13 +127,24 @@ the only way a document comes into existence.
 The ask is that the function accept **several order ids** and freeze them into
 one snapshot.
 
-### A3b · `validate_payment_allocation()` must find a client-level invoice
+### A3b · Three guards assume one document = one order
 
-This one is easy to miss and would be silent. SINGLE RECEIVABLE currently
-enforces "once an order has a live invoice, allocate to the invoice" by looking
-for a live invoice **on the order**. A consolidated invoice isn't on any order,
-so the check wouldn't see it and would keep accepting order-targeted
-allocations — money split across two receivables for the same debt.
+All three read as order-scoped, and a client-level invoice slips past every one.
+Confirmed by reading the sources; each is silent rather than loud.
+
+1. **`validate_payment_allocation()`** locks an order once it has a live
+   invoice by counting `documents where entity_type='order' and entity_id =
+   new.target_id`. A consolidated invoice matches nothing there, so
+   order-targeted allocations keep being accepted — money split across two
+   receivables for one debt.
+2. **`v2.allocation_order_id(target_type, target_id)`** resolves a document
+   back to its order so the payment's party can be checked. For a client-level
+   document it returns null, and the caller then raises *"does not resolve to
+   an order — cannot verify party"*. So consolidated invoices wouldn't merely
+   bypass the guard; they'd fail allocation outright.
+3. **`issue_document()`'s own one-live-invoice check** is likewise
+   `entity_type='order' and entity_id = p_order_id`, so nothing would stop a
+   consolidated invoice being issued over orders that already have their own.
 
 Must ship with A3a, not after.
 
@@ -124,22 +157,25 @@ so it isn't forgotten.
 
 ---
 
-## A4 — `create_order()` drops payment details · **papercut, already worked around**
+## A4 — `create_order()` silently drops a payment's note · **small**
 
-`orders-system-handoff.md` §9 documents the inline payment payload as
-`{amount, payment_method, payment_date}`.
+Its payment insert names exactly:
 
-- **`reference`** (mobile-money transaction id, cheque number) is not in it. The
-  column exists on `v2.payments` and the standalone payment route writes it, so
-  the same field is capturable from one screen and not the other. The app now
-  **rejects** a reference on the create path rather than letting it vanish
-  DB-side.
-- **`notes`** is unverified. The app has always sent it on this path and the
-  documented payload doesn't list it either. **Does `create_order` persist it?**
-  If not, it has been silently discarded on every order created with an inline
-  payment.
+```
+organization_id, direction, party_type, party_id,
+amount, payment_date, payment_method, reference, created_by
+```
 
-Ask: accept both keys, or confirm they're already handled and the doc is stale.
+- **`reference` is persisted** — `nullif(v_payment->>'reference','')`. The
+  handoff doc omits it; the doc is wrong. The app now passes it through.
+- **`notes` is not there.** A note sent with an inline payment disappears with
+  no error. `record_payment()` — the other path — does store one, so the same
+  field is capturable when recording a payment against an existing order and
+  lost when recording one while creating the order.
+
+Ask: add `notes` to the insert. Until then the app **rejects** it on this path
+rather than letting it vanish, which means the create-order payment sheet can't
+offer a note field.
 
 ---
 
@@ -158,20 +194,39 @@ keys in `identity`, `tax` and `documents`.
 
 ---
 
-## Confirmations, not changes
+## Answered by reading the source — no longer questions
 
-Two answers would settle decisions currently resting on inference.
+Both were open until 2026-08-07 and are settled; kept here because decisions
+elsewhere rest on them.
 
-1. **What shape is `documents.snapshot`?** It's the authority for what an
-   invoice printed, and nothing app-side has seen it. Rendering the invoice
-   (B9) means reading it, and guessing would produce a document that disagrees
-   with itself. A sample row would do.
+**1. `documents.snapshot` shape.** Built by `issue_document()` as:
 
-2. **Which tax number does `issue_document()` snapshot — `settings.tax.number`
-   or `settings.identity.tax_id`?** Both are whitelisted. The settings screen
-   currently writes `identity.tax_id` on the basis that identity is what gets
-   frozen as the issuer, and leaves `tax.number` alone rather than having two
-   inputs write the same fact.
+```
+meta         { document_type, document_number, order_number, order_date, issued_at }
+issuer       ← settings.identity, verbatim
+recipient    { client_id, name, fields{} }
+order_fields { <field_label>: <value> }
+lines        [ { description, quantity, unit_price, discount, total, fields{} } ]
+totals       { currency, subtotal, tax_total, total, tax_label, tax_rate,
+               tax_registered, amounts_include_tax }
+terms        { terms_days, due_date, valid_until, footer, bank_details }
+```
+
+Two consequences for the app:
+
+- **The client's name is already in the snapshot** (`recipient.name`), so a
+  documents list needs no join back through the polymorphic `entity_id`. The
+  frozen name is arguably the more correct one to show, since it's what the
+  document says.
+- `bank_details` is nulled unless `settings.documents.show_bank_details` is
+  true, and every `fields{}` block is populated from
+  `field_definitions.show_in_documents`. That flag is genuinely load-bearing on
+  the rendered output.
+
+**2. The tax number.** `issuer` is `settings.identity` copied verbatim, and the
+tax block contributes only `tax_label` / `tax_rate` / `tax_registered`.
+**`settings.tax.number` is never read.** So `identity.tax_id` is the one that
+reaches a document — which is what the settings screen writes.
 
 ---
 
