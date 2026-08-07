@@ -198,6 +198,16 @@ single swap point. Order creation still goes through the
   is done.
 - **Clerk Phase 2 (DB owner)**: third-party-auth registration, v2 RLS
   policies on the `internal_user_id` claim, expose `v2` schema (see above).
+- **Schema asks from the surface redesign (2026-08-07): `DB_ASKS.md`.** Five
+  items plus two confirmation questions, each with what breaks without it.
+  A1 (order-level discount columns + `recompute_order_totals`) and A2 (a slot
+  for note type) **block the UI rebuild** — B2 alone needs both, and the
+  decision on 2026-08-07 was to wait rather than build that screen twice. A3
+  extends `issue_document()` to several orders (with the matching
+  `validate_payment_allocation` change, which must ship together or SINGLE
+  RECEIVABLE goes quiet) and to payments for receipts. A4/A5 are papercuts.
+  The two confirmations — the `documents.snapshot` shape, and which tax number
+  `issue_document` freezes — currently rest on inference.
 - **DB owner items** (flagged, not app work): trigger-based activity/audit log
   on orders/payments; ~~tenant provisioning (new org must get counters +
   membership bootstrapped)~~ (resolved 2026-07-24 — `v2.provision_organization`

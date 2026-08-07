@@ -80,3 +80,5 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | DocumentFieldsForm | `app/components/organization/DocumentFieldsForm.tsx` | Yes | `flex-wrap` toggle chips grouped by entity; writes immediately per chip rather than batching a Save |
 | BrandStyle | `app/components/theme/BrandStyle.tsx` | Yes | Emits a `<style>` element only — no rendered layout |
 | ThemedSignIn | `app/auth/signin/ThemedSignIn.tsx` | Yes | Clerk's `<SignIn />` with a theme-reactive appearance; Clerk owns the card's own responsiveness |
+| screen-parts (new-order) | `app/components/orders/new-order/screen-parts.tsx` | Yes | The redesign's layout vocabulary transcribed from the B2 frame: field boxes, choice chips, list rows, sticky header/footer. Built at 375px first; chips scroll horizontally, rows truncate rather than wrap |
+| ClientField | `app/components/orders/new-order/ClientField.tsx` | Yes | Client search in place (B2d state of B2) — field becomes a search box with results beneath, no stacked surface. Single column throughout |
