@@ -100,6 +100,11 @@ document, or the hub reports "Paid 0" the moment you invoice.
 
 ## Real gaps — the exceptions to principle 2
 
+**These are written up for the DB owner in `DB_ASKS.md` (2026-08-07).** G1→A1,
+G2→A2, G3→A3, G4→A4, plus the settings-clearing limit as A5 and two
+confirmation questions. That file is the one to send; this section is the
+reasoning behind it.
+
 ### G1. Order-level discount has no column
 
 Appears on B2, B4, B7, B8, B9 and F2's summary. `orders` has `total_amount`,
@@ -439,15 +444,32 @@ surfaces are screens. Add item / payment / note / issue document are sheets.
 
 ## Sequence
 
-1. **Now, no dependencies** — the `orders/[id]` payments bug, and fix the test
-   that ratified it.
-2. **To the DB owner** — G1 (discount columns), G2 (note type slot), G3
-   (`issue_document` multi-order + the allocation trigger). Everything in F2
-   and the discount on six screens queues behind these.
-3. **In parallel** — the whole "Buildable now" table, plus the C1/C2/F1
-   aggregates. Resolve the tax-number ambiguity and the T5 delete decision.
-4. **UI rebuild, in design order** — order create screen + its four sheets →
-   order hub → client and product detail → F1 + F3 → F2 last, gated on G3.
+1. ✅ **Done** — the `orders/[id]` payments bug and the test that ratified it;
+   the buildable-now data layer; org settings; Home's segmentation.
+2. 🔵 **With the DB owner** — `DB_ASKS.md`. **The UI rebuild waits on this**
+   (decided 2026-08-07): B2 alone needs A1 for its discount row and A2 for its
+   note types, and building the screen twice costs more than waiting once.
+3. **UI rebuild, in design order** — B2 (+ its add-item / payment / note
+   sheets) → B4 order hub → C2 / D2 detail → F1 + F3 → F2 last, gated on A3a.
+4. **Trailing** — the C1/C2/F1 aggregates, T5's delete-vs-cancel decision.
+
+### B2 groundwork already landed (2026-08-07)
+
+Paused mid-build, but what exists is transcribed from the frame rather than
+guessed, so it resumes rather than restarts:
+
+- `components/orders/new-order/screen-parts.tsx` — the layout vocabulary read
+  off `BZdA1`: 40px field boxes, 11/14 list rows, 7/11 chips, the 16/7/22/24
+  spacer rhythm, the 150×44 footer action. Includes the frame-hex → theme-token
+  mapping, so these hold in both themes and `--primary` stays the org's colour.
+  Recurs on B4/C2/D2/F1 — promote out of `new-order/` when B4 lands.
+- `components/orders/new-order/ClientField.tsx` — B2d, which is a *state* of B2
+  rather than its own screen: the field becomes a search in place.
+
+**One thing removed rather than faked** while building it: the client search
+rows show what each client owes in the frame. `clients` has no balance column
+and the figure is a sum over that client's order balances — the aggregate in
+step 4. Left as a tracked `TODO(v2 read layer)`.
 
 ---
 
