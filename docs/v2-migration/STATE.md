@@ -16,12 +16,22 @@ the design center. Migration is module-by-module (orders first), legacy code is
 deleted at each module's cutover (git is the archive), and the DB is the
 validation authority (field registry + triggers), not the app.
 
-For the full DB-side design of the order-model tables (clients, products,
-orders, order_items, payments, documents, field_definitions — schema, triggers,
-`create_order`/`next_number` RPCs, deferred `issue_document`), see
-`docs/v2-migration/orders-system-handoff.md`. That doc is DB-authoritative
-(confirmed live in `v2` schema); this file tracks what the *app* has actually
-wired up against it.
+For the DB-side *design reasoning* behind the order-model tables (clients,
+products, orders, order_items, payments, documents, field_definitions), see
+`docs/v2-migration/orders-system-handoff.md`.
+
+**That doc is no longer DB-authoritative** (corrected 2026-08-07 — it carried
+that claim until then, which is how it caused two shipped bugs). Its §5
+Payments describes columns that were dropped in the 2026-07-29 money rewrite,
+§6 says `issue_document()` isn't built when it is, and §9's `create_order`
+payload omits `reference`. It now opens with a banner listing exactly what is
+and isn't still true. Read it for *why* the model is shaped this way; read the
+database for what it currently is.
+
+**The live v2 schema is directly queryable** via the Supabase MCP server
+(project `giwurfpxxktfsdyitgvr`). `select prosrc from pg_proc where …` settles
+in seconds what a doc can only assert — and would have prevented both bugs
+above. Verify before encoding any claim about what a function accepts.
 
 For a graded audit of the app-side data path (fetch, tenancy, cache, bloat,
 performance — not UI), see `docs/v2-migration/DATA_LAYER_AUDIT.md`

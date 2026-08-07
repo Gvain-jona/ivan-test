@@ -4,6 +4,44 @@
 
 ---
 
+## ⚠️ Partially superseded — read this first (2026-08-07)
+
+**This document is a design record, not current schema truth.** It was accurate
+when written; the DB has moved since, most sharply in the 2026-07-29 money
+rewrite. Three sections now describe things that no longer exist, and trusting
+them has already produced two shipped bugs.
+
+| Section | Status | What's actually true |
+|---|---|---|
+| §5 Payments | ❌ **Wrong** | `entity_type` / `entity_id` were **dropped**. Payments carry `direction`, `party_type`, `party_id`, `reference`; what a payment settles lives in `v2.payment_allocations`. |
+| §6 Documents | ⚠️ **Incomplete** | `issue_document()` **exists and is in use.** The table also has `currency`, `exchange_rate`, `amounts_include_tax`, `subtotal`, `discount_total`, `tax_total`, generated `total`, `due_date`, `issued_at`, `related_document_id`. |
+| §9 `create_order()` | ⚠️ **Incomplete** | The payment payload **does** accept `reference`. It does **not** accept `notes` — a note sent there is silently dropped. |
+
+**The two bugs this caused**, both fixed the same day, both of the same shape —
+code written against this doc instead of the database:
+
+- `GET /api/orders/[id]` filtered payments on the dropped `entity_type`, so
+  every order-detail fetch 42703'd.
+- `orderCreatePaymentSchema` rejected `reference` and accepted `notes` —
+  precisely inverted from what `create_order` does.
+
+**Before encoding any claim from this file, read the source.** The live schema
+is directly queryable, and `select prosrc from pg_proc` settles in seconds what
+this doc can only assert:
+
+```sql
+select p.proname, p.prosrc from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'v2' and p.proname = 'create_order';
+```
+
+Current state lives in `STATE.md`; the `documents.snapshot` shape and the
+remaining schema asks are in `DB_ASKS.md`. What is still reliable here: §0–4,
+§7, §8, §10, §11 and §13 — the design *reasoning*, which is why the file is
+kept rather than deleted.
+
+---
+
 ## 0 · The Core Principle
 
 Every table here is a **spreadsheet with a template**: a small set of fixed columns that never change, plus a `custom_data` jsonb column that any organization can extend — governed by `field_definitions`, validated by a database trigger, never a free-for-all.
@@ -111,6 +149,19 @@ v2.order_items
 
 ## 5 · Payments — the shared engine
 
+> ❌ **Superseded by the 2026-07-29 money rewrite.** The schema below is no
+> longer what exists. `entity_type` and `entity_id` were **dropped**: a payment
+> is now a pure cash event (`direction` in/out, `party_type`/`party_id`,
+> `reference`), and what it settles lives in **`v2.payment_allocations`**
+> (`target_type` 'order' | 'document', `target_id`, `amount`). Zero allocations
+> means unapplied credit on the party's account, not a broken row.
+>
+> `orders.amount_paid` is recomputed from the **allocation**, not the payment.
+> And SINGLE RECEIVABLE applies: once an order has a live invoice,
+> `validate_payment_allocation()` refuses an allocation aimed at the order —
+> the debt is the document's. Kept below only as the record of what this
+> replaced.
+
 One polymorphic table replaces what used to be three separate implementations (order_payments, expense_payments, material_installments).
 
 ```sql
@@ -153,7 +204,25 @@ v2.documents
 
 **Quotation → order conversion has zero data duplication.** A quotation is the *same order record* in a pre-commitment status (a `quotation` stage added to the configurable status workflow). Accepting it is a status change plus a new document render — not a copy. This is a deliberate improvement over how Zoho and most competitors handle it (their quote-to-invoice conversion loses custom fields because quote and invoice are separate modules with separate field registries).
 
-**Status:** `issue_document()` RPC — the function that atomically assigns the number + freezes the snapshot + sets status — is **not yet built.** It's blocked on decisions we deliberately deferred: credit notes (correcting an issued invoice), partial/progress invoicing (deposit + balance as separate documents against one order), and the precise moment each document type freezes. The table and its immutability trigger are live; the orchestration function is the next piece when those decisions land.
+~~**Status:** `issue_document()` RPC … is **not yet built.**~~
+> ✅ **Shipped.** `v2.issue_document(p_order_id, p_document_type, p_options)`
+> exists and is what `POST /api/documents` calls (through the
+> `issue_document_as_org` shim, which injects tenant claims the service-role
+> connection doesn't carry). It resolves org settings, computes tax, allocates
+> the number, freezes the snapshot and writes the financials in one pass — and
+> it produces an **issued** document, not a draft.
+>
+> The table also gained the financial columns §6's schema block above doesn't
+> show: `currency` (NOT NULL, no default — the tenant states it),
+> `exchange_rate`, `amounts_include_tax`, `subtotal`, `discount_total`,
+> `tax_total`, generated `total`, `due_date`, `issued_at`,
+> `related_document_id`.
+>
+> The deferred decisions are still deferred: credit notes (`related_document_id`
+> is there for them) and partial/progress invoicing. What *did* get decided is
+> **one live invoice per order** — reissuing means voiding first.
+>
+> The `snapshot` shape it writes is documented in `DB_ASKS.md`.
 
 ---
 
@@ -238,10 +307,27 @@ v2.create_order(payload jsonb) RETURNS uuid
     }
   ],
   "payments": [
-    { "amount": 6000, "payment_method": "cash", "payment_date": "2026-07-07" }
+    { "amount": 6000, "payment_method": "cash", "payment_date": "2026-07-07",
+      "reference": "MTN-8842190" }
   ]
 }
 ```
+
+> ⚠️ **Corrected 2026-08-07 against the live function.** `reference` **is**
+> read (`nullif(v_payment->>'reference','')`) — the original payload block
+> omitted it, and the app was briefly written to reject it as a result.
+>
+> **`notes` is not.** The insert names `organization_id, direction, party_type,
+> party_id, amount, payment_date, payment_method, reference, created_by` and
+> nothing else, so a note sent here disappears with no error.
+> `record_payment()` — the path used for payments against an *existing* order —
+> does store one. Raised as A4 in `DB_ASKS.md`; until it lands the app refuses
+> `notes` on this path rather than letting it vanish.
+>
+> Also note create_order defaults `status` to `'pending'`, which is **not** in
+> the shipped `ORDER_STATUS_WORKFLOW`. A configured org's
+> `validate_custom_data` would reject it; it only stays invisible because the
+> order form always sends the workflow's own default.
 
 ---
 
