@@ -168,6 +168,18 @@ Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE
 
 **v2 schema types are different**: `app/types/supabase-v2.ts` (`DatabaseV2`) is **hand-maintained** from live introspection of the v2 project — the gen-types command above only regenerates the legacy `public`-schema `Database` type and must not overwrite `supabase-v2.ts`. When the v2 schema changes, update `DatabaseV2` by hand to match. The v2 schema itself is owned DB-side; the repo's `supabase/migrations/` only mirrors app-requested v2 changes (e.g. the `create_order_as_org` shim), not the schema's own history.
 
+**Verify against the live schema, not against a doc.** The v2 project (`giwurfpxxktfsdyitgvr`) is directly queryable through the Supabase MCP server, and function bodies are the ground truth for what a write path accepts:
+
+```sql
+select p.proname, p.prosrc from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'v2' and p.proname = 'create_order';
+```
+
+This is not optional diligence — `docs/v2-migration/orders-system-handoff.md` reads as authoritative and is stale in three places, and trusting it has already shipped two bugs (a route querying dropped columns; a validator that rejected the one payment field `create_order` stores and accepted the one it discards). A column diff is not enough either: duplicate function overloads and over-broad `SECURITY DEFINER` grants are invisible to one, and both have bitten here. Before encoding any claim about what a function accepts or a trigger enforces, read it.
+
+**Applying schema changes is a decision, not a step.** Additive, mechanical changes (a column, a widened CHECK, a trigger registration) can be applied directly and mirrored into `supabase/migrations/`. Anything touching money — `recompute_order_totals`, `issue_document`, `validate_payment_allocation` — goes to the schema owner as a written ask; those functions decide what a document says it's owed. Open asks live in `docs/v2-migration/DB_ASKS.md`.
+
 ## Deployment
 
 Vercel, auto-deploys on push to `main`. `next.config.js` has `typescript.ignoreBuildErrors: false` and `eslint.ignoreDuringBuilds: false` — both type errors and lint errors currently fail the build (this was tightened after a recent push to zero out ~969 TypeScript errors; don't loosen it back to `true` to unblock a build, fix the underlying error instead).
