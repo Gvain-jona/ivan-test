@@ -97,7 +97,9 @@ describe('POST /api/orders', () => {
     expect(refetch.single).toBe('single')
   })
 
-  it('accepts an inline payment on the shape create_order documents', async () => {
+  // Verified against the live v2.create_order source, not the handoff doc:
+  // the payment insert reads `reference`, so it must pass through.
+  it('passes an inline payment through, reference included', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
     db.queue('rpc:create_order_as_org', { data: 'o-2' })
@@ -107,7 +109,14 @@ describe('POST /api/orders', () => {
       jsonRequest('/api/orders', {
         client_id: CLIENT_UUID,
         items: [{ product_name_raw: 'Flyers', quantity: 500, unit_price: 100 }],
-        payments: [{ amount: 20000, payment_method: 'cash', payment_date: '2026-08-07' }],
+        payments: [
+          {
+            amount: 20000,
+            payment_method: 'cash',
+            payment_date: '2026-08-07',
+            reference: 'MTN-8842190',
+          },
+        ],
       }),
     )
 
@@ -115,14 +124,19 @@ describe('POST /api/orders', () => {
     const [rpc] = db.callsFor('rpc:create_order_as_org')
     const { payload } = rpc.values as { payload: { payments: unknown[] } }
     expect(payload.payments).toEqual([
-      { amount: 20000, payment_method: 'cash', payment_date: '2026-08-07' },
+      {
+        amount: 20000,
+        payment_method: 'cash',
+        payment_date: '2026-08-07',
+        reference: 'MTN-8842190',
+      },
     ])
   })
 
-  // create_order's documented payload (orders-system-handoff.md §9) has no
-  // reference key, so accepting one would drop it in the DB without an error.
-  // Refuse loudly instead — a stripped key is still a lost one.
-  it('rejects a reference on an inline payment with 400', async () => {
+  // The same function's insert names no `notes` column, so a note sent here
+  // vanishes without an error. Refuse loudly — a dropped key is a lost one
+  // whether the DB or zod discards it.
+  it('rejects notes on an inline payment with 400', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
 
@@ -130,7 +144,7 @@ describe('POST /api/orders', () => {
       jsonRequest('/api/orders', {
         client_id: CLIENT_UUID,
         items: [{ product_name_raw: 'Flyers', quantity: 500, unit_price: 100 }],
-        payments: [{ amount: 20000, reference: 'MTN-8842190' }],
+        payments: [{ amount: 20000, notes: 'Deposit' }],
       }),
     )
 

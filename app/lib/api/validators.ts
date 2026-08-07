@@ -68,24 +68,24 @@ export const paymentInputSchema = z.object({
  * Payments supplied inline at order creation, which travel to
  * v2.create_order rather than v2.record_payment.
  *
- * `reference` is deliberately absent. create_order's documented payload is
- * {amount, payment_method, payment_date} (orders-system-handoff.md §9), so a
- * reference sent here would be dropped in the DB without an error — worse
- * than refusing it, because the user watches their cheque number vanish.
- * Capture one through POST /api/orders/[id]/payments, which builds the
- * record_payment payload explicitly.
+ * Read against the live function on 2026-08-07, not the handoff doc — §9 of
+ * that doc lists the payload as {amount, payment_method, payment_date} and is
+ * stale in both directions:
  *
- * `notes` is grandfathered, not verified: the app has always sent it and the
- * same doc doesn't list it either. Confirm with the DB owner whether
- * create_order persists it — if not, it belongs out here too.
+ *   `reference` IS persisted — create_order inserts
+ *   `nullif(v_payment->>'reference','')`. Accepted here.
  *
- * `.strict()` rather than zod's default strip, on purpose: a stripped key is
- * still a silently dropped one, just discarded a layer earlier. Failing loudly
- * is what makes "the create-order payment sheet must not offer a reference
- * field" discoverable while building it instead of after the data is gone.
+ *   `notes` is NOT. The insert names organization_id, direction, party_type,
+ *   party_id, amount, payment_date, payment_method, reference, created_by —
+ *   and nothing else. A note sent on this path disappears without an error.
+ *
+ * So `notes` is omitted and the schema is `.strict()`: refusing it loudly is
+ * what stops the create-order payment sheet from offering a field the DB
+ * throws away. Record the payment through POST /api/orders/[id]/payments,
+ * which goes via record_payment and does store notes.
  */
 export const orderCreatePaymentSchema = paymentInputSchema
-  .omit({ reference: true })
+  .omit({ notes: true })
   .strict();
 
 export const orderCreateSchema = z.object({

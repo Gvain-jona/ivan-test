@@ -471,6 +471,31 @@ rows show what each client owes in the frame. `clients` has no balance column
 and the figure is a sum over that client's order balances — the aggregate in
 step 4. Left as a tracked `TODO(v2 read layer)`.
 
+### What reading the live schema changed (2026-08-07)
+
+Direct access to the v2 project settled the two open questions and corrected
+three things this document had wrong. Details in `DB_ASKS.md`; the ones that
+change app work:
+
+- **F1 needs no join for the client name.** `snapshot.recipient.name` is frozen
+  into every document at issue time. An earlier draft of the documents route
+  resolved `entity_id` → order → client to get it; that was reverted, and it
+  turns out to have been unnecessary rather than merely premature.
+- **`show_in_documents` drives real output.** `issue_document()` builds
+  `lines[].fields`, `recipient.fields` and `order_fields` from it. The toggle
+  view added on the org settings page controls what an invoice actually prints.
+- **`identity.tax_id` is correct and `tax.number` is dead.** The snapshot's
+  `issuer` is `settings.identity` verbatim; the tax block contributes only
+  label/rate/registered.
+- **A regression shipped earlier the same day was found and fixed.**
+  `orderCreatePaymentSchema` rejected `reference` and accepted `notes`, on the
+  handoff doc's authority. The live function is the exact opposite: it reads
+  `reference` and has no `notes` column in its insert. Inverted, with tests
+  rewritten against the source rather than the doc.
+
+**Standing lesson:** `orders-system-handoff.md` §9 is stale and was trusted
+twice. Read `pg_proc` before encoding a claim about what a function accepts.
+
 ---
 
 ## Parked
