@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { Clock, Plus, ChevronRight, PackageOpen } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
+import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
 import { useSheets } from '@/context/sheet-host';
+import { segmentOrders, semanticIndex } from '@/lib/orders/segment-orders';
 import StatusBadge from '@/components/orders/StatusBadge';
 import PaymentStatusBadge from '@/components/orders/PaymentStatusBadge';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
@@ -16,62 +18,24 @@ interface RecentOrdersListProps {
 }
 
 /**
- * How the recent set is segmented — going beyond a flat "latest N" list to
- * group orders by the state a print-shop owner acts on. Evaluated in order;
- * each order lands in the first matching segment, with a catch-all last.
- */
-const SEGMENTS: { key: string; label: string; match: (o: OrderSummary) => boolean }[] = [
-  {
-    key: 'in_progress',
-    label: 'In progress',
-    match: (o) => ['pending', 'in_progress', 'paused'].includes(o.status),
-  },
-  {
-    key: 'awaiting',
-    label: 'Awaiting payment',
-    match: (o) => ['completed', 'delivered'].includes(o.status) && o.payment_status !== 'paid',
-  },
-  {
-    key: 'completed',
-    label: 'Completed',
-    match: (o) => ['completed', 'delivered'].includes(o.status) && o.payment_status === 'paid',
-  },
-  {
-    key: 'cancelled',
-    label: 'Cancelled',
-    match: (o) => o.status === 'cancelled',
-  },
-];
-
-/**
- * "Recent orders" feed — the card-first list, now grouped by workflow state
- * (in progress / awaiting payment / …) rather than a single flat list, so the
- * feed surfaces what needs action instead of just what's newest. Each card
- * carries the same status/payment badges the desktop table uses.
+ * "Recent orders" feed — the card-first list, grouped by the state a shop
+ * owner acts on rather than a single flat list, so the feed surfaces what
+ * needs attention instead of just what's newest. Each card carries the same
+ * status/payment badges the desktop table uses.
+ *
+ * Grouping keys off each status option's `semantic`, not its value — see
+ * lib/orders/segment-orders. Until the workflow loads there is nothing to key
+ * on, so the list renders flat rather than filing everything under "Other".
  */
 export default function RecentOrdersList({ orders, isLoading }: RecentOrdersListProps) {
-  const groups = useMemo(() => {
-    const buckets = new Map<string, { label: string; items: OrderSummary[] }>();
-    for (const order of orders) {
-      const segment = SEGMENTS.find((s) => s.match(order));
-      const key = segment?.key ?? 'other';
-      const label = segment?.label ?? 'Other';
-      let bucket = buckets.get(key);
-      if (!bucket) {
-        bucket = { label, items: [] };
-        buckets.set(key, bucket);
-      }
-      bucket.items.push(order);
-    }
-    // Preserve SEGMENTS order, then any 'other' catch-all last.
-    const ordered = [
-      ...SEGMENTS.map((s) => s.key),
-      'other',
-    ];
-    return ordered
-      .map((key) => buckets.get(key))
-      .filter((g): g is { label: string; items: OrderSummary[] } => !!g && g.items.length > 0);
-  }, [orders]);
+  const { statuses } = useOrderStatuses();
+  const semantics = useMemo(() => semanticIndex(statuses), [statuses]);
+  const canSegment = semantics.size > 0;
+
+  const groups = useMemo(
+    () => (canSegment ? segmentOrders(orders, semantics) : []),
+    [canSegment, orders, semantics],
+  );
 
   return (
     <section className="space-y-4">
@@ -99,10 +63,18 @@ export default function RecentOrdersList({ orders, isLoading }: RecentOrdersList
         </div>
       ) : orders.length === 0 ? (
         <EmptyState />
+      ) : !canSegment ? (
+        <ul className="space-y-3">
+          {orders.map((order) => (
+            <li key={order.id}>
+              <OrderCard order={order} />
+            </li>
+          ))}
+        </ul>
       ) : (
         <div className="space-y-5">
           {groups.map((group) => (
-            <div key={group.label} className="space-y-3">
+            <div key={group.key} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {group.label}

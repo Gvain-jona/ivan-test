@@ -31,18 +31,31 @@ interface Destination {
  * Primary destinations — the four thumb-zone tabs. Kept deliberately
  * short (mobile bottom bars hold 4–5 max); everything else lives in the
  * More sheet. Reorder here to change what's promoted to the bar.
+ *
+ * Products holds the fourth slot rather than Expenses: expenses is one of the
+ * modules that went dark at the Clerk cutover and stays dark until its v2
+ * migration, so promoting it spends a thumb-zone tab on a dead end. Documents
+ * is the better long-term occupant and takes this slot once that surface
+ * exists.
  */
 const PRIMARY: Destination[] = [
   { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: Users, href: '/dashboard/clients' },
-  { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses' },
+  { title: 'Products', icon: Boxes, href: '/dashboard/products' },
 ];
 
-/** Secondary destinations — revealed from the More sheet. */
+/**
+ * Secondary destinations — revealed from the More sheet.
+ *
+ * The modules still on the legacy `public` schema are marked disabled rather
+ * than hidden: they're coming back at their own cutovers, and a tile that says
+ * "Soon" is a truer account of the app than a link that loads a page whose
+ * every request 401s.
+ */
 const MORE: Destination[] = [
-  { title: 'Products', icon: Boxes, href: '/dashboard/products' },
-  { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases' },
+  { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses', disabled: true },
+  { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases', disabled: true },
   { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', disabled: true },
   { title: 'Organization', icon: Building2, href: '/dashboard/organization' },
   { title: 'Settings', icon: Settings, href: '/dashboard/settings' },
