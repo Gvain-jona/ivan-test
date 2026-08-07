@@ -30,6 +30,29 @@ performance — not UI), see `docs/v2-migration/DATA_LAYER_AUDIT.md`
 For orders-specific legacy attachment (dead code vs hollow UI vs what to
 delete/fix), see `docs/v2-migration/ORDERS_CLEANUP.md` (2026-07-12).
 
+For the surface redesign (26 Pencil frames covering orders, clients, products,
+documents, home, settings) reconciled against schema and code — what the
+screens require, what already exists, and the two DB asks that survive — see
+`docs/v2-migration/APP_REDESIGN.md` (2026-08-07). It also carries the two
+principles that govern the reconciliation: **the DB models correctly, the UI
+speaks the user's language** (don't migrate to match UI vocabulary), and
+**default to `field_definitions`, not new columns** (anything not core is a
+starter field). Applying them cut the DB asks from four to two and a half.
+
+**Live break found there, fixed 2026-08-07**: `GET /api/orders/[id]` was still
+filtering `payments` on the dropped `entity_type`/`entity_id` — the sibling POST
+was rewritten 2026-07-31, the GET was missed, and `route.test.ts` asserted the
+broken filter so the suite stayed green. Second instance of the
+test-ratifies-the-bug class, after `document:` vs `doc:`. It now reads through
+`payment_allocations`, and two things the rewrite had to get right beyond the
+column swap: it collects allocations against the order **and its documents**
+(SINGLE RECEIVABLE moves the target to the invoice once one is live, so
+order-only would report "paid nothing" on every invoiced order), and it reports
+each payment at its **allocated** amount, since one payment can settle several
+targets and `payments.amount` would sum past `orders.amount_paid` on a split.
+The replacement tests assert the union and the allocated amount, plus a
+regression guard that the `payments` table is never queried directly.
+
 `docs/v2-migration/CLERK_HOLD_AUDIT.md` (2026-07-12) analyzed Clerk absence
 and recommended holding — **superseded 2026-07-17**: the hold was lifted and
 Phase 1 shipped (see "Clerk transition" below). Keep it only as the rationale
