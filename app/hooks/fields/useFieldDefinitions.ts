@@ -7,13 +7,14 @@ import { PLATFORM_API, buildKey, keysUnder, apiFetcher, apiRequest } from '@/lib
 import type { DatabaseV2 } from '@/types/supabase-v2';
 import type { FieldOption } from '@/lib/fields/options';
 
-export type FieldEntity = 'client' | 'order' | 'order_item' | 'product';
+export type FieldEntity = 'client' | 'order' | 'order_item' | 'product' | 'note';
 
 export const FIELD_ENTITIES: { value: FieldEntity; label: string }[] = [
   { value: 'client', label: 'Client' },
   { value: 'order', label: 'Order' },
   { value: 'order_item', label: 'Order Item' },
   { value: 'product', label: 'Product' },
+  { value: 'note', label: 'Note' },
 ];
 
 type FieldDefinitionRow = DatabaseV2['v2']['Tables']['field_definitions']['Row'];

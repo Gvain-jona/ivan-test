@@ -31,6 +31,7 @@ export const FIELD_EXAMPLE: Record<FieldEntity, string> = {
   client: 'VAT number',
   order: 'Job ref',
   order_item: 'Artwork link',
+  note: 'Type',
 };
 
 interface FieldComposerProps {

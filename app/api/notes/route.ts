@@ -8,7 +8,8 @@ import {
 } from '@/lib/api/error-handler';
 import { noteCreateSchema } from '@/lib/api/validators';
 
-const NOTE_COLUMNS = 'id, entity_type, entity_id, content, created_by, created_at, updated_at';
+const NOTE_COLUMNS =
+  'id, entity_type, entity_id, content, custom_data, created_by, created_at, updated_at';
 
 /**
  * GET /api/notes?entity_type=order&entity_id=<uuid> — notes for one
