@@ -57,8 +57,36 @@ export const paymentInputSchema = z.object({
   amount: z.number().positive(),
   payment_method: z.enum(['cash', 'mobile_money', 'bank', 'credit']).optional(),
   payment_date: isoDate.optional(),
+  /** Mobile money transaction id, cheque number, bank slip — how a real
+   *  payment is traced back to the bank. Distinct from `notes`, which is
+   *  free commentary ("deposit", "balance on collection"). */
+  reference: z.string().trim().min(1).optional(),
   notes: z.string().trim().min(1).optional(),
 });
+
+/**
+ * Payments supplied inline at order creation, which travel to
+ * v2.create_order rather than v2.record_payment.
+ *
+ * `reference` is deliberately absent. create_order's documented payload is
+ * {amount, payment_method, payment_date} (orders-system-handoff.md §9), so a
+ * reference sent here would be dropped in the DB without an error — worse
+ * than refusing it, because the user watches their cheque number vanish.
+ * Capture one through POST /api/orders/[id]/payments, which builds the
+ * record_payment payload explicitly.
+ *
+ * `notes` is grandfathered, not verified: the app has always sent it and the
+ * same doc doesn't list it either. Confirm with the DB owner whether
+ * create_order persists it — if not, it belongs out here too.
+ *
+ * `.strict()` rather than zod's default strip, on purpose: a stripped key is
+ * still a silently dropped one, just discarded a layer earlier. Failing loudly
+ * is what makes "the create-order payment sheet must not offer a reference
+ * field" discoverable while building it instead of after the data is gone.
+ */
+export const orderCreatePaymentSchema = paymentInputSchema
+  .omit({ reference: true })
+  .strict();
 
 export const orderCreateSchema = z.object({
   client_id: z.string().uuid(),
@@ -66,7 +94,7 @@ export const orderCreateSchema = z.object({
   status: z.string().trim().min(1).optional(),
   custom_data: customData.optional(),
   items: z.array(orderItemInputSchema).min(1),
-  payments: z.array(paymentInputSchema).optional(),
+  payments: z.array(orderCreatePaymentSchema).optional(),
 });
 
 /**
@@ -220,6 +248,35 @@ export const organizationSettingsPatchSchema = z
   .refine(d => d.settings === undefined || Object.keys(d.settings).length > 0, {
     message: 'settings must name at least one block',
   });
+
+/**
+ * PATCH /api/counters — numbering config for one counter.
+ *
+ * `current_value` is increase-only, enforced in the route. A counter is what
+ * guarantees document numbers are unique and gapless-by-intent; letting an
+ * owner set it backwards would hand out a number that already exists on an
+ * issued, immutable document. Skipping ahead (starting invoices at 1000
+ * because the old paper book reached 999) is both safe and a real thing
+ * people need on migration day.
+ *
+ * `reset_policy` must agree with `format`: a {YYYY} format that never resets
+ * produces numbers that lie about their year. The DB comment states the rule;
+ * nothing enforces it, so the UI should present them as one decision.
+ */
+export const counterUpdateSchema = z
+  .object({
+    counter_key: z.string().trim().min(1),
+    format: z.string().trim().min(1).optional(),
+    reset_policy: z.enum(['never', 'yearly', 'monthly']).optional(),
+    current_value: z.number().int().nonnegative().optional(),
+  })
+  .refine(
+    d =>
+      d.format !== undefined ||
+      d.reset_policy !== undefined ||
+      d.current_value !== undefined,
+    { message: 'At least one field is required' },
+  );
 
 export const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),

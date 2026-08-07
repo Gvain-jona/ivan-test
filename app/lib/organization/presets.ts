@@ -36,7 +36,7 @@ export interface StarterField {
   sort_order?: number;
 }
 
-export type StarterEntity = 'product' | 'client' | 'order';
+export type StarterEntity = 'product' | 'client' | 'order' | 'order_item';
 
 /** Slug a human label into a stable, machine-safe option value. */
 function toOption(label: string): SelectOption {
@@ -89,6 +89,7 @@ export const FIXED_FIELDS: Record<StarterEntity, string[]> = {
   product: ['Name', 'Selling price'],
   client: ['Client name'],
   order: ['Client', 'Order date', 'Amounts'],
+  order_item: ['Product', 'Quantity', 'Unit price'],
 };
 
 /**
@@ -159,5 +160,24 @@ export const STARTER_FIELDS: Record<StarterEntity, StarterField[]> = {
       sort_order: 30,
       options: ['Pickup', 'Delivery'].map(toOption),
     },
+  ],
+  /**
+   * Fields on a single line of an order, not on the order as a whole.
+   *
+   * `size` deliberately exists here *and* on `product`, because they answer
+   * different questions: the product's size is the catalogue default ("a
+   * roll-up banner is 2×4 ft"), the line's is what was actually sold on this
+   * job ("this one went out at 3×6"). One order routinely carries lines of
+   * different sizes, so folding them into one field would lose the variation
+   * the shop floor works from.
+   *
+   * The line's value is prefilled from the chosen product in the order form —
+   * the same way unit_price already is. It is NOT wired through
+   * `field_definitions.inherit_from`: that column exists but nothing in the
+   * app or (as far as the repo can see) the DB interprets it yet, so setting
+   * it would be a guess at semantics we don't own.
+   */
+  order_item: [
+    { field_name: 'size', field_label: 'Size', field_type: 'dimension', sort_order: 10 },
   ],
 };

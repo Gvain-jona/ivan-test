@@ -15,6 +15,7 @@ export const PLATFORM_API = {
   NOTES: '/api/notes',
   DOCUMENTS: '/api/documents',
   ORGANIZATION: '/api/organization',
+  COUNTERS: '/api/counters',
 } as const;
 
 /** Error shape produced by app/lib/api/error-handler.ts. */

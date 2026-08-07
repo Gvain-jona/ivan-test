@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveTenant } from '@/lib/auth/tenant';
+import type { TenantDb } from '@/lib/auth/tenant';
 import {
   handleApiError,
   handleSupabaseError,
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
-import { documentIssueSchema } from '@/lib/api/validators';
+import { documentIssueSchema, listQuerySchema } from '@/lib/api/validators';
 
 const DOCUMENT_COLUMNS =
   'id, entity_type, entity_id, document_type, document_number, snapshot, ' +
@@ -15,30 +16,77 @@ const DOCUMENT_COLUMNS =
   'related_document_id, created_by, created_at, updated_at';
 
 /**
- * GET /api/documents?entity_type=order&entity_id=<uuid> — documents for
- * one record via the polymorphic documents engine (same shape as notes).
+ * GET /api/documents — the org's documents, newest first.
+ *
+ * Two shapes, one route:
+ *   ?entity_type=order&entity_id=<uuid>  one record's documents (the
+ *                                        polymorphic read, same as notes)
+ *   ?document_type=invoice&status=issued the org-wide ledger
+ *
+ * The entity pair was mandatory until 2026-08-07, which meant there was no
+ * way to ask "what has this org issued" at all — a documents surface needs
+ * exactly that. Both parts of the pair are still required *together*: an
+ * entity_id without its type is not a narrower query, it's an ambiguous one.
+ *
+ * document_type and status take comma-separated lists (multi-select filters),
+ * matching /api/orders. Neither is validated against a fixed set on purpose —
+ * legal document types are org-defined (a `doc:{type}` counter is what makes
+ * one legal), so an unknown value should return nothing, not 400.
+ *
+ * `search` matches document_number only. The design also offers search by
+ * client, which can't be served from here: entity_id is polymorphic with no
+ * FK to join through, and the client name lives inside the frozen `snapshot`
+ * whose shape is DB-owned and unverified. Resolving that belongs with the
+ * documents surface, once the snapshot shape is confirmed.
  */
+type DocumentQuery = ReturnType<ReturnType<TenantDb['from']>['select']>;
+
+/** Narrows a documents query by whatever the caller asked for. */
+function applyDocumentFilters(query: DocumentQuery, params: URLSearchParams): DocumentQuery {
+  const entityType = params.get('entity_type');
+  const entityId = params.get('entity_id');
+  const documentType = params.get('document_type');
+  const status = params.get('status');
+  const search = params.get('search');
+
+  let next = query;
+  if (entityType && entityId) next = next.eq('entity_type', entityType).eq('entity_id', entityId);
+  if (documentType) next = next.in('document_type', documentType.split(','));
+  if (status) next = next.in('status', status.split(','));
+  if (search) next = next.ilike('document_number', `%${search}%`);
+  return next;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    const entityType = request.nextUrl.searchParams.get('entity_type');
-    const entityId = request.nextUrl.searchParams.get('entity_id');
-    if (!entityType || !entityId) {
-      return handleApiError('VALIDATION_ERROR', 'entity_type and entity_id are required');
+    const params = request.nextUrl.searchParams;
+    if (Boolean(params.get('entity_type')) !== Boolean(params.get('entity_id'))) {
+      return handleApiError(
+        'VALIDATION_ERROR',
+        'entity_type and entity_id must be given together',
+      );
     }
 
-    const { data, error } = await tenant.db
-      .from('documents')
-      .select(DOCUMENT_COLUMNS)
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .order('created_at', { ascending: false });
+    const paging = listQuerySchema.parse({
+      limit: params.get('limit') ?? undefined,
+      offset: params.get('offset') ?? undefined,
+    });
+
+    const { data, error, count } = await applyDocumentFilters(
+      tenant.db
+        .from('documents')
+        .select(DOCUMENT_COLUMNS, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(paging.offset, paging.offset + paging.limit - 1),
+      params,
+    );
 
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({ documents: data });
+    return NextResponse.json({ documents: data, total: count ?? 0 });
   } catch (error) {
     return handleUnexpectedError(error);
   }
