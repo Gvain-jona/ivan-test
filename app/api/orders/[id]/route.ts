@@ -20,6 +20,7 @@ interface OrderPayment {
   amount: number;
   payment_date: string;
   payment_method: string;
+  reference: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -64,7 +65,7 @@ async function fetchOrderPayments(
 
   const { data, error } = await tenant.db
     .from('payment_allocations')
-    .select('amount, payments(id, payment_date, payment_method, notes, created_at)')
+    .select('amount, payments(id, payment_date, payment_method, reference, notes, created_at)')
     .in('target_type', ['order', 'document'])
     .in('target_id', targetIds);
   if (error) return { error };

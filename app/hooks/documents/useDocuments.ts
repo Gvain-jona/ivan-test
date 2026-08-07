@@ -71,6 +71,38 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
   return { documents: data?.documents ?? [], isLoading, error, issueDocument, mutate };
 }
 
+// A type alias, not an interface, so it satisfies buildKey's index-signature
+// parameter — same reason OrderListParams is declared this way.
+export type DocumentListParams = {
+  /** Single value or comma-separated list (multi-select filters). */
+  document_type?: string;
+  status?: string;
+  /** Matches document_number only — see the route for why not client. */
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+/**
+ * The org's documents, across every record — what a documents surface lists,
+ * as opposed to `useDocuments`, which answers "what has *this* order got".
+ */
+export function useDocumentList(params: DocumentListParams = {}) {
+  const key = buildKey(PLATFORM_API.DOCUMENTS, params);
+  const { data, error, isLoading, mutate } = useSWR<{
+    documents: DocumentRecord[];
+    total: number;
+  }>(key, apiFetcher, { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE });
+
+  return {
+    documents: data?.documents ?? [],
+    total: data?.total ?? 0,
+    isLoading,
+    error,
+    mutate,
+  };
+}
+
 export function useDocumentMutations() {
   const updateDocument = useCallback(
     async (id: string, input: Partial<Pick<DocumentRecord, 'status' | 'snapshot' | 'valid_until'>>) => {

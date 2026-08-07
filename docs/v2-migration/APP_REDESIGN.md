@@ -145,6 +145,27 @@ Two extensions, one function:
   permits `'payment'`; nothing can produce one yet. Not a design overreach — a
   function that hasn't caught up. Ships with the payments cutover.
 
+### G4. `create_order` doesn't take a payment reference (found 2026-08-07)
+
+Small, but it splits an API surface. `payments.reference` exists, and
+`POST /api/orders/[id]/payments` now captures it — that route builds the
+`record_payment` payload explicitly, so the column is reachable.
+
+Inline payments at order creation take a different path: they ride inside the
+`create_order` payload, whose documented shape is
+`{amount, payment_method, payment_date}` (`orders-system-handoff.md` §9). A
+`reference` sent there would be dropped DB-side with no error, so
+`orderCreatePaymentSchema` omits it and is `.strict()` — refusing loudly beats
+losing a cheque number silently. **The B2b sheet must therefore not offer a
+reference field when it's opened from the create-order flow**, only from the
+order hub.
+
+**Also unverified:** the app has always sent `notes` on that same path, and the
+documented payload doesn't list it either. Nobody has confirmed whether
+`create_order` persists it. Worth asking with the same breath as the
+`reference` ask, since it's the same function and possibly the same silent
+drop.
+
 ---
 
 ## Translations — resolved without schema change
@@ -271,17 +292,29 @@ snapshots before F3 writes to either.
 
 ## Buildable now — no DB dependency
 
-| Work | Unblocks | Note |
+| Work | Unblocks | Status |
 |---|---|---|
-| Org settings: `identity` / `tax` / `documents` blocks | F3 (minus numbering) | Also closes STATE.md's flagged "existing org has no `identity` block, so its invoices render a blank issuer" — which blocks issuing any real invoice |
-| `show_in_documents` toggle in `EntityFieldsManager` | F3 "fields that print" | Column + both schemas exist; nothing writes it |
-| `reference` on `paymentInputSchema` + `buildPaymentPayload` | B2b | Column exists |
-| `STARTER_FIELDS.order_item` with inherited `size` | B2a2, every item row | T3 |
-| `GET`/`PATCH /api/counters` | F3 numbering | No route touches counters |
-| Org-wide `GET /api/documents` | F1 | Today it *requires* `entity_type`+`entity_id`, so there is no way to list an org's documents at all |
-| Client + product detail routes | C2, D2 | Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
-| Centralised payment-state formatter | T6 | |
-| Swap Expenses out of `MobileTabBar` PRIMARY | nav | Expenses is dark until cutover; Documents and Products are both live surfaces and neither is in the bar |
+| `reference` on `paymentInputSchema` + `buildPaymentPayload` | B2b | ✅ 2026-08-07 — see G4 for what it surfaced |
+| `STARTER_FIELDS.order_item` with `size` | B2a2, every item row | ⚠️ data landed 2026-08-07; **wizard placement is an open decision** (below) |
+| Org-wide `GET /api/documents` | F1 | ✅ 2026-08-07 — entity pair now optional (still required together), + type/status/search/paging, `useDocumentList` |
+| `GET`/`PATCH /api/counters` | F3 numbering | ✅ 2026-08-07 — owner-gated, `current_value` increase-only, cannot create a counter, `useCounters` |
+| Org settings: `identity` / `tax` / `documents` blocks | F3 (minus numbering) | 🔲 Also closes STATE.md's flagged "existing org has no `identity` block, so its invoices render a blank issuer" — which blocks issuing any real invoice |
+| `show_in_documents` toggle in `EntityFieldsManager` | F3 "fields that print" | 🔲 Column + both schemas exist; nothing writes it |
+| Client + product detail routes | C2, D2 | 🔲 Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
+| Centralised payment-state formatter | T6 | 🔲 |
+| Swap Expenses out of `MobileTabBar` PRIMARY | nav | 🔲 Expenses is dark until cutover; Documents and Products are both live surfaces and neither is in the bar |
+
+Two decisions taken while building these, worth not relitigating:
+
+- **`current_value` is increase-only.** Skipping ahead is a real migration-day
+  need (the paper book reached 999); going backwards reissues a number that is
+  already on an immutable document.
+- **`PATCH /api/counters` cannot create a counter.** A `doc:{type}` row is what
+  makes a document type legal, so creating one from a numbering screen would
+  quietly grant an issuing capability. That needs its own explicit action.
+
+**Not built on purpose:** the `reference` input on `OrderPaymentsTab`. B4
+replaces that component, so the field lands with the hub rather than twice.
 
 **Small and real:** `create_order` defaults status to `'pending'`, which is not
 in `ORDER_STATUS_WORKFLOW`. A configured org's `validate_custom_data` rejects
@@ -353,6 +386,20 @@ surfaces are screens. Add item / payment / note / issue document are sheets.
 
 ## Open decisions
 
+- **Where the `order_item` starter fields are offered in first-run.**
+  `EntityFieldsManager` only offers the composer, so starters reach an org
+  *only* through the wizard — the data alone changes nothing. Two options, and
+  ONBOARDING_REDESIGN reasoned deliberately about the step count, so this isn't
+  a silent call:
+  - **A sixth numbered step** ("Order items · what varies per line"). One entry
+    in `SETUP_STEPS` plus a branch; `STEP_COUNT` is derived, so "OF 5" becomes
+    "OF 6" on its own. Cheap and cheap to revert — but it lengthens setup, and
+    it names a system entity in the rail.
+  - **Inside the Orders step**, under "For each item on an order". Truer to
+    principle 1 (nobody thinks in `order_item`), but `EntityFieldSetupStep` is
+    one-entity-per-step by construction — two entities means splitting its
+    per-entity state and its single Continue, i.e. restructuring a component
+    that shipped four weeks ago.
 - T5 — does "delete" archive out of the list, or become "cancel" only?
 - Tax number: `settings.tax.number` or `settings.identity.tax_id`?
 - Does Documents or Products replace Expenses in the mobile tab bar?

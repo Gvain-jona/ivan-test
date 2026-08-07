@@ -96,4 +96,45 @@ describe('POST /api/orders', () => {
     expect(refetch.filters).toContainEqual(['eq', 'id', 'new-order-id'])
     expect(refetch.single).toBe('single')
   })
+
+  it('accepts an inline payment on the shape create_order documents', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('rpc:create_order_as_org', { data: 'o-2' })
+    db.queue('select:orders', { data: { id: 'o-2' } })
+
+    const res = await POST(
+      jsonRequest('/api/orders', {
+        client_id: CLIENT_UUID,
+        items: [{ product_name_raw: 'Flyers', quantity: 500, unit_price: 100 }],
+        payments: [{ amount: 20000, payment_method: 'cash', payment_date: '2026-08-07' }],
+      }),
+    )
+
+    expect(res.status).toBe(201)
+    const [rpc] = db.callsFor('rpc:create_order_as_org')
+    const { payload } = rpc.values as { payload: { payments: unknown[] } }
+    expect(payload.payments).toEqual([
+      { amount: 20000, payment_method: 'cash', payment_date: '2026-08-07' },
+    ])
+  })
+
+  // create_order's documented payload (orders-system-handoff.md §9) has no
+  // reference key, so accepting one would drop it in the DB without an error.
+  // Refuse loudly instead — a stripped key is still a lost one.
+  it('rejects a reference on an inline payment with 400', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await POST(
+      jsonRequest('/api/orders', {
+        client_id: CLIENT_UUID,
+        items: [{ product_name_raw: 'Flyers', quantity: 500, unit_price: 100 }],
+        payments: [{ amount: 20000, reference: 'MTN-8842190' }],
+      }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(db.callsFor('rpc:create_order_as_org')).toHaveLength(0)
+  })
 })

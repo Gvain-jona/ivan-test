@@ -52,6 +52,7 @@ function buildPaymentPayload(
     amount: input.amount,
     payment_date: input.payment_date ?? new Date().toISOString().slice(0, 10),
     payment_method: input.payment_method ?? 'cash',
+    reference: input.reference ?? null,
     notes: input.notes ?? null,
     allocations: [{ ...target, amount: input.amount }],
   };

@@ -12,10 +12,62 @@ const ORDER_UUID = '33333333-3333-4333-8333-333333333333'
 describe('/api/documents', () => {
   beforeEach(() => resolveTenantMock.mockReset())
 
-  it('GET requires entity_type and entity_id', async () => {
+  it('GET lists the whole org when no entity is named', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:documents', { data: [{ id: 'd-1' }], count: 12 })
+
+    const res = await GET(getRequest('/api/documents'))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ documents: [{ id: 'd-1' }], total: 12 })
+    // No entity filter narrowed it — that's the whole point of this shape.
+    const [call] = db.callsFor('select:documents')
+    expect(call.filters).not.toContainEqual(['eq', 'entity_type', 'order'])
+  })
+
+  it('GET still serves one record when the entity pair is given', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:documents', { data: [{ id: 'd-1' }], count: 1 })
+
+    const res = await GET(
+      getRequest('/api/documents', { entity_type: 'order', entity_id: ORDER_UUID }),
+    )
+
+    expect(res.status).toBe(200)
+    const [call] = db.callsFor('select:documents')
+    expect(call.filters).toContainEqual(['eq', 'entity_type', 'order'])
+    expect(call.filters).toContainEqual(['eq', 'entity_id', ORDER_UUID])
+  })
+
+  // Half a pair is ambiguous, not narrower.
+  it('GET rejects one half of the entity pair with 400', async () => {
     const { tenant } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
-    expect((await GET(getRequest('/api/documents'))).status).toBe(400)
+    expect((await GET(getRequest('/api/documents', { entity_id: ORDER_UUID }))).status).toBe(400)
+    expect((await GET(getRequest('/api/documents', { entity_type: 'order' }))).status).toBe(400)
+  })
+
+  it('GET maps type/status/search filters and pagination onto the query', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    await GET(
+      getRequest('/api/documents', {
+        document_type: 'invoice,quotation',
+        status: 'issued,sent',
+        search: 'INV-004',
+        limit: '10',
+        offset: '20',
+      }),
+    )
+
+    const [call] = db.callsFor('select:documents')
+    expect(call.filters).toContainEqual(['in', 'document_type', ['invoice', 'quotation']])
+    expect(call.filters).toContainEqual(['in', 'status', ['issued', 'sent']])
+    expect(call.filters).toContainEqual(['ilike', 'document_number', '%INV-004%'])
+    expect(call.modifiers).toContainEqual(['range', 20, 29])
   })
 
   it('POST issues through the RPC and returns the frozen document', async () => {

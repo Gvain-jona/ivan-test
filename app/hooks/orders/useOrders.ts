@@ -21,7 +21,7 @@ export type OrderDetail = Omit<OrderRow, 'organization_id' | 'source_id' | 'crea
 
 export type Payment = Pick<
   PaymentRow,
-  'id' | 'amount' | 'payment_date' | 'payment_method' | 'notes' | 'created_at'
+  'id' | 'amount' | 'payment_date' | 'payment_method' | 'reference' | 'notes' | 'created_at'
 >;
 
 export type OrderListParams = {
@@ -50,6 +50,8 @@ export interface PaymentInput {
   amount: number;
   payment_method?: 'cash' | 'mobile_money' | 'bank' | 'credit';
   payment_date?: string;
+  /** Mobile money transaction id, cheque number, bank slip. */
+  reference?: string;
   notes?: string;
 }
 

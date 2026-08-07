@@ -96,6 +96,46 @@ describe('POST /api/orders/[id]/payments', () => {
     ])
   })
 
+  it('carries a reference through to the cash event, defaulting it to null', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:orders', { data: { id: 'o-1', client_id: 'c-1' } })
+    db.queue('select:documents', { data: null })
+    db.queue('rpc:record_payment_as_org', { data: 'p-4' })
+    db.queue('select:payments', { data: { id: 'p-4' } })
+    db.queue('select:orders', { data: { id: 'o-1' } })
+
+    await POST(
+      jsonRequest('/api/orders/o-1/payments', {
+        amount: 75,
+        payment_method: 'mobile_money',
+        reference: 'MTN-8842190',
+        notes: 'Deposit',
+      }),
+      routeParams({ id: 'o-1' }),
+    )
+
+    const [rpc] = db.callsFor('rpc:record_payment_as_org')
+    const { payload } = rpc.values as { payload: Record<string, unknown> }
+    // How a real payment is traced back to the bank — distinct from notes,
+    // which is free commentary.
+    expect(payload.reference).toBe('MTN-8842190')
+    expect(payload.notes).toBe('Deposit')
+
+    // Omitted → explicit null, not undefined: the payload is jsonb, and a
+    // missing key and a null key are not the same thing to plpgsql.
+    db.queue('select:orders', { data: { id: 'o-2', client_id: 'c-1' } })
+    db.queue('select:documents', { data: null })
+    db.queue('rpc:record_payment_as_org', { data: 'p-5' })
+    db.queue('select:payments', { data: { id: 'p-5' } })
+    db.queue('select:orders', { data: { id: 'o-2' } })
+
+    await POST(jsonRequest('/api/orders/o-2/payments', { amount: 10 }), routeParams({ id: 'o-2' }))
+
+    const bare = db.callsFor('rpc:record_payment_as_org')[1]
+    expect((bare.values as { payload: Record<string, unknown> }).payload.reference).toBeNull()
+  })
+
   it('leaves party unset for a walk-in order with no client', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
