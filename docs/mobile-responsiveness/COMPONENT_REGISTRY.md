@@ -77,5 +77,6 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | BusinessIdentityForm | `app/components/organization/BusinessIdentityForm.tsx` | Yes | `grid gap-4 sm:grid-cols-2` — one column at 375px, two from `sm`; address is a full-width textarea |
 | TaxSettingsForm | `app/components/organization/TaxSettingsForm.tsx` | Yes | Same grid; rate/label only render once tax is switched on, so the collapsed state is two rows |
 | DocumentDefaultsForm | `app/components/organization/DocumentDefaultsForm.tsx` | Yes | Same grid plus two textareas; the longest of the three, but all single-column at 375px |
+| DocumentFieldsForm | `app/components/organization/DocumentFieldsForm.tsx` | Yes | `flex-wrap` toggle chips grouped by entity; writes immediately per chip rather than batching a Save |
 | BrandStyle | `app/components/theme/BrandStyle.tsx` | Yes | Emits a `<style>` element only — no rendered layout |
 | ThemedSignIn | `app/auth/signin/ThemedSignIn.tsx` | Yes | Clerk's `<SignIn />` with a theme-reactive appearance; Clerk owns the card's own responsiveness |

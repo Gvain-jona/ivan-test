@@ -303,10 +303,11 @@ than two inputs writing the same fact today.
 | Org-wide `GET /api/documents` | F1 | ✅ 2026-08-07 — entity pair now optional (still required together), + type/status/search/paging, `useDocumentList` |
 | `GET`/`PATCH /api/counters` | F3 numbering | ✅ 2026-08-07 — owner-gated, `current_value` increase-only, cannot create a counter, `useCounters` |
 | Org settings: `identity` / `tax` / `documents` blocks | F3 (minus numbering) | ✅ 2026-08-07 — three forms on `/dashboard/organization`; closes the blank-issuer blocker |
-| `show_in_documents` toggle in `EntityFieldsManager` | F3 "fields that print" | 🔲 Column + both schemas exist; nothing writes it |
+| `show_in_documents` toggle | F3 "fields that print" | ✅ 2026-08-07 — **the per-field toggle already existed**; what was missing was the consolidated view, now `DocumentFieldsForm` |
+| Centralised payment-state formatter | T6 | ✅ **already centralised** in `PaymentStatusBadge` — the item was a false premise. What it uncovered next door was real: see "Home segmented on statuses that don't exist" |
+| Swap Expenses out of `MobileTabBar` PRIMARY | nav | ✅ 2026-08-07 — Products takes the slot; dark modules moved to More and marked Soon |
 | Client + product detail routes | C2, D2 | 🔲 Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
-| Centralised payment-state formatter | T6 | 🔲 |
-| Swap Expenses out of `MobileTabBar` PRIMARY | nav | 🔲 Expenses is dark until cutover; Documents and Products are both live surfaces and neither is in the bar |
+| C1 / C2 / F1 aggregates | client owing, order counts, unpaid invoices | 🔲 Scoped queries — see Aggregates |
 
 Two decisions taken while building these, worth not relitigating:
 
@@ -319,6 +320,35 @@ Two decisions taken while building these, worth not relitigating:
 
 **Not built on purpose:** the `reference` input on `OrderPaymentsTab`. B4
 replaces that component, so the field lands with the hub rather than twice.
+
+### Home segmented on statuses that don't exist (fixed 2026-08-07)
+
+Found while checking whether the payment-state formatter was really missing —
+it wasn't, but this was.
+
+`RecentOrdersList`'s segments matched literal status values: `pending`,
+`in_progress`, `paused`, `completed`. Of those, **none appear in
+`ORDER_STATUS_WORKFLOW`**, whose values are quotation / design / printing /
+finishing / ready / delivered / cancelled. So on the workflow the app actually
+ships, every order between quotation and delivered fell through to a catch-all
+bucket labelled **"Other"** — i.e. most of the feed, on the one screen that
+exists to show what needs attention.
+
+This is the "data-driven status chips" follow-up STATE.md has carried since
+2026-07-25, and it's the same root cause as T1: reading a status value as if
+the app owned it. Statuses are org-defined; only `semantic` (open | won | lost)
+is stable.
+
+Now `lib/orders/segment-orders.ts`, keyed on `semantic`, with the labels as the
+UI's own words for it — so an org renaming "Printing" to "On the press" changes
+nothing. Two behaviours worth keeping: a status carrying **no** semantic still
+lands in "Other" rather than vanishing (an order sitting in a stage that was
+later removed is exactly the kind someone has to deal with), and until the
+workflow loads the list renders **flat** rather than filing everything under
+"Other".
+
+**Worth a sweep**: this was the third instance of hardcoded status values, and
+nothing prevents a fourth.
 
 ### A settings block cannot be cleared (found 2026-08-07)
 

@@ -1,6 +1,7 @@
 import BrandColorPicker from '@/components/organization/BrandColorPicker';
 import BusinessIdentityForm from '@/components/organization/BusinessIdentityForm';
 import DocumentDefaultsForm from '@/components/organization/DocumentDefaultsForm';
+import DocumentFieldsForm from '@/components/organization/DocumentFieldsForm';
 import TaxSettingsForm from '@/components/organization/TaxSettingsForm';
 import ThemePreference from '@/components/organization/ThemePreference';
 
@@ -37,6 +38,8 @@ export default function OrganizationSettingsPage() {
         <TaxSettingsForm />
         <div className="h-px bg-border" />
         <DocumentDefaultsForm />
+        <div className="h-px bg-border" />
+        <DocumentFieldsForm />
         <div className="h-px bg-border" />
         <BrandColorPicker />
         <div className="h-px bg-border" />
