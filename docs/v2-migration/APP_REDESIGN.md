@@ -295,7 +295,7 @@ snapshots before F3 writes to either.
 | Work | Unblocks | Status |
 |---|---|---|
 | `reference` on `paymentInputSchema` + `buildPaymentPayload` | B2b | ✅ 2026-08-07 — see G4 for what it surfaced |
-| `STARTER_FIELDS.order_item` with `size` | B2a2, every item row | ⚠️ data landed 2026-08-07; **wizard placement is an open decision** (below) |
+| `STARTER_FIELDS.order_item` with `size` | B2a2, every item row | ✅ 2026-08-07 — offered inside the Orders step, see below |
 | Org-wide `GET /api/documents` | F1 | ✅ 2026-08-07 — entity pair now optional (still required together), + type/status/search/paging, `useDocumentList` |
 | `GET`/`PATCH /api/counters` | F3 numbering | ✅ 2026-08-07 — owner-gated, `current_value` increase-only, cannot create a counter, `useCounters` |
 | Org settings: `identity` / `tax` / `documents` blocks | F3 (minus numbering) | 🔲 Also closes STATE.md's flagged "existing org has no `identity` block, so its invoices render a blank issuer" — which blocks issuing any real invoice |
@@ -315,6 +315,29 @@ Two decisions taken while building these, worth not relitigating:
 
 **Not built on purpose:** the `reference` input on `OrderPaymentsTab`. B4
 replaces that component, so the field lands with the hub rather than twice.
+
+### Order lines are set up inside the Orders step (decided 2026-08-07)
+
+Not a sixth wizard step. `order_item` is a system word; a print shop owner
+looking for "where do I say a banner has a size" would not look for a stage
+called Order items. The Orders step now carries both, with the lines under
+"For each item on an order".
+
+Structurally that meant `EntityFieldSetupStep` — which was one-entity-by-
+construction — becoming a shell over a new `EntityFieldSection`. All per-entity
+state (starter toggles, staged edits, the composer, the status drill-in) moved
+into the section, so a second entity costs a second mount rather than a second
+copy of the logic. The step keeps only what spans the sections: the footer, the
+apply order, and hiding everything else when the status workflow takes the
+panel over.
+
+Two details worth knowing:
+
+- **Each section has its own composer.** One shared "+ Add a field" would be
+  ambiguous about which entity it adds to.
+- **Sections apply in order and stop on the first failure.** Pressing on would
+  leave half the starters created behind an error toast that reads as "nothing
+  happened".
 
 **Small and real:** `create_order` defaults status to `'pending'`, which is not
 in `ORDER_STATUS_WORKFLOW`. A configured org's `validate_custom_data` rejects
@@ -386,20 +409,6 @@ surfaces are screens. Add item / payment / note / issue document are sheets.
 
 ## Open decisions
 
-- **Where the `order_item` starter fields are offered in first-run.**
-  `EntityFieldsManager` only offers the composer, so starters reach an org
-  *only* through the wizard — the data alone changes nothing. Two options, and
-  ONBOARDING_REDESIGN reasoned deliberately about the step count, so this isn't
-  a silent call:
-  - **A sixth numbered step** ("Order items · what varies per line"). One entry
-    in `SETUP_STEPS` plus a branch; `STEP_COUNT` is derived, so "OF 5" becomes
-    "OF 6" on its own. Cheap and cheap to revert — but it lengthens setup, and
-    it names a system entity in the rail.
-  - **Inside the Orders step**, under "For each item on an order". Truer to
-    principle 1 (nobody thinks in `order_item`), but `EntityFieldSetupStep` is
-    one-entity-per-step by construction — two entities means splitting its
-    per-entity state and its single Continue, i.e. restructuring a component
-    that shipped four weeks ago.
 - T5 — does "delete" archive out of the list, or become "cancel" only?
 - Tax number: `settings.tax.number` or `settings.identity.tax_id`?
 - Does Documents or Products replace Expenses in the mobile tab bar?

@@ -168,6 +168,15 @@ export default function GettingStartedWizard() {
           />
           <EntityFieldSetupStep
             entity="order"
+            // An order's lines are set up here rather than in a step of their
+            // own: size varies per line, not per order, but "order item" is a
+            // system word and nobody setting up a print shop would look for it
+            // as a separate stage.
+            secondary={{
+              entity: 'order_item',
+              heading: 'For each item on an order',
+              label: 'order item',
+            }}
             onContinue={advance}
             onBack={onBack}
           />
