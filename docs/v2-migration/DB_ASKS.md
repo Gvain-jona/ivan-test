@@ -17,13 +17,19 @@ resolved to something that already exists.
 Each ask says what breaks without it, so anything here can be declined on its
 merits rather than assumed necessary.
 
-**Priority:** A1 and A2 block screens that are otherwise ready to build. A3
-blocks consolidated invoicing. A4 and A5 are correctness papercuts that can ride
-along with any of the above.
+**Status.** **A2 is done** — applied 2026-08-07, see below. **A1 is the one
+that matters now**: it blocks B2, B4, B7, B8, B9 and F2, i.e. the whole UI
+rebuild. A3 blocks consolidated invoicing. A4 and A5 are papercuts that can
+ride along with either.
 
-**A1, A2 and A3 are all additive** — new columns and function bodies, nothing
-dropped or retyped, and the project currently holds no orders or documents, so
-there is no backfill and no migration risk to weigh.
+A1 was deliberately left to the schema owner rather than self-applied: it
+changes `recompute_order_totals()` and `issue_document()`, both of which decide
+what money a document states.
+
+**All of these are additive** — new columns and function bodies, nothing dropped
+or retyped. Verified 2026-08-07: the project holds 1 organization and 10 field
+definitions, and **zero** orders, order_items, documents, payments, notes,
+clients or products. There is no backfill to weigh.
 
 ---
 
@@ -79,7 +85,31 @@ the app's job?
 
 ---
 
-## A2 — Notes have no type · **blocks B2c, E2, E3**
+## A2 — ✅ **DONE 2026-08-07** — notes now carry org-defined fields
+
+Applied as migration `20260807213900_notes_custom_data_and_note_field_entity`
+and mirrored into `supabase/migrations/`. Option A below, and it turned out
+cheaper than written: **`validate_custom_data()` was not touched.** It is
+already parameterised by `TG_ARGV[0]` and reads `NEW.custom_data` /
+`NEW.organization_id` generically, with `order` status as its only
+entity-specific branch — so notes needed nothing but their own trigger
+registration, the same shape as `trg_validate_client_cd`.
+
+Three additive statements: `notes.custom_data jsonb not null default '{}'`, a
+widened `field_definitions_entity_check` (which already permitted `payment` and
+`attachment` — the app surfaces neither), and `trg_validate_note_cd`.
+
+App side: `'note'` added to `fieldEntitySchema` / `FieldEntity` /
+`FIELD_ENTITIES`, `custom_data` accepted by `noteCreateSchema` and returned by
+`/api/notes`, and `DatabaseV2` updated by hand.
+
+**Still to build, not blocked:** the note-type chips on B2c and the "Note types"
+row on E3 — both are UI in the rebuild, and an org has no note types configured
+until something writes them.
+
+<details><summary>Original ask, kept for the record</summary>
+
+### The gap
 
 ### The gap
 
@@ -106,6 +136,8 @@ defines order statuses, and the settings screen needs no special case.
 design explicitly presents as configurable.
 
 App side is one line either way (`'note'` added to the field-entity enum).
+
+</details>
 
 ---
 

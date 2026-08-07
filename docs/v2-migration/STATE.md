@@ -200,9 +200,15 @@ single swap point. Order creation still goes through the
   policies on the `internal_user_id` claim, expose `v2` schema (see above).
 - **Schema asks from the surface redesign (2026-08-07): `DB_ASKS.md`.** Five
   items plus two confirmation questions, each with what breaks without it.
-  A1 (order-level discount columns + `recompute_order_totals`) and A2 (a slot
-  for note type) **block the UI rebuild** — B2 alone needs both, and the
-  decision on 2026-08-07 was to wait rather than build that screen twice. A3
+  **A2 is done** (migration `20260807213900`, applied to the live project and
+  mirrored into `supabase/migrations/`): `notes.custom_data`, `'note'` in the
+  `field_definitions` entity whitelist, and a `trg_validate_note_cd`
+  registration — `validate_custom_data()` needed no change, being already
+  parameterised by `TG_ARGV[0]`. **A1 (order-level discount columns +
+  `recompute_order_totals` + `issue_document`'s hardcoded `discount_total`)
+  still blocks the UI rebuild** — B2's discount row needs it, and the decision
+  on 2026-08-07 was to wait rather than build that screen twice. It was left to
+  the schema owner deliberately: it changes what money a document states. A3
   extends `issue_document()` to several orders (with the matching
   `validate_payment_allocation` change, which must ship together or SINGLE
   RECEIVABLE goes quiet) and to payments for receipts. A4/A5 are papercuts.

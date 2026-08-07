@@ -633,6 +633,10 @@ export type DatabaseV2 = {
           entity_type: string
           entity_id: string
           content: string
+          /** Org-defined note fields — "type" among them. Governed by the same
+           *  validate_custom_data trigger as every other entity
+           *  (migration 20260807213900). */
+          custom_data: Json
           source_id: string | null
           created_by: string | null
           created_at: string
@@ -644,6 +648,7 @@ export type DatabaseV2 = {
           entity_type: string
           entity_id: string
           content: string
+          custom_data?: Json
           source_id?: string | null
           created_by?: string | null
           created_at?: string
@@ -655,6 +660,7 @@ export type DatabaseV2 = {
           entity_type?: string
           entity_id?: string
           content?: string
+          custom_data?: Json
           source_id?: string | null
           created_by?: string | null
           created_at?: string

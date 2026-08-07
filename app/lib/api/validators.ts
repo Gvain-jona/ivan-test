@@ -110,7 +110,14 @@ export const orderUpdateSchema = z
   })
   .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' });
 
-export const fieldEntitySchema = z.enum(['client', 'order', 'order_item', 'product']);
+/**
+ * Entities whose fields the app lets an org define.
+ *
+ * The DB whitelist also permits 'payment' and 'attachment'; both are omitted
+ * here because nothing surfaces them yet, and offering an entity with no screen
+ * behind it is worse than not offering it.
+ */
+export const fieldEntitySchema = z.enum(['client', 'order', 'order_item', 'product', 'note']);
 
 // A select field's options: either a legacy string array or the current
 // metadata-object array ({value,label,color,is_default,semantic}). The DB
@@ -339,6 +346,10 @@ export const noteCreateSchema = z.object({
   entity_type: z.enum(['order', 'client', 'product', 'expense', 'material_purchase']),
   entity_id: z.string().uuid(),
   content: z.string().trim().min(1),
+  /** Org-defined note fields — the "type" the designs group notes by lives
+   *  here, same as every other entity's custom_data (migration 20260807213900).
+   *  The DB trigger is the validation authority. */
+  custom_data: customData.optional(),
 });
 
 /** field_name and entity are immutable after creation (DB convention). */
