@@ -73,5 +73,9 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | OrganizationSettingsPage | `app/dashboard/organization/page.tsx` | Yes | Single `max-w-3xl` column, `px-4 sm:px-6`; sections stack. No table, no chrome of its own |
 | BrandColorPicker | `app/components/organization/BrandColorPicker.tsx` | Yes | `flex-wrap` swatch chips reflow 4→3→2 per row at 375px; owner-only (staff renders the same chips disabled) |
 | ThemePreference | `app/components/organization/ThemePreference.tsx` | Yes | Three `flex-wrap` chips (Light/Dark/System); fits one row at 375px |
+| settings-parts | `app/components/organization/settings-parts.tsx` | Yes | Shared section/field/toggle-row/save furniture; single-column by default, `ToggleRow` is `flex` with a `min-w-0` label so long hints wrap rather than squeeze the switch |
+| BusinessIdentityForm | `app/components/organization/BusinessIdentityForm.tsx` | Yes | `grid gap-4 sm:grid-cols-2` — one column at 375px, two from `sm`; address is a full-width textarea |
+| TaxSettingsForm | `app/components/organization/TaxSettingsForm.tsx` | Yes | Same grid; rate/label only render once tax is switched on, so the collapsed state is two rows |
+| DocumentDefaultsForm | `app/components/organization/DocumentDefaultsForm.tsx` | Yes | Same grid plus two textareas; the longest of the three, but all single-column at 375px |
 | BrandStyle | `app/components/theme/BrandStyle.tsx` | Yes | Emits a `<style>` element only — no rendered layout |
 | ThemedSignIn | `app/auth/signin/ThemedSignIn.tsx` | Yes | Clerk's `<SignIn />` with a theme-reactive appearance; Clerk owns the card's own responsiveness |
