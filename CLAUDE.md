@@ -178,7 +178,13 @@ where n.nspname = 'v2' and p.proname = 'create_order';
 
 This is not optional diligence — `docs/v2-migration/orders-system-handoff.md` reads as authoritative and is stale in three places, and trusting it has already shipped two bugs (a route querying dropped columns; a validator that rejected the one payment field `create_order` stores and accepted the one it discards). A column diff is not enough either: duplicate function overloads and over-broad `SECURITY DEFINER` grants are invisible to one, and both have bitten here. Before encoding any claim about what a function accepts or a trigger enforces, read it.
 
-**Applying schema changes is a decision, not a step.** Additive, mechanical changes (a column, a widened CHECK, a trigger registration) can be applied directly and mirrored into `supabase/migrations/`. Anything touching money — `recompute_order_totals`, `issue_document`, `validate_payment_allocation` — goes to the schema owner as a written ask; those functions decide what a document says it's owed. Open asks live in `docs/v2-migration/DB_ASKS.md`.
+**Applying schema changes is a decision, not a step.** Additive, mechanical changes (a column, a widened CHECK, a trigger registration) can be applied directly and mirrored into `supabase/migrations/`. Anything touching money — `recompute_order_totals`, `issue_document`, `validate_payment_allocation` — needs the owner's explicit go-ahead; those functions decide what a document says it's owed. Open asks live in `docs/v2-migration/DB_ASKS.md`.
+
+**Check these three before writing any migration** — each was caught in review after being written wrong, and none is visible in a diff of the SQL alone:
+
+1. **`CREATE OR REPLACE FUNCTION` resets attributes you don't restate.** Every `v2` function carries `set search_path = ''` (hardened in `20260725164737`). Replace one without restating it and the hardening is silently gone. Check first: `select proname, prosecdef, proconfig from pg_proc …`.
+2. **New functions get `PUBLIC EXECUTE` by default.** This project has been bitten twice (`provision_organization`, `next_number` — both take an org id as an *argument*). A new function that writes is a new hole.
+3. **Prefer a trigger function over a callable helper for writes.** Trigger functions reject direct invocation ("trigger functions can only be called as triggers"), so the surface doesn't exist. A standalone `do_the_write(uuid)` helper can't be locked down usefully — the trigger path needs `EXECUTE` anyway, so `authenticated` ends up holding it.
 
 ## Deployment
 
