@@ -9,6 +9,7 @@ import {
   Users,
   Banknote,
   Boxes,
+  FileText,
   ShoppingBag,
   BarChart3,
   Building2,
@@ -32,17 +33,16 @@ interface Destination {
  * short (mobile bottom bars hold 4–5 max); everything else lives in the
  * More sheet. Reorder here to change what's promoted to the bar.
  *
- * Products holds the fourth slot rather than Expenses: expenses is one of the
- * modules that went dark at the Clerk cutover and stays dark until its v2
- * migration, so promoting it spends a thumb-zone tab on a dead end. Documents
- * is the better long-term occupant and takes this slot once that surface
- * exists.
+ * Documents holds the fourth slot, taken from Expenses — one of the modules
+ * that went dark at the Clerk cutover, so promoting it spent a thumb-zone tab
+ * on a dead end. What's outstanding is a daily question in a print shop;
+ * Products is a catalogue you set up and revisit, so it sits in More.
  */
 const PRIMARY: Destination[] = [
   { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: Users, href: '/dashboard/clients' },
-  { title: 'Products', icon: Boxes, href: '/dashboard/products' },
+  { title: 'Documents', icon: FileText, href: '/dashboard/documents' },
 ];
 
 /**
@@ -54,6 +54,7 @@ const PRIMARY: Destination[] = [
  * every request 401s.
  */
 const MORE: Destination[] = [
+  { title: 'Products', icon: Boxes, href: '/dashboard/products' },
   { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses', disabled: true },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases', disabled: true },
   { title: 'Analytics', icon: BarChart3, href: '/dashboard/analytics', disabled: true },

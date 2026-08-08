@@ -33,11 +33,18 @@ const DOCUMENT_COLUMNS =
  * legal document types are org-defined (a `doc:{type}` counter is what makes
  * one legal), so an unknown value should return nothing, not 400.
  *
- * `search` matches document_number only. The design also offers search by
- * client, which can't be served from here: entity_id is polymorphic with no
- * FK to join through, and the client name lives inside the frozen `snapshot`
- * whose shape is DB-owned and unverified. Resolving that belongs with the
- * documents surface, once the snapshot shape is confirmed.
+ * `search` matches document_number only. Searching by client name is not served
+ * here: entity_id is polymorphic with no FK to filter through, so it would mean
+ * resolving every candidate order first — a scan, not a query. Each row does
+ * carry its client for display, read straight off `snapshot.recipient.name`,
+ * which issue_document() freezes at issue time.
+ *
+ * `due_before=YYYY-MM-DD` selects documents past their terms — that's how
+ * "overdue" is counted, since nothing stores that state.
+ *
+ * `paid=1` attaches how much has been allocated against each document. Not in
+ * the snapshot by design: the snapshot is frozen at issue, before any money
+ * arrives, so a balance can only be derived from payment_allocations.
  */
 type DocumentQuery = ReturnType<ReturnType<TenantDb['from']>['select']>;
 
@@ -54,7 +61,42 @@ function applyDocumentFilters(query: DocumentQuery, params: URLSearchParams): Do
   if (documentType) next = next.in('document_type', documentType.split(','));
   if (status) next = next.in('status', status.split(','));
   if (search) next = next.ilike('document_number', `%${search}%`);
+  // Overdue is a query, not a stored state: a document is late when its terms
+  // ran out, and nothing writes that fact anywhere.
+  if (params.get('due_before')) next = next.lt('due_date', params.get('due_before'));
   return next;
+}
+
+/**
+ * How much has been allocated against each of these documents.
+ *
+ * Deliberately not read from `snapshot`: issue_document() freezes the snapshot
+ * at issue time, before any payment exists, so `snapshot.totals` has a total
+ * and no balance. Payment against a document lives in payment_allocations and
+ * nowhere else.
+ */
+async function attachPaid<T extends { id: string }>(
+  tenant: NonNullable<Awaited<ReturnType<typeof resolveTenant>>>,
+  documents: T[],
+) {
+  if (documents.length === 0) return { documents: documents.map(d => ({ ...d, amount_paid: 0 })), error: null };
+
+  const { data, error } = await tenant.db
+    .from('payment_allocations')
+    .select('target_id, amount')
+    .eq('target_type', 'document')
+    .in('target_id', documents.map(d => d.id));
+  if (error) return { documents, error };
+
+  const paid = new Map<string, number>();
+  for (const row of (data ?? []) as { target_id: string; amount: number }[]) {
+    paid.set(row.target_id, (paid.get(row.target_id) ?? 0) + Number(row.amount));
+  }
+
+  return {
+    documents: documents.map(d => ({ ...d, amount_paid: paid.get(d.id) ?? 0 })),
+    error: null,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -86,7 +128,14 @@ export async function GET(request: NextRequest) {
 
     if (error) return handleSupabaseError(error);
 
-    return NextResponse.json({ documents: data, total: count ?? 0 });
+    let documents = (data ?? []) as unknown as { id: string }[];
+    if (params.get('paid') === '1') {
+      const withPaid = await attachPaid(tenant, documents);
+      if (withPaid.error) return handleSupabaseError(withPaid.error);
+      documents = withPaid.documents;
+    }
+
+    return NextResponse.json({ documents, total: count ?? 0 });
   } catch (error) {
     return handleUnexpectedError(error);
   }
