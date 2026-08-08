@@ -85,3 +85,6 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | DocumentRow | `app/components/documents/DocumentRow.tsx` | Yes | Two-line row on the shared anatomy; number/client truncate, money and state stay pinned right |
 | DocumentPaper | `app/components/documents/DocumentPaper.tsx` | Yes | B9. Fixed-light by design (paper is always white — the documented exception in CLAUDE.md); single column, wraps at 375px, prints without the app chrome |
 | DocumentPage | `app/dashboard/documents/[id]/page.tsx` | Yes | Header/footer `print:hidden` so only the paper reaches the printer |
+| patterns/summary | `app/components/patterns/summary.tsx` | Yes | The money summary block shared by B2/B4/C2/D2, plus the "too many to total" fallback |
+| ClientDetailScreen | `app/components/clients/ClientDetailScreen.tsx` | Yes | C2. Contact card, order list, summary, sticky footer; single column throughout |
+| ProductDetailScreen | `app/components/products/ProductDetailScreen.tsx` | Yes | D2. Price block, detail rows, `flex-wrap` alias chips, recent lines, summary |

@@ -7,11 +7,19 @@ import {
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
 import { clientUpdateSchema } from '@/lib/api/validators';
+import { buildRollup, money, ROLLUP_ROW_CAP } from '@/lib/api/rollup';
 
 const CLIENT_COLUMNS = 'id, name, status, custom_data, created_at, updated_at';
 
 /**
- * GET /api/clients/[id]
+ * GET /api/clients/[id] — the client, plus what they've been billed and what
+ * they still owe.
+ *
+ * The money is summed from the client's orders rather than stored: there is no
+ * balance column on `clients`, and there shouldn't be — it would be a
+ * derived number that drifts. `exact` says whether the sums cover every order
+ * or stopped at the cap, so the screen can show a real figure or none at all
+ * rather than a quietly wrong one. See lib/api/rollup.
  */
 export async function GET(
   _request: NextRequest,
@@ -32,7 +40,29 @@ export async function GET(
     if (error) return handleSupabaseError(error);
     if (!data) return handleApiError('NOT_FOUND', 'Client not found');
 
-    return NextResponse.json({ client: data });
+    const { data: orders, error: ordersError, count } = await tenant.db
+      .from('orders')
+      .select('total_amount, amount_paid, balance', { count: 'exact' })
+      .eq('client_id', id)
+      .range(0, ROLLUP_ROW_CAP - 1);
+
+    if (ordersError) return handleSupabaseError(ordersError);
+
+    const rollup = buildRollup(
+      (orders ?? []) as { total_amount: unknown; amount_paid: unknown; balance: unknown }[],
+      count,
+      rows =>
+        rows.reduce(
+          (acc, row) => ({
+            billed: acc.billed + money(row.total_amount),
+            paid: acc.paid + money(row.amount_paid),
+            outstanding: acc.outstanding + money(row.balance),
+          }),
+          { billed: 0, paid: 0, outstanding: 0 },
+        ),
+    );
+
+    return NextResponse.json({ client: data, rollup });
   } catch (error) {
     return handleUnexpectedError(error);
   }

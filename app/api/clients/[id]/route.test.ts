@@ -16,6 +16,70 @@ describe('GET /api/clients/[id]', () => {
     const res = await GET(getRequest('/api/clients/foreign'), routeParams({ id: 'foreign' }))
     expect(res.status).toBe(404)
   })
+
+  /**
+   * There is no balance column on clients, and there shouldn't be — it would
+   * be a derived number that drifts. It is summed from their orders instead.
+   */
+  it('rolls up what the client has been billed, paid and still owes', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:clients', { data: { id: 'c-1', name: 'Kampala Traders' } })
+    db.queue('select:orders', {
+      data: [
+        { total_amount: 480000, amount_paid: 300000, balance: 180000 },
+        { total_amount: 620000, amount_paid: 620000, balance: 0 },
+      ],
+      count: 2,
+    })
+
+    const res = await GET(getRequest('/api/clients/c-1'), routeParams({ id: 'c-1' }))
+    const { rollup } = await res.json()
+
+    expect(rollup.count).toBe(2)
+    expect(rollup.totals).toEqual({ billed: 1100000, paid: 920000, outstanding: 180000 })
+    expect(rollup.exact).toBe(true)
+
+    const [orders] = db.callsFor('select:orders')
+    expect(orders.filters).toContainEqual(['eq', 'client_id', 'c-1'])
+  })
+
+  // A partial sum that looks authoritative is worse than none, so the flag
+  // travels with it and the screen shows nothing rather than a wrong figure.
+  it('marks the rollup inexact when there are more orders than were fetched', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:clients', { data: { id: 'c-1' } })
+    db.queue('select:orders', {
+      data: [{ total_amount: 100, amount_paid: 0, balance: 100 }],
+      count: 900,
+    })
+
+    const { rollup } = await (
+      await GET(getRequest('/api/clients/c-1'), routeParams({ id: 'c-1' }))
+    ).json()
+
+    // The count stays exact — PostgREST counts rows, it doesn't sample them.
+    expect(rollup.count).toBe(900)
+    expect(rollup.exact).toBe(false)
+  })
+
+  it('rolls up to zero for a client with no orders', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:clients', { data: { id: 'c-1' } })
+
+    const { rollup } = await (
+      await GET(getRequest('/api/clients/c-1'), routeParams({ id: 'c-1' }))
+    ).json()
+
+    expect(rollup).toEqual({
+      count: 0,
+      totals: { billed: 0, paid: 0, outstanding: 0 },
+      exact: true,
+    })
+  })
+
 })
 
 describe('PATCH /api/clients/[id]', () => {
