@@ -314,8 +314,8 @@ than two inputs writing the same fact today.
 | **F3 Invoice settings** | F3 | ✅ 2026-08-07 — built off the frame; superseded and deleted the four org-settings forms |
 | **F1 Documents** | F1 | ✅ 2026-08-07 — built off the frame; now holds the fourth tab-bar slot |
 | **B9 Invoice — the document** | B9 | ✅ 2026-08-07 — rendered from the frozen snapshot at `/dashboard/documents/[id]` |
-| Client + product detail routes | C2, D2 | 🔲 Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
-| C1 / C2 / F1 aggregates | client owing, order counts, unpaid invoices | 🔲 Scoped queries — see Aggregates |
+| **C2 Client · D2 Product** | C2, D2 | ✅ 2026-08-07 — built off the frames, with rollups that are exact or absent |
+| C1 / D1 list aggregates | per-row owing / order counts | 🔲 Same shape as the detail rollups; the list would need one per row |
 
 Two decisions taken while building these, worth not relitigating:
 
@@ -357,6 +357,33 @@ workflow loads the list renders **flat** rather than filing everything under
 
 **Worth a sweep**: this was the third instance of hardcoded status values, and
 nothing prevents a fourth.
+
+### Rollups are exact or absent — never quietly partial (2026-08-07)
+
+C2 and D2 both close on money that has to be summed from rows, because v2 has
+no aggregate read layer. Home already does that with a bounded fetch and a
+figure that is silently approximate, and STATE.md records the regret.
+
+`lib/api/rollup.ts` is the alternative. Fetch up to a cap, compare what came
+back against the **exact** count PostgREST returns, and report which of the two
+you got. The screen then renders a real figure or says plainly that there are
+too many to total yet — never a number that is wrong in a way nobody can see.
+
+Note the asymmetry that makes this work: **the count stays exact either way**,
+because PostgREST counts rows rather than sampling them. So "24 total" is
+always true even when "UGX 3,690,000" cannot be.
+
+Two things the frames revealed that are easy to miss:
+
+- **A settled order shows its total in green with no balance**; only an order
+  with money still on it shows `total · balance`. That contrast is the fastest
+  read on the client screen.
+- **C2's contact card and D2's detail rows are org-defined fields**, not
+  columns. An org that never added `phone` has no contact card — which is
+  correct, rather than a card full of blanks. `lib/fields/format.ts` turns a
+  stored value into a readable one (a select's machine key into the org's own
+  label, a dimension object into "2×4 ft"), and returns null for anything empty
+  so the row drops out entirely.
 
 ### B9 renders the snapshot, and its actions had to change (2026-08-07)
 

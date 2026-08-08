@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search, Boxes, Pencil, Archive, SlidersHorizontal } from 'lucide-react';
@@ -166,7 +168,14 @@ export default function ProductsPage() {
             ) : (
               products.map(product => (
                 <tr key={product.id} className="hover:bg-muted/10">
-                  <td className="px-4 py-2.5 text-sm text-foreground">{product.name}</td>
+                  <td className="px-4 py-2.5 text-sm">
+                    <Link
+                      href={`/dashboard/products/${product.id}`}
+                      className="text-foreground hover:underline"
+                    >
+                      {product.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5 text-sm text-foreground text-right">
                     {product.selling_price != null ? fmt(product.selling_price) : '—'}
                   </td>

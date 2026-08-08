@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search, Users, Pencil, Archive, SlidersHorizontal } from 'lucide-react';
@@ -181,7 +183,14 @@ export default function ClientsPage() {
             ) : (
               clients.map(client => (
                 <tr key={client.id} className="hover:bg-muted/10">
-                  <td className="px-4 py-2.5 text-sm text-foreground">{client.name}</td>
+                  <td className="px-4 py-2.5 text-sm">
+                    <Link
+                      href={`/dashboard/clients/${client.id}`}
+                      className="text-foreground hover:underline"
+                    >
+                      {client.name}
+                    </Link>
+                  </td>
                   {listFields.map(field => (
                     <td
                       key={field.field_name}
