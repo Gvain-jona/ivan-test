@@ -14,6 +14,16 @@ const DOCUMENT_COLUMNS =
   'discount_total, tax_total, total, valid_until, due_date, issued_at, ' +
   'related_document_id, created_by, created_at, updated_at';
 
+/**
+ * GET /api/documents/[id] — one document, plus how much has been allocated
+ * against it.
+ *
+ * `amount_paid` is always attached here rather than behind a flag as on the
+ * list route: there is exactly one document, so it costs one query, and every
+ * consumer of a single document (the rendered paper, an issue confirmation)
+ * needs the balance. It cannot come from `snapshot` — that is frozen at issue,
+ * before any money arrives.
+ */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -33,7 +43,19 @@ export async function GET(
     if (error) return handleSupabaseError(error);
     if (!data) return handleApiError('NOT_FOUND', 'Document not found');
 
-    return NextResponse.json({ document: data });
+    const { data: allocations, error: allocationsError } = await tenant.db
+      .from('payment_allocations')
+      .select('amount')
+      .eq('target_type', 'document')
+      .eq('target_id', id);
+    if (allocationsError) return handleSupabaseError(allocationsError);
+
+    const amountPaid = ((allocations ?? []) as { amount: number }[]).reduce(
+      (sum, row) => sum + Number(row.amount),
+      0,
+    );
+
+    return NextResponse.json({ document: { ...data, amount_paid: amountPaid } });
   } catch (error) {
     return handleUnexpectedError(error);
   }
@@ -75,7 +97,21 @@ export async function PATCH(
     if (error) return handleSupabaseError(error);
     if (!data) return handleApiError('NOT_FOUND', 'Document not found');
 
-    return NextResponse.json({ document: data });
+    // Same shape as GET, deliberately. A PATCH response that dropped
+    // amount_paid would wipe it from any cache written into.
+    const { data: allocations, error: allocationsError } = await tenant.db
+      .from('payment_allocations')
+      .select('amount')
+      .eq('target_type', 'document')
+      .eq('target_id', id);
+    if (allocationsError) return handleSupabaseError(allocationsError);
+
+    const amountPaid = ((allocations ?? []) as { amount: number }[]).reduce(
+      (sum, row) => sum + Number(row.amount),
+      0,
+    );
+
+    return NextResponse.json({ document: { ...data, amount_paid: amountPaid } });
   } catch (error) {
     return handleUnexpectedError(error);
   }

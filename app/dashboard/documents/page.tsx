@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { FileText, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -43,6 +44,7 @@ const TABS = [
  *   New order — carries the slot instead. Documents are issued *from* orders.
  */
 export default function DocumentsPage() {
+  const router = useRouter();
   const { openCreateOrder } = useSheets();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('all');
   const [search, setSearch] = useState('');
@@ -128,7 +130,12 @@ export default function DocumentsPage() {
             <Card>
               <Divided>
                 {documents.map(document => (
-                  <DocumentRow key={document.id} document={document} today={today} />
+                  <DocumentRow
+                    key={document.id}
+                    document={document}
+                    today={today}
+                    onOpen={() => router.push(`/dashboard/documents/${document.id}`)}
+                  />
                 ))}
               </Divided>
             </Card>
