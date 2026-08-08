@@ -18,9 +18,10 @@ Each ask says what breaks without it, so anything here can be declined on its
 merits rather than assumed necessary.
 
 **Status.** **A2 is done** — applied 2026-08-07, see below. **A1 is the one
-that matters now**: it blocks B2, B4, B7, B8, B9 and F2, i.e. the whole UI
-rebuild. A3 blocks consolidated invoicing. A4 and A5 are papercuts that can
-ride along with either.
+that matters now**: it blocks B2, B4, B7 and B8. A3 blocks consolidated
+invoicing. **A6 is a live defect that exists today with no discount involved** —
+issued documents whose printed figures don't add up — and should be settled
+before or with A1, which would otherwise inherit it. A4 and A5 are papercuts.
 
 A1 was deliberately left to the schema owner rather than self-applied: it
 changes `recompute_order_totals()` and `issue_document()`, both of which decide
@@ -50,6 +51,27 @@ A shop gives 10% off an order. There is no column for it.
 
 This is the one place where storage and presentation genuinely cannot be
 decoupled: the stored number *is* the thing being discussed.
+
+### What kind of discount this is — it decides everything else
+
+This is a **trade discount**: a reduction from list price granted at the time of
+supply. Not a settlement discount ("2/10 net 30"), which is conditional on early
+payment and is treated differently under both revenue and VAT rules. v2 has no
+settlement-discount concept and shouldn't acquire one through this change.
+
+Two consequences, both of which the proposal below depends on:
+
+- **Revenue is recognised net.** Under IFRS 15 / ASC 606 the transaction price
+  is the consideration the seller expects to be entitled to, i.e. after trade
+  discounts. A trade discount is never journalised as its own account — so
+  `discount_total` on the document is *presentational and evidential*, not a
+  ledger entry, and revenue is `documents.total`. That is consistent with where
+  v2 already puts it.
+- **VAT is charged on the discounted amount.** The taxable amount excludes price
+  discounts granted at the time of supply — EU VAT Directive Art. 79(b), UK VAT
+  Notice 700 §7, and the same rule in Uganda's VAT Act (taxable value is the
+  consideration actually given). So tax computes on the net, which is what the
+  table below does.
 
 ### The tax interaction — the part that silently goes wrong
 
@@ -92,9 +114,48 @@ create or replace function v2.order_discount_amount(
 $$;
 ```
 
-`least(...)` answers the "discount larger than the order" question by clamping
-rather than constraining — a constraint would reject the write, and the app
-would have to reproduce the line sum to avoid tripping it.
+**Correction to an earlier draft of this ask:** it proposed `least(...)` to clamp
+a discount larger than the order. That's wrong. Silently turning a 600,000
+discount on a 480,000 order into 480,000 changes the user's figure without
+telling them, and a negative-total invoice is not an invoice at all — it's a
+credit note, which is a separate document type with its own
+`related_document_id` lineage. **A discount exceeding the line sum should raise,
+not clamp.** A CHECK constraint can't see the line sum, so the recompute trigger
+is the place to reject it.
+
+### Where this model is narrower than the invoicing standard
+
+EN 16931 — the European e-invoicing semantic standard, and what UBL/Peppol
+implement — models this as a **document-level allowance**, and pairs it with a
+**charge**:
+
+| | |
+|---|---|
+| BT-92 / BT-93 / BT-94 | allowance amount · **base amount** · **percentage** |
+| BT-95 / BT-96 | allowance VAT category · VAT rate |
+| BT-97 / BT-98 | reason · reason code |
+| BT-99…BT-105 | the same fields for a **charge** |
+| BT-106 − BT-107 + BT-108 | line net sum − allowances + charges = total without VAT |
+
+Three gaps worth naming, none blocking:
+
+1. **No charge slot.** A print shop has delivery fees, rush surcharges and setup
+   fees — the same mechanism with the opposite sign. With only `discount_total`
+   they have to be faked as line items, which then wrongly attract per-line
+   treatment. If a `charge_total` is ever wanted, adding it alongside
+   `discount_total` now is far cheaper than retrofitting the generated `total`.
+2. **The document doesn't record the base or the percentage.** Storing only the
+   resolved amount means an invoice can print "− 48,000" but not "Discount
+   (10% of 480,000)". That's a legibility loss on the document and an audit loss
+   off it — you can't verify the discount was applied to the right base. The
+   percentage belongs in `snapshot.totals`.
+3. **No reason.** Not needed today; it's why the standard carries it.
+
+**Mixed VAT rates are the constraint to remember.** A document-level allowance
+must carry its own VAT rate (BT-95/96) and be apportioned across rate groups, or
+the VAT breakdown won't reconcile. This doesn't bite today because v2's tax rate
+is org-level and single (`settings.tax.rate`). It would the moment per-line
+rates appear.
 
 **1. `recompute_order_totals()`** currently reads, in full:
 `total_amount = COALESCE((SELECT SUM(total_amount) FROM v2.order_items WHERE
@@ -265,6 +326,54 @@ amount, payment_date, payment_method, reference, created_by
 Ask: add `notes` to the insert. Until then the app **rejects** it on this path
 rather than letting it vanish, which means the create-order payment sheet can't
 offer a note field.
+
+---
+
+## A6 — `issue_document()` rounds to 2dp in every currency · **independent of A1, found while specifying it**
+
+**This is a live defect today, with no discount involved.** Raise it even if A1
+is declined.
+
+`issue_document()` rounds to a hardcoded 2 decimal places:
+
+```sql
+v_subtotal  := round(v_gross / (1 + v_rate / 100), 2);
+v_tax_total := round(v_gross * v_rate / 100, 2);
+```
+
+**UGX has zero minor units** (ISO 4217; the same is true of RWF, JPY, KRW).
+There is no such thing as a fractional shilling, so the document stores cents
+that don't exist, and anything rendering it rounds them away again — at which
+point the printed figures stop adding up.
+
+Measured against the live database, across 25 gross values with a 10% discount
+and 18% inclusive VAT, **8 produced a document whose own arithmetic fails when
+displayed**. One of them:
+
+| | printed |
+|---|---|
+| Subtotal | 116,201 |
+| Discount | − 11,620 |
+| VAT 18% | + 18,825 |
+| **Adds up to** | **123,406** |
+| **Total says** | **123,405** |
+
+A customer or an auditor spots that immediately, and it undermines every other
+figure on the page.
+
+The standard treatment (EN 16931's BR-CO rules, and every VAT regime) is that a
+document's monetary values are stated in the currency's own precision, and the
+VAT total is computed per rate from the **already-rounded** taxable base. Round
+once, at the currency's scale; derive everything else from the rounded values so
+they reconcile by construction.
+
+`issue_document()` already resolves `v_currency` from `settings.locale.currency`
+before it does any arithmetic, so the scale is available at the point it's
+needed. A small lookup (currency → minor units, defaulting to 2) is all that's
+missing.
+
+A1 adds a third rounding site, so if both land together this should be settled
+first — otherwise the discount inherits the same defect.
 
 ---
 
