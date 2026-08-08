@@ -3,37 +3,7 @@
 import { cn, formatDate } from '@/lib/utils';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { documentClientName, type DocumentListRecord } from '@/hooks/documents/useDocuments';
-
-/**
- * What a document's state is, in the reader's terms rather than the column's.
- *
- * `status` says where a document sits in its own lifecycle; someone scanning a
- * list wants to know whether it needs them. "Due 21 Aug" and "Overdue 6 days"
- * are both `status: 'issued'` — the difference is the date, so it can't come
- * from the column alone.
- */
-export function describeState(document: DocumentListRecord, today: string) {
-  const { status, due_date: dueDate, valid_until: validUntil } = document;
-  const paid = document.amount_paid ?? 0;
-  const total = Number(document.total ?? 0);
-
-  if (status === 'void') return { label: 'Void', tone: 'muted' as const };
-  if (status === 'declined') return { label: 'Declined', tone: 'danger' as const };
-  if (status === 'expired') return { label: 'Expired', tone: 'muted' as const };
-  if (status === 'accepted') return { label: 'Accepted', tone: 'good' as const };
-  if (status === 'draft') return { label: 'Draft', tone: 'muted' as const };
-
-  if (total > 0 && paid >= total) return { label: 'Paid', tone: 'good' as const };
-
-  if (dueDate && dueDate < today) {
-    const days = Math.round((Date.parse(today) - Date.parse(dueDate)) / 86_400_000);
-    return { label: `Overdue ${days} ${days === 1 ? 'day' : 'days'}`, tone: 'danger' as const };
-  }
-  if (dueDate) return { label: `Due ${formatDate(dueDate)}`, tone: 'muted' as const };
-  if (validUntil) return { label: `Valid to ${formatDate(validUntil)}`, tone: 'muted' as const };
-
-  return { label: status === 'sent' ? 'Sent' : 'Issued', tone: 'muted' as const };
-}
+import { describeDocumentState } from '@/lib/documents/document-state';
 
 const TONE = {
   muted: 'text-muted-foreground',
@@ -56,7 +26,10 @@ export default function DocumentRow({
   onOpen?: () => void;
 }) {
   const fmt = useFormatCurrency();
-  const state = describeState(document, today);
+  const state = describeDocumentState(document, today);
+  // The ladder hands dates back unformatted so it can be tested without a
+  // locale; rendering them is this component's job.
+  const stateLabel = state.date ? `${state.label} ${formatDate(state.date)}` : state.label;
   const total = Number(document.total ?? 0);
   const outstanding = total - (document.amount_paid ?? 0);
   const showsBalance = outstanding > 0 && (document.amount_paid ?? 0) > 0;
@@ -84,7 +57,7 @@ export default function DocumentRow({
             .join(' · ')}
         </span>
         <span className={cn('flex-shrink-0 text-[11px] font-medium', TONE[state.tone])}>
-          {state.label}
+          {stateLabel}
         </span>
       </div>
     </div>
