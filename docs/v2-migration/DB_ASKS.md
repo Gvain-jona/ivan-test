@@ -18,10 +18,18 @@ Each ask says what breaks without it, so anything here can be declined on its
 merits rather than assumed necessary.
 
 **Status.** **A2 is done** — applied 2026-08-07, see below. **A1 is the one
-that matters now**: it blocks B2, B4, B7 and B8. A3 blocks consolidated
-invoicing. **A6 is a live defect that exists today with no discount involved** —
-issued documents whose printed figures don't add up — and should be settled
-before or with A1, which would otherwise inherit it. A4 and A5 are papercuts.
+that matters now**: it blocks B2, B4, B7 and B8, and part 4 of it (rounding at
+the currency's scale) is not optional — without it the discount produces
+invoices whose printed figures don't add up. A3 blocks consolidated invoicing.
+A4 and A5 are papercuts.
+
+> **A correction, since an earlier version of this file went out claiming
+> otherwise:** the rounding issue was written up as "A6, a live defect today
+> with no discount involved". That was wrong, and measurement disproved it —
+> today's `issue_document()` reconciles in 367 of 367 cases in both tax modes,
+> because it only ever rounds one value independently. The problem appears only
+> once a discount adds a third. It is now part 4 of A1 rather than a standalone
+> item, and **nothing needs fixing ahead of A1.**
 
 A1 was deliberately left to the schema owner rather than self-applied: it
 changes `recompute_order_totals()` and `issue_document()`, both of which decide
@@ -195,6 +203,39 @@ end if;
 "Discount (10%)") added to `snapshot.totals`, which is what the rendered
 document reads.
 
+**4. Round at the currency's scale, not at a hardcoded 2 — this is part of A1,
+not a nicety.** Without it the discount makes documents that don't add up.
+
+Today's function is safe because it only ever rounds **one** value
+independently: the inclusive branch derives `tax = gross − subtotal`, the
+exclusive branch leaves `subtotal = gross` unrounded. The identity closes by
+construction. Verified across 367 gross values in both modes: **zero**
+reconciliation failures.
+
+A discount introduces a third value, and three values rounded to 2dp and then
+printed in a zero-decimal currency stop summing. Measured on this database with
+the same 367 values, a 10% discount and 18% inclusive VAT:
+
+| A1 stored at… | documents whose printed figures don't add up |
+|---|---|
+| 2 decimal places | **85 of 367** |
+| the currency's own scale | **0 of 367** |
+
+**UGX has zero minor units** (ISO 4217; so do RWF, JPY, KRW — while BHD, KWD,
+TND have three). There is no fractional shilling, so 2dp storage invents cents
+that the renderer then rounds away, and the rounding happens three times
+independently.
+
+The standard treatment — EN 16931's BR-CO rules, and every VAT regime — is that
+a document's monetary values are stated in the currency's own precision and the
+VAT total is computed from the already-rounded taxable base. Round once, at the
+currency's scale, and derive the rest so they reconcile by construction.
+
+`issue_document()` already resolves `v_currency` from `settings.locale.currency`
+before any arithmetic runs, so the scale is available where it's needed. A
+`v2.currency_scale(text)` lookup — zero-decimal and three-decimal lists,
+defaulting to 2 — is all that's missing.
+
 ### App side, once this lands
 
 `orderCreateSchema` / `orderUpdateSchema` gain the two fields, `DatabaseV2` is
@@ -326,54 +367,6 @@ amount, payment_date, payment_method, reference, created_by
 Ask: add `notes` to the insert. Until then the app **rejects** it on this path
 rather than letting it vanish, which means the create-order payment sheet can't
 offer a note field.
-
----
-
-## A6 — `issue_document()` rounds to 2dp in every currency · **independent of A1, found while specifying it**
-
-**This is a live defect today, with no discount involved.** Raise it even if A1
-is declined.
-
-`issue_document()` rounds to a hardcoded 2 decimal places:
-
-```sql
-v_subtotal  := round(v_gross / (1 + v_rate / 100), 2);
-v_tax_total := round(v_gross * v_rate / 100, 2);
-```
-
-**UGX has zero minor units** (ISO 4217; the same is true of RWF, JPY, KRW).
-There is no such thing as a fractional shilling, so the document stores cents
-that don't exist, and anything rendering it rounds them away again — at which
-point the printed figures stop adding up.
-
-Measured against the live database, across 25 gross values with a 10% discount
-and 18% inclusive VAT, **8 produced a document whose own arithmetic fails when
-displayed**. One of them:
-
-| | printed |
-|---|---|
-| Subtotal | 116,201 |
-| Discount | − 11,620 |
-| VAT 18% | + 18,825 |
-| **Adds up to** | **123,406** |
-| **Total says** | **123,405** |
-
-A customer or an auditor spots that immediately, and it undermines every other
-figure on the page.
-
-The standard treatment (EN 16931's BR-CO rules, and every VAT regime) is that a
-document's monetary values are stated in the currency's own precision, and the
-VAT total is computed per rate from the **already-rounded** taxable base. Round
-once, at the currency's scale; derive everything else from the rounded values so
-they reconcile by construction.
-
-`issue_document()` already resolves `v_currency` from `settings.locale.currency`
-before it does any arithmetic, so the scale is available at the point it's
-needed. A small lookup (currency → minor units, defaulting to 2) is all that's
-missing.
-
-A1 adds a third rounding site, so if both land together this should be settled
-first — otherwise the discount inherits the same defect.
 
 ---
 
