@@ -68,6 +68,10 @@ class FakeQuery implements PromiseLike<QueuedResult> {
     this.call.filters.push(['gte', column, value])
     return this
   }
+  lt(column: string, value: unknown) {
+    this.call.filters.push(['lt', column, value])
+    return this
+  }
   lte(column: string, value: unknown) {
     this.call.filters.push(['lte', column, value])
     return this

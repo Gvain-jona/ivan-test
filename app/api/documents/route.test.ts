@@ -49,6 +49,54 @@ describe('/api/documents', () => {
     expect((await GET(getRequest('/api/documents', { entity_type: 'order' }))).status).toBe(400)
   })
 
+  // A document's balance cannot come from its snapshot: the snapshot is frozen
+  // at issue, before any money arrives.
+  it('GET attaches amount_paid from allocations when asked', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:documents', {
+      data: [{ id: 'd-1', total: 432000 }, { id: 'd-2', total: 95000 }],
+      count: 2,
+    })
+    db.queue('select:payment_allocations', {
+      data: [
+        { target_id: 'd-1', amount: 200000 },
+        { target_id: 'd-1', amount: 100000 }, // two payments against one invoice
+      ],
+    })
+
+    const res = await GET(getRequest('/api/documents', { paid: '1' }))
+    const { documents } = await res.json()
+
+    expect(documents[0].amount_paid).toBe(300000)
+    // Nothing allocated is 0, not undefined — the row does arithmetic on it.
+    expect(documents[1].amount_paid).toBe(0)
+
+    const [allocations] = db.callsFor('select:payment_allocations')
+    expect(allocations.filters).toContainEqual(['eq', 'target_type', 'document'])
+    expect(allocations.filters).toContainEqual(['in', 'target_id', ['d-1', 'd-2']])
+  })
+
+  it('GET skips the allocation lookup unless paid=1', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:documents', { data: [{ id: 'd-1' }], count: 1 })
+
+    await GET(getRequest('/api/documents'))
+
+    expect(db.callsFor('select:payment_allocations')).toHaveLength(0)
+  })
+
+  it('GET filters on due_before, which is how overdue is counted', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    await GET(getRequest('/api/documents', { document_type: 'invoice', due_before: '2026-08-07' }))
+
+    const [call] = db.callsFor('select:documents')
+    expect(call.filters).toContainEqual(['lt', 'due_date', '2026-08-07'])
+  })
+
   it('GET maps type/status/search filters and pagination onto the query', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)

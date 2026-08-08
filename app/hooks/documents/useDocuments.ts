@@ -71,6 +71,22 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
   return { documents: data?.documents ?? [], isLoading, error, issueDocument, mutate };
 }
 
+/**
+ * A document as a list shows it. `client` comes from the frozen snapshot;
+ * `amount_paid` cannot — the snapshot is taken at issue, before any money
+ * arrives — so the route derives it from payment_allocations.
+ */
+export type DocumentListRecord = DocumentRecord & {
+  amount_paid?: number;
+};
+
+/** The client the document was issued to, as frozen into its snapshot. */
+export function documentClientName(document: DocumentRecord): string | null {
+  const snapshot = document.snapshot as { recipient?: { name?: unknown } } | null;
+  const name = snapshot?.recipient?.name;
+  return typeof name === 'string' && name !== '' ? name : null;
+}
+
 // A type alias, not an interface, so it satisfies buildKey's index-signature
 // parameter — same reason OrderListParams is declared this way.
 export type DocumentListParams = {
@@ -79,6 +95,10 @@ export type DocumentListParams = {
   status?: string;
   /** Matches document_number only — see the route for why not client. */
   search?: string;
+  /** YYYY-MM-DD. Past their terms, i.e. overdue. */
+  due_before?: string;
+  /** '1' attaches amount_paid per document. */
+  paid?: string;
   limit?: number;
   offset?: number;
 };
@@ -90,7 +110,7 @@ export type DocumentListParams = {
 export function useDocumentList(params: DocumentListParams = {}) {
   const key = buildKey(PLATFORM_API.DOCUMENTS, params);
   const { data, error, isLoading, mutate } = useSWR<{
-    documents: DocumentRecord[];
+    documents: DocumentListRecord[];
     total: number;
   }>(key, apiFetcher, { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE });
 
@@ -100,6 +120,33 @@ export function useDocumentList(params: DocumentListParams = {}) {
     isLoading,
     error,
     mutate,
+  };
+}
+
+/**
+ * The two figures the documents header shows.
+ *
+ * Counts, not sums. `count: 'exact'` is a real answer to "how many"; a money
+ * total would mean summing every live invoice client-side, which is the
+ * bounded-fetch approximation Home already regrets (see STATE.md). The money
+ * figure the frame shows waits for the metrics read layer.
+ */
+export function useDocumentCounts() {
+  const today = new Date().toISOString().slice(0, 10);
+  const live = 'issued,sent';
+
+  const unpaid = useDocumentList({ document_type: 'invoice', status: live, limit: 1 });
+  const overdue = useDocumentList({
+    document_type: 'invoice',
+    status: live,
+    due_before: today,
+    limit: 1,
+  });
+
+  return {
+    unpaidCount: unpaid.total,
+    overdueCount: overdue.total,
+    isLoading: unpaid.isLoading || overdue.isLoading,
   };
 }
 

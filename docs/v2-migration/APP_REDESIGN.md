@@ -311,6 +311,8 @@ than two inputs writing the same fact today.
 | `show_in_documents` toggle | F3 "fields that print" | ✅ 2026-08-07 — **the per-field toggle already existed**; what was missing was the consolidated view, now `DocumentFieldsForm` |
 | Centralised payment-state formatter | T6 | ✅ **already centralised** in `PaymentStatusBadge` — the item was a false premise. What it uncovered next door was real: see "Home segmented on statuses that don't exist" |
 | Swap Expenses out of `MobileTabBar` PRIMARY | nav | ✅ 2026-08-07 — Products takes the slot; dark modules moved to More and marked Soon |
+| **F3 Invoice settings** | F3 | ✅ 2026-08-07 — built off the frame; superseded and deleted the four org-settings forms |
+| **F1 Documents** | F1 | ✅ 2026-08-07 — built off the frame; now holds the fourth tab-bar slot |
 | Client + product detail routes | C2, D2 | 🔲 Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
 | C1 / C2 / F1 aggregates | client owing, order counts, unpaid invoices | 🔲 Scoped queries — see Aggregates |
 
@@ -354,6 +356,28 @@ workflow loads the list renders **flat** rather than filing everything under
 
 **Worth a sweep**: this was the third instance of hardcoded status values, and
 nothing prevents a fourth.
+
+### Two deliberate deviations on F1 (2026-08-07)
+
+Both are cases where the frame asks for something the data can't honestly
+supply yet, and inventing it would be worse than the gap.
+
+**The summary's left figure is a count, not a money total.** The frame shows
+"UGX 1,860,000 · Unpaid invoices". Producing that means summing every live
+invoice client-side, which is exactly the bounded-fetch approximation STATE.md
+already regrets on Home — one is a scaffold, two is a habit. `count: 'exact'`
+is a real answer to "how many", so the card keeps its shape and its figures are
+true. The money returns with the metrics read layer.
+
+**There is no "New invoice" action.** It opens F2 — several orders consolidated
+into one invoice — which the schema cannot express until A3. A signifier that
+isn't wired shouldn't be drawn, so the slot carries the real create path, New
+order. Documents are issued *from* orders, so nothing is actually unreachable.
+
+What the frame asked for that *is* now real: each row's client name comes
+straight off `snapshot.recipient.name`, and its balance from
+`payment_allocations` — the latter genuinely cannot come from the snapshot,
+which is frozen at issue time before any money arrives.
 
 ### A settings block cannot be cleared (found 2026-08-07)
 

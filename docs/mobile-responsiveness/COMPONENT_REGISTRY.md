@@ -81,3 +81,5 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | patterns/settings-rows | `app/components/patterns/settings-rows.tsx` | Yes | Settings row vocabulary from F3: value row (tap to edit in place), edit row, link row (chevron = navigates), switch row, toggle chip. Labels truncate rather than wrap |
 | InvoiceSettingsScreen | `app/components/settings/InvoiceSettingsScreen.tsx` | Yes | F3. Six sections of single-column cards, `flex-wrap` chips, sticky full-width Save. Longest scroll in settings at 375px. Visual QA pending |
 | OrganizationDestinations | `app/components/organization/OrganizationDestinations.tsx` | Yes | The hub's link rows (E3 shape); summary text truncates |
+| DocumentsPage | `app/dashboard/documents/page.tsx` | Yes | F1. Two-figure summary card, `flex-wrap` quick action, horizontally scrolling filter chips, single-column list. Visual QA pending |
+| DocumentRow | `app/components/documents/DocumentRow.tsx` | Yes | Two-line row on the shared anatomy; number/client truncate, money and state stay pinned right |
