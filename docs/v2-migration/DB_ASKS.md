@@ -51,37 +51,94 @@ A shop gives 10% off an order. There is no column for it.
 This is the one place where storage and presentation genuinely cannot be
 decoupled: the stored number *is* the thing being discussed.
 
-### Proposed — three parts, all needed together
+### The tax interaction — the part that silently goes wrong
+
+`documents.total` is generated as **`(subtotal - discount_total) + tax_total`**,
+and in that formula `subtotal` and `tax_total` are both **tax-exclusive**. So
+`discount_total` must be the *tax-exclusive portion* of the discount, and tax
+must be computed on the **discounted** net.
+
+Worked with the canonical figures (480,000 gross, 10% off, VAT 18%):
+
+| | subtotal | discount_total | tax_total | → generated total |
+|---|---|---|---|---|
+| Prices exclude tax | 480,000 | 48,000 | 77,760 | **509,760** |
+| Prices include tax | 406,779.66 | **40,677.97** | 65,898.31 | **432,000.00** |
+
+Note the second row: the stored discount is **40,677.97**, not the 48,000 the
+user typed. Storing 48,000 there instead yields 424,677.97 — wrong by 7,322.03,
+exactly the tax on the discount, and wrong in a way that looks plausible on
+screen. This is the single most likely thing to get wrong in this change.
+
+### Proposed
+
+A shared helper so the discount is computed in exactly one place:
 
 ```sql
 alter table v2.orders
-  add column discount_type  text    check (discount_type in ('amount','percent')),
-  add column discount_value numeric not null default 0;
+  add column discount_type  text
+    check (discount_type is null or discount_type in ('amount','percent')),
+  add column discount_value numeric not null default 0
+    check (discount_value >= 0);
+
+create or replace function v2.order_discount_amount(
+  p_line_sum numeric, p_type text, p_value numeric
+) returns numeric language sql immutable as $$
+  select case
+    when p_type = 'percent' then round(p_line_sum * coalesce(p_value, 0) / 100, 2)
+    when p_type = 'amount'  then least(coalesce(p_value, 0), p_line_sum)
+    else 0
+  end;
+$$;
 ```
+
+`least(...)` answers the "discount larger than the order" question by clamping
+rather than constraining — a constraint would reject the write, and the app
+would have to reproduce the line sum to avoid tripping it.
 
 **1. `recompute_order_totals()`** currently reads, in full:
+`total_amount = COALESCE((SELECT SUM(total_amount) FROM v2.order_items WHERE
+order_id = v_order), 0)`. It needs to subtract
+`v2.order_discount_amount(line_sum, o.discount_type, o.discount_value)`.
+`orders.balance` (`total_amount - amount_paid`) and `payment_status` are
+generated from `total_amount`, so both follow with no further change.
 
-```sql
-total_amount = COALESCE((SELECT SUM(total_amount) FROM v2.order_items
-                         WHERE order_id = v_order), 0)
+**2. Editing the discount alone must recompute too.** That trigger fires on
+`order_items`; changing `orders.discount_value` touches neither. Suggested: a
+`before update on v2.orders` trigger that recomputes `NEW.total_amount` only
+when the discount columns actually changed — the `is not distinct from` guard
+also stops it fighting with the update `recompute_order_totals()` itself issues.
+
+**3. `issue_document()`** hardcodes `discount_total` to `0`, and computes tax on
+the undiscounted gross. Per the table above:
+
+```
+v_disc  := v2.order_discount_amount(v_gross, v_order.discount_type, v_order.discount_value);
+v_net   := v_gross - v_disc;
+
+if not v_registered or v_rate = 0 then
+  v_subtotal := v_gross;                        v_discount_total := v_disc;
+  v_tax_total := 0;
+elsif v_inclusive then
+  v_subtotal       := round(v_gross / (1 + v_rate/100), 2);
+  v_net_ex         := round(v_net   / (1 + v_rate/100), 2);
+  v_discount_total := v_subtotal - v_net_ex;    -- ex-tax portion, not v_disc
+  v_tax_total      := v_net - v_net_ex;
+else
+  v_subtotal := v_gross;                        v_discount_total := v_disc;
+  v_tax_total := round(v_net * v_rate / 100, 2);
+end if;
 ```
 
-It needs to subtract the order discount after that sum, so `total_amount` — and
-therefore the generated `balance` and `payment_status` — account for it.
+…plus `discount_total` (and ideally the type/value, so a document can print
+"Discount (10%)") added to `snapshot.totals`, which is what the rendered
+document reads.
 
-**2. `issue_document()` hardcodes `discount_total` to `0`** in its insert. Left
-as-is, an invoice would show the pre-discount total while the order shows the
-discounted one. It also needs the discount in `snapshot.totals`, which is what
-the rendered document reads.
+### App side, once this lands
 
-**3.** The trigger fires on `order_items` changes. Editing the discount alone
-touches only `orders`, so it needs its own trigger or the app has to nudge a
-line — worth deciding DB-side rather than working around in the app.
-
-### Question
-
-Is a discount exceeding the line subtotal worth a constraint, or is clamping
-the app's job?
+`orderCreateSchema` / `orderUpdateSchema` gain the two fields, `DatabaseV2` is
+updated by hand, and B2/B4's discount rows become real. Nothing else changes —
+every total the UI shows already comes from `total_amount` or the document.
 
 ---
 
