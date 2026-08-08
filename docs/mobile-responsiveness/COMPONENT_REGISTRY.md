@@ -73,12 +73,11 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | OrganizationSettingsPage | `app/dashboard/organization/page.tsx` | Yes | Single `max-w-3xl` column, `px-4 sm:px-6`; sections stack. No table, no chrome of its own |
 | BrandColorPicker | `app/components/organization/BrandColorPicker.tsx` | Yes | `flex-wrap` swatch chips reflow 4→3→2 per row at 375px; owner-only (staff renders the same chips disabled) |
 | ThemePreference | `app/components/organization/ThemePreference.tsx` | Yes | Three `flex-wrap` chips (Light/Dark/System); fits one row at 375px |
-| settings-parts | `app/components/organization/settings-parts.tsx` | Yes | Shared section/field/toggle-row/save furniture; single-column by default, `ToggleRow` is `flex` with a `min-w-0` label so long hints wrap rather than squeeze the switch |
-| BusinessIdentityForm | `app/components/organization/BusinessIdentityForm.tsx` | Yes | `grid gap-4 sm:grid-cols-2` — one column at 375px, two from `sm`; address is a full-width textarea |
-| TaxSettingsForm | `app/components/organization/TaxSettingsForm.tsx` | Yes | Same grid; rate/label only render once tax is switched on, so the collapsed state is two rows |
-| DocumentDefaultsForm | `app/components/organization/DocumentDefaultsForm.tsx` | Yes | Same grid plus two textareas; the longest of the three, but all single-column at 375px |
-| DocumentFieldsForm | `app/components/organization/DocumentFieldsForm.tsx` | Yes | `flex-wrap` toggle chips grouped by entity; writes immediately per chip rather than batching a Save |
 | BrandStyle | `app/components/theme/BrandStyle.tsx` | Yes | Emits a `<style>` element only — no rendered layout |
 | ThemedSignIn | `app/auth/signin/ThemedSignIn.tsx` | Yes | Clerk's `<SignIn />` with a theme-reactive appearance; Clerk owns the card's own responsiveness |
 | screen-parts (new-order) | `app/components/orders/new-order/screen-parts.tsx` | Yes | The redesign's layout vocabulary transcribed from the B2 frame: field boxes, choice chips, list rows, sticky header/footer. Built at 375px first; chips scroll horizontally, rows truncate rather than wrap |
 | ClientField | `app/components/orders/new-order/ClientField.tsx` | Yes | Client search in place (B2d state of B2) — field becomes a search box with results beneath, no stacked surface. Single column throughout |
+| patterns/screen | `app/components/patterns/screen.tsx` | Yes | Shared screen furniture read off the B2 and F3 frames: sticky header, section label, hairline card, sticky footer (figure+action or full-width). Built at 375px first |
+| patterns/settings-rows | `app/components/patterns/settings-rows.tsx` | Yes | Settings row vocabulary from F3: value row (tap to edit in place), edit row, link row (chevron = navigates), switch row, toggle chip. Labels truncate rather than wrap |
+| InvoiceSettingsScreen | `app/components/settings/InvoiceSettingsScreen.tsx` | Yes | F3. Six sections of single-column cards, `flex-wrap` chips, sticky full-width Save. Longest scroll in settings at 375px. Visual QA pending |
+| OrganizationDestinations | `app/components/organization/OrganizationDestinations.tsx` | Yes | The hub's link rows (E3 shape); summary text truncates |

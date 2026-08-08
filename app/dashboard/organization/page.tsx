@@ -1,9 +1,6 @@
 import BrandColorPicker from '@/components/organization/BrandColorPicker';
-import BusinessIdentityForm from '@/components/organization/BusinessIdentityForm';
-import DocumentDefaultsForm from '@/components/organization/DocumentDefaultsForm';
-import DocumentFieldsForm from '@/components/organization/DocumentFieldsForm';
-import TaxSettingsForm from '@/components/organization/TaxSettingsForm';
 import ThemePreference from '@/components/organization/ThemePreference';
+import OrganizationDestinations from '@/components/organization/OrganizationDestinations';
 
 export const metadata = { title: 'Organization settings' };
 
@@ -11,36 +8,29 @@ export const metadata = { title: 'Organization settings' };
  * Organization settings.
  *
  * A new surface rather than a tab on /dashboard/settings: that page is
- * legacy-era throughout — it reads and writes public.user_settings through
- * the Supabase browser client, which has had no session since the Clerk
- * cutover, and its Save button has no handler. Nothing org-scoped should be
- * built on it.
+ * legacy-era throughout — it reads and writes public.user_settings through the
+ * Supabase browser client, which has had no session since the Clerk cutover,
+ * and its Save button has no handler. Nothing org-scoped should be built on it.
  *
- * Ordered by consequence, not by category. Business details come first
- * because they are the only settings that can be *too late*: issue_document()
- * freezes them into a document's snapshot, and an issued snapshot is
- * immutable — so an invoice sent before they're filled in keeps a blank
- * letterhead permanently. Appearance is last because it is always reversible.
+ * Becoming the hub the E3 frame describes: a list of destinations plus the few
+ * settings small enough to sit inline. Everything a *document* says about
+ * itself moved to /dashboard/organization/invoice (F3) — it is one subject with
+ * one Save, and three of its blocks previously lived here as separate forms
+ * with three separate saves.
  */
 export default function OrganizationSettingsPage() {
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-foreground">Organization settings</h1>
+    <div className="mx-auto w-full max-w-lg px-4 py-6">
+      <header className="mb-5">
+        <h1 className="text-xl font-semibold text-foreground">Organization</h1>
         <p className="text-[13px] text-muted-foreground">
-          Shared by everyone in this organization. Owners can change them.
+          Shared by everyone here. Owners can change them.
         </p>
       </header>
 
-      <div className="space-y-8 rounded-xl border border-border bg-card p-4 sm:p-6">
-        <BusinessIdentityForm />
-        <div className="h-px bg-border" />
-        <TaxSettingsForm />
-        <div className="h-px bg-border" />
-        <DocumentDefaultsForm />
-        <div className="h-px bg-border" />
-        <DocumentFieldsForm />
-        <div className="h-px bg-border" />
+      <OrganizationDestinations />
+
+      <div className="mt-[22px] space-y-8 rounded-2xl border border-border bg-card p-4">
         <BrandColorPicker />
         <div className="h-px bg-border" />
         <ThemePreference />
