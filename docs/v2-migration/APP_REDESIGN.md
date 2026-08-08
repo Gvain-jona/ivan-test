@@ -313,6 +313,7 @@ than two inputs writing the same fact today.
 | Swap Expenses out of `MobileTabBar` PRIMARY | nav | ✅ 2026-08-07 — Products takes the slot; dark modules moved to More and marked Soon |
 | **F3 Invoice settings** | F3 | ✅ 2026-08-07 — built off the frame; superseded and deleted the four org-settings forms |
 | **F1 Documents** | F1 | ✅ 2026-08-07 — built off the frame; now holds the fourth tab-bar slot |
+| **B9 Invoice — the document** | B9 | ✅ 2026-08-07 — rendered from the frozen snapshot at `/dashboard/documents/[id]` |
 | Client + product detail routes | C2, D2 | 🔲 Neither `/dashboard/clients/[id]` nor `/products/[id]` exists |
 | C1 / C2 / F1 aggregates | client owing, order counts, unpaid invoices | 🔲 Scoped queries — see Aggregates |
 
@@ -356,6 +357,33 @@ workflow loads the list renders **flat** rather than filing everything under
 
 **Worth a sweep**: this was the third instance of hardcoded status values, and
 nothing prevents a fourth.
+
+### B9 renders the snapshot, and its actions had to change (2026-08-07)
+
+The paper is **deliberately not theme-tokenized** — the documented exception in
+CLAUDE.md, alongside PDF and print stylesheets. An invoice looks the same to
+the customer who receives it whatever the sender's OS theme is, and inverting
+it in dark mode would make the on-screen copy disagree with the printed one.
+
+Everything comes from `snapshot`, never the live order: the order has moved on
+and the document is what was agreed. `lib/documents/snapshot.ts` reads the
+shape confirmed from the function source, and every accessor tolerates absence
+— a snapshot written by an older version of `issue_document()` is still legally
+a document and must still render. Nine tests cover that, including malformed
+and empty snapshots.
+
+**Two frame actions were replaced, both for the same reason.** The footer says
+"Send to client" and the header carries a download icon; there is no mail
+integration, and STATE.md is explicit that PDF rendering belongs to a worker
+built from the snapshot which does not exist. A signifier that isn't wired
+shouldn't be drawn. The footer action is **Print** — a real browser capability,
+the closest honest equivalent for a paper document — with a print stylesheet
+that drops the app chrome. The download affordance is omitted until the worker
+exists.
+
+The discount line renders only when `snapshot.totals.discount_total` is
+present, so it simply won't appear until A1 lands. That is graceful rather than
+broken: a document issued today genuinely has no order discount.
 
 ### Two deliberate deviations on F1 (2026-08-07)
 

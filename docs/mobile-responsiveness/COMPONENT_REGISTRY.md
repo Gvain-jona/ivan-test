@@ -83,3 +83,5 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | OrganizationDestinations | `app/components/organization/OrganizationDestinations.tsx` | Yes | The hub's link rows (E3 shape); summary text truncates |
 | DocumentsPage | `app/dashboard/documents/page.tsx` | Yes | F1. Two-figure summary card, `flex-wrap` quick action, horizontally scrolling filter chips, single-column list. Visual QA pending |
 | DocumentRow | `app/components/documents/DocumentRow.tsx` | Yes | Two-line row on the shared anatomy; number/client truncate, money and state stay pinned right |
+| DocumentPaper | `app/components/documents/DocumentPaper.tsx` | Yes | B9. Fixed-light by design (paper is always white — the documented exception in CLAUDE.md); single column, wraps at 375px, prints without the app chrome |
+| DocumentPage | `app/dashboard/documents/[id]/page.tsx` | Yes | Header/footer `print:hidden` so only the paper reaches the printer |
