@@ -1,8 +1,18 @@
 -- A1 part 1 (docs/v2-migration/DB_ASKS.md): order-level discount, plus the
 -- rounding rule that makes it safe.
 --
--- NOT YET APPLIED. Written 2026-08-07; apply via the Supabase SQL editor or
--- `supabase db push`, then part 2 (issue_document + create_order) follows.
+-- APPLIED 2026-08-09 and verified against the live schema: columns, checks,
+-- both triggers, `search_path=''` on all four functions, and seven arithmetic
+-- cases (percent, amount, item-added-after-discount, UGX rounding, cleared,
+-- over-discount) all exact.
+--
+-- Part 2 is NOT done, and until it is there is a live divergence: issue_document()
+-- still sums order_items and hardcodes discount_total = 0, so an invoice would
+-- bill the undiscounted amount while orders.total_amount is net. Unreachable
+-- through the app today — create_order() takes no discount fields and
+-- orderUpdateSchema allowlists four keys that don't include them — so the only
+-- way to set a discount right now is a direct DB write. Do not add the write
+-- path before issue_document() understands the discount.
 --
 -- Money is stated at the currency's own precision. UGX has zero minor units, so
 -- a hardcoded 2dp invents cents that renderers round away again — with a

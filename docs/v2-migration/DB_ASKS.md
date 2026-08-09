@@ -44,6 +44,21 @@ clients or products. There is no backfill to weigh.
 
 ## A1 — Order-level discount has nowhere to live · **blocks B2, B4, B7, B8, B9, F2**
 
+> **Part 1 applied and verified 2026-08-09** (`20260807220500_order_level_discount_and_currency_scale.sql`).
+> `orders.discount_type` / `discount_value`, `v2.currency_scale()`,
+> `v2.order_discount_amount()`, and both recompute triggers are live; seven
+> arithmetic cases check out exactly, including UGX rounding at scale 0.
+> `DatabaseV2` now carries the two columns.
+>
+> **Part 2 is still open, and it is now a divergence rather than a gap.**
+> `issue_document()` sums `order_items` and writes `discount_total = 0`, so it
+> would bill the *undiscounted* amount while `orders.total_amount` is net. It is
+> unreachable through the app — `create_order()` takes no discount fields and
+> `orderUpdateSchema` allowlists four keys that exclude them — so the ordering
+> constraint is firm: **`issue_document()` must understand the discount before
+> any write path exposes it.** Part 2 also owes `issue_document()` the currency
+> scale; its tax maths still rounds at a hardcoded 2dp.
+
 ### The gap
 
 A shop gives 10% off an order. There is no column for it.

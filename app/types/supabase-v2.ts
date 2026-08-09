@@ -365,6 +365,10 @@ export type DatabaseV2 = {
           amount_paid: number
           balance: number | null
           payment_status: string | null
+          // Trade discount off the whole order. The resolved money amount is
+          // derived by v2.order_discount_amount(), never stored.
+          discount_type: 'amount' | 'percent' | null
+          discount_value: number
           custom_data: Json
           source_id: string | null
           created_by: string | null
@@ -380,6 +384,8 @@ export type DatabaseV2 = {
           status?: string
           total_amount?: number
           amount_paid?: number
+          discount_type?: 'amount' | 'percent' | null
+          discount_value?: number
           custom_data?: Json
           source_id?: string | null
           created_by?: string | null
@@ -395,6 +401,8 @@ export type DatabaseV2 = {
           status?: string
           total_amount?: number
           amount_paid?: number
+          discount_type?: 'amount' | 'percent' | null
+          discount_value?: number
           custom_data?: Json
           source_id?: string | null
           created_by?: string | null
