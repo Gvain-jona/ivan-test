@@ -36,7 +36,8 @@ Concretely:
   demonstrated. The step's real subtitle is the one on the collapsed frame;
   don't build copy that changes as the user expands a row.
 
-14 top-level frames in `yoko`. Screen node ids kept here so the canvas and the
+14 desktop frames in `yoko`, plus 10 mobile frames added 2026-08-03 (see
+"Revision 2026-08-03" below). Screen node ids kept here so the canvas and the
 code stay traceable.
 
 | Node | Screen | What it establishes |
@@ -120,13 +121,15 @@ Ordered roughly by size. "Backing" = whether the API/DB already supports it.
 
 ### Decided 2026-07-29
 
-1. **Mobile — adapt responsively at build time.** No mobile frames will be
-   drawn; the desktop frames are the reference and the mobile behaviour is a
-   build-time judgment call. Working rules: card goes full-bleed below `lg`,
-   the left rail collapses to a horizontal step strip above the panel content,
-   and the inline expand stays **inline** (it does not become a sheet — the
-   design's whole point is that the list never goes away). Every new component
-   gets a row in `docs/mobile-responsiveness/COMPONENT_REGISTRY.md`.
+1. ~~**Mobile — adapt responsively at build time.**~~ **Superseded 2026-08-03**
+   — mobile is now drawn (10 frames; see "Revision 2026-08-03" below). What
+   survives from the original call: the inline expand stays **inline** (it does
+   not become a sheet — the design's whole point is that the list never goes
+   away), and every new component gets a row in
+   `docs/mobile-responsiveness/COMPONENT_REGISTRY.md`. What the frames changed:
+   the rail does *not* become a "horizontal step strip above the panel content"
+   — that was the shipped stopgap and it costs ~190px of a 812px screen while
+   leaving the dots unlabelled.
 2. **Theming — map to theme tokens, light + dark.** The canvas palette is
    translated onto the app's tokens (`bg-card`, `bg-muted`, `text-foreground`,
    `text-muted-foreground`, `border-border`, `bg-primary`…) rather than copied
@@ -282,6 +285,152 @@ Renaming is safe by construction: the editor edits `label` only and freezes
 
 Nothing here needs the DB owner. Per decision §4.3, multi-select is out of
 scope rather than blocking.
+
+### Revision 2026-08-03a — the mobile adaptation (M1–M10)
+
+> **Read the 2026-08-03b revision below before using these.** M1–M10 are an
+> *adaptation* of the desktop wizard to 375px — they are useful as a fallback
+> if the five-step model is kept, but they were written up here as principled
+> mobile design and they are not that. Every one of them has a desktop parent;
+> none deletes anything. The claims below are scoped down accordingly.
+
+Ten mobile frames sit in `yoko` below the desktop row, at **375 × 812**
+(the tightest width the responsiveness docs commit to; anything wider only
+gains slack). They are drawn against **what shipped**, not against the original
+desktop canvas — read-only field type, buttons instead of drag, no Selection
+block, no `relation` in the type picker.
+
+| Node | Frame | What it settles |
+|---|---|---|
+| `jXEB2` | M1 · Welcome | Hero + **the five steps as content**. The rail's overview isn't lost, it's front-loaded at the one moment it's useful. |
+| `Ji0uM` | M2 · Currency | Shortlist as a **2-column grid** (code + name both legible at 375, unlike the desktop pill); search sticks, results flow in the page scroll. |
+| `bf4Em` | M3 · Products (the list) | The core pattern: lock strip, starter rows, two-row composer, fixed action bar. |
+| `JQubk` | M4 · Composer + type picker | Composer active, type picker as a **bottom sheet**. |
+| `l2nhn` | M5 · Field editing (row expanded) | The whole editor, with the row header **pinned** to the top of the scroll area. |
+| `tzPPy` | M6 · Orders (workflow + fields) | Workflow group above starters; the Status row's chevron points **right** because it drills in. |
+| `G6GTra` | M7 · Status workflow (drill-in) | Two-line stage rows; list runs past the fold, as it really does. |
+| `wO22V` | M8 · First records | Three entity rows + the "nothing here is final" note. |
+| `z32w5i` | M9 · Mobile shell & rules | Shell anatomy, the eight rules, and what is deliberately absent. |
+| `TESDF` | M10 · Mobile states | Row states, composer states, stage composer, Undo/failure/guardrail feedback. |
+
+Components live in the `Mobile Components` frame (`JspFp`).
+
+**The five things the adaptation changes** (the rest is the desktop design at a
+narrower width — only #3 was derived from a user problem rather than from a
+measurement that didn't fit):
+
+1. **The rail becomes a 62px band, not a step strip.** One line — org mark,
+   current step name, "n of 5" — over a five-segment bar. It answers "where am
+   I" without a tap and without the ~190px the shipped `lg:hidden` stack costs.
+   Because the band names the step, the step *heading* is free to scroll away,
+   which the desktop version can't afford to do.
+2. **An expanded row is full-screen, and that's fine.** The editor is ~540px
+   tall; the panel is 606px. There is no arrangement where list context
+   survives, so the row header **sticks** to the top of the scroll area
+   instead. It is still not a sheet and not a route — collapsing returns to the
+   same scroll position in the same list, which is the whole promise.
+3. **One scroller per screen.** `CurrencyStep`'s `max-h-64 overflow-y-auto`
+   list must not survive on mobile: the page becomes the scroller and the
+   search field sticks. Nested touch scrollers are banned across setup.
+4. **Two rows beat one cramped row.** The composer splits (name / type + Add)
+   and the stage row splits (colour + name + ✕ / tags + reorder), so every
+   control keeps a real finger target. Option previews truncate to three chips
+   + "+n more" rather than wrapping to three lines.
+5. **The type picker is a bottom sheet** — but as a responsive variant of the
+   shared select content, so every select in the app inherits it. Do **not**
+   hand-roll a sheet here; that's the guardrail in `DESIGN_PHILOSOPHY.md`.
+
+Still open: whether the pinned row header should also carry a "back to list"
+label rather than only the collapse chevron. Left as the chevron for now — it's
+the same affordance the row was opened with.
+
+### Revision 2026-08-03c — the desktop frames now match the build
+
+The 14 original frames were the *pre-build* design. They have been reconciled
+with what actually shipped, so the canvas is a record rather than a proposal.
+What changed, and the code each change follows:
+
+| Canvas was | Now | Source |
+|---|---|---|
+| Centred 1000×640 card floating on a canvas colour | Two full-height columns, rail with a right border, panel with pinned heading (border-b) and footer (border-t) pushed to the bottom | `SetupShell` (2026-07-31 revision) |
+| Rail numbered 1–6 | Welcome carries a **dot**; Currency 1 … First records 5 | `steps.ts` / `StepTracker` |
+| Rail mark = printer glyph | Org mark (initials fallback) | `OrgLogo` |
+| Welcome: "your **shop** runs on…" | "your **business** runs on…" | `WelcomeStep` |
+| Currency: "Used across orders, payments, and documents." + free ISO-4217 composer | "Required — orders, payments, and every invoice you issue are priced in it." + **All currencies** search & list | `CurrencyStep`, phase 2 amendment |
+| Field editor: **Selection** (single/multiple) block | Removed | §4.3 — no multi-select in v2 |
+| Field editor: Type select, "still changeable — this field has no data yet" | Read-only box + "set when the field was created" + the archive-instead guardrail | `FieldEditor.TypeGroup` |
+| Field editor: "Enter adds another…" as the OPTIONS note | Note is "what people can choose from"; the Enter hint sits under the option composer; Saved indicator moved into the LABEL row | `EditorGroup` / `FieldOptionsEditor` |
+| Type picker: 7 types incl. Relation | 6 — `relation` is excluded | `COMPOSABLE_FIELD_TYPES` |
+| Workflow: grip handles, "DRAG TO REORDER", Cancel/Save | ↑↓ buttons, "USE THE ARROWS TO REORDER", flag to set the start stage, Back/Done, "New stages start as open…" | `WorkflowStageRow` / `StatusWorkflowEditor` |
+| First records: "1 product added" | "1 added"; the blocked Orders action is dimmed | `FirstRecordsStep` |
+| States: Dragging, Rule builder shown as real | Both tagged **NOT BUILT** and dimmed; type-lock caption corrected to "always"; new guardrail row for "last stage can't be removed" | phase 5 open; 2026-07-31 trigger finding |
+
+### Revision 2026-08-03b — the step audit, and what it deletes (N1–N6)
+
+Re-derived from the job rather than from the desktop layout, after the 03a
+frames were correctly called out as a port with the rationale written
+afterwards. Frames `N1`–`N6` sit below the `M` row in `yoko`.
+
+**The finding: only two of the five steps are load-bearing.** This is read off
+the code, not asserted:
+
+| Step | Required? | Evidence |
+|---|---|---|
+| Welcome | No | intro copy; nothing is written |
+| **Currency** | **Yes — hard** | `v2.issue_document()` refuses to raise an invoice or quotation without `settings.locale.currency` |
+| Products · fields | No | `FIXED_FIELDS` ships Name + Selling price as real v2 columns; every starter is an optional custom field |
+| Clients · fields | No | client name is the only required column |
+| **Orders · status workflow** | **Yes** | [useOrderStatuses.ts](app/hooks/orders/useOrderStatuses.ts) — *"There is NO hardcoded fallback: an org that hasn't configured its workflow gets an empty list"*. Skip it and orders have no stages, no default, no board |
+| Orders · due date / delivery method | No | optional custom fields |
+| First records | No | labelled Optional in the rail — and the client prerequisite isn't real: [OrderFormSheet.tsx:223](app/components/orders/OrderFormSheet.tsx:223) already offers `+ New client…` inline |
+
+Two consequences the current flow gets backwards: the mandatory things are
+step 1 and *part of* step 4, so the user crosses two screens of optional
+configuration to reach the second one; and within step 4, the load-bearing
+piece (Status) is the locked row you can't touch while the optional starters
+get the switches, the composer and all the visual weight.
+
+**The proposal.** Onboarding becomes two confirmations on one screen, and the
+optional configuration moves to the point of need:
+
+| Node | Frame | |
+|---|---|---|
+| `F5a8ZK` | N1 · One screen | Currency (pre-filled) + order stages (preset), each with a peer-weight **Change**. `Start using it` → the work. |
+| `ELUQ6` | N2 · Currency, one tap deep | A correction, so a sheet — not a stage. |
+| `P07X6W` | N3 · Order stages, one tap deep | Survives verbatim from the wizard; all seven stages fit once the step band is gone. |
+| `L6UVO` | N4 · Where the product step went | Name + price, and the starter preset offered **in the first product form**. |
+| `q6HNxO` | N5 · Offer accepted | Four fields, one tap, an Undo, no wizard. |
+| `Z1YZ2` | N6 · The audit & the argument | The table above, where each step went, risks, build cost. |
+
+Welcome merges into N1; **First records is deleted** — "Start using it" lands
+on the work and the list's own empty state is the invitation.
+
+**This is not a mobile finding.** Every row of the audit is as true at 1440px;
+mobile only made it visible because 812px of height can't absorb three optional
+screens the way a 1000×640 card can. Recommendation is to apply it to both. If
+desktop keeps the wizard, the two products diverge in *substance*, which is a
+bigger call than the layout asymmetry `DESIGN_PHILOSOPHY.md` sanctions.
+
+**Risks, stated:**
+
+1. **Discovery.** The wizard defaults every starter ON, so its real function is
+   "accept our preset" — which a one-tap offer does with better timing. But a
+   shop that dismisses the offer ends up thinner. Measure: share of orgs with
+   ≥1 custom product field at day 7, wizard vs offer.
+2. **The pre-filled currency needs a source.** There is no country on the org.
+   Device locale (`Intl.DateTimeFormat`) works client-side with no schema
+   change and *can be wrong* — hence Change is a peer of the value, not a link
+   under it. Open dependency, not a solved problem.
+3. **No evidence.** Zero analytics on mobile onboarding share or per-step
+   drop-off. This is a reasoned bet grounded in the code, not a measured one.
+
+**Build cost:** `CurrencyStep` and `StatusWorkflowEditor` survive as-is;
+`SetupShell`, `StepTracker`, `lib/onboarding/steps.ts`, `EntityFieldSetupStep`,
+`EntityFieldList` and `FirstRecordsStep` stop being needed; the offer is one
+small component calling the existing `starterFieldsToApply`.
+`onboarding_completed` is stamped after the two confirmations — `OnboardingGate`
+needs no change, but grep first for anything assuming *complete ⇒ fields
+configured*.
 
 ---
 
