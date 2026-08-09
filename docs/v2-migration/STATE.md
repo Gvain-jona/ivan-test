@@ -226,9 +226,19 @@ single swap point. Order creation still goes through the
   doesn't. Verified live across all four tax modes — see `DB_ASKS.md` A1 for
   the measured table and for why `documents.total` being a generated column
   dictates the shape of the arithmetic.
-  A3 extends `issue_document()` to several orders (with the matching
-  `validate_payment_allocation` change, which must ship together or SINGLE
-  RECEIVABLE goes quiet) and to payments for receipts. A4/A5 are papercuts.
+  **A3a + A3b are done** (`20260809160000`), unblocking F2: `issue_document()`
+  takes an order array, filing one order under `entity_type='order'` as before
+  and several under `entity_type='client'` with the covered orders frozen in
+  `snapshot.orders`. No link table — coverage is a GIN-indexed jsonb
+  containment query. Cash on a consolidated invoice fills its covered orders
+  **oldest first** (owner's decision, 2026-08-09), against the totals the
+  snapshot froze, with the last order absorbing any remainder so overpayment
+  stays visible. `orders.amount_paid` and `reconcile_money()` now share one
+  formula, `v2.order_paid_amount()`, so the maintained value and the drift
+  check cannot disagree. `recompute_order_paid_for(uuid)` was dropped in the
+  process — a `PUBLIC EXECUTE` callable writer with no org check; its UPDATE
+  lives in the trigger function now. **A3c (receipts) is still open** and waits
+  on the payments cutover. A4/A5 are papercuts.
   Both former "confirmation questions" are now answered from the source rather
   than inference: the `documents.snapshot` shape is recorded in
   `app/lib/documents/snapshot.ts`, and `issue_document` freezes the

@@ -73,7 +73,7 @@ starter field.
 | E2 | Notes | **Blocked — note type** |
 | E3 | Settings — what you can change | Partially (`/dashboard/organization`) |
 | F1 | Documents | **No route, and no org-wide list API** |
-| F2 | New invoice — combine orders | Needs `issue_document` extension |
+| F2 | New invoice — combine orders | Buildable (A3a/A3b landed 2026-08-09) |
 | F3 | Invoice settings | ~80% buildable today |
 | H1 | Home (mobile feed) | Built, metrics scaffolded |
 

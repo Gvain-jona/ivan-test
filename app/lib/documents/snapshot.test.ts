@@ -25,8 +25,19 @@ const REAL = {
     fields: { Phone: '0772 445 118', Address: 'Plot 12, Nakawa' },
   },
   order_fields: { Delivery: 'Pickup', 'Due date': '2026-08-12' },
+  // issue_document() writes `orders` for every document, one entry or many.
+  orders: [
+    {
+      order_id: 'o-1',
+      order_number: 'ORD-0042',
+      order_date: '2026-08-07',
+      total: 432000,
+      fields: { Delivery: 'Pickup' },
+    },
+  ],
   lines: [
     {
+      order_number: 'ORD-0042',
       description: 'Roll-up banner',
       quantity: 2,
       unit_price: 90000,
@@ -63,6 +74,51 @@ const REAL = {
     footer: 'Thank you',
     bank_details: 'Pay to MTN 0772 100 200',
   },
+}
+
+/**
+ * A consolidated invoice: two orders on one document. entity_type would be
+ * 'client' DB-side, meta.order_number is null, and order-level fields live per
+ * order rather than at the top.
+ */
+const CONSOLIDATED = {
+  ...REAL,
+  meta: { ...REAL.meta, order_number: null, order_date: null, order_count: 2 },
+  order_fields: {},
+  orders: [
+    {
+      order_id: 'o-1',
+      order_number: 'ORD-0042',
+      order_date: '2026-01-03',
+      total: 300000,
+      fields: { Delivery: 'Pickup' },
+    },
+    {
+      order_id: 'o-2',
+      order_number: 'ORD-0051',
+      order_date: '2026-01-10',
+      total: 200000,
+      fields: { Delivery: 'Courier' },
+    },
+  ],
+  lines: [
+    {
+      order_number: 'ORD-0042',
+      description: 'Roll-up banner',
+      quantity: 2,
+      unit_price: 150000,
+      total: 300000,
+      fields: {},
+    },
+    {
+      order_number: 'ORD-0051',
+      description: 'Flyers',
+      quantity: 1000,
+      unit_price: 200,
+      total: 200000,
+      fields: {},
+    },
+  ],
 }
 
 describe('readSnapshot', () => {
@@ -134,6 +190,58 @@ describe('readSnapshot', () => {
   it('ignores a discount_type it does not recognise', () => {
     const odd = { ...REAL, totals: { ...REAL.totals, discount_type: 'settlement' } }
     expect(readSnapshot(odd, FALLBACK).discountType).toBeNull()
+  })
+
+  /**
+   * A consolidated invoice covers several orders. The renderer groups lines
+   * under them, so both the `orders` array and each line's `order_number`
+   * have to survive the read.
+   */
+  it('reads the covered orders and the order each line belongs to', () => {
+    const s = readSnapshot(CONSOLIDATED, FALLBACK)
+
+    expect(s.orders.map(o => o.orderNumber)).toEqual(['ORD-0042', 'ORD-0051'])
+    expect(s.orders.map(o => o.total)).toEqual([300000, 200000])
+    expect(s.lines.map(l => l.orderNumber)).toEqual(['ORD-0042', 'ORD-0051'])
+    // Every line finds a home; a line whose order is missing would render
+    // nowhere at all in the grouped view.
+    for (const line of s.lines) {
+      expect(s.orders.some(o => o.orderNumber === line.orderNumber)).toBe(true)
+    }
+  })
+
+  /**
+   * meta.order_number is null on a consolidated document because there is no
+   * single order it belongs to — the renderer must not print one.
+   */
+  it('has no single order number when the document covers several', () => {
+    expect(readSnapshot(CONSOLIDATED, FALLBACK).orderNumber).toBeNull()
+    expect(readSnapshot(REAL, FALLBACK).orderNumber).toBe('ORD-0042')
+  })
+
+  // Order-level fields are per order on a consolidated document, because two
+  // orders can answer the same field differently.
+  it('keeps each covered order its own fields', () => {
+    const s = readSnapshot(CONSOLIDATED, FALLBACK)
+    expect(s.orders[0].fields).toEqual([['Delivery', 'Pickup']])
+    expect(s.orders[1].fields).toEqual([['Delivery', 'Courier']])
+  })
+
+  // A document frozen before consolidated invoicing has no `orders` key. It
+  // still renders — through the flat, ungrouped path, which is what a
+  // single-order document wanted anyway.
+  it('reports no covered orders for a snapshot written before they existed', () => {
+    const { orders, ...legacy } = REAL
+    const s = readSnapshot(legacy, FALLBACK)
+    expect(s.orders).toEqual([])
+    expect(s.lines).toHaveLength(1)
+    expect(s.total).toBe(432000)
+  })
+
+  // One order still yields one entry, so the renderer's "more than one?" test
+  // is the only thing deciding between grouped and flat.
+  it('reports a single covered order for an ordinary document', () => {
+    expect(readSnapshot(REAL, FALLBACK).orders).toHaveLength(1)
   })
 
   /**
