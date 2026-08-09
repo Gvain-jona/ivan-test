@@ -182,6 +182,28 @@ describe('/api/documents', () => {
     ])
   })
 
+  /**
+   * A3c is postponed to the payments cutover. issue_document() would build an
+   * order-shaped document — lines, tax, entity_type='order' — and number it as
+   * a receipt, which is a plausible record of the wrong thing. Refuse it here
+   * rather than rely on the org happening to have no doc:receipt counter.
+   */
+  it('POST refuses a receipt with 400 until the payments cutover', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await POST(
+      jsonRequest('/api/documents', {
+        entity_type: 'order',
+        entity_ids: [ORDER_UUID],
+        document_type: 'receipt',
+      }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(db.callsFor('rpc:issue_document_as_org')).toHaveLength(0)
+  })
+
   // A document about no orders is not a narrower request, it's a meaningless one.
   it('POST rejects an empty order list with 400', async () => {
     const { tenant, db } = createFakeTenant()

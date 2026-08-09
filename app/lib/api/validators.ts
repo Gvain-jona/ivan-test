@@ -328,6 +328,26 @@ export const listQuerySchema = z.object({
 
 export const documentEntitySchema = z.enum(['order', 'expense', 'client']);
 export const documentTypeSchema = z.enum(['quotation', 'proforma', 'invoice', 'receipt', 'po']);
+
+/**
+ * The subset that can be issued *from orders* — everything except `receipt`.
+ *
+ * A receipt is a document about a payment: what was received, how, against
+ * which debt. issue_document() only knows how to build an order-shaped
+ * document, so asking it for a receipt yields lines, tax and totals filed
+ * under `entity_type='order'` — a plausible-looking record of the wrong thing.
+ * Today the org has no `doc:receipt` counter so it fails on that instead, but
+ * that is an accident of configuration, not a guard.
+ *
+ * Receipts are A3c in `DB_ASKS.md`, postponed 2026-08-09 to the payments
+ * cutover. Add `receipt` back here in the same change that teaches
+ * issue_document() to build one.
+ */
+export const orderDocumentTypeSchema = z.enum(['quotation', 'proforma', 'invoice', 'po'], {
+  errorMap: () => ({
+    message: 'Receipts arrive with the payments cutover; issue a quotation, proforma, invoice or PO',
+  }),
+});
 export const documentStatusSchema = z.enum([
   'draft',
   'sent',
@@ -352,10 +372,11 @@ export const documentStatusSchema = z.enum([
  * several under `entity_type='client'`. All the orders must share one client,
  * which issue_document() enforces — a document is addressed to somebody.
  *
- * Orders only. `documents.entity_type` also permits payment/expense, but
- * nothing DB-side can issue those yet (receipts arrive with the payments
- * cutover, expenses with theirs), so accepting them here would just produce a
- * confusing failure deeper in.
+ * Orders only, and no receipts. `documents.entity_type` also permits
+ * payment/expense, but nothing DB-side can issue those yet (receipts arrive
+ * with the payments cutover, expenses with theirs), so accepting them here
+ * would just produce a confusing failure deeper in — or worse, in the receipt
+ * case, an order-shaped document wearing a receipt's number.
  */
 export const documentIssueSchema = z.object({
   entity_type: z.literal('order', {
@@ -364,7 +385,7 @@ export const documentIssueSchema = z.object({
   // Duplicates are harmless — issue_document() dedupes — but an empty list is
   // a document about nothing.
   entity_ids: z.array(z.string().uuid()).min(1).max(100),
-  document_type: documentTypeSchema,
+  document_type: orderDocumentTypeSchema,
   /** Overrides settings.documents.terms_days for this invoice only. */
   terms_days: z.number().int().min(0).optional(),
   /** Overrides settings.documents.quote_validity_days for this quotation. */

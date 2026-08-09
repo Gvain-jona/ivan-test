@@ -337,15 +337,17 @@ App side is one line either way (`'note'` added to the field-entity enum).
 
 ---
 
-## A3 — `issue_document()` covers one order, and only orders · **blocks F2, B7's receipt**
+## A3 — `issue_document()` covers one order, and only orders · **F2 unblocked; B7's receipt postponed**
 
-> ## ✅ **A3a + A3b DONE 2026-08-09** (`20260809160000_consolidated_invoices.sql`) · **A3c still open**
+> ## ✅ **A3a + A3b DONE 2026-08-09** (`20260809160000_consolidated_invoices.sql`) · ⏸ **A3c postponed**
 >
 > `issue_document(uuid[], text, jsonb)` — one order files under
 > `entity_type='order'` exactly as before, several under `entity_type='client'`
 > with the covered orders frozen in `snapshot.orders`. All must share a client.
-> F2 is unblocked. A3c (receipts) is untouched and still waits on the payments
-> cutover.
+> **F2 is unblocked.** A3c (receipts) is postponed to the payments cutover by
+> decision on 2026-08-09 — it shares no machinery with this work and its
+> snapshot shape belongs to a module that hasn't migrated. **Until then B7 must
+> not draw the Receipt chip.**
 >
 > **This ask counted three order-scoped guards. There are five**, and the two it
 > missed were the dangerous ones because they fail silently rather than loudly:
@@ -422,12 +424,30 @@ Confirmed by reading the sources; each is silent rather than loud.
 
 Must ship with A3a, not after.
 
-### A3c · Receipts
+### A3c · Receipts — ⏸ **POSTPONED 2026-08-09, to the payments cutover**
 
 `documents.entity_type` already permits `'payment'`, but nothing can produce
-one. The app currently refuses `entity_type != 'order'` at the API rather than
-letting the call fail deeper in. Expected with the payments cutover; noted here
-so it isn't forgotten.
+one. The app refuses `entity_type != 'order'` at the API rather than letting
+the call fail deeper in.
+
+**Why it waits rather than shipping with A3a/A3b.** A receipt is a document
+*about a payment*, not about an order, so it shares almost nothing with the
+work just done: no order lines, no tax computation, no discount, no
+receivable, and therefore none of the coverage or attribution machinery. It
+needs its own snapshot shape — what was received, by what method, against
+which document — and that shape is decided by the payments module, which
+hasn't been migrated. Building it now would mean guessing that shape and
+rewriting it at the cutover.
+
+**Consequence to honour meanwhile: B7 must not draw the Receipt chip.** A
+signifier that can't be wired shouldn't be shown (see the mobile guardrails in
+`CLAUDE.md`). Issue document offers Quotation and Invoice until this lands.
+Nothing else is blocked — a payment is still recorded and still shows on the
+order; what's missing is only the printable acknowledgement of it.
+
+**What unblocks it**: the payments cutover, which also carries A4 (`notes` on
+the inline-payment path) and the standalone-payment / unapplied-credit surface
+parked as task #5.
 
 ---
 

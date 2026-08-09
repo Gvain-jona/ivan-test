@@ -237,8 +237,13 @@ single swap point. Order creation still goes through the
   formula, `v2.order_paid_amount()`, so the maintained value and the drift
   check cannot disagree. `recompute_order_paid_for(uuid)` was dropped in the
   process — a `PUBLIC EXECUTE` callable writer with no org check; its UPDATE
-  lives in the trigger function now. **A3c (receipts) is still open** and waits
-  on the payments cutover. A4/A5 are papercuts.
+  lives in the trigger function now. **A3c (receipts) is postponed to the
+  payments cutover** (decided 2026-08-09): a receipt is a document about a
+  payment, sharing none of the lines/tax/receivable machinery above, and its
+  snapshot shape is the payments module's to define — building it now would
+  mean guessing that shape and rewriting it at the cutover. The one thing to
+  honour meanwhile is that **B7 must not draw its Receipt chip**; Issue
+  document offers Quotation and Invoice only. A4/A5 are papercuts.
   Both former "confirmation questions" are now answered from the source rather
   than inference: the `documents.snapshot` shape is recorded in
   `app/lib/documents/snapshot.ts`, and `issue_document` freezes the
