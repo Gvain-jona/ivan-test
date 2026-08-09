@@ -62,7 +62,7 @@ starter field.
 | B3 | Add a line — product or one-off | Not built |
 | B4 | Order — the hub | `OrderViewSheet` + 5 tabs supersede → rewrite |
 | B5 | Move stage | Partially (`StatusDropdown`) |
-| B7 | Issue document | Not built (Receipt chip blocked) |
+| B7 | Issue document | Not built — build without the Receipt chip (A3c postponed) |
 | B8 | Order discount | **Blocked — needs columns** |
 | B9 | Invoice — the document | Not built |
 | C1 | Clients | Exists, pre-redesign |
@@ -148,7 +148,11 @@ Two extensions, one function:
   learn to find a client-level invoice, not only an order-level one.
 - **Payments** — B7 offers a Receipt chip. `documents.entity_type` already
   permits `'payment'`; nothing can produce one yet. Not a design overreach — a
-  function that hasn't caught up. Ships with the payments cutover.
+  function that hasn't caught up. **Postponed 2026-08-09 to the payments
+  cutover** (A3c in `DB_ASKS.md`): a receipt shares none of the lines, tax or
+  receivable machinery A3a/A3b built, and its snapshot shape is the payments
+  module's to define. So **B7 ships with Quotation and Invoice only** — an
+  affordance that can't be wired doesn't get drawn.
 
 ### G4. `create_order` doesn't take a payment reference (found 2026-08-07)
 
