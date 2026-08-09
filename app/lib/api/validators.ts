@@ -339,16 +339,21 @@ export const documentStatusSchema = z.enum([
 ]);
 
 /**
- * POST /api/documents — issue a document from an order.
+ * POST /api/documents — issue one document covering one or more orders.
  *
- * No caller-supplied snapshot or totals: v2.issue_document() reads the order,
+ * No caller-supplied snapshot or totals: v2.issue_document() reads the orders,
  * resolves org settings, computes tax and freezes the snapshot itself. That
  * is the point — a client that can hand over the financial content of an
  * invoice can forge one, and the numbers would drift from the order the
  * moment either side changed.
  *
- * Orders only. `documents.entity_type` also permits payment/expense/client,
- * but nothing DB-side can issue those yet (receipts arrive with the payments
+ * `entity_ids` describes the *inputs*, not the document's own entity_type:
+ * the DB decides that, filing a single order under `entity_type='order'` and
+ * several under `entity_type='client'`. All the orders must share one client,
+ * which issue_document() enforces — a document is addressed to somebody.
+ *
+ * Orders only. `documents.entity_type` also permits payment/expense, but
+ * nothing DB-side can issue those yet (receipts arrive with the payments
  * cutover, expenses with theirs), so accepting them here would just produce a
  * confusing failure deeper in.
  */
@@ -356,7 +361,9 @@ export const documentIssueSchema = z.object({
   entity_type: z.literal('order', {
     errorMap: () => ({ message: 'Only orders can be issued as documents today' }),
   }),
-  entity_id: z.string().uuid(),
+  // Duplicates are harmless — issue_document() dedupes — but an empty list is
+  // a document about nothing.
+  entity_ids: z.array(z.string().uuid()).min(1).max(100),
   document_type: documentTypeSchema,
   /** Overrides settings.documents.terms_days for this invoice only. */
   terms_days: z.number().int().min(0).optional(),

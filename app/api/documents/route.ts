@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/documents — issue a document from an order.
+ * POST /api/documents — issue one document covering one or more orders.
  *
  * One RPC does the whole thing: v2.issue_document() allocates the number,
  * resolves org settings, computes tax, freezes the snapshot and writes the
@@ -158,8 +158,10 @@ export async function GET(request: NextRequest) {
  *
  * The result is an ISSUED document, not a draft: numbered, immutable, and
  * for invoices subject to the one-live-invoice-per-order rule (void before
- * reissuing). PDF rendering is a separate concern by design — a slow render
- * can't fail an issue, and a template change can't alter an issued document.
+ * reissuing) — which since 2026-08-09 also catches an order billed on somebody
+ * else's consolidated invoice, not just its own. PDF rendering is a separate
+ * concern by design — a slow render can't fail an issue, and a template change
+ * can't alter an issued document.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -181,7 +183,7 @@ export async function POST(request: NextRequest) {
       {
         p_org: tenant.organizationId,
         p_user: tenant.userId,
-        p_order_id: parsed.data.entity_id,
+        p_order_ids: parsed.data.entity_ids,
         p_document_type: parsed.data.document_type,
         p_options: options,
       },

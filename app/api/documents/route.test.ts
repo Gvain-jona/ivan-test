@@ -8,6 +8,7 @@ vi.mock('@/lib/auth/tenant', () => ({ resolveTenant: vi.fn() }))
 const resolveTenantMock = vi.mocked(resolveTenant)
 
 const ORDER_UUID = '33333333-3333-4333-8333-333333333333'
+const SECOND_ORDER_UUID = '44444444-4444-4444-8444-444444444444'
 
 describe('/api/documents', () => {
   beforeEach(() => resolveTenantMock.mockReset())
@@ -129,7 +130,7 @@ describe('/api/documents', () => {
     const res = await POST(
       jsonRequest('/api/documents', {
         entity_type: 'order',
-        entity_id: ORDER_UUID,
+        entity_ids: [ORDER_UUID],
         document_type: 'invoice',
       }),
     )
@@ -145,13 +146,57 @@ describe('/api/documents', () => {
     expect(rpc.values).toEqual({
       p_org: 'org-4',
       p_user: 'user-4',
-      p_order_id: ORDER_UUID,
+      p_order_ids: [ORDER_UUID],
       p_document_type: 'invoice',
       p_options: {},
     })
     // No hand-rolled numbering left: the counter is the RPC's business.
     expect(db.callsFor('rpc:next_number')).toHaveLength(0)
     expect(db.callsFor('insert:documents')).toHaveLength(0)
+  })
+
+  /**
+   * A consolidated invoice: several orders, one document. The route hands the
+   * whole list over — which orders can legally be combined (one client, none
+   * already billed) is issue_document()'s judgement, not the route's.
+   */
+  it('POST sends every order id through to the RPC', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('rpc:issue_document_as_org', { data: 'd-9' })
+    db.queue('select:documents', { data: { id: 'd-9' } })
+
+    const res = await POST(
+      jsonRequest('/api/documents', {
+        entity_type: 'order',
+        entity_ids: [ORDER_UUID, SECOND_ORDER_UUID],
+        document_type: 'invoice',
+      }),
+    )
+
+    expect(res.status).toBe(201)
+    const [rpc] = db.callsFor('rpc:issue_document_as_org')
+    expect((rpc.values as { p_order_ids: string[] }).p_order_ids).toEqual([
+      ORDER_UUID,
+      SECOND_ORDER_UUID,
+    ])
+  })
+
+  // A document about no orders is not a narrower request, it's a meaningless one.
+  it('POST rejects an empty order list with 400', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await POST(
+      jsonRequest('/api/documents', {
+        entity_type: 'order',
+        entity_ids: [],
+        document_type: 'invoice',
+      }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(db.callsFor('rpc:issue_document_as_org')).toHaveLength(0)
   })
 
   it('POST passes terms/validity overrides through as options', async () => {
@@ -163,7 +208,7 @@ describe('/api/documents', () => {
     await POST(
       jsonRequest('/api/documents', {
         entity_type: 'order',
-        entity_id: ORDER_UUID,
+        entity_ids: [ORDER_UUID],
         document_type: 'quotation',
         validity_days: 14,
       }),
@@ -185,7 +230,7 @@ describe('/api/documents', () => {
     const res = await POST(
       jsonRequest('/api/documents', {
         entity_type: 'order',
-        entity_id: ORDER_UUID,
+        entity_ids: [ORDER_UUID],
         document_type: 'invoice',
       }),
     )
@@ -200,7 +245,7 @@ describe('/api/documents', () => {
     const res = await POST(
       jsonRequest('/api/documents', {
         entity_type: 'order',
-        entity_id: ORDER_UUID,
+        entity_ids: [ORDER_UUID],
         document_type: 'contract',
       }),
     )
@@ -215,7 +260,7 @@ describe('/api/documents', () => {
     const res = await POST(
       jsonRequest('/api/documents', {
         entity_type: 'client',
-        entity_id: ORDER_UUID,
+        entity_ids: [ORDER_UUID],
         document_type: 'invoice',
       }),
     )

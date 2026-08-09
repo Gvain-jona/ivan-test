@@ -987,17 +987,21 @@ export type DatabaseV2 = {
         Returns: string
       }
       /**
-       * The core product action: freezes an order into a numbered document.
-       * Resolves org settings at this moment and writes them into the
-       * snapshot, so later changes to identity, tax or terms never alter an
-       * issued document. Does not render a PDF — a worker does that from the
-       * snapshot, so a slow render can't fail an issue.
+       * The core product action: freezes one or more orders into a numbered
+       * document. Resolves org settings at this moment and writes them into
+       * the snapshot, so later changes to identity, tax or terms never alter
+       * an issued document. Does not render a PDF — a worker does that from
+       * the snapshot, so a slow render can't fail an issue.
+       *
+       * Takes an ARRAY since 2026-08-09. One order files the document under
+       * entity_type='order'; several under entity_type='client', with the
+       * covered orders frozen in snapshot.orders. All must share a client.
        *
        * Derives its tenant from JWT claims, so the app calls the
        * issue_document_as_org shim instead.
        */
       issue_document: {
-        Args: { p_order_id: string; p_document_type: string; p_options?: Json }
+        Args: { p_order_ids: string[]; p_document_type: string; p_options?: Json }
         Returns: string
       }
       /**
@@ -1011,7 +1015,7 @@ export type DatabaseV2 = {
         Args: {
           p_org: string
           p_user: string
-          p_order_id: string
+          p_order_ids: string[]
           p_document_type: string
           p_options?: Json
         }

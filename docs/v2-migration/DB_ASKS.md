@@ -339,6 +339,52 @@ App side is one line either way (`'note'` added to the field-entity enum).
 
 ## A3 — `issue_document()` covers one order, and only orders · **blocks F2, B7's receipt**
 
+> ## ✅ **A3a + A3b DONE 2026-08-09** (`20260809160000_consolidated_invoices.sql`) · **A3c still open**
+>
+> `issue_document(uuid[], text, jsonb)` — one order files under
+> `entity_type='order'` exactly as before, several under `entity_type='client'`
+> with the covered orders frozen in `snapshot.orders`. All must share a client.
+> F2 is unblocked. A3c (receipts) is untouched and still waits on the payments
+> cutover.
+>
+> **This ask counted three order-scoped guards. There are five**, and the two it
+> missed were the dangerous ones because they fail silently rather than loudly:
+>
+> 4. **`recompute_order_paid()`** attributed via `allocation_order_id()`, which
+>    returns null for a client-level document — so no covered order's
+>    `amount_paid` would ever have moved, and `orders.balance` (generated) would
+>    be wrong on every screen that reads it.
+> 5. **`reconcile_money()`** computed drift with the *same* formula, so changing
+>    one without the other would have made the drift checker condemn every
+>    consolidated order. Both now call `v2.order_paid_amount()` — one function,
+>    so they cannot disagree.
+>
+> **Split rule (owner's decision): oldest first.** Cash on a consolidated
+> invoice fills its covered orders in the sequence the invoice billed them,
+> each to its own total. Two details that make it behave: the waterfall reads
+> the totals *frozen in the snapshot*, so editing an order later cannot
+> re-apportion money already received; and the **last** covered order absorbs
+> any remainder rather than being capped, which keeps overpayment visible as a
+> negative balance and makes the single-order case arithmetically identical to
+> the old behaviour — no existing document changes value.
+>
+> In tax-exclusive mode the document total exceeds the sum of its orders by the
+> tax, since orders carry no tax, so the waterfall attributes principal first.
+>
+> Verified live end to end: coverage lookup, the SINGLE RECEIVABLE lock now
+> catching an order billed on somebody else's invoice, FIFO across two orders
+> (300,000 / 200,000 paid 400,000 → 300,000 and 100,000), overpayment landing
+> on the last order as a −50,000 balance, party check against a client-level
+> document, refusal to double-bill, the single-order path unchanged, and
+> `reconcile_money()` reporting zero violations throughout.
+>
+> Also folded in: `recompute_order_paid_for(uuid)` is **dropped**. It was a
+> callable writer with `PUBLIC EXECUTE` that updated any order by id with no org
+> check, and it could not be locked down because the trigger path needs
+> `EXECUTE` anyway. The UPDATE moved into the trigger function, which refuses
+> direct invocation. Every new helper is a pure read, revoked from `PUBLIC` and
+> granted only to `authenticated` and `service_role`.
+
 Three related extensions to one function.
 
 ### A3a · One invoice covering several orders

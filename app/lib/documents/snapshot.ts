@@ -9,11 +9,16 @@
  * Shape confirmed by reading the function source on 2026-08-07 (see
  * DB_ASKS.md), not inferred:
  *
- *   meta         { document_type, document_number, order_number, order_date, issued_at }
+ *   meta         { document_type, document_number, order_number, order_date,
+ *                  order_count, issued_at }   order_number/date null when >1
  *   issuer       ← settings.identity, verbatim
  *   recipient    { client_id, name, fields{} }
- *   order_fields { <field_label>: <value> }
- *   lines        [ { description, quantity, unit_price, discount, total, fields{} } ]
+ *   order_fields { <field_label>: <value> }   top level only when 1 order
+ *   orders       [ { order_id, order_number, order_date, lines_total,
+ *                    discount_total, total, discount_type, discount_value,
+ *                    fields{} } ]
+ *   lines        [ { order_number, description, quantity, unit_price,
+ *                    discount, total, fields{} } ]
  *   totals       { currency, subtotal, discount_total, discount_type,
  *                  discount_value, tax_total, total, tax_label, tax_rate,
  *                  tax_registered, amounts_include_tax }
@@ -29,8 +34,21 @@ export interface SnapshotLine {
   quantity: number;
   unitPrice: number;
   total: number;
+  /** Which order this line came from — the only way to group a consolidated
+   *  document's lines back into the jobs they belong to. */
+  orderNumber: string | null;
   /** Org-defined fields flagged `show_in_documents`, already label-keyed. */
   fields: Record<string, string>;
+}
+
+/** One order covered by a document, as the document froze it. */
+export interface SnapshotOrder {
+  orderId: string | null;
+  orderNumber: string | null;
+  orderDate: string | null;
+  /** Net of that order's own discount; equals its `orders.total_amount`. */
+  total: number;
+  fields: [string, string][];
 }
 
 export interface DocumentSnapshot {
@@ -44,6 +62,12 @@ export interface DocumentSnapshot {
   recipientName: string | null;
   recipientDetails: string[];
   orderFields: [string, string][];
+  /**
+   * The orders this document covers, in the sequence it billed them — which
+   * is also the sequence payments fill them in. One entry for an ordinary
+   * document, several for a consolidated invoice.
+   */
+  orders: SnapshotOrder[];
   lines: SnapshotLine[];
   currency: string | null;
   subtotal: number;
@@ -114,6 +138,17 @@ export function readSnapshot(
     recipientDetails: pairs(recipient.fields).map(([, value]) => value),
     orderFields: pairs(s.order_fields),
 
+    orders: (Array.isArray(s.orders) ? s.orders : []).map(raw => {
+      const order = obj(raw);
+      return {
+        orderId: text(order.order_id),
+        orderNumber: text(order.order_number),
+        orderDate: text(order.order_date),
+        total: money(order.total),
+        fields: pairs(order.fields),
+      };
+    }),
+
     lines: lines.map(raw => {
       const line = obj(raw);
       return {
@@ -121,6 +156,7 @@ export function readSnapshot(
         quantity: money(line.quantity),
         unitPrice: money(line.unit_price),
         total: money(line.total),
+        orderNumber: text(line.order_number),
         fields: Object.fromEntries(pairs(line.fields)),
       };
     }),

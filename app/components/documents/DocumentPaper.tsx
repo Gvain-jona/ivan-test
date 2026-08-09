@@ -1,7 +1,11 @@
 'use client';
 
 import { formatDate } from '@/lib/utils';
-import { issuerInitials, type DocumentSnapshot } from '@/lib/documents/snapshot';
+import {
+  issuerInitials,
+  type DocumentSnapshot,
+  type SnapshotLine,
+} from '@/lib/documents/snapshot';
 
 /**
  * The document itself (B9 on the Pencil canvas), rendered from its frozen
@@ -113,31 +117,50 @@ export default function DocumentPaper({
 
       <Rule className="my-[18px]" />
 
-      <div className="flex flex-col gap-[11px]">
-        {s.lines.map((line, index) => (
-          <div key={index} className="flex flex-col gap-0.5">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[12.5px] font-semibold" style={{ color: INK }}>
-                {line.description}
-              </span>
-              <span
-                className="flex-shrink-0 text-[12.5px] font-semibold"
-                style={{ color: INK }}
-              >
-                {formatMoney(line.total)}
-              </span>
+      {/*
+        A consolidated invoice covers several jobs, and an undifferentiated
+        list of lines is unreadable — the client cannot tell which job they are
+        being charged for. Group under each order, and keep the flat list when
+        there is only one (the ordinary case), where a heading would be noise.
+      */}
+      {s.orders.length > 1 ? (
+        <div className="flex flex-col gap-[18px]">
+          {s.orders.map(order => (
+            <div key={order.orderId ?? order.orderNumber} className="flex flex-col gap-[11px]">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[10.5px] font-semibold" style={{ color: INK }}>
+                  {order.orderNumber ?? '—'}
+                  {order.orderDate && (
+                    <span className="font-normal" style={{ color: DIM }}>
+                      {' · '}
+                      {formatDate(order.orderDate)}
+                    </span>
+                  )}
+                </span>
+                <span className="flex-shrink-0 text-[10.5px] font-semibold" style={{ color: INK }}>
+                  {formatMoney(order.total)}
+                </span>
+              </div>
+              {order.fields.length > 0 && (
+                <span className="-mt-[7px] text-[10.5px]" style={{ color: DIM }}>
+                  {order.fields.map(([label, value]) => `${label} · ${value}`).join('   ')}
+                </span>
+              )}
+              {s.lines
+                .filter(line => line.orderNumber === order.orderNumber)
+                .map((line, index) => (
+                  <LineRow key={index} line={line} formatMoney={formatMoney} />
+                ))}
             </div>
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[10.5px]" style={{ color: DIM }}>
-                {Object.values(line.fields).join(' · ')}
-              </span>
-              <span className="flex-shrink-0 text-[10.5px]" style={{ color: DIM }}>
-                {line.quantity} × {formatMoney(line.unitPrice)}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-[11px]">
+          {s.lines.map((line, index) => (
+            <LineRow key={index} line={line} formatMoney={formatMoney} />
+          ))}
+        </div>
+      )}
 
       <Rule className="my-3.5" />
 
@@ -202,6 +225,35 @@ export default function DocumentPaper({
 
 function Rule({ className }: { className?: string }) {
   return <div className={className} style={{ height: 1, background: RULE }} />;
+}
+
+function LineRow({
+  line,
+  formatMoney,
+}: {
+  line: SnapshotLine;
+  formatMoney: (value: number) => string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[12.5px] font-semibold" style={{ color: INK }}>
+          {line.description}
+        </span>
+        <span className="flex-shrink-0 text-[12.5px] font-semibold" style={{ color: INK }}>
+          {formatMoney(line.total)}
+        </span>
+      </div>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[10.5px]" style={{ color: DIM }}>
+          {Object.values(line.fields).join(' · ')}
+        </span>
+        <span className="flex-shrink-0 text-[10.5px]" style={{ color: DIM }}>
+          {line.quantity} × {formatMoney(line.unitPrice)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
