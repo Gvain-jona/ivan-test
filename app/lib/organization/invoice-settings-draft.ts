@@ -43,7 +43,10 @@ export interface CounterLike {
 }
 
 const str = (value: unknown) => (value === undefined || value === null ? '' : String(value));
-const num = (value: string) => (value.trim() === '' ? undefined : Number(value));
+// null, not undefined: an emptied number field is a request to remove the
+// value (A5), the same as an emptied text field. undefined would mean "leave
+// it alone" and the old value would quietly survive.
+const num = (value: string) => (value.trim() === '' ? null : Number(value));
 
 export function buildInvoiceDraft(
   settings: OrganizationSettingsBlocks,

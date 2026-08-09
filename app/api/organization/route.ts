@@ -24,6 +24,11 @@ const ORG_COLUMNS = 'id, name, slug, status, settings, onboarding_completed_at';
  * identity); a caller patching settings.locale.currency must not lose
  * settings.locale.timezone, and patching one block must not drop another.
  * Blocks are flat, so one level of depth is the whole story.
+ *
+ * `null` removes the key (A5). Deleting rather than storing `''` keeps the
+ * stored JSON honest: settings is frozen verbatim into issued document
+ * snapshots, and a document that carries `"phone": ""` is asserting the
+ * business has a phone number that happens to be blank. Absent is the truth.
  */
 function mergeSettings(
   current: Record<string, unknown>,
@@ -32,10 +37,14 @@ function mergeSettings(
   const merged = { ...current };
   for (const [block, values] of Object.entries(patch)) {
     const existing = merged[block];
-    merged[block] = {
+    const next: Record<string, unknown> = {
       ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}),
-      ...values,
     };
+    for (const [key, value] of Object.entries(values as Record<string, unknown>)) {
+      if (value === null) delete next[key];
+      else next[key] = value;
+    }
+    merged[block] = next;
   }
   return merged;
 }

@@ -161,6 +161,54 @@ describe('PATCH /api/organization', () => {
     })
   })
 
+  /**
+   * A5: null removes the key. Deleting rather than storing '' matters because
+   * settings is frozen verbatim into issued document snapshots — a document
+   * carrying `"phone": ""` asserts the business has a blank phone number.
+   */
+  it('removes a key sent as null, leaving its siblings alone', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:organization', {
+      data: {
+        settings: {
+          identity: { legal_name: 'Ivan Prints Ltd', phone: '0772 100 200', tax_id: '1000123456' },
+        },
+      },
+    })
+    db.queue('update:organization', { data: { id: 'org-1' } })
+
+    const res = await PATCH(
+      jsonRequest(
+        '/api/organization',
+        { settings: { identity: { phone: null, tax_id: '2000999888' } } },
+        'PATCH',
+      ),
+    )
+
+    expect(res.status).toBe(200)
+    const [update] = db.callsFor('update:organization')
+    expect(update.values).toEqual({
+      settings: {
+        identity: { legal_name: 'Ivan Prints Ltd', tax_id: '2000999888' },
+      },
+    })
+  })
+
+  // An org that cannot name a currency cannot issue anything, so this one key
+  // is a change and never a removal — refused here rather than at issue time.
+  it('refuses to clear the currency with 400', async () => {
+    const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await PATCH(
+      jsonRequest('/api/organization', { settings: { locale: { currency: null } } }, 'PATCH'),
+    )
+
+    expect(res.status).toBe(400)
+    expect(db.callsFor('update:organization')).toHaveLength(0)
+  })
+
   it('writes onboarding completion to its column, never into settings', async () => {
     const { tenant, db } = createFakeTenant({ orgRole: 'owner' })
     resolveTenantMock.mockResolvedValue(tenant)

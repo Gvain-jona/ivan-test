@@ -1,16 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { settingsBlockPayload, unclearableKeys } from './settings-patch'
+import { settingsBlockPayload } from './settings-patch'
 
 describe('settingsBlockPayload', () => {
-  it('drops empty strings, undefined and null', () => {
-    expect(
-      settingsBlockPayload({ phone: '0772', email: '', website: undefined, tax_id: null }),
-    ).toEqual({ phone: '0772' })
+  /**
+   * An emptied field is a request to remove the value, and `null` is how the
+   * API says that — the route deletes the key rather than storing `''`, so an
+   * issued document's frozen settings never claim a blank phone number.
+   */
+  it('sends an emptied field as null', () => {
+    expect(settingsBlockPayload({ phone: '0772', email: '', tax_id: '' })).toEqual({
+      phone: '0772',
+      email: null,
+      tax_id: null,
+    })
   })
 
-  // The bug this guards: filtering on falsiness instead of on emptiness would
-  // silently refuse to save "not registered for tax" and "a 0% rate".
-  it('keeps false and 0, which are answers rather than absences', () => {
+  // undefined is the form never having touched the key, which means "leave it
+  // alone" — a different thing from clearing it.
+  it('drops a key the form never touched', () => {
+    expect(settingsBlockPayload({ phone: '0772', website: undefined })).toEqual({
+      phone: '0772',
+    })
+  })
+
+  // false and 0 are answers: "not registered for tax", "a 0% rate".
+  it('keeps false and zero', () => {
     expect(settingsBlockPayload({ registered: false, rate: 0, inclusive: true })).toEqual({
       registered: false,
       rate: 0,
@@ -18,30 +32,12 @@ describe('settingsBlockPayload', () => {
     })
   })
 
-  it('returns an empty object for a block with nothing set', () => {
-    expect(settingsBlockPayload({ phone: '', email: undefined })).toEqual({})
-  })
-})
-
-describe('unclearableKeys', () => {
-  it('names the keys the user emptied that will keep their value', () => {
-    const saved = { phone: '0772', email: 'a@b.co', tax_id: '100' }
-    const payload = settingsBlockPayload({ phone: '0772', email: '', tax_id: '' })
-    expect(unclearableKeys(saved, payload)).toEqual(['email', 'tax_id'])
+  // A null already in the draft is already a clear; it passes through as one.
+  it('passes an explicit null through', () => {
+    expect(settingsBlockPayload({ tax_id: null })).toEqual({ tax_id: null })
   })
 
-  it('says nothing when every stored key is still being sent', () => {
-    const saved = { phone: '0772' }
-    expect(unclearableKeys(saved, settingsBlockPayload({ phone: '0700' }))).toEqual([])
-  })
-
-  // Already empty, so emptying it loses nothing worth reporting.
-  it('ignores a key that was stored as an empty string', () => {
-    const saved = { address: '', phone: '0772' }
-    expect(unclearableKeys(saved, settingsBlockPayload({ address: '', phone: '0772' }))).toEqual([])
-  })
-
-  it('ignores keys the user never had stored', () => {
-    expect(unclearableKeys({}, settingsBlockPayload({ phone: '' }))).toEqual([])
+  it('handles an untouched block', () => {
+    expect(settingsBlockPayload({})).toEqual({})
   })
 })

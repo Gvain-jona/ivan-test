@@ -68,25 +68,21 @@ export const paymentInputSchema = z.object({
  * Payments supplied inline at order creation, which travel to
  * v2.create_order rather than v2.record_payment.
  *
- * Read against the live function on 2026-08-07, not the handoff doc — §9 of
+ * Both fields are read against the live function, not the handoff doc — §9 of
  * that doc lists the payload as {amount, payment_method, payment_date} and is
- * stale in both directions:
+ * stale about both:
  *
- *   `reference` IS persisted — create_order inserts
- *   `nullif(v_payment->>'reference','')`. Accepted here.
+ *   `reference` IS persisted — `nullif(v_payment->>'reference','')`.
+ *   `notes` is too, since A4 (migration 20260809180000). Before that the
+ *   insert simply had no notes column and a note sent here vanished without
+ *   an error, so this schema omitted the key and was `.strict()` — refusing it
+ *   loudly was the only way to stop the payment sheet offering a field the DB
+ *   threw away. The DB stores it now, so the refusal is gone.
  *
- *   `notes` is NOT. The insert names organization_id, direction, party_type,
- *   party_id, amount, payment_date, payment_method, reference, created_by —
- *   and nothing else. A note sent on this path disappears without an error.
- *
- * So `notes` is omitted and the schema is `.strict()`: refusing it loudly is
- * what stops the create-order payment sheet from offering a field the DB
- * throws away. Record the payment through POST /api/orders/[id]/payments,
- * which goes via record_payment and does store notes.
+ * Still `.strict()`: this path takes exactly what create_order reads, and a
+ * key it doesn't read is a key that would be silently lost.
  */
-export const orderCreatePaymentSchema = paymentInputSchema
-  .omit({ notes: true })
-  .strict();
+export const orderCreatePaymentSchema = paymentInputSchema.strict();
 
 /**
  * A trade discount off the whole order — the figure the user typed, not the
@@ -209,46 +205,62 @@ export const fieldDefinitionCreateSchema = z.object({
  */
 const currencyCode = z.string().trim().regex(/^[A-Z]{3}$/, 'Expected a 3-letter ISO 4217 code');
 
+/**
+ * `null` means "remove this key", which the route's merge honours by deleting
+ * it rather than storing an empty value (A5).
+ *
+ * Every key here takes it except `locale.currency`. Clearing the currency
+ * leaves the org unable to issue anything — `issue_document()` raises
+ * "organization has no locale.currency configured" — and it would fail later,
+ * at issue time, rather than at the moment the choice was made. An org always
+ * bills in *some* currency, so this is a change, never a removal.
+ *
+ * The DB trigger stays the authority on what a removal breaks: dropping
+ * `tax.rate` while `tax.registered` is true is rejected there, and its message
+ * is surfaced verbatim.
+ */
+const clearable = <T extends z.ZodTypeAny>(schema: T) => schema.nullable();
+
 const settingsBlocks = z
   .object({
     locale: z
       .object({
         currency: currencyCode,
-        date_format: z.string().trim().min(1),
-        timezone: z.string().trim().min(1),
+        date_format: clearable(z.string().trim().min(1)),
+        timezone: clearable(z.string().trim().min(1)),
       })
       .partial()
       .strict(),
     tax: z
       .object({
-        registered: z.boolean(),
-        label: z.string().trim().min(1),
-        rate: z.number().min(0).max(100),
-        inclusive: z.boolean(),
-        number: z.string().trim().min(1),
+        registered: clearable(z.boolean()),
+        label: clearable(z.string().trim().min(1)),
+        rate: clearable(z.number().min(0).max(100)),
+        inclusive: clearable(z.boolean()),
+        number: clearable(z.string().trim().min(1)),
       })
       .partial()
       .strict(),
     documents: z
       .object({
-        terms_days: z.number().int().min(0),
-        quote_validity_days: z.number().int().min(0),
-        footer: z.string(),
-        bank_details: z.string(),
-        show_bank_details: z.boolean(),
+        terms_days: clearable(z.number().int().min(0)),
+        quote_validity_days: clearable(z.number().int().min(0)),
+        footer: clearable(z.string()),
+        bank_details: clearable(z.string()),
+        show_bank_details: clearable(z.boolean()),
       })
       .partial()
       .strict(),
     identity: z
       .object({
-        legal_name: z.string().trim().min(1),
-        trading_name: z.string().trim().min(1),
-        address: z.string(),
-        phone: z.string().trim().min(1),
-        email: z.string().trim().email(),
-        tax_id: z.string().trim().min(1),
-        website: z.string().trim().min(1),
-        logo_attachment_id: z.string().uuid(),
+        legal_name: clearable(z.string().trim().min(1)),
+        trading_name: clearable(z.string().trim().min(1)),
+        address: clearable(z.string()),
+        phone: clearable(z.string().trim().min(1)),
+        email: clearable(z.string().trim().email()),
+        tax_id: clearable(z.string().trim().min(1)),
+        website: clearable(z.string().trim().min(1)),
+        logo_attachment_id: clearable(z.string().uuid()),
       })
       .partial()
       .strict(),
