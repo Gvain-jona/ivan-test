@@ -453,6 +453,20 @@ parked as task #5.
 
 ## A4 — `create_order()` silently drops a payment's note · **small**
 
+> ## ✅ **DONE 2026-08-09** (`20260809180000_create_order_keeps_payment_notes.sql`)
+>
+> `notes` joins the payment insert, as `nullif(v_payment->>'notes','')` — an
+> empty string is an absent note, not a note that says nothing, matching how
+> `reference` is handled. The app's refusal lifts in the same commit:
+> `orderCreatePaymentSchema` no longer omits the key. It stays `.strict()`,
+> because a key `create_order` doesn't read is still a key that would be
+> silently lost.
+>
+> Verified live: an inline payment carrying `notes: 'Deposit'` and
+> `reference: 'MTN-8842190'` stores both; `notes: ''` stores null.
+>
+> The create-order payment sheet can now offer a note field.
+
 Its payment insert names exactly:
 
 ```
@@ -473,18 +487,45 @@ offer a note field.
 
 ---
 
-## A5 — A settings value cannot be cleared · **papercut**
+## A5 — A settings value cannot be cleared · ✅ **DONE 2026-08-09 — and it was never a DB ask**
 
-`organizations.settings` blocks are validated strictly and most of their string
-keys require at least one character. So sending `""` is rejected, and omitting a
-key means "leave it alone" — which leaves **no way to remove a value once set**.
+> **The premise was wrong, and reading `validate_organization_settings` is what
+> showed it.** The trigger checks block names, tax types and range,
+> `terms_days`, the currency regex, and the logo reference. It has **no
+> non-empty-string rule at all** — the DB has always accepted a cleared value,
+> and accepts a removed key. Verified live: clearing `identity.phone` was
+> accepted with no complaint.
+>
+> The `.min(1)`s were **ours**, in `settingsBlocks` (`app/lib/api/validators.ts`).
+> So this needed no migration, no DB owner, and nothing was ever blocked on
+> anyone else. It had been sitting in the ask list for two days.
+>
+> **Fixed app-side**: every settings key is now `.nullable()`, `null` means
+> "remove this", and `mergeSettings` deletes the key rather than storing `''`.
+> Deleting matters because settings is frozen verbatim into issued document
+> snapshots — a document carrying `"phone": ""` asserts the business has a
+> blank phone number. Absent is the truth.
+>
+> **One key stays non-nullable: `locale.currency`.** An org that cannot name a
+> currency cannot issue anything (`issue_document()` raises), and that failure
+> would arrive later, at issue time, rather than when the choice was made. It
+> is a change, never a removal.
+>
+> **The DB stays the authority on what a removal breaks.** Removing `tax.rate`
+> while `tax.registered` is true is refused by the trigger — confirmed live,
+> with its message surfaced verbatim.
+>
+> Also fixed in passing: `num('')` returned `undefined`, so the *number* fields
+> (Payment terms, Quote validity) still could not be cleared even once the
+> strings could. `unclearableKeys()` is deleted — it existed only to tell the
+> user which fields had kept their old value, and there are none.
 
-An owner who deletes their phone number and saves currently gets told which
-fields kept their old value, because the alternative was reporting a success
-that didn't happen.
-
-Ask: accept `null` (or empty string) as "clear this" for the optional string
-keys in `identity`, `tax` and `documents`.
+**Original ask, kept for the record.** `organizations.settings` blocks are
+validated strictly and most of their string keys require at least one
+character. So sending `""` is rejected, and omitting a key means "leave it
+alone" — which leaves no way to remove a value once set. Accept `null` (or
+empty string) as "clear this" for the optional string keys in `identity`, `tax`
+and `documents`.
 
 ---
 

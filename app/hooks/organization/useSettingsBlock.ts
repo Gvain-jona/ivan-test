@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { apiRequest, PLATFORM_API } from '@/lib/api/client';
 import { useOrganization } from './useOrganization';
-import { settingsBlockPayload, unclearableKeys } from '@/lib/organization/settings-patch';
+import { settingsBlockPayload } from '@/lib/organization/settings-patch';
 import type { OrganizationSettingsBlocks } from '@/lib/api/validators';
 
 type BlockName = keyof OrganizationSettingsBlocks;
@@ -18,12 +18,14 @@ type BlockValues<B extends BlockName> = NonNullable<OrganizationSettingsBlocks[B
  * level into each named block — so a whole block saves at once and untouched
  * keys survive. That is why this is per-block rather than per-field.
  *
- * Known limit, surfaced rather than worked around: a key that already has a
- * value **cannot be cleared**. Most block strings are `.min(1)`, so sending
- * `''` is a validation error, and omitting the key means "leave it alone".
- * Emptying such a field therefore saves nothing, and `save()` says so instead
- * of reporting a success that didn't happen. Clearing needs the DB-side schema
- * to accept null or empty for those keys.
+ * Emptying a field removes it: `settingsBlockPayload` turns `''` into `null`
+ * and the route deletes that key. This used to be impossible — the block
+ * schemas were `.min(1)`, so `''` was a 400 and omitting a key meant "leave it
+ * alone" — and `save()` had to report which fields had kept their old value.
+ * A5 fixed it on 2026-08-09, so a save is now simply a save.
+ *
+ * The exception is `locale.currency`, which is not nullable: an org always
+ * bills in some currency, so that field is a change, never a removal.
  */
 export function useSettingsBlock<B extends BlockName>(block: B) {
   const { settings, orgRole, isLoading, mutate } = useOrganization();
@@ -56,20 +58,12 @@ export function useSettingsBlock<B extends BlockName>(block: B) {
 
   const save = useCallback(async () => {
     const payload = settingsBlockPayload(draft as Record<string, unknown>);
-    const cleared = unclearableKeys(saved as Record<string, unknown>, payload);
 
     setSaving(true);
     try {
       await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', { settings: { [block]: payload } });
       await mutate();
-      toast(
-        cleared.length > 0
-          ? {
-              title: 'Saved, but some fields kept their old value',
-              description: `${cleared.join(', ')} can't be emptied yet — set a new value instead.`,
-            }
-          : { title: 'Saved' },
-      );
+      toast({ title: 'Saved' });
     } catch (error) {
       toast({
         title: 'Could not save',
@@ -81,7 +75,7 @@ export function useSettingsBlock<B extends BlockName>(block: B) {
     } finally {
       setSaving(false);
     }
-  }, [block, draft, saved, mutate, toast]);
+  }, [block, draft, mutate, toast]);
 
   return {
     draft,

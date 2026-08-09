@@ -243,7 +243,17 @@ single swap point. Order creation still goes through the
   snapshot shape is the payments module's to define — building it now would
   mean guessing that shape and rewriting it at the cutover. The one thing to
   honour meanwhile is that **B7 must not draw its Receipt chip**; Issue
-  document offers Quotation and Invoice only. A4/A5 are papercuts.
+  document offers Quotation and Invoice only. **A4 is done**
+  (`20260809180000`): `create_order()` keeps an inline payment's `notes`, so
+  the create-order payment sheet can offer that field. **A5 is done, and it was
+  never a DB ask** — `validate_organization_settings` has no non-empty-string
+  rule and always accepted a cleared value; the `.min(1)`s were ours, in
+  `settingsBlocks`. Every settings key is now nullable, `null` removes it, and
+  the route deletes the key rather than storing `''` (settings is frozen into
+  document snapshots, and `"phone": ""` asserts a blank phone number).
+  `locale.currency` stays non-nullable — an org that cannot name a currency
+  cannot issue anything. **With that, every ask in `DB_ASKS.md` is closed
+  except A3c**, which is postponed by decision rather than blocked.
   Both former "confirmation questions" are now answered from the source rather
   than inference: the `documents.snapshot` shape is recorded in
   `app/lib/documents/snapshot.ts`, and `issue_document` freezes the

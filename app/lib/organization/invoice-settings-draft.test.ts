@@ -71,11 +71,31 @@ describe('invoiceSettingsPatch', () => {
     expect(invoiceSettingsPatch(draftFrom({ currency: '  ' })).locale).toBeUndefined()
   })
 
-  // The blocks are strict and most strings are min(1), so '' is a 400.
-  it('drops empty strings but keeps false', () => {
+  /**
+   * An emptied field asks for the value to be removed, and null is how the
+   * API says that (A5). false is not an absence — it is "not registered for
+   * tax" — so it travels as itself.
+   */
+  it('sends emptied fields as null and keeps false', () => {
     const patch = invoiceSettingsPatch(draftFrom({ legalName: '', chargeTax: false }))
-    expect(patch.identity).toEqual({})
+    expect((patch.identity as Record<string, unknown>).legal_name).toBeNull()
     expect(patch.tax).toMatchObject({ registered: false })
+  })
+
+  // The same must hold for the number fields, or Payment terms would be the
+  // one setting you still could not remove.
+  it('sends an emptied number field as null too', () => {
+    const patch = invoiceSettingsPatch(draftFrom({ termsDays: '', quoteValidityDays: '30' }))
+    expect(patch.documents).toMatchObject({ terms_days: null, quote_validity_days: 30 })
+  })
+
+  /**
+   * Currency is the one key that cannot be cleared — the schema refuses null,
+   * because an org unable to name a currency cannot issue anything. So a blank
+   * currency omits the block rather than trying to remove the key.
+   */
+  it('never asks to clear the currency', () => {
+    expect(invoiceSettingsPatch(draftFrom({ currency: '' })).locale).toBeUndefined()
   })
 })
 

@@ -133,10 +133,37 @@ describe('POST /api/orders', () => {
     ])
   })
 
-  // The same function's insert names no `notes` column, so a note sent here
-  // vanishes without an error. Refuse loudly — a dropped key is a lost one
-  // whether the DB or zod discards it.
-  it('rejects notes on an inline payment with 400', async () => {
+  /**
+   * A note used to vanish on this path — create_order's payment insert named
+   * no notes column — so the schema refused it outright rather than let it be
+   * lost silently. A4 (20260809180000) added the column to the insert;
+   * verified against the live function on 2026-08-09.
+   */
+  it('passes an inline payment note through', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('rpc:create_order_as_org', { data: 'o-4' })
+    db.queue('select:orders', { data: { id: 'o-4' } })
+
+    const res = await POST(
+      jsonRequest('/api/orders', {
+        client_id: CLIENT_UUID,
+        items: [{ product_name_raw: 'Flyers', quantity: 500, unit_price: 100 }],
+        payments: [{ amount: 20000, notes: 'Deposit', reference: 'MTN-8842190' }],
+      }),
+    )
+
+    expect(res.status).toBe(201)
+    const [rpc] = db.callsFor('rpc:create_order_as_org')
+    const { payload } = rpc.values as { payload: { payments: unknown[] } }
+    expect(payload.payments).toEqual([
+      { amount: 20000, notes: 'Deposit', reference: 'MTN-8842190' },
+    ])
+  })
+
+  // Still strict: this path takes exactly what create_order reads, and a key
+  // it doesn't read is a key that would be silently lost.
+  it('rejects an unknown key on an inline payment with 400', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
 
@@ -144,7 +171,7 @@ describe('POST /api/orders', () => {
       jsonRequest('/api/orders', {
         client_id: CLIENT_UUID,
         items: [{ product_name_raw: 'Flyers', quantity: 500, unit_price: 100 }],
-        payments: [{ amount: 20000, notes: 'Deposit' }],
+        payments: [{ amount: 20000, cheque_book: 'B-12' }],
       }),
     )
 
