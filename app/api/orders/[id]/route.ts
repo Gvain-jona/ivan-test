@@ -11,8 +11,8 @@ import { orderUpdateSchema } from '@/lib/api/validators';
 
 const ORDER_DETAIL_COLUMNS =
   'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
-  'balance, payment_status, custom_data, created_at, updated_at, ' +
-  'clients(id, name), order_items(*)';
+  'balance, payment_status, discount_type, discount_value, custom_data, ' +
+  'created_at, updated_at, clients(id, name), order_items(*)';
 
 /** One payment as this order sees it: the cash event, at its allocated amount. */
 interface OrderPayment {
@@ -102,6 +102,7 @@ export async function GET(
       .from('orders')
       .select(ORDER_DETAIL_COLUMNS)
       .eq('id', id)
+      .eq('organization_id', tenant.organizationId)
       .maybeSingle();
 
     if (error) return handleSupabaseError(error);
@@ -117,9 +118,20 @@ export async function GET(
 }
 
 /**
- * PATCH /api/orders/[id] — status / order_date / client_id /
- * custom_data only. Money fields are trigger-maintained or generated;
- * they are not accepted here by schema design.
+ * PATCH /api/orders/[id] — status / order_date / client_id / custom_data,
+ * plus the order discount.
+ *
+ * total_amount and balance stay unwritable: they are trigger-maintained and
+ * generated. discount_type/discount_value are the exception because they are
+ * the *input* those triggers compute from — writing them re-derives the total
+ * via trg_orders_discount_totals rather than setting it.
+ *
+ * That makes this the first money-affecting write on the route, which is why
+ * both queries in this file now carry the organization_id filter that
+ * tenant.db (service-role, RLS bypassed) requires. Scoping by id alone was
+ * SEC-05 in AUDIT_PROGRESS.md; it is fixed here for orders because a
+ * cross-tenant discount write is a different order of problem from a
+ * cross-tenant status write. The other [id] routes still need the same pass.
  */
 export async function PATCH(
   request: NextRequest,
@@ -140,9 +152,10 @@ export async function PATCH(
       .from('orders')
       .update(parsed.data)
       .eq('id', id)
+      .eq('organization_id', tenant.organizationId)
       .select(
         'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
-          'balance, payment_status, custom_data, updated_at',
+          'balance, payment_status, discount_type, discount_value, custom_data, updated_at',
       )
       .maybeSingle();
 

@@ -214,16 +214,26 @@ single swap point. Order creation still goes through the
   mirrored into `supabase/migrations/`): `notes.custom_data`, `'note'` in the
   `field_definitions` entity whitelist, and a `trg_validate_note_cd`
   registration — `validate_custom_data()` needed no change, being already
-  parameterised by `TG_ARGV[0]`. **A1 (order-level discount columns +
-  `recompute_order_totals` + `issue_document`'s hardcoded `discount_total`)
-  still blocks the UI rebuild** — B2's discount row needs it, and the decision
-  on 2026-08-07 was to wait rather than build that screen twice. It was left to
-  the schema owner deliberately: it changes what money a document states. A3
-  extends `issue_document()` to several orders (with the matching
+  parameterised by `TG_ARGV[0]`. **A1 is done, both parts** (`20260807220500`
+  part 1, applied by the DB owner; `20260809120000` part 2), unblocking B2, B4,
+  B7 and B8. The order-level discount now exists as `orders.discount_type` /
+  `discount_value` — the figure the user typed, never the money — with
+  `v2.order_discount_amount()` as the single resolver shared by
+  `recompute_order_totals()` and `issue_document()`, so an order and the
+  document that freezes it cannot disagree. All money rounds at
+  `v2.currency_scale()` rather than a hardcoded 2dp, which for UGX (zero minor
+  units) is the difference between a printed document that adds up and one that
+  doesn't. Verified live across all four tax modes — see `DB_ASKS.md` A1 for
+  the measured table and for why `documents.total` being a generated column
+  dictates the shape of the arithmetic.
+  A3 extends `issue_document()` to several orders (with the matching
   `validate_payment_allocation` change, which must ship together or SINGLE
   RECEIVABLE goes quiet) and to payments for receipts. A4/A5 are papercuts.
-  The two confirmations — the `documents.snapshot` shape, and which tax number
-  `issue_document` freezes — currently rest on inference.
+  Both former "confirmation questions" are now answered from the source rather
+  than inference: the `documents.snapshot` shape is recorded in
+  `app/lib/documents/snapshot.ts`, and `issue_document` freezes the
+  tax-exclusive presentation (`subtotal`, `discount_total`, `tax_total`) from
+  which the generated `total` is computed.
 - **DB owner items** (flagged, not app work): trigger-based activity/audit log
   on orders/payments; ~~tenant provisioning (new org must get counters +
   membership bootstrapped)~~ (resolved 2026-07-24 — `v2.provision_organization`

@@ -144,7 +144,15 @@ export default function DocumentPaper({
       <div className="flex flex-col gap-2">
         <Row label="Subtotal" value={formatMoney(s.subtotal)} />
         {s.discountTotal > 0 && (
-          <Row label="Discount" value={`− ${formatMoney(s.discountTotal)}`} />
+          <Row
+            // The rate is what was agreed; the amount is what it came to. A
+            // percentage discount that prints only the amount makes the reader
+            // do the division to check it.
+            label={
+              s.discountType === 'percent' ? `Discount (${s.discountValue}%)` : 'Discount'
+            }
+            value={`− ${formatMoney(s.discountTotal)}`}
+          />
         )}
 
         <Rule />

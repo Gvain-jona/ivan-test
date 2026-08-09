@@ -88,18 +88,52 @@ export const orderCreatePaymentSchema = paymentInputSchema
   .omit({ notes: true })
   .strict();
 
-export const orderCreateSchema = z.object({
-  client_id: z.string().uuid(),
-  order_date: isoDate.optional(),
-  status: z.string().trim().min(1).optional(),
-  custom_data: customData.optional(),
-  items: z.array(orderItemInputSchema).min(1),
-  payments: z.array(orderCreatePaymentSchema).optional(),
-});
+/**
+ * A trade discount off the whole order — the figure the user typed, not the
+ * money it resolves to. `v2.order_discount_amount()` derives the amount, and
+ * the same resolver runs in `recompute_order_totals()` and `issue_document()`
+ * so the order and the document it freezes cannot disagree.
+ *
+ * `discount_type: null` is how a discount is removed, which is why it is
+ * nullable rather than merely optional — omitting the key leaves the existing
+ * discount in place, sending null clears it.
+ *
+ * The percent ceiling is also a DB CHECK (`orders_discount_percent_range`);
+ * it lives here too so the user gets a field error instead of a 400 from a
+ * constraint name.
+ */
+const orderDiscountShape = {
+  discount_type: z.enum(['amount', 'percent']).nullable().optional(),
+  discount_value: z.number().min(0).optional(),
+};
+
+const withinPercentRange = (d: {
+  discount_type?: 'amount' | 'percent' | null;
+  discount_value?: number;
+}) => d.discount_type !== 'percent' || (d.discount_value ?? 0) <= 100;
+
+const percentRangeError = {
+  message: 'A percentage discount cannot exceed 100',
+  path: ['discount_value'],
+};
+
+export const orderCreateSchema = z
+  .object({
+    client_id: z.string().uuid(),
+    order_date: isoDate.optional(),
+    status: z.string().trim().min(1).optional(),
+    custom_data: customData.optional(),
+    ...orderDiscountShape,
+    items: z.array(orderItemInputSchema).min(1),
+    payments: z.array(orderCreatePaymentSchema).optional(),
+  })
+  .refine(withinPercentRange, percentRangeError);
 
 /**
  * total_amount / amount_paid / balance / payment_status are absent on
  * purpose: trigger-maintained or generated columns, read-only for the API.
+ * The discount columns are the exception — they are the *input* the triggers
+ * compute from, so they are writable while the totals they produce are not.
  */
 export const orderUpdateSchema = z
   .object({
@@ -107,8 +141,10 @@ export const orderUpdateSchema = z
     order_date: isoDate.optional(),
     status: z.string().trim().min(1).optional(),
     custom_data: customData.optional(),
+    ...orderDiscountShape,
   })
-  .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' });
+  .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' })
+  .refine(withinPercentRange, percentRangeError);
 
 /**
  * Entities whose fields the app lets an org define.
