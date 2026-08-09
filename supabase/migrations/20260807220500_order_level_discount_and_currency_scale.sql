@@ -6,13 +6,11 @@
 -- cases (percent, amount, item-added-after-discount, UGX rounding, cleared,
 -- over-discount) all exact.
 --
--- Part 2 is NOT done, and until it is there is a live divergence: issue_document()
--- still sums order_items and hardcodes discount_total = 0, so an invoice would
--- bill the undiscounted amount while orders.total_amount is net. Unreachable
--- through the app today — create_order() takes no discount fields and
--- orderUpdateSchema allowlists four keys that don't include them — so the only
--- way to set a discount right now is a direct DB write. Do not add the write
--- path before issue_document() understands the discount.
+-- Part 2 landed in 20260809120000: issue_document() applies the discount and
+-- rounds at the currency's scale, create_order() accepts it, and the app write
+-- path opened in the same change. Between the two migrations there was a
+-- divergence (the order was net, an invoice would have billed gross) that
+-- nothing could reach, which is why part 1 shipped alone safely.
 --
 -- Money is stated at the currency's own precision. UGX has zero minor units, so
 -- a hardcoded 2dp invents cents that renderers round away again — with a

@@ -55,7 +55,23 @@ export interface PaymentInput {
   notes?: string;
 }
 
-export interface OrderCreateInput {
+/**
+ * The order-level discount: the figure the user typed, not the money it comes
+ * to. The DB derives the amount (`v2.order_discount_amount`) and the totals
+ * trigger applies it, so nothing here ever states a total.
+ *
+ * Distinct from `OrderItemInput.discount`, which is an absolute amount off a
+ * single line. This one is off the whole order and can be a percentage.
+ *
+ * `null` clears it; omitting the key leaves whatever is there.
+ */
+interface OrderDiscountInput {
+  discount_type?: 'amount' | 'percent' | null;
+  /** ≤ 100 when the type is 'percent' — enforced by schema and DB CHECK. */
+  discount_value?: number;
+}
+
+export interface OrderCreateInput extends OrderDiscountInput {
   client_id: string;
   order_date?: string;
   status?: string;
@@ -64,7 +80,7 @@ export interface OrderCreateInput {
   payments?: PaymentInput[];
 }
 
-export interface OrderUpdateInput {
+export interface OrderUpdateInput extends OrderDiscountInput {
   client_id?: string;
   order_date?: string;
   status?: string;

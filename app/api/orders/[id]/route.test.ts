@@ -154,4 +154,86 @@ describe('PATCH /api/orders/[id]', () => {
     )
     expect(missing.status).toBe(404)
   })
+
+  /**
+   * The discount is the one money-affecting field this route accepts. It is
+   * safe to write because it is an *input*: the trigger derives total_amount
+   * from it, so the route never states a total.
+   */
+  it('writes the discount and scopes the update to the org', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('update:orders', {
+      data: { id: 'o-1', discount_type: 'percent', discount_value: 10, total_amount: 81000 },
+    })
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { discount_type: 'percent', discount_value: 10 }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(200)
+    const [update] = db.callsFor('update:orders')
+    expect(update.values).toEqual({ discount_type: 'percent', discount_value: 10 })
+    // tenant.db is service-role — id alone would reach another org's order,
+    // and this is a money write.
+    expect(update.filters).toContainEqual(['eq', 'organization_id', tenant.organizationId])
+  })
+
+  // null is how a discount is removed; omitting the key leaves it in place.
+  it('accepts a null discount_type as the clear', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('update:orders', { data: { id: 'o-1', discount_type: null } })
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { discount_type: null, discount_value: 0 }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(200)
+    const [update] = db.callsFor('update:orders')
+    expect(update.values).toEqual({ discount_type: null, discount_value: 0 })
+  })
+
+  /**
+   * Also a DB CHECK (orders_discount_percent_range). Rejecting it here is what
+   * turns it into a field error instead of a 400 naming a constraint.
+   */
+  it('rejects a percentage over 100 before it reaches the DB', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { discount_type: 'percent', discount_value: 150 }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(db.callsFor('update:orders')).toHaveLength(0)
+  })
+
+  // 150 is a legitimate fixed amount; only percentages are capped.
+  it('allows a fixed amount above 100', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('update:orders', { data: { id: 'o-1' } })
+
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { discount_type: 'amount', discount_value: 150 }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects a negative discount', async () => {
+    const { tenant } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    const res = await PATCH(
+      jsonRequest('/api/orders/o-1', { discount_type: 'amount', discount_value: -1 }, 'PATCH'),
+      routeParams({ id: 'o-1' }),
+    )
+    expect(res.status).toBe(400)
+  })
 })

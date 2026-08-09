@@ -44,20 +44,42 @@ clients or products. There is no backfill to weigh.
 
 ## A1 — Order-level discount has nowhere to live · **blocks B2, B4, B7, B8, B9, F2**
 
-> **Part 1 applied and verified 2026-08-09** (`20260807220500_order_level_discount_and_currency_scale.sql`).
-> `orders.discount_type` / `discount_value`, `v2.currency_scale()`,
-> `v2.order_discount_amount()`, and both recompute triggers are live; seven
-> arithmetic cases check out exactly, including UGX rounding at scale 0.
-> `DatabaseV2` now carries the two columns.
+> ## ✅ **DONE — both parts applied and verified 2026-08-09**
 >
-> **Part 2 is still open, and it is now a divergence rather than a gap.**
-> `issue_document()` sums `order_items` and writes `discount_total = 0`, so it
-> would bill the *undiscounted* amount while `orders.total_amount` is net. It is
-> unreachable through the app — `create_order()` takes no discount fields and
-> `orderUpdateSchema` allowlists four keys that exclude them — so the ordering
-> constraint is firm: **`issue_document()` must understand the discount before
-> any write path exposes it.** Part 2 also owes `issue_document()` the currency
-> scale; its tax maths still rounds at a hardcoded 2dp.
+> **Part 1** (`20260807220500`): `orders.discount_type` / `discount_value`,
+> `v2.currency_scale()`, `v2.order_discount_amount()`, both recompute triggers.
+> Seven arithmetic cases exact, including UGX rounding at scale 0.
+>
+> **Part 2** (`20260809120000`): `issue_document()` now applies the discount and
+> rounds at the currency's scale; `create_order()` accepts the discount;
+> `orders_discount_percent_range` caps a percentage at 100. The write path
+> opened in the same change — app side: `orderCreateSchema` /
+> `orderUpdateSchema`, `PATCH /api/orders/[id]`, `readSnapshot()`,
+> `DocumentPaper`.
+>
+> Measured live across all four tax modes (480,000 of lines, 10% off):
+>
+> | mode | subtotal | discount | tax | total |
+> |---|---|---|---|---|
+> | not registered | 480,000 | 48,000 | 0 | 432,000 |
+> | 18% exclusive | 480,000 | 48,000 | 77,760 | 509,760 |
+> | 18% inclusive, UGX | 406,780 | 40,678 | 65,898 | **432,000** |
+> | 18% inclusive, USD | 406,779.66 | **40,677.97** | 65,898.31 | **432,000.00** |
+>
+> The two inclusive rows are the point: the customer settles 432,000 either way,
+> and the tax-exclusive presentation differs only by the currency's scale. The
+> USD figure is the 40,677.97 this section predicted.
+>
+> **The constraint that shaped the arithmetic:** `documents.total` is
+> `GENERATED ALWAYS AS ((subtotal - discount_total) + tax_total) STORED`. It
+> cannot be written, so the three components are chosen to make the *generated*
+> total land on what the customer pays — which is why the inclusive branch
+> derives `discount_total` from two rounded figures instead of computing it
+> directly. Rounding all three independently leaves the total off by a minor unit.
+>
+> Also settled here: the invariant part 1 deferred. An order mid-edit may sit
+> below its own discount; `issue_document()` refuses to issue for a negative
+> amount.
 
 ### The gap
 

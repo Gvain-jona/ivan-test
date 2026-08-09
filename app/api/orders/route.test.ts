@@ -151,4 +151,52 @@ describe('POST /api/orders', () => {
     expect(res.status).toBe(400)
     expect(db.callsFor('rpc:create_order_as_org')).toHaveLength(0)
   })
+
+  /**
+   * create_order() reads discount_type/discount_value off the payload and
+   * inserts them on the order; the items trigger then derives total_amount net
+   * of them. Verified against the live function source on 2026-08-09.
+   */
+  it('passes an order-level discount through to create_order', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('rpc:create_order_as_org', { data: 'o-3' })
+    db.queue('select:orders', { data: { id: 'o-3' } })
+
+    const res = await POST(
+      jsonRequest('/api/orders', {
+        client_id: CLIENT_UUID,
+        discount_type: 'percent',
+        discount_value: 10,
+        items: [{ product_name_raw: 'Banners', quantity: 2, unit_price: 45000 }],
+      }),
+    )
+
+    expect(res.status).toBe(201)
+    const [rpc] = db.callsFor('rpc:create_order_as_org')
+    const { payload } = rpc.values as {
+      payload: { discount_type: string; discount_value: number }
+    }
+    expect(payload.discount_type).toBe('percent')
+    expect(payload.discount_value).toBe(10)
+  })
+
+  // Mirrors the orders_discount_percent_range CHECK, so the user sees a field
+  // error rather than a constraint name.
+  it('rejects a percentage discount over 100 with 400', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+
+    const res = await POST(
+      jsonRequest('/api/orders', {
+        client_id: CLIENT_UUID,
+        discount_type: 'percent',
+        discount_value: 150,
+        items: [{ product_name_raw: 'Banners', quantity: 2, unit_price: 45000 }],
+      }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(db.callsFor('rpc:create_order_as_org')).toHaveLength(0)
+  })
 })

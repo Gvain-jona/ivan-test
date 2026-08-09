@@ -14,7 +14,8 @@
  *   recipient    { client_id, name, fields{} }
  *   order_fields { <field_label>: <value> }
  *   lines        [ { description, quantity, unit_price, discount, total, fields{} } ]
- *   totals       { currency, subtotal, tax_total, total, tax_label, tax_rate,
+ *   totals       { currency, subtotal, discount_total, discount_type,
+ *                  discount_value, tax_total, total, tax_label, tax_rate,
  *                  tax_registered, amounts_include_tax }
  *   terms        { terms_days, due_date, valid_until, footer, bank_details }
  *
@@ -47,6 +48,13 @@ export interface DocumentSnapshot {
   currency: string | null;
   subtotal: number;
   discountTotal: number;
+  /**
+   * The discount as it was agreed, frozen alongside the money it resolved to,
+   * so the paper can say "Discount (10%)" rather than only an amount. Null on
+   * snapshots issued before A1 part 2, and on orders with no discount.
+   */
+  discountType: 'amount' | 'percent' | null;
+  discountValue: number;
   taxTotal: number;
   taxLabel: string;
   taxRate: number;
@@ -119,9 +127,14 @@ export function readSnapshot(
 
     currency: text(totals.currency),
     subtotal: money(totals.subtotal),
-    // Absent until the order-discount columns land (A1); a snapshot without it
-    // simply has no discount line.
+    // Absent on snapshots frozen before A1 part 2; such a document simply has
+    // no discount line, which is right — it had no discount.
     discountTotal: money(totals.discount_total),
+    discountType:
+      totals.discount_type === 'amount' || totals.discount_type === 'percent'
+        ? totals.discount_type
+        : null,
+    discountValue: money(totals.discount_value),
     taxTotal: money(totals.tax_total),
     taxLabel: text(totals.tax_label) ?? 'Tax',
     taxRate: money(totals.tax_rate),

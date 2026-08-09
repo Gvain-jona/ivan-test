@@ -35,9 +35,20 @@ const REAL = {
       fields: { Size: '2×4 ft' },
     },
   ],
+  /**
+   * Not invented: these are the figures issue_document() actually produced for
+   * 480,000 UGX of lines at 10% off, VAT 18% inclusive, measured against the
+   * live function on 2026-08-09. They are the tax-exclusive presentation of a
+   * deal the customer settles for 432,000 — and (subtotal − discount) + tax
+   * lands on that exactly, because documents.total is generated from those
+   * three and cannot absorb a rounding error.
+   */
   totals: {
     currency: 'UGX',
-    subtotal: 480000,
+    subtotal: 406780,
+    discount_total: 40678,
+    discount_type: 'percent',
+    discount_value: 10,
     tax_total: 65898,
     total: 432000,
     tax_label: 'VAT',
@@ -86,12 +97,43 @@ describe('readSnapshot', () => {
     expect(readSnapshot(REAL, FALLBACK).lines[0].fields).toEqual({ Size: '2×4 ft' })
   })
 
-  // discount_total only appears once the A1 columns land; before that a
-  // document simply has no discount line.
-  it('treats a missing discount as zero rather than breaking', () => {
-    expect(readSnapshot(REAL, FALLBACK).discountTotal).toBe(0)
-    const withDiscount = { ...REAL, totals: { ...REAL.totals, discount_total: 48000 } }
-    expect(readSnapshot(withDiscount, FALLBACK).discountTotal).toBe(48000)
+  it('reads the discount and the rate it was agreed at', () => {
+    const s = readSnapshot(REAL, FALLBACK)
+    expect(s.discountTotal).toBe(40678)
+    expect(s.discountType).toBe('percent')
+    expect(s.discountValue).toBe(10)
+    // The generated column's own arithmetic, restated: if these three ever
+    // stop agreeing, the paper prints a total that doesn't add up.
+    expect(s.subtotal - s.discountTotal + s.taxTotal).toBe(s.total)
+  })
+
+  /**
+   * A document frozen before A1 part 2 has no discount keys at all. It must
+   * still render — with no discount line, which is right, because it had no
+   * discount.
+   */
+  it('treats a snapshot with no discount keys as no discount', () => {
+    const { discount_total, discount_type, discount_value, ...totals } = REAL.totals
+    const s = readSnapshot({ ...REAL, totals }, FALLBACK)
+    expect(s.discountTotal).toBe(0)
+    expect(s.discountType).toBeNull()
+    expect(s.discountValue).toBe(0)
+  })
+
+  // An 'amount' discount has no rate to print, so the paper says just "Discount".
+  it('reports a fixed discount with no percentage', () => {
+    const fixed = {
+      ...REAL,
+      totals: { ...REAL.totals, discount_type: 'amount', discount_value: 48000 },
+    }
+    const s = readSnapshot(fixed, FALLBACK)
+    expect(s.discountType).toBe('amount')
+    expect(s.discountValue).toBe(48000)
+  })
+
+  it('ignores a discount_type it does not recognise', () => {
+    const odd = { ...REAL, totals: { ...REAL.totals, discount_type: 'settlement' } }
+    expect(readSnapshot(odd, FALLBACK).discountType).toBeNull()
   })
 
   /**
