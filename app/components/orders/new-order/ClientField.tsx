@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useClients } from '@/hooks/clients/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
-import { FieldBox, FieldLabel, ListBox, RowDivider } from './screen-parts';
+import { Card, RowDivider, SectionLabel } from '@/components/patterns/screen';
+import { FieldBox } from '@/components/patterns/controls';
 
 interface ClientFieldProps {
   clientId: string | null;
@@ -57,7 +58,7 @@ export default function ClientField({
 
   return (
     <div className="flex w-full flex-col gap-1.5">
-      <FieldLabel>CLIENT</FieldLabel>
+      <SectionLabel>CLIENT</SectionLabel>
       <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-border bg-background px-3">
         <Search className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
         <input
@@ -73,7 +74,7 @@ export default function ClientField({
 
       {searching && (
         <div className="mt-1">
-          <ListBox>
+          <Card>
             {clients.map((client, index) => (
               <div key={client.id}>
                 {index > 0 && <RowDivider />}
@@ -121,7 +122,7 @@ export default function ClientField({
                 Start typing to find a client.
               </p>
             )}
-          </ListBox>
+          </Card>
         </div>
       )}
     </div>

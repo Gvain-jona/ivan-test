@@ -14,9 +14,61 @@ const ORDER_LIST_COLUMNS =
   'balance, payment_status, custom_data, created_at, clients(name)';
 
 /**
+ * The org's order date field, if it has one.
+ *
+ * "Due soon" is a filter on a **custom field**, not a column — `due_date` is a
+ * starter field, and an org may have renamed it, removed it, or never added
+ * one. The field name is resolved here rather than accepted from the caller:
+ * it lands in a jsonb path inside a PostgREST filter, and a client-supplied
+ * column reference is not something to pass through on trust.
+ *
+ * Returns null when the org tracks no date on orders, in which case no due
+ * filter is applied — the list UI only offers the chip when one exists.
+ */
+async function resolveDueField(
+  tenant: NonNullable<Awaited<ReturnType<typeof resolveTenant>>>,
+): Promise<string | null> {
+  const { data } = await tenant.db
+    .from('field_definitions')
+    .select('field_name')
+    .eq('organization_id', tenant.organizationId)
+    .eq('entity', 'order')
+    .eq('field_type', 'date')
+    .eq('status', 'active')
+    .order('sort_order', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return (data as { field_name: string } | null)?.field_name ?? null;
+}
+
+/**
+ * Orders whose client name matches, as ids.
+ *
+ * The frame's search box says "client or order number", and both halves have
+ * to be one query so paging stays correct. PostgREST can't `or` across an
+ * embedded relation, so the client ids are resolved first and folded into a
+ * single `or` over two real columns on `orders`.
+ */
+async function clientIdsMatching(
+  tenant: NonNullable<Awaited<ReturnType<typeof resolveTenant>>>,
+  search: string,
+): Promise<string[]> {
+  const { data } = await tenant.db
+    .from('clients')
+    .select('id')
+    .eq('organization_id', tenant.organizationId)
+    .ilike('name', `%${search}%`)
+    .limit(50);
+
+  return ((data ?? []) as { id: string }[]).map(row => row.id);
+}
+
+/**
  * GET /api/orders — list orders for the caller's org.
- * Query: status, payment_status, client_id, search (order_number ilike),
- * limit, offset. Sorted newest first.
+ *
+ * Query: status, payment_status, client_id, search (order number or client
+ * name), start_date, end_date, due_within_days, limit, offset. Newest first.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -47,9 +99,37 @@ export async function GET(request: NextRequest) {
     if (status) query = query.in('status', status.split(','));
     if (paymentStatus) query = query.in('payment_status', paymentStatus.split(','));
     if (clientId) query = query.eq('client_id', clientId);
-    if (search) query = query.ilike('order_number', `%${search}%`);
     if (startDate) query = query.gte('order_date', startDate);
     if (endDate) query = query.lte('order_date', endDate);
+
+    if (search) {
+      // Escape the PostgREST `or` separators before they reach the filter
+      // string: a comma or a paren in the search box would otherwise be read
+      // as syntax and silently change which orders come back.
+      const safe = search.replace(/[(),]/g, ' ');
+      const ids = await clientIdsMatching(tenant, safe);
+      query = query.or(
+        ids.length > 0
+          ? `order_number.ilike.%${safe}%,client_id.in.(${ids.join(',')})`
+          : `order_number.ilike.%${safe}%`,
+      );
+    }
+
+    const dueWithinDays = Number(params.get('due_within_days'));
+    if (Number.isFinite(dueWithinDays) && dueWithinDays > 0) {
+      const dueField = await resolveDueField(tenant);
+      if (dueField) {
+        // Between today and N days out. `custom_data->>field` compares as text,
+        // which is exactly right for ISO dates and wrong for nothing else.
+        const today = new Date();
+        const until = new Date(today);
+        until.setDate(until.getDate() + dueWithinDays);
+        const iso = (d: Date) => d.toISOString().slice(0, 10);
+        query = query
+          .gte(`custom_data->>${dueField}`, iso(today))
+          .lte(`custom_data->>${dueField}`, iso(until));
+      }
+    }
 
     const { data, error, count } = await query;
     if (error) return handleSupabaseError(error);

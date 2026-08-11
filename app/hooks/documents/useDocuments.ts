@@ -24,7 +24,13 @@ export type DocumentStatus =
 
 export interface DocumentIssueInput {
   entity_type: 'order';
-  entity_id: string;
+  /**
+   * The orders the document covers — an array since A3a/A3b, because one
+   * invoice may cover several. The DB decides the document's own
+   * `entity_type` from the count: one order files under `'order'`, several
+   * under `'client'` with the covered orders frozen in the snapshot.
+   */
+  entity_ids: string[];
   document_type: DocumentType;
   /** Overrides settings.documents.terms_days for this invoice only. */
   terms_days?: number;
@@ -51,8 +57,18 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
   );
 
+  /**
+   * Issue a document covering this one order.
+   *
+   * Sends `entity_ids: [id]`. It sent `entity_id` (singular) until 2026-08-10,
+   * which `documentIssueSchema` stopped accepting when A3a/A3b made an invoice
+   * able to cover several orders — zod stripped the unknown key, the required
+   * one was then missing, and every issue attempt 400'd. The route's own tests
+   * post `entity_ids` directly, so nothing between hook and schema caught it.
+   * `issueDocuments` below is the same call for the multi-order case (F2).
+   */
   const issueDocument = useCallback(
-    async (input: Omit<DocumentIssueInput, 'entity_type' | 'entity_id'>) => {
+    async (input: Omit<DocumentIssueInput, 'entity_type' | 'entity_ids'>) => {
       if (!entityId) throw new Error('Cannot issue a document without an entity id');
       if (entityType !== 'order') {
         throw new Error(`Documents can only be issued from orders, not ${entityType}`);
@@ -60,7 +76,7 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
       const { document } = await apiRequest<{ document: DocumentRecord }>(
         PLATFORM_API.DOCUMENTS,
         'POST',
-        { ...input, entity_type: 'order', entity_id: entityId },
+        { ...input, entity_type: 'order', entity_ids: [entityId] },
       );
       await mutate();
       return document;

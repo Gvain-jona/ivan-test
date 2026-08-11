@@ -41,6 +41,27 @@ interface OrgUpdateBuilder extends OrgResult<null> {
 export type OrgScopedTable = Exclude<keyof V2Tables & string, 'organizations' | 'user_settings'>
 
 /**
+ * The tables a row may actually be deleted from.
+ *
+ * v2's rule is that **entities archive** — orders become `cancelled`, clients,
+ * products and field definitions become `archived`. Nothing with a lifecycle
+ * gets destroyed, and this wrapper carried no `delete` at all so that rule
+ * couldn't be broken by accident.
+ *
+ * `order_items` is the case that rule doesn't fit. It is not an entity: it has
+ * no status column to archive into (verified against the live schema), no
+ * identity outside its order, and it already CASCADEs when that order goes.
+ * Removing a line someone added by mistake is *editing the order*, not
+ * destroying a record — and leaving a wrong line on an order permanently would
+ * corrupt the one thing that must be right, its total.
+ *
+ * Keep this union as small as the argument for it. A table belongs here only
+ * when it is a child row of an aggregate with no lifecycle of its own; if it
+ * has a `status`, archive it instead.
+ */
+export type DeletableTable = Extract<OrgScopedTable, 'order_items'>
+
+/**
  * Org-scoped data access. The underlying client is service-role (RLS
  * is bypassed), so this wrapper IS the tenant boundary until Clerk +
  * RLS land: every operation it exposes applies the organization_id
@@ -48,7 +69,7 @@ export type OrgScopedTable = Exclude<keyof V2Tables & string, 'organizations' | 
  *
  * - select/update auto-append .eq('organization_id', …)
  * - insert injects organization_id (the Insert type won't accept one)
- * - there is deliberately no delete: v2 archives via status updates
+ * - delete is org-scoped and restricted to `DeletableTable` (see below)
  * - further chaining (.eq/.in/.ilike/.order/.range/.single/…) works as
  *   usual on the returned builders
  *
@@ -63,6 +84,14 @@ export interface TenantDb {
     ): ReturnType<ReturnType<V2Client['from']>['select']>
     insert(values: Omit<V2Tables[T]['Insert'], 'organization_id'>): ReturnType<ReturnType<V2Client['from']>['insert']>
     update(values: V2Tables[T]['Update']): ReturnType<ReturnType<V2Client['from']>['update']>
+    /**
+     * Only present for `DeletableTable`. Everything else archives, and the
+     * type is what enforces that — `db.from('orders').delete()` does not
+     * compile.
+     */
+    delete: T extends DeletableTable
+      ? () => ReturnType<ReturnType<V2Client['from']>['delete']>
+      : never
   }
   /**
    * The caller's own organizations row (scoped by id). update() accepts
@@ -95,6 +124,11 @@ export function createTenantDb(client: V2Client, organizationId: string): Tenant
           (client.from(table) as any).insert({ ...values, organization_id: organizationId }),
         update: (values: object) =>
           (client.from(table) as any).update(values).eq('organization_id', organizationId),
+        // Scoped like the rest: a caller still has to narrow by id, and the
+        // org filter is applied here so a missing .eq() can't widen it to
+        // another tenant's rows.
+        delete: () =>
+          (client.from(table) as any).delete().eq('organization_id', organizationId),
       } as any
     },
     organization() {

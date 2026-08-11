@@ -1,94 +1,47 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SlidersHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import OrdersListScreen from '@/components/orders/list/OrdersListScreen';
 import { useSheets } from '@/context/sheet-host';
-import EntityFieldsManager from '@/components/fields/EntityFieldsManager';
-
-// Import refactored components
-import OrdersPageHeader from './_components/OrdersPageHeader';
-import OrdersTab from './_components/OrdersTab';
-
-// Import context provider
-import { OrdersPageProvider, useOrdersUI } from './_context';
 
 /**
- * Inner component that uses the context. The create/view sheets are owned by
- * the app-wide sheet host (see DESIGN_PHILOSOPHY.md → "Overlays & sheets"),
- * so this page renders none itself — it just opens them by intent.
+ * Orders — B1, with A2 as its empty state.
+ *
+ * The page is a thin shell: the list owns its own filters and data, and the
+ * create/open destinations are routes now (B2 and B4), reached through the
+ * sheet host so the intent stays in one place.
  */
-const OrdersPageContent: React.FC = () => {
-  const { handleCreateOrder } = useOrdersUI();
-  const { openOrder, openCreateOrder } = useSheets();
-  const [showFields, setShowFields] = useState(false);
-
+function OrdersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { openCreateOrder } = useSheets();
 
-  // Deep-links (shared/bookmarked URLs) open a sheet via the host, then strip
-  // the param so a refresh doesn't reopen it:
-  //   ?order=<id> — open that order's view sheet
-  //   ?new=1      — open the create sheet
+  // Deep-links kept working after both destinations became routes:
+  //   ?order=<id> — the order hub
+  //   ?new=1      — the new-order screen
+  //
+  // `?order=` redirects straight rather than going through openOrder(), which
+  // would push the hub and then race this effect's own replace() back.
   useEffect(() => {
     if (!searchParams) return;
     const orderId = searchParams.get('order');
     if (orderId) {
-      openOrder(orderId);
-      router.replace('/dashboard/orders');
+      router.replace(`/dashboard/orders/${orderId}`);
     } else if (searchParams.get('new') === '1') {
       openCreateOrder();
-      router.replace('/dashboard/orders');
     }
-  }, [searchParams, openOrder, openCreateOrder, router]);
+  }, [searchParams, openCreateOrder, router]);
 
-  // Horizontal padding comes from the layout's <main> (p-4 lg:p-6); don't
-  // double it here — mobile only has room for one gutter.
-  return (
-    <div className="space-y-5 min-h-screen py-4 lg:px-2">
-      {/* Page Header */}
-      <OrdersPageHeader
-        title="Orders Management"
-        description="Manage customer orders and track status."
-        onCreateOrder={handleCreateOrder}
-      />
+  return <OrdersListScreen />;
+}
 
-      {/* TODO(v2 read layer): order metrics cards return here once the
-          analytics read accessors exist in the v2 schema. */}
-
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={() => setShowFields(v => !v)} aria-pressed={showFields}>
-          <SlidersHorizontal className="h-4 w-4 mr-1.5" />
-          Fields
-        </Button>
-      </div>
-
-      {showFields && (
-        <div className="space-y-6 rounded-xl border border-border bg-card/40 p-4">
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Order fields</h2>
-            <EntityFieldsManager entity="order" entityLabel="order" />
-          </div>
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Order item fields</h2>
-            <EntityFieldsManager entity="order_item" entityLabel="order item" />
-          </div>
-        </div>
-      )}
-
-      <OrdersTab />
-    </div>
-  );
-};
-
-/**
- * Main page component wrapped with context provider
- */
 export default function OrdersPage() {
+  // useSearchParams needs a Suspense boundary to keep the route from opting
+  // the whole page out of static optimization.
   return (
-    <OrdersPageProvider>
+    <Suspense fallback={null}>
       <OrdersPageContent />
-    </OrdersPageProvider>
+    </Suspense>
   );
 }

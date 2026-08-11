@@ -8,31 +8,33 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import OrderFormSheet from '@/components/orders/OrderFormSheet';
-import OrderViewSheet from '@/components/orders/OrderViewSheet';
+import { useRouter } from 'next/navigation';
 import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
-import { useOrderMutations } from '@/hooks/orders/useOrders';
-import type { OrderSummary, OrderCreateInput } from '@/hooks/orders/useOrders';
-import { useToast } from '@/components/ui/use-toast';
 
 /**
  * The single door for opening overlays (see DESIGN_PHILOSOPHY.md → "Overlays &
  * sheets" and INTERACTION_AUDIT.md → DECISION). Any surface — Home, the tab
- * bar, list rows — opens a sheet *in place* by calling this API; nothing
- * navigates to another page to pop a modal, and no surface re-implements
- * open/close state. One place owns it, so it can't diverge.
+ * bar, list rows — opens a sheet *in place* by calling this API; no surface
+ * re-implements open/close state. One place owns it, so it can't diverge.
+ *
+ * `openCreateOrder` and `openOrder` are the two intents that resolve to
+ * **routes** rather than sheets, per the screen-vs-sheet carve-out in
+ * CLAUDE.md: composing an order is B2 and an order itself is B4, each a
+ * multi-section screen opening sheets of its own. They stay on this API rather
+ * than becoming `<Link>`s at their call sites — the intent is still "start a
+ * new order" / "open this order", and keeping them here meant the callers
+ * never had to know the destination changed.
  */
 type SheetState =
-  | { type: 'create-order' }
-  | { type: 'view-order'; order: OrderSummary }
   | { type: 'create-client' }
   | { type: 'create-product' }
   | null;
 
 interface SheetHostApi {
+  /** Navigates to B2 (`/dashboard/orders/new`); not a sheet. */
   openCreateOrder: () => void;
-  /** Open the order view sheet; the sheet hydrates full detail from the id. */
+  /** Navigates to B4 (`/dashboard/orders/[id]`); not a sheet. */
   openOrder: (id: string) => void;
   openCreateClient: () => void;
   openCreateProduct: () => void;
@@ -49,8 +51,7 @@ export function useSheets(): SheetHostApi {
 
 export function SheetHostProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<SheetState>(null);
-  const { toast } = useToast();
-  const { createOrder } = useOrderMutations();
+  const router = useRouter();
 
   // History integration (INT-12): opening a sheet pushes a history entry, so
   // the hardware/browser Back button dismisses the sheet instead of leaving
@@ -76,31 +77,12 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const api: SheetHostApi = {
-    openCreateOrder: () => open({ type: 'create-order' }),
-    openOrder: (id) => open({ type: 'view-order', order: { id } as OrderSummary }),
+    openCreateOrder: () => router.push('/dashboard/orders/new'),
+    openOrder: (id) => router.push(`/dashboard/orders/${id}`),
     openCreateClient: () => open({ type: 'create-client' }),
     openCreateProduct: () => open({ type: 'create-product' }),
     close,
   };
-
-  const handleSaveOrder = useCallback(
-    async (input: OrderCreateInput): Promise<{ success: boolean; error?: unknown }> => {
-      try {
-        await createOrder(input);
-        toast({ title: 'Order created', description: 'New order has been created' });
-        close();
-        return { success: true };
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to save order',
-          variant: 'destructive',
-        });
-        return { success: false, error };
-      }
-    },
-    [createOrder, toast, close],
-  );
 
   return (
     <SheetHostContext.Provider value={api}>
@@ -109,24 +91,6 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
       {/* Conditionally mounted so their internal data hooks don't run (and
           fetch) on every dashboard page — and so each "create" opens a fresh
           form. `open` is always true while mounted; closing unmounts. */}
-      {sheet?.type === 'create-order' && (
-        <OrderFormSheet
-          open
-          onOpenChange={(o) => !o && close()}
-          onSave={handleSaveOrder}
-          title="Create New Order"
-        />
-      )}
-
-      {sheet?.type === 'view-order' && (
-        <OrderViewSheet
-          open
-          onOpenChange={(o) => !o && close()}
-          order={sheet.order}
-          onClose={close}
-        />
-      )}
-
       {sheet?.type === 'create-client' && (
         <ClientFormSheet
           open

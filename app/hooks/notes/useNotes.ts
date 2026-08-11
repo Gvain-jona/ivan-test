@@ -25,13 +25,23 @@ export function useNotes(entityType: NoteEntityType, entityId: string | null | u
     dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE,
   });
 
+  /**
+   * `custom_data` carries the org's own note fields — the "type" the designs
+   * group notes by lives there rather than in a column (migration
+   * 20260807213900 added `notes.custom_data` and the `'note'` field entity for
+   * exactly this). Omitted when empty, per the custom_data convention: the DB
+   * rejects JSON nulls and an empty object is noise in the row.
+   */
   const addNote = useCallback(
-    async (content: string) => {
+    async (content: string, customData?: Record<string, unknown>) => {
       if (!entityId) throw new Error('Cannot add a note without an entity id');
       const { note } = await apiRequest<{ note: Note }>(PLATFORM_API.NOTES, 'POST', {
         entity_type: entityType,
         entity_id: entityId,
         content,
+        ...(customData && Object.keys(customData).length > 0
+          ? { custom_data: customData }
+          : {}),
       });
       await mutate();
       return note;

@@ -12,9 +12,19 @@
 import type { TenantContext } from '@/lib/auth/tenant'
 
 export async function tenantScopingCompileChecks(tenant: TenantContext) {
-  // Hard delete is not exposed — v2 archives via status updates.
-  // @ts-expect-error — no delete on scoped tables
+  // Entities archive rather than delete, and the type is what enforces it:
+  // `delete` resolves to `never` on every table outside `DeletableTable`, so
+  // calling it doesn't compile. This is the guard that keeps the carve-out
+  // below from quietly becoming a general hard delete.
+  // @ts-expect-error — no delete on an entity table; orders archive as 'cancelled'
   tenant.db.from('orders').delete()
+  // @ts-expect-error — clients archive too
+  tenant.db.from('clients').delete()
+
+  // order_items is the one exception: a child row of an aggregate, with no
+  // status to archive into and no identity outside its order. This line must
+  // keep compiling — removing a mistaken line is how an order gets corrected.
+  tenant.db.from('order_items').delete()
 
   // A route cannot smuggle its own organization_id into an insert;
   // the accessor injects the caller's org itself.

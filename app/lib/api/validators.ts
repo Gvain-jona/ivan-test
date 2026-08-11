@@ -53,6 +53,31 @@ export const orderItemInputSchema = z
     message: 'Each item needs a product_id or a product_name_raw',
   });
 
+/**
+ * A line added to an order that already exists.
+ *
+ * Same shape as a line at creation, which is deliberate — the add-item sheet is
+ * one component and must be able to send what it collects either way.
+ */
+export const orderItemCreateSchema = orderItemInputSchema;
+
+/**
+ * Editing one line. Every field optional, but `product_id`/`product_name_raw`
+ * are not re-checked against each other here: the row already satisfies that
+ * rule and a PATCH that touches only the quantity shouldn't have to restate it.
+ * Clearing both is prevented by the DB's own check, not by this schema.
+ */
+export const orderItemUpdateSchema = z
+  .object({
+    product_id: z.string().uuid().nullish(),
+    product_name_raw: z.string().trim().min(1).optional(),
+    quantity: z.number().positive().optional(),
+    unit_price: z.number().nonnegative().optional(),
+    discount: z.number().nonnegative().optional(),
+    custom_data: customData.optional(),
+  })
+  .refine(d => Object.keys(d).length > 0, { message: 'At least one field is required' });
+
 export const paymentInputSchema = z.object({
   amount: z.number().positive(),
   payment_method: z.enum(['cash', 'mobile_money', 'bank', 'credit']).optional(),
@@ -261,6 +286,16 @@ const settingsBlocks = z
         tax_id: clearable(z.string().trim().min(1)),
         website: clearable(z.string().trim().min(1)),
         logo_attachment_id: clearable(z.string().uuid()),
+        /**
+         * What the business does, asked once on A1.
+         *
+         * The DB whitelists settings *blocks*, not the keys inside them, so
+         * `identity` already accepted this — the `.strict()` here is ours, and
+         * it is what had to change. Free text rather than an enum: the picker
+         * offers a shortlist, but a business that isn't on it must still be
+         * able to say what it is.
+         */
+        industry: clearable(z.string().trim().min(1)),
       })
       .partial()
       .strict(),

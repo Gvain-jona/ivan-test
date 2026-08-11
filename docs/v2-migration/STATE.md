@@ -87,7 +87,7 @@ record; its "keep holding" verdict no longer applies.
 
 | Module | State |
 |---|---|
-| **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, create form, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. Item add/edit on existing orders is a follow-up. |
+| **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. **The whole order flow was rebuilt to the redesign 2026-08-10** — create → hub → issue → document. B2 is a screen at `/dashboard/orders/new` (`NewOrderScreen`) with its add-item / payment / note / discount sheets; B4 is the hub at `/dashboard/orders/[id]` (`OrderHubScreen`), one scrolling surface; B7 issues from it. `OrderFormSheet`, `OrderViewSheet` and `order-view/*` are deleted, and both `openCreateOrder()` and `openOrder()` in the sheet host now push routes rather than opening sheets — see `APP_REDESIGN.md`. **Item add/edit/remove on existing orders is done** (`/api/orders/[id]/items` + `/items/[itemId]`, 18 contract tests); it needed a narrow `delete` on `TenantDb`, type-restricted to `order_items` — see `DeletableTable`. **B1 + A2 landed the same day** (`OrdersListScreen`), so the module is complete on the redesign and every pre-redesign order file is deleted: `OrdersTableNew`, `OrderRow`, `OrderCard`, `OrdersFilterSheet`, `StatusDropdown`, `OrderActions`, `OrderDeleteConfirmation`, `CustomDropdown`, and the page's `_components`/`_context` tree. The list read gained two things: search across **client name as well as order number** (client ids resolved first, then one `or` over two real columns — PostgREST can't `or` across an embedded relation), and a **"due soon"** filter that resolves the org's *own* date field from `field_definitions` rather than trusting a caller-supplied jsonb key. |
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
 | **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and starter fields are applied in the first-run wizard. Rebuilt dialog-free 2026-07-31 (inline composer + in-row editor + status workflow editor; `FieldDefinitionFormSheet` deleted) — same components in setup and steady state. |
@@ -497,13 +497,16 @@ single swap point. Order creation still goes through the
   `is_default`, so the trigger never sees it; `orders.client_id` is `NOT NULL`,
   matching `FirstRecordsStep`'s "Needs a client first" lock.
 
-  **Open, needs a product call**: onboarding collects currency only. `identity`
-  (address, phone, tax id), `tax` and `documents` (terms, footer, bank details)
-  are never asked for, and `issue_document` snapshots `settings.identity` as
-  the invoice issuer. New orgs at least get `identity.legal_name` from
-  provisioning; **the pre-existing org has no `identity` block at all, so its
-  invoices would render a blank issuer.** Either extend the wizard or add an
-  org-settings surface before anyone issues a real invoice.
+  **Closed 2026-08-10 — A1 was the answer.** This item read: onboarding
+  collects currency only, `identity` is never asked for, and `issue_document`
+  snapshots `settings.identity` as the invoice issuer, so a finished setup
+  still produced a blank letterhead. Building the A1 frame fixed it — the first
+  step is now a **Business details** form (`BusinessDetailsStep`) collecting
+  name, industry, location, phone, email and currency, writing
+  `settings.identity` + `settings.locale`. `WelcomeStep` and `CurrencyStep` are
+  deleted; the step model is five numbered steps. `tax` and `documents` are
+  still not asked for at first run, deliberately — they live on the org
+  settings surface (F3), which exists.
 - **DB moved again on 2026-08-01 (5 migrations), app unaffected** —
   `v2_parent_composite_unique_keys` + four composite-FK migrations added
   `UNIQUE (id, organization_id)` on the parents and cross-org-proof FKs on the
@@ -583,12 +586,17 @@ the Clerk cutover) and its Save button has no handler. The `identity` / `tax` /
 
 ## Follow-up backlog (acknowledged, deliberately deferred)
 
-Item add/edit/remove on existing orders; org settings editor (order statuses,
-currency → needs `PATCH /api/organization`); order detail editing (date,
-client, custom_data); searchable comboboxes for client/product pickers at
-scale; attachments; payment/note edit+delete; currency-aware `formatCurrency`;
-documents "issue" action + per-row quick-invoice sheet (both wait on
-`issue_document()`); order-page metrics **and Home's "sales this month" card**
+~~Item add/edit/remove on existing orders~~ (done 2026-08-10 with B4);
+org settings editor (order statuses,
+currency → needs `PATCH /api/organization`); ~~order detail editing (date,
+client, custom_data)~~ (custom_data and status now editable on B4; **date and
+client are still not** — the hub renders them read-only in its header);
+searchable comboboxes for client/product pickers at
+scale; attachments; payment/note edit+delete (**`/api/notes` and the payments
+route are still POST-only, which is why B4 draws no remove on either**);
+currency-aware `formatCurrency`;
+~~documents "issue" action~~ (done 2026-08-10 — B7) + per-row quick-invoice
+sheet (that one is F2); order-page metrics **and Home's "sales this month" card**
 on a v2 read layer (both currently scaffolded — Home sums a bounded client-side
 fetch, see Module status → Home dashboard); **Next.js security
 upgrade** (critical middleware/auth-bypass + SSRF/cache-poisoning CVEs — the

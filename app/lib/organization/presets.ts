@@ -36,7 +36,7 @@ export interface StarterField {
   sort_order?: number;
 }
 
-export type StarterEntity = 'product' | 'client' | 'order' | 'order_item';
+export type StarterEntity = 'product' | 'client' | 'order' | 'order_item' | 'note';
 
 /** Slug a human label into a stable, machine-safe option value. */
 function toOption(label: string): SelectOption {
@@ -60,6 +60,25 @@ export const CURRENCY_OPTIONS: { code: string; label: string; symbol: string }[]
   { code: 'USD', label: 'US Dollar', symbol: '$' },
   { code: 'EUR', label: 'Euro', symbol: '€' },
   { code: 'GBP', label: 'British Pound', symbol: '£' },
+];
+
+/**
+ * The industries A1's picker offers first.
+ *
+ * A shortlist, not a taxonomy — stored as free text in
+ * `settings.identity.industry`, so a business that isn't here types its own.
+ * Print & signage leads because it is the first tenant's trade and the only
+ * one the starter field sets are written for; when a second set exists, this
+ * is what will choose between them.
+ */
+export const INDUSTRY_OPTIONS: string[] = [
+  'Printing & signage',
+  'Design studio',
+  'Photography',
+  'Events & branding',
+  'Retail',
+  'Manufacturing',
+  'Professional services',
 ];
 
 /**
@@ -90,6 +109,7 @@ export const FIXED_FIELDS: Record<StarterEntity, string[]> = {
   client: ['Client name'],
   order: ['Client', 'Order date', 'Amounts'],
   order_item: ['Product', 'Quantity', 'Unit price'],
+  note: ['Note', 'Who wrote it', 'When'],
 };
 
 /**
@@ -179,5 +199,32 @@ export const STARTER_FIELDS: Record<StarterEntity, StarterField[]> = {
    */
   order_item: [
     { field_name: 'size', field_label: 'Size', field_type: 'dimension', sort_order: 10 },
+  ],
+  /**
+   * What kind of note this is — the thing B2c's TYPE chips and E2's grouping
+   * both read.
+   *
+   * A field rather than a column, per principle 2: `notes.custom_data` and the
+   * `'note'` entity landed together in migration `20260807213900` precisely so
+   * this could be org-editable, and E3 presents note types as a list the org
+   * changes. That is also why the canvas disagrees with itself — B2c draws
+   * General / Client request / Internal / Production while E2 and E3 draw
+   * Artwork / Delivery / General. Neither is wrong: they are two orgs that
+   * edited the list. This preset is the *suggestion*, taken from B2c because
+   * that is the frame where a type is chosen.
+   */
+  note: [
+    {
+      field_name: 'type',
+      field_label: 'Type',
+      field_type: 'select',
+      sort_order: 10,
+      options: [
+        { value: 'general', label: 'General', color: 'slate', is_default: true },
+        { value: 'client_request', label: 'Client request', color: 'blue' },
+        { value: 'internal', label: 'Internal', color: 'violet' },
+        { value: 'production', label: 'Production', color: 'amber' },
+      ],
+    },
   ],
 };
