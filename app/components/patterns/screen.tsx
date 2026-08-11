@@ -4,9 +4,19 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Screen furniture shared by the redesigned full-screen surfaces, transcribed
- * from the Pencil canvas (`yoko`) — B2 (New order) and F3 (Invoice settings)
- * use identical headers, section labels, list cards and footers.
+ * Screen furniture shared by the redesigned surfaces, transcribed from the
+ * Pencil canvas (`yoko`) — B2 (New order) and F3 (Invoice settings) use
+ * identical headers, section labels, list cards and footers.
+ *
+ * It is the vocabulary for the **sheets** too (B2a/B2a2, B2b, B2c, B8): those
+ * frames are the same sections, cards and figure-plus-action footer, wrapped in
+ * `OrderSheet`'s chrome rather than a screen's. There is no separate sheet
+ * vocabulary, and there must not be one — see the screen-vs-sheet carve-out in
+ * CLAUDE.md.
+ *
+ * This file is the **furniture** — what content sits in. The things a person
+ * picks or edits (field box, choice chip, list row) are `./controls`, split off
+ * only for reading length: one vocabulary, two files, no third.
  *
  * Measurements are the frames': 16px header padding, a 22px gap between
  * sections and 8px under a section label, 16px card radius, 44px footer action.
@@ -26,17 +36,39 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-[11px] font-medium text-muted-foreground">{children}</p>;
 }
 
-/** A labelled section: label, 8px gap, content. Sections sit 22px apart. */
+/**
+ * A labelled section: label, 8px gap, content. Sections sit 22px apart.
+ *
+ * `actionLabel`/`onAction` add the one action a section may carry — "ITEMS
+ * + Add item". It is brand-coloured text rather than a button because it
+ * repeats down the screen, and five buttons would compete with the footer's
+ * single primary.
+ */
 export function Section({
   label,
+  actionLabel,
+  onAction,
   children,
 }: {
   label: string;
+  actionLabel?: string;
+  onAction?: () => void;
   children: React.ReactNode;
 }) {
   return (
     <section className="w-full">
-      <SectionLabel>{label}</SectionLabel>
+      <div className="flex w-full items-center justify-between">
+        <SectionLabel>{label}</SectionLabel>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="rounded text-[12.5px] font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {actionLabel}
+          </button>
+        )}
+      </div>
       <div className="mt-2">{children}</div>
     </section>
   );
@@ -90,62 +122,74 @@ export function ScreenHeader({ title, onBack }: { title: string; onBack: () => v
   );
 }
 
-/**
- * The sticky footer. Two shapes in the frames: a key figure beside a fixed
- * 150px action (B2), or one action across the full width (F3). Passing a
- * figure selects the first.
- */
-export function ScreenFooter({
-  figureLabel,
-  figureValue,
-  actionLabel,
-  onAction,
-  disabled,
-  busy,
-}: {
+export interface FooterActionProps {
   figureLabel?: string;
   figureValue?: string;
   actionLabel: string;
   onAction: () => void;
   disabled?: boolean;
   busy?: boolean;
-}) {
+}
+
+/**
+ * The figure-and-action row itself, with no chrome of its own.
+ *
+ * Two shapes in the frames: a key figure beside a fixed 150px action (B2), or
+ * one action across the full width (F3). Passing a figure selects the first.
+ *
+ * Separate from `ScreenFooter` because the sheets need the same row without the
+ * sticky/border/safe-area treatment — `OrderSheet`'s own footer slot already
+ * supplies all three, and nesting them would double the hairline and the
+ * padding. One implementation, two mountings; don't copy this row into a sheet.
+ */
+export function FooterBar({
+  figureLabel,
+  figureValue,
+  actionLabel,
+  onAction,
+  disabled,
+  busy,
+}: FooterActionProps) {
   const hasFigure = figureLabel !== undefined && figureValue !== undefined;
+  return (
+    <div className={cn('flex items-center gap-2.5', hasFigure ? 'justify-between' : '')}>
+      {hasFigure && (
+        <div className="flex flex-col gap-px">
+          <span className="text-[10px] font-medium uppercase tracking-[0.5px] text-muted-foreground">
+            {figureLabel}
+          </span>
+          <span className="text-base font-semibold text-foreground">{figureValue}</span>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onAction}
+        disabled={disabled || busy}
+        className={cn(
+          'flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4',
+          'text-sm font-medium text-primary-foreground transition-opacity',
+          'disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2',
+          'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          hasFigure ? 'w-[150px] flex-shrink-0' : 'flex-1',
+        )}
+      >
+        {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+/** `FooterBar` pinned to the bottom of a screen, hairline and safe area included. */
+export function ScreenFooter(props: FooterActionProps) {
   return (
     <footer
       className="sticky bottom-0 z-10 bg-card"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <RowDivider />
-      <div
-        className={cn(
-          'flex items-center gap-2.5 px-4 py-3',
-          hasFigure ? 'justify-between' : '',
-        )}
-      >
-        {hasFigure && (
-          <div className="flex flex-col gap-px">
-            <span className="text-[10px] font-medium uppercase tracking-[0.5px] text-muted-foreground">
-              {figureLabel}
-            </span>
-            <span className="text-base font-semibold text-foreground">{figureValue}</span>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={onAction}
-          disabled={disabled || busy}
-          className={cn(
-            'flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4',
-            'text-sm font-medium text-primary-foreground transition-opacity',
-            'disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2',
-            'focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-            hasFigure ? 'w-[150px] flex-shrink-0' : 'flex-1',
-          )}
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {actionLabel}
-        </button>
+      <div className="px-4 py-3">
+        <FooterBar {...props} />
       </div>
     </footer>
   );

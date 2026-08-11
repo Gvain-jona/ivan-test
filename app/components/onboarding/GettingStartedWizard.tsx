@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Check, ClipboardList, Coins, Loader2, Package, Users } from 'lucide-react';
+import { ArrowRight, Check, ClipboardList, Loader2, Package, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { useOrganization as useClerkOrganization } from '@clerk/nextjs';
 import { useOrganization } from '@/hooks/organization/useOrganization';
 import { apiRequest, PLATFORM_API } from '@/lib/api/client';
 import {
@@ -14,36 +15,56 @@ import {
   stepNumber,
   type SetupStepId,
 } from '@/lib/onboarding/steps';
-import CurrencyStep from './CurrencyStep';
+import BusinessDetailsStep, { type BusinessDetails } from './BusinessDetailsStep';
 import EntityFieldSetupStep from './EntityFieldSetupStep';
 import FirstRecordsStep from './FirstRecordsStep';
 import SetupShell, { StepFooter, StepHeading } from './SetupShell';
-import WelcomeStep from './WelcomeStep';
 
 /**
- * First-run wizard: teaches the model by walking product -> client -> order in
- * dependency order, configuring each entity's fields in place and closing with
- * an invitation to create the first records. Currency comes first (an
- * org-level scalar). Finishing marks onboarding complete so the gate stops
- * routing here. See docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md and
- * ONBOARDING_REDESIGN.md.
+ * First-run wizard: the business's own details first (A1), then the model —
+ * product -> client -> order in dependency order, configuring each entity's
+ * fields in place — closing with an invitation to create the first records.
+ * Finishing marks onboarding complete so the gate stops routing here. See
+ * docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md and ONBOARDING_REDESIGN.md.
  */
 export default function GettingStartedWizard() {
   const router = useRouter();
   const { toast } = useToast();
-  const { currency: savedCurrency, mutate } = useOrganization();
+  const { currency: savedCurrency, settings, isLoading: orgLoading, mutate } = useOrganization();
+  const { organization: clerkOrg, isLoaded: clerkLoaded } = useClerkOrganization();
 
-  const [step, setStep] = useState<SetupStepId>('welcome');
-  const [currency, setCurrency] = useState<string>('');
+  const [step, setStep] = useState<SetupStepId>('business');
+  const [business, setBusiness] = useState<BusinessDetails>(EMPTY_BUSINESS);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Reflect what the org already has. The wizard's step is component state, so
-  // a reload or a second pass restarts at the intro — without this, a currency
-  // that IS set would show unselected and, now that it's required, block
-  // Continue on a decision the user already made.
+  // Seed the form from what the org already has, once.
+  //
+  // The business name falls back to the **Clerk organization name**, which is
+  // already known by the time anyone reaches setup — it is what they typed to
+  // create the org. Asking for it again on a blank line would be the app
+  // pretending not to know something it does know. `provision_organization`
+  // seeds `identity.legal_name` for new orgs, so this mainly catches the org
+  // that predates that, which is exactly the one with a blank letterhead.
+  //
+  // Both sources have to have arrived before seeding, or the race decides the
+  // form: Clerk resolving first would seed a blank currency from a
+  // still-loading settings fetch, and Continue would then block on a decision
+  // the user already made. `loaded` stops a later revalidation from re-seeding
+  // over live edits.
   useEffect(() => {
-    if (!currency && savedCurrency) setCurrency(savedCurrency);
-  }, [currency, savedCurrency]);
+    if (loaded || !clerkLoaded || orgLoading) return;
+    const identity = settings.identity;
+    setBusiness({
+      legal_name: identity?.legal_name ?? clerkOrg?.name ?? '',
+      industry: identity?.industry ?? '',
+      address: identity?.address ?? '',
+      phone: identity?.phone ?? '',
+      email: identity?.email ?? '',
+      currency: savedCurrency ?? '',
+    });
+    setLoaded(true);
+  }, [loaded, clerkLoaded, orgLoading, clerkOrg?.name, settings.identity, savedCurrency]);
 
   const advance = () => {
     const next = nextStep(step);
@@ -53,29 +74,31 @@ export default function GettingStartedWizard() {
     const previous = previousStep(step);
     if (previous) setStep(previous);
   };
-  /** Every step except the intro can go back; the intro has nowhere to go. */
+  /** The first step has nowhere to go back to. */
   const onBack = previousStep(step) ? back : undefined;
 
-  const saveCurrency = async () => {
+  const saveBusiness = async () => {
     // Required, not optional: v2.issue_document() refuses to raise an invoice
     // or quotation without settings.locale.currency. Continue is disabled
     // without one; this guard is the non-UI half of the same rule.
-    if (!currency) return;
-    // Already the org's currency (a second pass through setup) — nothing to
-    // write, so skip the round trip.
-    if (currency === savedCurrency) return advance();
+    if (!business.currency) return;
     setBusy(true);
     try {
-      // settings.locale.currency — a block, not a top-level key. The DB
-      // trigger whitelists blocks and rejects anything else.
+      // Blocks, not top-level keys — the DB trigger whitelists identity / tax /
+      // documents / locale / platform_access and rejects anything else. Empty
+      // fields are omitted rather than sent as '': settings is frozen into
+      // document snapshots, and a blank string asserts a blank phone number.
       await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', {
-        settings: { locale: { currency } },
+        settings: {
+          identity: identityPayload(business),
+          locale: { currency: business.currency },
+        },
       });
       await mutate();
       advance();
     } catch (error) {
       toast({
-        title: 'Could not save currency',
+        title: 'Could not save your details',
         description: error instanceof Error ? error.message : 'Please try again',
         variant: 'destructive',
       });
@@ -100,29 +123,22 @@ export default function GettingStartedWizard() {
     }
   };
 
+  // A1 is a screen in its own right, not a panel in the rail: the frame has
+  // no step counter and no progress column, deliberately — see
+  // BusinessDetailsStep. The shell returns for the steps that are a sequence.
+  if (step === 'business') {
+    return (
+      <BusinessDetailsStep
+        value={business}
+        onChange={setBusiness}
+        onContinue={saveBusiness}
+        busy={busy}
+      />
+    );
+  }
+
   return (
     <SetupShell current={step}>
-      {step === 'welcome' && <WelcomeStep onStart={advance} />}
-
-      {step === 'currency' && (
-        <>
-          <StepHeading
-            stepNumber={stepNumber(step)}
-            stepCount={STEP_COUNT}
-            icon={<Coins className="h-5 w-5" />}
-            title="Your currency"
-            hint="Required — orders, payments, and every invoice you issue are priced in it."
-          />
-          <CurrencyStep
-            value={currency}
-            onChange={setCurrency}
-            onContinue={saveCurrency}
-            onBack={onBack}
-            busy={busy}
-          />
-        </>
-      )}
-
       {step === 'product' && (
         <>
           <StepHeading
@@ -205,4 +221,33 @@ export default function GettingStartedWizard() {
       )}
     </SetupShell>
   );
+}
+
+const EMPTY_BUSINESS: BusinessDetails = {
+  legal_name: '',
+  industry: '',
+  address: '',
+  phone: '',
+  email: '',
+  currency: '',
+};
+
+/**
+ * The identity block, with blanks left out entirely.
+ *
+ * `settingsBlocks` rejects an empty string for these keys, and the route
+ * deep-merges per block, so omitting a key means "leave it alone" — which is
+ * the right behaviour for a field the user never filled in. It also keeps a
+ * blank string out of the issuer block that `issue_document()` freezes onto
+ * every invoice.
+ */
+function identityPayload(business: BusinessDetails): Record<string, string> {
+  const entries: [string, string][] = [
+    ['legal_name', business.legal_name],
+    ['industry', business.industry],
+    ['address', business.address],
+    ['phone', business.phone],
+    ['email', business.email],
+  ];
+  return Object.fromEntries(entries.filter(([, value]) => value.trim() !== ''));
 }

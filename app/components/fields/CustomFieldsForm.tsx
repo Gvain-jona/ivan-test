@@ -4,8 +4,9 @@ import { useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { CustomFieldInput } from './CustomFieldInput';
 import type { FieldDefinition } from '@/hooks/fields/useFieldDefinitions';
+import { isFieldVisible, type CustomDataValue } from '@/lib/fields/visibility';
 
-export type CustomDataValue = Record<string, unknown>;
+export type { CustomDataValue };
 
 interface CustomFieldsFormProps {
   /** Active definitions for one entity, from useFieldDefinitions. */
@@ -18,29 +19,6 @@ interface CustomFieldsFormProps {
 }
 
 /**
- * Tolerant `conditions` interpreter. The DB stores conditions as free
- * jsonb with no consumer yet; this supports the two obvious shapes —
- * `{ "field": "client_type", "equals": "Contract" }` (also `"in"`
- * arrays) and the shorthand map `{ "client_type": "Contract" }` where
- * every pair must match. Unknown shapes fail open (field visible), so
- * a malformed condition can never hide required data entry.
- */
-function isVisible(field: FieldDefinition, values: CustomDataValue): boolean {
-  const cond = field.conditions;
-  if (cond == null || typeof cond !== 'object' || Array.isArray(cond)) return true;
-
-  const record = cond as Record<string, unknown>;
-  if (typeof record.field === 'string') {
-    const actual = values[record.field];
-    if ('equals' in record) return actual === record.equals;
-    if (Array.isArray(record.in)) return record.in.includes(actual);
-    return true;
-  }
-
-  return Object.entries(record).every(([key, expected]) => values[key] === expected);
-}
-
-/**
  * Renders an entity's governed custom fields from its
  * field_definitions registry, grouped by field_group and ordered by
  * sort_order. Values follow the omit-empty convention: clearing a
@@ -49,7 +27,7 @@ function isVisible(field: FieldDefinition, values: CustomDataValue): boolean {
  */
 export function CustomFieldsForm({ fields, value, onChange, disabled }: CustomFieldsFormProps) {
   const groups = useMemo(() => {
-    const visible = fields.filter(f => f.status === 'active' && isVisible(f, value));
+    const visible = fields.filter(f => f.status === 'active' && isFieldVisible(f, value));
     const byGroup = new Map<string, FieldDefinition[]>();
     for (const field of visible) {
       const group = field.field_group ?? '';

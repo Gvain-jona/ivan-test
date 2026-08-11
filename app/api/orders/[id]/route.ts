@@ -9,10 +9,17 @@ import {
 } from '@/lib/api/error-handler';
 import { orderUpdateSchema } from '@/lib/api/validators';
 
+/**
+ * `order_items(*, products(name))` embeds the catalogue name a line points at.
+ * Without it a line carries only `product_id` — `product_name_raw` is set only
+ * for one-offs — and the hub would have nothing to render but "Item". The
+ * embed is nullable on purpose: a one-off has no product, and a product
+ * archived after the fact must not make its order unreadable.
+ */
 const ORDER_DETAIL_COLUMNS =
   'id, order_number, client_id, order_date, status, total_amount, amount_paid, ' +
   'balance, payment_status, discount_type, discount_value, custom_data, ' +
-  'created_at, updated_at, clients(id, name), order_items(*)';
+  'created_at, updated_at, clients(id, name), order_items(*, products(name))';
 
 /** One payment as this order sees it: the cash event, at its allocated amount. */
 interface OrderPayment {

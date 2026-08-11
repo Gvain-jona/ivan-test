@@ -31,7 +31,7 @@ describe('GET /api/orders', () => {
     expect(call.modifiers).toContainEqual(['range', 20, 29])
   })
 
-  it('maps status/payment_status/search/date filters onto the query', async () => {
+  it('maps status/payment_status/date filters onto the query', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
 
@@ -39,7 +39,6 @@ describe('GET /api/orders', () => {
       getRequest('/api/orders', {
         status: 'pending,ready',
         payment_status: 'partial',
-        search: 'INV-01',
         start_date: '2026-07-01',
         end_date: '2026-07-31',
         client_id: CLIENT_UUID,
@@ -49,10 +48,82 @@ describe('GET /api/orders', () => {
     const [call] = db.callsFor('select:orders')
     expect(call.filters).toContainEqual(['in', 'status', ['pending', 'ready']])
     expect(call.filters).toContainEqual(['in', 'payment_status', ['partial']])
-    expect(call.filters).toContainEqual(['ilike', 'order_number', '%INV-01%'])
     expect(call.filters).toContainEqual(['gte', 'order_date', '2026-07-01'])
     expect(call.filters).toContainEqual(['lte', 'order_date', '2026-07-31'])
     expect(call.filters).toContainEqual(['eq', 'client_id', CLIENT_UUID])
+  })
+
+  // The list's search box says "client or order number", and both halves have
+  // to be one query or paging goes wrong.
+  it('searches order numbers and matching clients in a single or-filter', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:clients', { data: [{ id: 'c-1' }, { id: 'c-2' }] })
+
+    await GET(getRequest('/api/orders', { search: 'kamp' }))
+
+    const [clientLookup] = db.callsFor('select:clients')
+    expect(clientLookup.filters).toContainEqual(['ilike', 'name', '%kamp%'])
+
+    const [call] = db.callsFor('select:orders')
+    expect(call.filters).toContainEqual([
+      'or',
+      'order_number.ilike.%kamp%,client_id.in.(c-1,c-2)',
+    ])
+  })
+
+  it('falls back to order number alone when no client matches', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:clients', { data: [] })
+
+    await GET(getRequest('/api/orders', { search: 'ORD-42' }))
+
+    const [call] = db.callsFor('select:orders')
+    // An empty `in.()` is a syntax error to PostgREST, so the clause is dropped
+    // rather than sent empty.
+    expect(call.filters).toContainEqual(['or', 'order_number.ilike.%ORD-42%'])
+  })
+
+  it('strips PostgREST or-syntax characters out of the search term', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:clients', { data: [] })
+
+    await GET(getRequest('/api/orders', { search: 'a,b(c)' }))
+
+    const [call] = db.callsFor('select:orders')
+    // A comma or paren would otherwise be read as filter syntax and silently
+    // change which orders come back.
+    expect(call.filters).toContainEqual(['or', 'order_number.ilike.%a b c %'])
+  })
+
+  it('resolves the org\'s own date field for "due soon" rather than trusting the caller', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:field_definitions', { data: { field_name: 'delivery_on' } })
+
+    await GET(getRequest('/api/orders', { due_within_days: '7' }))
+
+    const [fieldLookup] = db.callsFor('select:field_definitions')
+    expect(fieldLookup.filters).toContainEqual(['eq', 'entity', 'order'])
+    expect(fieldLookup.filters).toContainEqual(['eq', 'field_type', 'date'])
+
+    const [call] = db.callsFor('select:orders')
+    // The jsonb path is built from the definition, never from the query string.
+    expect(call.filters.some(f => f[0] === 'gte' && f[1] === 'custom_data->>delivery_on')).toBe(true)
+    expect(call.filters.some(f => f[0] === 'lte' && f[1] === 'custom_data->>delivery_on')).toBe(true)
+  })
+
+  it('applies no due filter when the org tracks no date on orders', async () => {
+    const { tenant, db } = createFakeTenant()
+    resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:field_definitions', { data: null })
+
+    await GET(getRequest('/api/orders', { due_within_days: '7' }))
+
+    const [call] = db.callsFor('select:orders')
+    expect(call.filters.some(f => String(f[1]).startsWith('custom_data->>'))).toBe(false)
   })
 })
 

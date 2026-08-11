@@ -16,12 +16,21 @@ export type OrderSummary = Omit<OrderRow, 'organization_id' | 'source_id' | 'cre
 
 export type OrderDetail = Omit<OrderRow, 'organization_id' | 'source_id' | 'created_by'> & {
   clients: { id: string; name: string } | null;
-  order_items: OrderItemRow[];
+  /** `products` is the embedded catalogue name; null for a one-off line. */
+  order_items: (OrderItemRow & { products: { name: string } | null })[];
 };
 
 export type Payment = Pick<
   PaymentRow,
   'id' | 'amount' | 'payment_date' | 'payment_method' | 'reference' | 'notes' | 'created_at'
+>;
+
+export type OrderItem = Omit<OrderItemRow, 'organization_id' | 'source_id' | 'updated_at'>;
+
+/** What a line write hands back: the order's money, recomputed by the trigger. */
+export type OrderMoney = Pick<
+  OrderRow,
+  'id' | 'total_amount' | 'amount_paid' | 'balance' | 'payment_status'
 >;
 
 export type OrderListParams = {
@@ -171,5 +180,51 @@ export function useOrderMutations() {
     [invalidate],
   );
 
-  return { createOrder, updateOrder, addPayment };
+  /**
+   * Lines on an order that already exists. Creation puts them inside
+   * `create_order`; afterwards they are their own rows.
+   *
+   * No client-side total arithmetic anywhere here: `trg_items_totals` fires on
+   * insert/update/delete and `recompute_order_totals()` decides what the order
+   * comes to, so each call returns the order's money and the cache takes it.
+   */
+  const addItem = useCallback(
+    async (orderId: string, input: OrderItemInput) => {
+      const result = await apiRequest<{ item: OrderItem; order: OrderMoney }>(
+        `${PLATFORM_API.ORDERS}/${orderId}/items`,
+        'POST',
+        input,
+      );
+      await invalidate();
+      return result;
+    },
+    [invalidate],
+  );
+
+  const updateItem = useCallback(
+    async (orderId: string, itemId: string, input: Partial<OrderItemInput>) => {
+      const result = await apiRequest<{ item: OrderItem; order: OrderMoney }>(
+        `${PLATFORM_API.ORDERS}/${orderId}/items/${itemId}`,
+        'PATCH',
+        input,
+      );
+      await invalidate();
+      return result;
+    },
+    [invalidate],
+  );
+
+  const removeItem = useCallback(
+    async (orderId: string, itemId: string) => {
+      const result = await apiRequest<{ order: OrderMoney }>(
+        `${PLATFORM_API.ORDERS}/${orderId}/items/${itemId}`,
+        'DELETE',
+      );
+      await invalidate();
+      return result;
+    },
+    [invalidate],
+  );
+
+  return { createOrder, updateOrder, addPayment, addItem, updateItem, removeItem };
 }

@@ -64,6 +64,10 @@ class FakeQuery implements PromiseLike<QueuedResult> {
     this.call.filters.push(['not', column, operator, value])
     return this
   }
+  or(filter: string) {
+    this.call.filters.push(['or', filter])
+    return this
+  }
   gte(column: string, value: unknown) {
     this.call.filters.push(['gte', column, value])
     return this
@@ -154,6 +158,9 @@ export class FakeTenantDb {
         return this.open(`insert:${table}`, values)
       },
       update: (values: Record<string, unknown>) => this.open(`update:${table}`, values),
+      // Only `order_items` has this on the real accessor (DeletableTable);
+      // the fake doesn't enforce that, the type system does.
+      delete: () => this.open(`delete:${table}`),
     }
   }
 

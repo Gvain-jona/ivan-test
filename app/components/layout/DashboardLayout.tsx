@@ -28,12 +28,19 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // First-run setup owns the whole viewport: it renders its own shell and,
-  // until onboarding completes, OnboardingGate sends every other route back
-  // here — so app chrome would only offer dead ends. The parent layout still
-  // provides SheetHostProvider, which the "create your first record" actions
-  // need. A route group can't express this: App Router layouts always nest.
-  if (pathname === SETUP_PATH) {
+  // Routes that own the whole viewport and render their own shell.
+  //
+  // First-run setup, because until onboarding completes OnboardingGate sends
+  // every other route back here — app chrome would only offer dead ends. And
+  // the order screens (B2 new, B4 hub), because each carries its own header and
+  // sticky footer: the tab bar would sit on top of that footer, and the
+  // layout's own padding would land inside a surface that already has its own.
+  //
+  // The parent layout still provides SheetHostProvider, which they all need. A
+  // route group can't express this — App Router layouts always nest.
+  const chromeless =
+    pathname === SETUP_PATH || /^\/dashboard\/orders\/[^/]+$/.test(pathname ?? '');
+  if (chromeless) {
     return <>{children}</>;
   }
 

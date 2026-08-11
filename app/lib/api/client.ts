@@ -54,15 +54,25 @@ export async function apiFetcher<T = unknown>(url: string): Promise<T> {
   return response.json();
 }
 
+/**
+ * A mutating request.
+ *
+ * `body` is optional so DELETE can be sent without one — and when it is
+ * omitted no `Content-Type` goes out either, since a header announcing a JSON
+ * body that isn't there is the kind of thing a proxy is entitled to reject.
+ */
 export async function apiRequest<T = unknown>(
   url: string,
-  method: 'POST' | 'PATCH',
-  body: unknown,
+  method: 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown,
 ): Promise<T> {
+  const hasBody = body !== undefined;
   const response = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
+    headers: hasBody
+      ? { 'Content-Type': 'application/json', Accept: 'application/json' }
+      : { Accept: 'application/json' },
+    ...(hasBody ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) throw await parseError(response);
   return response.json();

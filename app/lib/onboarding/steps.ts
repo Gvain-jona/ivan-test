@@ -2,18 +2,18 @@
  * The first-run step model — the single list the rail, the panel counter and
  * the wizard's navigation all read from, so they can't drift apart.
  *
- * Welcome is an **intro, not a step**: it carries no numeral and the counter
- * starts at Currency. That's what resolves the design's apparent 1-6 vs
- * "STEP n OF 5" mismatch — the rail numerals and the counter are the same
- * number, and Welcome simply isn't one of them. See
- * docs/v2-migration/ONBOARDING_REDESIGN.md §4.
+ * Five steps, all numbered. There used to be six: an un-numbered Welcome intro
+ * that narrated the data model, and a Currency step. A1 replaced both with one
+ * **Business details** form — the frame's own note is "the form, no narration"
+ * — so currency is now one field among the business's own details rather than
+ * a stage of its own. See docs/v2-migration/APP_REDESIGN.md → A1.
  */
 
 /** The one route that renders the setup surface, shared by the gate and the
  *  layout that suppresses chrome for it. */
 export const SETUP_PATH = '/dashboard/getting-started';
 
-export type SetupStepId = 'welcome' | 'currency' | 'product' | 'client' | 'order' | 'records';
+export type SetupStepId = 'business' | 'product' | 'client' | 'order' | 'records';
 
 export interface SetupStep {
   id: SetupStepId;
@@ -24,16 +24,15 @@ export interface SetupStep {
 }
 
 export const SETUP_STEPS: readonly SetupStep[] = [
-  { id: 'welcome', title: 'Welcome', hint: 'Quick intro' },
-  { id: 'currency', title: 'Currency', hint: 'How you price' },
+  { id: 'business', title: 'Your business', hint: 'Name, contact, currency' },
   { id: 'product', title: 'Products', hint: 'What you sell' },
   { id: 'client', title: 'Clients', hint: 'Who you sell to' },
   { id: 'order', title: 'Orders', hint: 'Your workflow' },
   { id: 'records', title: 'First records', hint: 'Optional' },
 ] as const;
 
-/** The steps the counter counts — everything but the intro. */
-export const NUMBERED_STEPS: readonly SetupStep[] = SETUP_STEPS.filter(s => s.id !== 'welcome');
+/** Every step is counted now that the un-numbered intro is gone. */
+export const NUMBERED_STEPS: readonly SetupStep[] = SETUP_STEPS;
 
 /** The "of N" in "STEP n OF N". */
 export const STEP_COUNT = NUMBERED_STEPS.length;
@@ -42,7 +41,7 @@ export function stepIndex(id: SetupStepId): number {
   return SETUP_STEPS.findIndex(s => s.id === id);
 }
 
-/** 1-based position among the numbered steps; null for the intro. */
+/** 1-based position among the numbered steps. */
 export function stepNumber(id: SetupStepId): number | null {
   const index = NUMBERED_STEPS.findIndex(s => s.id === id);
   return index === -1 ? null : index + 1;
