@@ -55,6 +55,13 @@ export default function EntityFieldSetupStep({
   const [saving, setSaving] = useState(false);
   /** A system field has taken the panel over — only the primary has one. */
   const [drillActive, setDrillActive] = useState(false);
+  // Each section's registry load, tracked so Continue waits for both. Assume
+  // loading until a section reports otherwise, so the button never flashes
+  // enabled for the frame before the sections' effects run. A cached revisit
+  // reports `false` immediately, so it doesn't block.
+  const [primaryLoading, setPrimaryLoading] = useState(true);
+  const [secondaryLoading, setSecondaryLoading] = useState(!!secondary);
+  const loading = primaryLoading || (!!secondary && secondaryLoading);
 
   const handleContinue = async () => {
     setSaving(true);
@@ -80,6 +87,7 @@ export default function EntityFieldSetupStep({
         entity={entity}
         disabled={saving}
         onDrillInChange={setDrillActive}
+        onLoadingChange={setPrimaryLoading}
       />
 
       {secondary && !drillActive && (
@@ -89,6 +97,7 @@ export default function EntityFieldSetupStep({
           heading={secondary.heading}
           entityLabel={secondary.label}
           disabled={saving}
+          onLoadingChange={setSecondaryLoading}
         />
       )}
 
@@ -100,7 +109,7 @@ export default function EntityFieldSetupStep({
         </StepFooter>
       ) : (
         <StepFooter onBack={onBack} disabled={saving}>
-          <Button type="button" onClick={handleContinue} disabled={saving}>
+          <Button type="button" onClick={handleContinue} disabled={saving || loading}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Continue
           </Button>

@@ -1,7 +1,8 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Lock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import FieldComposer, { FIELD_EXAMPLE, type ComposedField } from '@/components/fields/FieldComposer';
 import type { FieldEdits } from '@/components/fields/FieldEditor';
 import {
@@ -35,6 +36,15 @@ interface EntityFieldSectionProps {
   /** Fires when a system field takes over the panel, so the step can hide
    *  everything else and swap Continue for Done. */
   onDrillInChange?: (active: boolean) => void;
+  /**
+   * Reports whether this section's field registry is still loading, so the
+   * step can hold Continue until it's safe. Until the fetch lands,
+   * `fieldDefinitions` is empty: existing fields would render as un-created
+   * "pending" starters, and a Continue here would treat every kept starter as
+   * new and re-POST any that already exist — a unique-name violation. SWR only
+   * reports loading on a cold cache, so a cached revisit never blocks.
+   */
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 /**
@@ -51,11 +61,15 @@ interface EntityFieldSectionProps {
  */
 const EntityFieldSection = forwardRef<EntityFieldSectionHandle, EntityFieldSectionProps>(
   function EntityFieldSection(
-    { entity, heading, entityLabel, disabled = false, onDrillInChange },
+    { entity, heading, entityLabel, disabled = false, onDrillInChange, onLoadingChange },
     ref,
   ) {
-    const { fieldDefinitions, mutate, createField, addField, saveField, saveOptions, archive } =
+    const { fieldDefinitions, isLoading, mutate, createField, addField, saveField, saveOptions, archive } =
       useFieldActions(entity);
+
+    useEffect(() => {
+      onLoadingChange?.(isLoading);
+    }, [isLoading, onLoadingChange]);
 
     /** Id of the field just added, so its row can flash into place. */
     const [justAdded, setJustAdded] = useState<string | null>(null);
@@ -196,44 +210,65 @@ const EntityFieldSection = forwardRef<EntityFieldSectionHandle, EntityFieldSecti
           </p>
         </div>
 
-        <div className="space-y-2">
-          {!heading && (
-            <SectionLabel>Starter fields · toggle off what you don&apos;t need</SectionLabel>
-          )}
-          <EntityFieldList
-            entity={entity}
-            starters={starters}
-            pendingStarters={pendingStarters}
-            orgFields={orgFields}
-            isKept={isKept}
-            onToggleKeep={toggle}
-            draftFor={draftFor}
-            onDraftChange={(name, next) =>
-              setStarterEdits(current => ({ ...current, [name]: next }))
-            }
-            expanded={expanded}
-            onExpand={setExpanded}
-            onDrillIn={openDrillIn}
-            justAdded={justAdded}
-            onSave={saveField}
-            onArchive={(id, label) => {
-              setExpanded(null);
-              void archive(id, label);
-            }}
-            disabled={disabled}
-          />
-        </div>
+        {/* Until the registry loads, the starter/org split and the composer's
+            duplicate check both read an empty list, so their toggles and "add"
+            would be wrong. Show a skeleton instead of a list that lies; the
+            step also holds Continue via onLoadingChange. */}
+        {isLoading ? (
+          <SectionSkeleton />
+        ) : (
+          <>
+            <div className="space-y-2">
+              {!heading && (
+                <SectionLabel>Starter fields · toggle off what you don&apos;t need</SectionLabel>
+              )}
+              <EntityFieldList
+                entity={entity}
+                starters={starters}
+                pendingStarters={pendingStarters}
+                orgFields={orgFields}
+                isKept={isKept}
+                onToggleKeep={toggle}
+                draftFor={draftFor}
+                onDraftChange={(name, next) =>
+                  setStarterEdits(current => ({ ...current, [name]: next }))
+                }
+                expanded={expanded}
+                onExpand={setExpanded}
+                onDrillIn={openDrillIn}
+                justAdded={justAdded}
+                onSave={saveField}
+                onArchive={(id, label) => {
+                  setExpanded(null);
+                  void archive(id, label);
+                }}
+                disabled={disabled}
+              />
+            </div>
 
-        <FieldComposer
-          example={FIELD_EXAMPLE[entity]}
-          taken={allNames}
-          entityLabel={entityLabel ?? entity}
-          onAdd={handleAdd}
-          disabled={disabled}
-        />
+            <FieldComposer
+              example={FIELD_EXAMPLE[entity]}
+              taken={allNames}
+              entityLabel={entityLabel ?? entity}
+              onAdd={handleAdd}
+              disabled={disabled}
+            />
+          </>
+        )}
       </div>
     );
   },
 );
+
+/** Placeholder rows shown while the entity's field registry loads. */
+function SectionSkeleton() {
+  return (
+    <div className="space-y-2" aria-hidden>
+      {[0, 1, 2].map(i => (
+        <Skeleton key={i} className="h-[52px] w-full rounded-lg bg-setup-surface" />
+      ))}
+    </div>
+  );
+}
 
 export default EntityFieldSection;
