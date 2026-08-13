@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrganization as useClerkOrganization } from '@clerk/nextjs';
 import { useOrganization } from '@/hooks/organization/useOrganization';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { apiRequest, PLATFORM_API } from '@/lib/api/client';
 import {
   STEP_COUNT,
@@ -32,6 +33,8 @@ export default function GettingStartedWizard() {
   const { toast } = useToast();
   const { currency: savedCurrency, settings, isLoading: orgLoading, mutate } = useOrganization();
   const { organization: clerkOrg, isLoaded: clerkLoaded } = useClerkOrganization();
+  // lg — the same breakpoint SetupShell and OrderSheet switch on.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   const [step, setStep] = useState<SetupStepId>('business');
   const [business, setBusiness] = useState<BusinessDetails>(EMPTY_BUSINESS);
@@ -123,17 +126,31 @@ export default function GettingStartedWizard() {
     }
   };
 
-  // A1 is a screen in its own right, not a panel in the rail: the frame has
-  // no step counter and no progress column, deliberately — see
-  // BusinessDetailsStep. The shell returns for the steps that are a sequence.
+  // Hold the first paint until the org's existing details have arrived and
+  // seeded the form. Without this the business name, currency and other saved
+  // identity fields flash blank — an empty form rendered before Clerk and the
+  // settings fetch resolve, then visibly filling in. `loaded` flips true once
+  // both have arrived (or on error), so this resolves in a beat and never hangs.
+  if (!loaded) return <SetupLoading />;
+
+  // The business step is step 1. On mobile it's the bare A1 hero (no rail);
+  // on desktop it renders inside SetupShell so the layout doesn't switch
+  // between step 1 and step 2. The breakpoint is already resolved by the time
+  // `loaded` lets us render, so this is a single mount with no flash.
   if (step === 'business') {
-    return (
+    const businessStep = (chrome: 'frame' | 'panel') => (
       <BusinessDetailsStep
         value={business}
         onChange={setBusiness}
         onContinue={saveBusiness}
         busy={busy}
+        chrome={chrome}
       />
+    );
+    return isDesktop ? (
+      <SetupShell current="business">{businessStep('panel')}</SetupShell>
+    ) : (
+      businessStep('frame')
     );
   }
 
@@ -220,6 +237,16 @@ export default function GettingStartedWizard() {
         </>
       )}
     </SetupShell>
+  );
+}
+
+/** Shown while the org's saved details load, before the form is seeded. */
+function SetupLoading() {
+  return (
+    <div className="flex h-dvh items-center justify-center bg-setup-canvas">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <span className="sr-only">Loading your workspace…</span>
+    </div>
   );
 }
 

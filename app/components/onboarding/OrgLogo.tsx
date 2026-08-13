@@ -30,6 +30,12 @@ export default function OrgLogo({ size, className }: OrgLogoProps) {
         alt={name}
         width={size}
         height={size}
+        // Explicit CSS width/height, not just the HTML attributes: as a child of
+        // a column flex (align-items: stretch) the bare <img> gets stretched to
+        // the container width while its height holds, distorting the mark into a
+        // squished oval. A fixed square box plus object-cover keeps it round and
+        // crops a non-square upload rather than warping it.
+        style={{ width: size, height: size }}
         className={cn('flex-shrink-0 rounded-lg object-cover', className)}
       />
     );
