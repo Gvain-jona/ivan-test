@@ -116,8 +116,18 @@ const EntityFieldSection = forwardRef<EntityFieldSectionHandle, EntityFieldSecti
       apply: async () => {
         const keep = new Set(starters.map(s => s.field_name).filter(isKept));
         const toCreate = starterFieldsToApply(entity, keep, fieldDefinitions, starterEdits);
-        for (const field of toCreate) await createField(field);
-        await mutate();
+        // Refresh the list whether the loop finishes or throws partway. The
+        // creates aren't a transaction — field 3 failing leaves 1 and 2 created
+        // — and starterFieldsToApply diffs against fieldDefinitions to decide
+        // what's left to make. Without this mutate, a mid-loop failure leaves
+        // that list stale, so a retry re-POSTs the already-created fields and
+        // dies on their unique-name constraint instead of resuming. With it,
+        // Continue is safely repeatable: each attempt creates only the remainder.
+        try {
+          for (const field of toCreate) await createField(field);
+        } finally {
+          await mutate();
+        }
       },
       closeDrillIn,
     }));
