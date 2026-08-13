@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { INDUSTRY_OPTIONS } from '@/lib/organization/presets';
 
 /**
@@ -18,34 +18,6 @@ export function Screen({ children }: { children: React.ReactNode }) {
         {children}
       </div>
     </div>
-  );
-}
-
-/** A drill-in target, with the way back where the mark was. */
-export function DrillIn({
-  title,
-  onBack,
-  children,
-}: {
-  title: string;
-  onBack: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Screen>
-      <div className="-mt-[26px] flex items-center gap-3 pb-5">
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back"
-          className="rounded text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} />
-        </button>
-        <h1 className="text-[19px] font-semibold text-foreground">{title}</h1>
-      </div>
-      {children}
-    </Screen>
   );
 }
 

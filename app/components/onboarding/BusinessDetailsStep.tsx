@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import OrderSheet from '@/components/ui/sheets/OrderSheet';
 import CurrencyPicker, { findCurrency } from './CurrencyPicker';
 import OrgLogo from './OrgLogo';
 import {
-  DrillIn,
   Field,
   IndustryPicker,
   OpenBox,
@@ -52,6 +52,13 @@ type Drill = 'industry' | 'currency' | null;
  * empty form is the same instinct in miniature. The rail returns for the field
  * setup steps, which genuinely are a sequence.
  *
+ * **Industry and currency open in a sheet, not a nested screen.** Each is a
+ * single choice, and CLAUDE.md's screen-vs-sheet rule reserves nested screens
+ * for composing a record — deciding one thing is a sheet. They open the app's
+ * one `OrderSheet` primitive (a bottom drawer on mobile), so the form keeps its
+ * state and scroll underneath while a value is picked, and no bespoke
+ * full-screen swap or back-arrow is re-implemented here.
+ *
  * **Every field here except industry ends up on an invoice.**
  * `issue_document()` freezes `settings.identity` as the issuer block, so this
  * form is what stops a shop's first invoice going out with a blank letterhead —
@@ -72,34 +79,6 @@ export default function BusinessDetailsStep({
   const [drill, setDrill] = useState<Drill>(null);
   const set = <K extends keyof BusinessDetails>(key: K, next: BusinessDetails[K]) =>
     onChange({ ...value, [key]: next });
-
-  if (drill === 'currency') {
-    return (
-      <DrillIn title="Currency" onBack={() => setDrill(null)}>
-        <CurrencyPicker
-          value={value.currency}
-          onChange={code => {
-            set('currency', code);
-            setDrill(null);
-          }}
-        />
-      </DrillIn>
-    );
-  }
-
-  if (drill === 'industry') {
-    return (
-      <DrillIn title="Industry" onBack={() => setDrill(null)}>
-        <IndustryPicker
-          value={value.industry}
-          onChange={next => {
-            set('industry', next);
-            setDrill(null);
-          }}
-        />
-      </DrillIn>
-    );
-  }
 
   const currency = value.currency ? findCurrency(value.currency) : null;
   // `settingsBlocks.identity.email` is `.email()`, so a malformed address comes
@@ -198,6 +177,45 @@ export default function BusinessDetailsStep({
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
         Get Started
       </button>
+
+      {/* Deciding one thing is a sheet, not a screen (CLAUDE.md → screen-vs-
+          sheet). Industry and currency each open the app's one sheet primitive
+          — a bottom drawer on mobile — rather than a hand-rolled full-screen
+          swap, so the form underneath keeps its state and its scroll while a
+          choice is made. Choosing sets the value and closes. */}
+      <OrderSheet
+        open={drill === 'industry'}
+        onOpenChange={open => setDrill(open ? 'industry' : null)}
+        title="Industry"
+        description="What you do — pick the closest, or name your own."
+      >
+        <div className="p-5">
+          <IndustryPicker
+            value={value.industry}
+            onChange={next => {
+              set('industry', next);
+              setDrill(null);
+            }}
+          />
+        </div>
+      </OrderSheet>
+
+      <OrderSheet
+        open={drill === 'currency'}
+        onOpenChange={open => setDrill(open ? 'currency' : null)}
+        title="Currency"
+        description="Every order, payment and invoice is priced in it."
+      >
+        <div className="p-5">
+          <CurrencyPicker
+            value={value.currency}
+            onChange={code => {
+              set('currency', code);
+              setDrill(null);
+            }}
+          />
+        </div>
+      </OrderSheet>
     </Screen>
   );
 }
