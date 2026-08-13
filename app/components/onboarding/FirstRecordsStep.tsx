@@ -2,6 +2,7 @@
 
 import { Check, ClipboardList, Lock, Package, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useProducts } from '@/hooks/products/useProducts';
 import { useClients } from '@/hooks/clients/useClients';
@@ -84,9 +85,26 @@ export default function FirstRecordsStep() {
   // Counts only — limit 1 keeps the payload to a single row; `total` is the
   // real count. These revalidate when a create sheet saves, so a row flips to
   // done without the user leaving the step.
-  const { total: productCount } = useProducts({ limit: 1 });
-  const { total: clientCount } = useClients({ limit: 1 });
-  const { total: orderCount } = useOrders({ limit: 1 });
+  const { total: productCount, isLoading: productsLoading } = useProducts({ limit: 1 });
+  const { total: clientCount, isLoading: clientsLoading } = useClients({ limit: 1 });
+  const { total: orderCount, isLoading: ordersLoading } = useOrders({ limit: 1 });
+
+  // Until the counts land they all read 0, which would paint Products/Clients
+  // as empty and Orders as locked ("Needs a client first") for a beat — a
+  // false "nothing set up, orders blocked" flash. Show placeholders instead.
+  // SWR only reports loading on a cold cache, so this doesn't re-flash on every
+  // revalidation after a record is created.
+  if (productsLoading || clientsLoading || ordersLoading) {
+    return (
+      <ul className="space-y-2.5" aria-hidden>
+        {[0, 1, 2].map(i => (
+          <li key={i}>
+            <Skeleton className="h-[66px] w-full rounded-xl bg-setup-surface" />
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <ul className="space-y-2.5">
