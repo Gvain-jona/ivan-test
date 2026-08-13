@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { formatDate } from '@/lib/utils';
+import { describeDocumentState } from '@/lib/documents/document-state';
 import { Card, Divided, ScreenFooter, Section } from '@/components/patterns/screen';
 import { ChoiceChip, ListRow } from '@/components/patterns/controls';
 import { SummaryPanel, SummaryRow, SummaryRule } from '@/components/patterns/summary';
@@ -39,6 +41,7 @@ export default function OrderHubScreen({ id }: { id: string }) {
 
   const [sheet, setSheet] = useState<OpenSheet>(null);
   const [editingItem, setEditingItem] = useState<DraftItem | null>(null);
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   if (hub.isLoading || !hub.order) {
     return (
@@ -165,18 +168,27 @@ export default function OrderHubScreen({ id }: { id: string }) {
           ) : (
             <Card>
               <Divided>
-                {documents.map(document => (
-                  <Link key={document.id} href={`/dashboard/documents/${document.id}`}>
-                    <ListRow
-                      name={documentLabel(document.document_type)}
-                      amount={fmt(Number(document.total ?? 0))}
-                      meta={[document.document_number, document.issued_at?.slice(0, 10)]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      trailing={document.status}
-                    />
-                  </Link>
-                ))}
+                {documents.map(document => {
+                  // The reader's word for where it stands ("Paid", "Overdue 6
+                  // days", "Due 21 Aug"), not the raw `status` machine key —
+                  // the same ladder the documents list and detail page use.
+                  const state = describeDocumentState(document, today);
+                  const stateLabel = state.date
+                    ? `${state.label} ${formatDate(state.date)}`
+                    : state.label;
+                  return (
+                    <Link key={document.id} href={`/dashboard/documents/${document.id}`}>
+                      <ListRow
+                        name={documentLabel(document.document_type)}
+                        amount={fmt(Number(document.total ?? 0))}
+                        meta={[document.document_number, document.issued_at?.slice(0, 10)]
+                          .filter(Boolean)
+                          .join(' · ')}
+                        trailing={stateLabel}
+                      />
+                    </Link>
+                  );
+                })}
               </Divided>
             </Card>
           )}
