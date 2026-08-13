@@ -112,7 +112,7 @@ export default function BusinessDetailsStep({
         <TextBox
           value={value.legal_name}
           onChange={next => set('legal_name', next)}
-          placeholder="What your invoices should say"
+          placeholder="The name customers know you by"
           label="Business name"
         />
       </Field>
@@ -145,7 +145,7 @@ export default function BusinessDetailsStep({
           type="tel"
           value={value.phone}
           onChange={next => set('phone', next)}
-          placeholder="Shown on your invoices"
+          placeholder="A number customers can reach you on"
           label="Phone"
         />
       </Field>
@@ -155,7 +155,7 @@ export default function BusinessDetailsStep({
           type="email"
           value={value.email}
           onChange={next => set('email', next)}
-          placeholder="Shown on your invoices"
+          placeholder="An address customers can reach you at"
           label="Email"
         />
         {emailInvalid && (
@@ -234,7 +234,7 @@ export default function BusinessDetailsStep({
           stepCount={STEP_COUNT}
           icon={<Store className="h-5 w-5" />}
           title="Your business"
-          hint="Your name and contact as they appear on documents, and the currency they're priced in."
+          hint="How your business shows up to customers — its name, contact details and the currency you work in."
         />
         {fields}
         <StepFooter disabled={busy}>
@@ -254,7 +254,7 @@ export default function BusinessDetailsStep({
       <OrgLogo size={48} className="rounded-[14px]" />
 
       <h1 className="mt-[18px] text-2xl font-semibold text-foreground">Let&apos;s Set You Up</h1>
-      <p className="mt-1.5 text-[13.5px] text-muted-foreground">Business Details</p>
+      <p className="mt-1.5 text-[13.5px] text-muted-foreground">Tell us about your business</p>
 
       <div className="mt-[26px]">{fields}</div>
 
