@@ -20,7 +20,8 @@ const COMMON_CODES = new Set(CURRENCY_OPTIONS.map(c => c.code));
  * wrong. Every currency is reachable by the name a person would search for.
  *
  * Was a step of its own until A1 folded currency into the business form; it is
- * now what that form drills into, which is why it carries no footer.
+ * now the body of the sheet that form opens, which is why it carries no footer —
+ * a choice sets the value and closes the sheet.
  */
 export default function CurrencyPicker({
   value,
