@@ -1,6 +1,6 @@
 # v2 platform migration — live state
 
-Last updated: 2026-07-24 (branch `clerk-auth-transition`). This is the
+Last updated: 2026-08-13 (onboarding UX + data-layer pass). This is the
 session-to-session ground truth for the v2 pivot: what has been decided, what is
 built, what is blocked, and on whom. Update it when any of that changes — this
 file exists so a fresh session doesn't have to re-derive the pivot from git
@@ -91,8 +91,8 @@ record; its "keep holding" verdict no longer applies.
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
 | **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and starter fields are applied in the first-run wizard. Rebuilt dialog-free 2026-07-31 (inline composer + in-row editor + status workflow editor; `FieldDefinitionFormSheet` deleted) — same components in setup and steady state. |
-| **Documents** | 🟡 `/api/documents` GET/POST/PATCH + `useDocuments`/`useDocumentMutations`, connected to a Documents tab on the order view sheet (list + create draft). No "issue" action yet — POST only ever creates `draft` status. POST is an **interim shim**: calls `next_number()` then inserts as two steps (not atomic) because `v2.issue_document()` doesn't exist yet — replace when it ships. The per-row "quick invoice" button was removed in orders cleanup Phase 2 (it opened nothing); a row-level document action returns with `issue_document()`. See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
-| Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. The orders-page façade stubs in `app/dashboard/orders/_context/` now serve only the unmigrated InvoicesTab (the Insights/Tasks tabs were deleted in orders cleanup Phase 1). `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
+| **Documents** | 🟡 **Built end to end (2026-08-10): issue → render.** `/api/documents` GET (list) + POST (issue) — no more PATCH/draft path. POST goes through the `issue_document_as_org` shim → `v2.issue_document()` (shipped), producing an **issued** document (numbered, immutable, snapshot-frozen), never a draft; the old non-atomic `next_number()` + insert shim is gone. `useDocuments` exposes `issueDocument` (single order) and `issueDocuments` (the multi-order/consolidated case, A3b/F2). Issued from the **order hub** via `IssueDocumentSheet` (B7 — **Quotation and Invoice only**; the Receipt chip is deliberately not drawn, A3c postponed to the payments cutover), and rendered from the frozen snapshot at `/dashboard/documents` (list) + `/dashboard/documents/[id]` (`DocumentPaper`, B9). The order-view sheet this used to hang off is deleted. Left: per-row quick-invoice sheet (F2). See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
+| Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. (The orders-page `_context/` façade stubs and the `InvoicesTab` they fed were **deleted in the 2026-08-10 order-module rebuild** — no legacy tab hangs off the orders page any more; earlier notes here referencing them are superseded.) `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
 | Notifications | 🌑 **Stubbed 2026-07-24** — `app/context/NotificationsContext.tsx` is now an interface-preserving stub (empty list, no-op mutations, `unreadCount` 0). The pre-stub implementation ran on the dead Supabase session and was defective anyway (unfiltered whole-table fetch + unfiltered realtime channel per session; an `if (loading)` guard deadlocked the initial fetch so it never rendered data). Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator) still mount against the stub as UI scaffold. `app/hooks/useRealNotifications.ts` is a second, parallel legacy implementation — dead, delete at this module's cutover. Real data layer comes with the v2 notifications module. |
 | Home dashboard | 🟡 **Rebuilt as the mobile-only Home feed (2026-07-22/23)** on live v2 order queries — greeting hero, quick-add, quick-action chips (New client/product `?new=1` deep-links), a "sales this month" snapshot, and a workflow-segmented recent-orders list. Desktop lands on Orders instead; Home is `lg:hidden` (see `docs/mobile-responsiveness/DESIGN_PHILOSOPHY.md`). **Scaffolded metric awaiting a read layer:** "sales this month" (`app/components/home/HomeSnapshot.tsx`, summed in `app/dashboard/home/page.tsx`) sums a **bounded** client-side order fetch (≤200 of the month's orders) — the count badge is accurate, the sum is approximate. Wire it to a real aggregate accessor when the **analytics/metrics** module cuts over — same read layer as the deferred order-page metrics below. Don't invent a bespoke endpoint before then. |
 
@@ -526,6 +526,51 @@ single swap point. Order creation still goes through the
   app is degraded rather than blocked: no field_definitions, no statuses, no
   currency. Deliberate today ("unconfigured org still transacts"); revisit if
   onboarding needs to be a real gate.
+- **Onboarding UX + data-layer pass (2026-08-13)** — a review of how the
+  first-run flow uses sheets/selectors and loads its data, then the fixes.
+  Behaviour and interaction only; no schema or route contract changed, so the
+  route tests were untouched and all 314 still pass. **Visual QA in a running
+  authed app is still outstanding** (no authed runtime in-session), same caveat
+  the redesign carries.
+  - **Industry and currency are sheets now, not nested screens.** Both fields
+    on `BusinessDetailsStep` opened a hand-rolled full-screen `DrillIn` that
+    unmounted the whole form to make one choice — a second overlay vocabulary
+    beside the app's `OrderSheet` primitive, against CLAUDE.md's "one sheet, one
+    door" and its screen-vs-sheet rule (*deciding one thing is a sheet*). They
+    now open `OrderSheet` (a bottom drawer on mobile) with the form mounted
+    underneath; `DrillIn` is deleted. `CurrencyPicker`/`IndustryPicker` are
+    unchanged in logic — they're now the sheet body.
+  - **`BusinessDetailsStep` renders in the shell on desktop.** It rendered
+    outside `SetupShell`, so the viewport switched from a bare centered column
+    (step 1) to the two-column rail (steps 2–5) and back. It now takes a
+    `chrome` prop: `frame` keeps the bare A1 hero on mobile (its deliberate "no
+    counter, form-no-narration" intent), `panel` renders it as step 1 inside
+    `SetupShell` on desktop. One shared field block; the wizard picks by the
+    `lg` breakpoint. **Mobile is unchanged**; only desktop gained the rail.
+  - **Seed-before-paint.** `GettingStartedWizard` rendered the form immediately,
+    so a returning org's saved name/currency flashed blank before Clerk and the
+    settings fetch resolved, then filled in. It now holds a loading state until
+    the seed has run (or errored), so the form appears already populated.
+  - **Field-setup steps + First records wait for their own reads.** These
+    computed off an empty `fieldDefinitions`/count list while their SWR fetch
+    was in flight: created fields showed as un-created "pending" toggles, and a
+    Continue pressed early re-POSTed already-existing starters into a
+    unique-name violation (`starterFieldsToApply` saw an empty existing set).
+    `EntityFieldSection` now surfaces its `isLoading`, shows a skeleton, and
+    reports up via `onLoadingChange`; `EntityFieldSetupStep` holds Continue
+    until every mounted section has loaded; `FirstRecordsStep` shows
+    placeholders until its three counts land (they defaulted to 0, flashing
+    Orders as locked "Needs a client first"). SWR reports loading only on a cold
+    cache, so cached revisits don't re-flash or block.
+  - **`OrgLogo` no longer distorts.** Its `<Image>` carried only the width/
+    height HTML attributes, not CSS dimensions, so as a column-flex child
+    (`align-items: stretch`) it stretched to container width into a squished
+    oval. Pinned explicit CSS size + `object-cover`.
+  - **Not a real defect, noted for honesty**: the starter-field apply loop got a
+    `finally { mutate() }`, framed at commit time as fixing a retry hazard. On
+    re-examination the raw `createField` already `await invalidate()`s per
+    create, so a retry already excluded created fields. The change is defensive,
+    not corrective; the actual parallel gap was the load guard above.
 
 ## Theming — system default + per-org brand (2026-08-06)
 
