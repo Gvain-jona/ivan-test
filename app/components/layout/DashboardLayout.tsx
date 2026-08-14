@@ -12,7 +12,6 @@ import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { NotificationsWrapper } from '../notifications/NotificationsWrapper';
 import NotificationPermissionRequest from '../ui/NotificationPermissionRequest';
 import { SimpleLoadingCoordinator } from '../loading';
-import ContinueSetupBanner from '../onboarding/ContinueSetupBanner';
 import { SETUP_PATH } from '@/lib/onboarding/steps';
 
 type DashboardLayoutProps = {
@@ -80,7 +79,6 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
                     full-width tab bar + safe area, tighter on desktop for
                     the floating pill. */}
                 <div className="pb-24 lg:pb-16">
-                  <ContinueSetupBanner />
                   {children}
                 </div>
               </Suspense>

@@ -11,6 +11,7 @@ import HomeSnapshot from '@/components/home/HomeSnapshot';
 import RecentOrdersList from '@/components/home/RecentOrdersList';
 import QuotationsSection from '@/components/home/QuotationsSection';
 import ToDoSection from '@/components/home/ToDoSection';
+import ContinueSetupBanner from '@/components/onboarding/ContinueSetupBanner';
 
 /** First day of the current month, as a YYYY-MM-DD string. */
 function monthStart(): string {
@@ -89,6 +90,7 @@ export default function HomePage() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <HomeHero />
+      <ContinueSetupBanner />
       <HomeSnapshot
         salesThisMonth={salesThisMonth}
         orderCount={monthCount}

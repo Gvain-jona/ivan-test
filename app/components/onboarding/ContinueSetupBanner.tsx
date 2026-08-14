@@ -11,8 +11,8 @@ import { apiRequest, PLATFORM_API } from '@/lib/api/client';
  * decision (2026-08-14). A1 collects the business's details; this carries the
  * rest, without ever spelling it out: the app prepared the common setup for the
  * owner, and this is the standing, dismissible invitation to review or extend it
- * when they wish. It rides the dashboard chrome, so it follows the owner across
- * pages until they act on it.
+ * when they wish. It sits in the Home feed just under the greeting, exactly
+ * where the H1 frame draws it (the frame shows it on Home only).
  *
  * Shown only to an owner who hasn't dismissed it — staff can't change fields or
  * settings, and `onboarding_completed_at` (set on dismiss) is what retires it.
@@ -43,7 +43,7 @@ export default function ContinueSetupBanner() {
   if (dismissing) return null;
 
   return (
-    <div className="mx-auto mb-4 flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+    <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
       <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Sparkles className="h-[18px] w-[18px]" />
       </span>
