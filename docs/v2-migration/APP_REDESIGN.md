@@ -833,10 +833,13 @@ appears only when the workflow has such a stage.
 explanation when the month exceeds the rollup cap, rather than a number that is
 quietly missing orders. Same rule as C2, D2 and F1.
 
-**One frame affordance left out:** the "New quote" quick action. A quotation is
-an order at a stage the org defines, and B2 already opens at that default — so
-the chip would either duplicate New order or hardcode a status value the app
-doesn't own. That is T1's reasoning applied to a button.
+**"New quote" quick action (reinstated 2026-08-14):** originally left out —
+a quotation is an order at a stage the org defines, and B2 already opens at that
+default, so the chip duplicates New order. But the frame draws it on both A2/B1
+and H1, and the fidelity pass restored it on both to match the canvas and keep
+Home and Orders consistent: it opens the same B2 composer (an order starts in
+the quotation stage, so it *is* a quote named for the intent), rather than
+hardcoding a status value. A defensible redundancy, chosen for canvas fidelity.
 
 ### A1 was marked built and wasn't (found 2026-08-10)
 

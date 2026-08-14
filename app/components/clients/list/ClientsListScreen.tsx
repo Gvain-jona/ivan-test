@@ -6,6 +6,7 @@ import { Plus, Search, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
 import { Figure, QuickAction, Chip } from '@/components/patterns/list';
+import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import EntityFieldsManager from '@/components/fields/EntityFieldsManager';
@@ -31,6 +32,7 @@ export default function ClientsListScreen() {
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-5">
+      <MobileFeedHeader />
       <h1 className="text-[22px] font-semibold text-foreground">Clients</h1>
 
       <div className="mt-3.5 flex items-center rounded-2xl border border-border bg-card px-1 py-3.5">
