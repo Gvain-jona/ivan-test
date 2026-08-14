@@ -608,6 +608,29 @@ single swap point. Order creation still goes through the
   - **Visual QA in a running authed app still outstanding**, same caveat as the
     rest of the redesign.
 
+- **Home (H1) rebuilt to the frame + mobile-landing fix (2026-08-14)** — audit
+  found the built Home diverged from the H1 canvas, and the root `/` landing
+  hardcoded `/dashboard/orders` for everyone, so mobile never reached its Home
+  feed.
+  - **Routing**: `app/page.tsx` now routes authed users to the adaptive
+    `/dashboard` index (mobile → Home, desktop → Orders) instead of hardcoding
+    Orders. `app/dashboard/page.tsx` already split correctly; only the root was
+    wrong.
+  - **H1 content**: `HomeHero` gained the org identity row (mobile owns its own
+    top; TopHeader is desktop-only) and dropped the search-bar create action;
+    `HomeSnapshot` is now two figures (sales this month · still to collect) over
+    two sub-stats; `HomeQuickActions` is New order / client / quote per the
+    frame; new `QuotationsSection` (active quotations) and `ToDoSection`
+    (**scaffolded** — no v2 task layer, honest empty state). `homeMetrics`
+    (`lib/orders/home-metrics.ts`, pure + tested) derives to-collect, in-process
+    count, and the quotation split from a bounded order book; the split is
+    data-driven off the workflow's default status, and quotations are excluded
+    from the orders feed so they aren't double-counted. Sums are approximate
+    over the bounded fetch — TODO(v2 read layer), same basis as the sales
+    figure.
+  - Still owed: **visual QA in an authed runtime**, and wiring `ToDoSection`
+    when a v2 tasks layer exists.
+
 ## Theming — system default + per-org brand (2026-08-06)
 
 **Requires a Clerk dashboard change to take effect.** Add a session-token

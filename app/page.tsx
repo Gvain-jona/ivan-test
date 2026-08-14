@@ -34,7 +34,11 @@ export default function Home() {
     // Only redirect when not loading and not processing auth
     if (!isLoading && !processingAuth) {
       if (user) {
-        router.push('/dashboard/orders');
+        // The dashboard index is platform-adaptive (mobile → Home feed,
+        // desktop → Orders; see app/dashboard/page.tsx). Routing straight to
+        // /dashboard/orders here sent mobile users past their Home feed — the
+        // landing must go through the adaptive index, not hardcode Orders.
+        router.push('/dashboard');
       } else {
         router.push('/auth/signin');
       }

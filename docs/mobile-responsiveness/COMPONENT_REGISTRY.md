@@ -51,21 +51,24 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
 | SignInPage (Clerk) | `app/auth/signin/[[...rest]]/page.tsx` | Yes | Clerk `<SignIn />` card is responsive by default; branding shell reuses signin.css |
 | HomePage | `app/dashboard/home/page.tsx` | Yes | Mobile-first Home feed; centered `max-w-2xl` column, stacks naturally |
-| HomeHero | `app/components/home/HomeHero.tsx` | Yes | Greeting hero + avatar + quick-add bar; greeting scales `text-3xl sm:text-4xl` |
-| HomeQuickActions | `app/components/home/HomeQuickActions.tsx` | Yes | Horizontal-scroll quick-action chips (New client / New product → `?new=1` deep-links). Replaced HomeCategoryChips, which duplicated the tab bar |
-| HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | "Sales this month" momentum card (figure + month order count); single column |
+| HomeHero | `app/components/home/HomeHero.tsx` | Yes | H1 top: org identity row (logo + name + avatar) over the greeting. Mobile owns its own top (TopHeader is desktop-only). Rebuilt 2026-08-14 — dropped the search-bar create action (chips carry it) |
+| HomeQuickActions | `app/components/home/HomeQuickActions.tsx` | Yes | Horizontal-scroll quick-create chips: New order (primary) / New client / New quote, matching the H1 frame (2026-08-14). Open the create surfaces via the sheet host |
+| HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | H1 two-figure card: sales this month · still to collect, over two sub-stats (orders this month / in process). Figures split by a `w-px` divider; rebuilt 2026-08-14 |
+| QuotationsSection | `app/components/home/QuotationsSection.tsx` | Yes | H1 active-quotations list (rounded card, divided rows); renders nothing when empty. New 2026-08-14 |
+| ToDoSection | `app/components/home/ToDoSection.tsx` | Yes | H1 to-do section — scaffolded (no v2 task layer yet); shell + honest empty state, Add disabled. New 2026-08-14 |
+| ContinueSetupBanner | `app/components/onboarding/ContinueSetupBanner.tsx` | Yes | Dismissible "Continue setup" badge in the dashboard chrome (owner-only, until `onboarding_completed_at` set). New 2026-08-14 |
 | RecentOrdersList | `app/components/home/RecentOrdersList.tsx` | Yes | Card-first order list grouped by workflow state (in progress / awaiting payment / …) — the mobile default for order data |
 | GettingStartedPage | `app/dashboard/getting-started/page.tsx` | Yes | First-run wizard host; renders without dashboard chrome (DashboardLayout suppresses it for this route), so the shell owns the viewport |
-| GettingStartedWizard | `app/components/onboarding/GettingStartedWizard.tsx` | Partial | Step switchboard on `SetupShell`; layout is the shell's. Visual QA pending (needs authed runtime) |
-| SetupShell | `app/components/onboarding/SetupShell.tsx` | Yes | Full-height two columns (340px rail + panel), not a floating card. Rail never scrolls; only the panel's content does, with the step title and footer hoisted out of the scroll area via portals. Below `lg` the columns stack and the rail becomes a header band. Also exports SectionLabel / StepHeading / StepFooter |
+| GettingStartedWizard | `app/components/onboarding/GettingStartedWizard.tsx` | Yes | A1 only now (2026-08-14) — renders `BusinessDetailsStep` and, on save, seeds defaults + lands on Home. No steps, no shell. Visual QA pending (needs authed runtime) |
+| ~~SetupShell~~ | ~~`app/components/onboarding/SetupShell.tsx`~~ | — | **Deleted 2026-08-14** — the multi-step rail went with the wizard collapse; `SectionLabel` now comes from `patterns/screen` |
 | OrgLogo | `app/components/onboarding/OrgLogo.tsx` | Yes | Square org mark from Clerk `imageUrl`, initials only as a pre-load fallback; size-driven, no layout of its own |
-| StepTracker | `app/components/onboarding/StepTracker.tsx` | Yes | Vertical rail tracker on `lg`, horizontal indicator strip below (labels `sr-only`); both from one step model |
+| ~~StepTracker~~ | ~~`app/components/onboarding/StepTracker.tsx`~~ | — | **Deleted 2026-08-14** — no steps left to track after the A1-only collapse |
 | ~~WelcomeStep~~ | ~~`app/components/onboarding/WelcomeStep.tsx`~~ | — | **Deleted 2026-08-10** — A1 is a form, not narration |
 | ~~CurrencyStep~~ | ~~`app/components/onboarding/CurrencyStep.tsx`~~ | — | **Deleted 2026-08-10** — folded into A1; its picker survives as `CurrencyPicker` |
 | currency-picker-parts | `app/components/onboarding/currency-picker-parts.tsx` | Yes | `CurrencyChip` + `CurrencyListRow`, the two radio presentations of the one currency choice; no layout of their own |
-| FirstRecordsStep | `app/components/onboarding/FirstRecordsStep.tsx` | Partial | Three entity rows (icon + text + action); text truncates, but the row stays horizontal at 375px — check the button doesn't crowd the label. Visual QA pending |
-| EntityFieldSetupStep | `app/components/onboarding/EntityFieldSetupStep.tsx` | Partial | Now a shell: one or two `EntityFieldSection`s plus the footer. Rebuilt in redesign phases 3-4, reduced to the shell 2026-08-07. Visual QA pending |
-| EntityFieldSection | `app/components/onboarding/EntityFieldSection.tsx` | Partial | The per-entity body extracted from `EntityFieldSetupStep` (fixed-fields banner, starter rows + option chips via `flex-wrap`, inline `FieldComposer`, status drill-in). Two stacked sections on the Orders step make it the longest scroll in setup on a ~375px screen. Visual QA pending |
+| ~~FirstRecordsStep~~ | ~~`app/components/onboarding/FirstRecordsStep.tsx`~~ | — | **Deleted 2026-08-14** — first records are added in-app now, not in a setup step |
+| ~~EntityFieldSetupStep~~ | ~~`app/components/onboarding/EntityFieldSetupStep.tsx`~~ | — | **Deleted 2026-08-14** — fields are seeded, then edited in-app via the "Fields" chip (`EntityFieldsManager`), not configured in setup |
+| ~~EntityFieldSection~~ | ~~`app/components/onboarding/EntityFieldSection.tsx`~~ | — | **Deleted 2026-08-14** — went with `EntityFieldSetupStep` |
 | OnboardingGate | `app/components/onboarding/OnboardingGate.tsx` | Yes | Logic-only redirect wrapper (renders children unchanged); no layout of its own |
 | OrganizationSettingsPage | `app/dashboard/organization/page.tsx` | Yes | Single `max-w-3xl` column, `px-4 sm:px-6`; sections stack. No table, no chrome of its own |
 | BrandColorPicker | `app/components/organization/BrandColorPicker.tsx` | Yes | `flex-wrap` swatch chips reflow 4→3→2 per row at 375px; owner-only (staff renders the same chips disabled) |
