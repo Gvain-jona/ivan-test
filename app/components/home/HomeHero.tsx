@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, Search } from 'lucide-react';
+import { useOrganization as useClerkOrganization } from '@clerk/nextjs';
 import { useAuth } from '@/app/context/auth-context';
-import { useSheets } from '@/context/sheet-host';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import OrgLogo from '@/components/onboarding/OrgLogo';
 
 /** Greeting varies with time of day, matching TopHeader's logic. */
 function getGreeting(): string {
@@ -29,75 +29,53 @@ function initials(full?: string, email?: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-/** Full weekday + date, e.g. "Monday 21 July". */
-function longDate(): string {
-  return new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-}
-
 /**
- * Top of the Home feed: date eyebrow, large greeting, a notification
- * bell, and the primary "create order" quick-action bar. Styled after
- * the mobile inspiration set (spacious, rounded, card-on-background),
- * but theme-aware via tokens so it holds in light and dark.
+ * Top of the Home feed (H1): the org identity row — logo, business name, and
+ * the user's avatar — over the time-of-day greeting. Mobile owns its own top
+ * (TopHeader is desktop-only, product decision 2026-07-23), so the org header
+ * the canvas draws here lives in the feed rather than in shared chrome. The
+ * create actions the old hero carried as a search bar now sit in the quick-
+ * action chips below, matching the frame.
  */
 export default function HomeHero() {
   const { profile, user } = useAuth();
-  const { openCreateOrder } = useSheets();
+  const { organization } = useClerkOrganization();
   const name = firstName(profile?.full_name, user?.email);
   const avatarInitials = initials(profile?.full_name, user?.email);
+  const orgName = organization?.name ?? 'Your business';
 
   return (
-    <section className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {longDate()}
-          </p>
-          <h1 className="mt-1.5 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
-            {getGreeting()},
-            <br />
-            <span className="text-foreground">{name}!</span>
-          </h1>
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <OrgLogo size={38} className="rounded-[11px]" />
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-bold leading-tight text-foreground">
+              {orgName}
+            </p>
+            <p className="truncate text-[11.5px] text-muted-foreground">Business Management</p>
+          </div>
         </div>
 
         <Link
           href="/dashboard/profile"
           aria-label="Your profile"
-          className="flex-shrink-0 rounded-full ring-offset-2 ring-offset-background transition-shadow hover:ring-2 hover:ring-border lg:hidden"
+          className="flex-shrink-0 rounded-full ring-offset-2 ring-offset-background transition-shadow hover:ring-2 hover:ring-border"
         >
-          <Avatar className="h-10 w-10 border border-border">
-            {profile?.avatar_url ? (
-              <AvatarImage src={profile.avatar_url} alt={name} />
-            ) : null}
-            {/* Flat brand pair, not a gradient into a literal orange-600:
-                the org's colour may not be orange, and only this pair has
-                verified contrast. */}
-            <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
+          <Avatar className="h-9 w-9 border border-border">
+            {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} alt={name} /> : null}
+            {/* Flat brand pair, not a gradient into a literal orange — the org's
+                colour may not be orange, and only this pair has verified contrast. */}
+            <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
               {avatarInitials}
             </AvatarFallback>
           </Avatar>
         </Link>
       </div>
 
-      {/* Primary quick action — opens the create-order sheet in place (no
-          navigation). */}
-      <button
-        type="button"
-        onClick={openCreateOrder}
-        className="group flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-muted"
-      >
-        <Search className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate text-sm text-muted-foreground">
-          Create a new order&hellip;
-        </span>
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform group-hover:scale-105">
-          <Plus className="h-4 w-4" />
-        </span>
-      </button>
+      <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+        {getGreeting()}, {name}
+      </h1>
     </section>
   );
 }

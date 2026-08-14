@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp } from 'lucide-react';
+import { Clock, Package } from 'lucide-react';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 
 interface HomeSnapshotProps {
@@ -8,45 +8,81 @@ interface HomeSnapshotProps {
   salesThisMonth: number;
   /** Number of orders in the current month (accurate count, not the bounded fetch). */
   orderCount: number;
+  /** Outstanding balance across the loaded order book — "still to collect". */
+  toCollect: number;
+  /** Open orders past the quotation stage. */
+  inProcessCount: number;
   isLoading: boolean;
 }
 
 /**
- * The "momentum" hero card — this month's sales, the print-shop owner's
- * headline pulse. Scoped to the current calendar month: the figure sums the
- * month's order totals (bounded fetch, same approach as the rest of the feed)
- * and the badge shows the month's order count.
+ * The H1 snapshot card: two headline figures — this month's sales and what's
+ * still to collect — over two sub-stats (orders this month, orders in process).
+ * The figures are approximate over the bounded feed fetch, same basis as the
+ * rest of Home; TODO(v2 read layer) when analytics cuts over.
  */
 export default function HomeSnapshot({
   salesThisMonth,
   orderCount,
+  toCollect,
+  inProcessCount,
   isLoading,
 }: HomeSnapshotProps) {
   const fmt = useFormatCurrency();
+
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-3xl border border-border bg-card p-6">
-        <div className="h-4 w-32 rounded bg-muted" />
-        <div className="mt-4 h-9 w-48 rounded bg-muted" />
+      <div className="animate-pulse rounded-3xl border border-border bg-card p-5">
+        <div className="flex gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-20 rounded bg-muted" />
+            <div className="h-8 w-28 rounded bg-muted" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-20 rounded bg-muted" />
+            <div className="h-8 w-28 rounded bg-muted" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <TrendingUp className="h-4 w-4" />
-          Sales this month
-        </div>
-        <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
-          {orderCount} {orderCount === 1 ? 'order' : 'orders'}
-        </span>
+    <div className="rounded-3xl border border-border bg-card p-5">
+      <div className="flex items-stretch">
+        <Figure label="Sales this month" value={fmt(salesThisMonth)} />
+        <div className="mx-4 w-px bg-border" />
+        <Figure label="Still to collect" value={fmt(toCollect)} tone="warning" />
       </div>
 
-      <p className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-        {fmt(salesThisMonth)}
+      <div className="mt-4 flex items-center gap-4 border-t border-border pt-3.5">
+        <SubStat icon={Package} text={`${orderCount} ${orderCount === 1 ? 'order' : 'orders'} this month`} />
+        <SubStat icon={Clock} text={`${inProcessCount} in process`} />
+      </div>
+    </div>
+  );
+}
+
+function Figure({ label, value, tone }: { label: string; value: string; tone?: 'warning' }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-[11.5px] font-medium text-muted-foreground">{label}</p>
+      <p
+        className={`mt-1 truncate text-[22px] font-bold tracking-tight ${
+          tone === 'warning' ? 'text-warning' : 'text-foreground'
+        }`}
+      >
+        {value}
       </p>
     </div>
+  );
+}
+
+function SubStat({ icon: Icon, text }: { icon: typeof Clock; text: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
+      <Icon className="h-3.5 w-3.5" />
+      {text}
+    </span>
   );
 }
