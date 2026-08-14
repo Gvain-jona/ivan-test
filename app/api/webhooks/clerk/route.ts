@@ -4,6 +4,7 @@ import { verifyWebhook } from '@clerk/nextjs/webhooks';
 import { clerkClient } from '@clerk/nextjs/server';
 import { randomUUID } from 'crypto';
 import { createV2AdminClient } from '@/utils/supabase/server-v2';
+import { seedOrgDefaults } from '@/lib/onboarding/seed-defaults';
 
 /**
  * Syncs Clerk Organizations (source of truth for org identity,
@@ -71,13 +72,21 @@ async function handleOrganizationCreated(admin: Admin, org: OrgEvent) {
   if (!org.created_by) return; // no creator to attribute ownership to
   const ownerInternalId = await getOrCreateInternalUserId(org.created_by);
 
-  const { error } = await admin.rpc('provision_organization', {
+  const { data: organizationId, error } = await admin.rpc('provision_organization', {
     p_clerk_org_id: org.id,
     p_name: org.name,
     p_owner_user_id: ownerInternalId,
     p_slug: org.slug ?? null,
   });
   if (error) throw error;
+
+  // Prepare the org's starter field_definitions up front so the app is usable
+  // from the first screen — the user is never asked to configure what to
+  // collect (see seedOrgDefaults). Idempotent, so a retried delivery is safe;
+  // provision_organization itself returns the existing id without re-inserting.
+  if (typeof organizationId === 'string') {
+    await seedOrgDefaults(admin, organizationId);
+  }
 }
 
 async function handleOrganizationUpdated(admin: Admin, org: OrgEvent) {

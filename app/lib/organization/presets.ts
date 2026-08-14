@@ -1,13 +1,19 @@
 /**
- * Opt-in starter templates for first-run setup (see
+ * The starter template every new org begins with (see
  * docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md).
  *
- * These are NOT silent fallbacks. Nothing here is applied unless the user
- * chooses to during onboarding; once applied they become the org's own
- * editable field_definitions / settings, which they can change, disable, or
- * ignore. This module is the single source of truth for the print-shop
- * template — the wizard reads it, presents it, and (on apply) writes the
- * selected pieces via POST /api/field-definitions and PATCH /api/organization.
+ * Decision, 2026-08-14: the system applies this baseline **for** the user
+ * rather than asking them to configure it. Knowing what data a print shop
+ * should collect is expert knowledge most owners don't have on day one, so we
+ * take that burden — the app arrives pre-set-up with the common needs, and the
+ * flexibility is unchanged: the moment these land they are the org's own
+ * field_definitions / settings, free to change, disable, or ignore. That this
+ * happened is communicated by the design (a brief A1 screen, then a "Continue
+ * setup" badge through the app), not by an explanatory step.
+ *
+ * This module stays the single source of truth for the print-shop template.
+ * `seed-defaults.ts` writes it into a new org's rows — at provisioning (the
+ * Clerk webhook) and, as a safety net, on A1 completion.
  */
 
 import type { FieldOption } from '@/lib/fields/options';

@@ -1,13 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Store } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
-import { Button } from '@/components/ui/button';
-import { STEP_COUNT } from '@/lib/onboarding/steps';
 import CurrencyPicker, { findCurrency } from './CurrencyPicker';
 import OrgLogo from './OrgLogo';
-import { StepFooter, StepHeading } from './SetupShell';
 import {
   Field,
   IndustryPicker,
@@ -36,17 +33,6 @@ interface BusinessDetailsStepProps {
   onChange: (next: BusinessDetails) => void;
   onContinue: () => void;
   busy?: boolean;
-  /**
-   * Which shell the same form renders in.
-   * - `frame` (mobile): the bare A1 hero — big org mark, "Let's Set You Up", no
-   *   step counter. The frame's deliberate "form, no narration" intent.
-   * - `panel` (desktop): the form as step 1 *inside* SetupShell, so it carries
-   *   the same rail and pinned Back/Continue as steps 2–5 instead of the whole
-   *   viewport switching layout between step 1 and step 2. Progress lives in the
-   *   rail there, which is why the hero counter it omits is no loss on desktop.
-   * The field block itself is identical either way.
-   */
-  chrome?: 'frame' | 'panel';
 }
 
 type Drill = 'industry' | 'currency' | null;
@@ -59,14 +45,13 @@ type Drill = 'industry' | 'currency' | null;
  * uppercase label and a 44px box (8px radius, 1px border, 12px side padding)
  * with its value at 14.5/500, 14px apart, closing on a full-width 48px action.
  *
- * **On mobile it renders without the setup shell** (`chrome='frame'`), and that
- * is the design's point rather than an omission. The frame's own subtitle is
- * "the form, no narration": the step it replaced was a welcome page explaining
- * products, clients and orders before the user could touch anything, and a
- * "Step 1 of 5" counter above an empty form is the same instinct in miniature.
- * **On desktop it renders inside the shell** (`chrome='panel'`) so step 1 no
- * longer switches the whole viewport's layout before step 2 — the rail already
- * carries progress there, so the counter the mobile hero drops is no loss.
+ * **It renders as one bare hero**, and that is the design's point rather than an
+ * omission. The frame's own subtitle is "the form, no narration": the step it
+ * replaced was a welcome page explaining products, clients and orders before the
+ * user could touch anything, and a "Step 1 of 5" counter above an empty form is
+ * the same instinct in miniature. There is no longer a step 2 to narrate — the
+ * baseline is seeded and the rest is refined in-app — so first-run is this
+ * single screen, centered on wider viewports by its own max-width.
  *
  * **Industry and currency open in a sheet, not a nested screen.** Each is a
  * single choice, and CLAUDE.md's screen-vs-sheet rule reserves nested screens
@@ -91,7 +76,6 @@ export default function BusinessDetailsStep({
   onChange,
   onContinue,
   busy,
-  chrome = 'frame',
 }: BusinessDetailsStepProps) {
   const [drill, setDrill] = useState<Drill>(null);
   const set = <K extends keyof BusinessDetails>(key: K, next: BusinessDetails[K]) =>
@@ -224,31 +208,6 @@ export default function BusinessDetailsStep({
     </>
   );
 
-  // Desktop: the form as a step inside SetupShell — StepHeading and StepFooter
-  // portal into the shell's pinned slots, so it matches steps 2–5 exactly.
-  if (chrome === 'panel') {
-    return (
-      <>
-        <StepHeading
-          stepNumber={1}
-          stepCount={STEP_COUNT}
-          icon={<Store className="h-5 w-5" />}
-          title="Your business"
-          hint="How your business shows up to customers — its name, contact details and the currency you work in."
-        />
-        {fields}
-        <StepFooter disabled={busy}>
-          <Button type="button" onClick={onContinue} disabled={!canContinue}>
-            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Get Started
-          </Button>
-        </StepFooter>
-        {sheets}
-      </>
-    );
-  }
-
-  // Mobile: the bare A1 hero frame.
   return (
     <Screen>
       <OrgLogo size={48} className="rounded-[14px]" />

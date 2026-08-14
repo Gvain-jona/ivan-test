@@ -2,41 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Check, ClipboardList, Loader2, Package, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrganization as useClerkOrganization } from '@clerk/nextjs';
 import { useOrganization } from '@/hooks/organization/useOrganization';
-import { useMediaQuery } from '@/hooks/use-media-query';
 import { apiRequest, PLATFORM_API } from '@/lib/api/client';
-import {
-  STEP_COUNT,
-  nextStep,
-  previousStep,
-  stepNumber,
-  type SetupStepId,
-} from '@/lib/onboarding/steps';
+import { POST_SETUP_PATH } from '@/lib/onboarding/first-run';
 import BusinessDetailsStep, { type BusinessDetails } from './BusinessDetailsStep';
-import EntityFieldSetupStep from './EntityFieldSetupStep';
-import FirstRecordsStep from './FirstRecordsStep';
-import SetupShell, { StepFooter, StepHeading } from './SetupShell';
 
 /**
- * First-run wizard: the business's own details first (A1), then the model —
- * product -> client -> order in dependency order, configuring each entity's
- * fields in place — closing with an invitation to create the first records.
- * Finishing marks onboarding complete so the gate stops routing here. See
- * docs/v2-migration/FIRST_RUN_AND_FIELD_SETUP.md and ONBOARDING_REDESIGN.md.
+ * First-run is one screen: A1, business details.
+ *
+ * Saving it does three things and then leaves: writes the business's identity
+ * and currency, ensures the org's starter field_definitions exist (the safety
+ * net for the provisioning-time seed — see seedOrgDefaults), and drops the user
+ * into the app. There is no step 2: the baseline the app needs is seeded, and
+ * everything the owner might refine is an in-app invitation behind the "Continue
+ * setup" badge, not a gate. See docs/v2-migration/APP_REDESIGN.md → A1/H1.
  */
 export default function GettingStartedWizard() {
   const router = useRouter();
   const { toast } = useToast();
   const { currency: savedCurrency, settings, isLoading: orgLoading, mutate } = useOrganization();
   const { organization: clerkOrg, isLoaded: clerkLoaded } = useClerkOrganization();
-  // lg — the same breakpoint SetupShell and OrderSheet switch on.
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
-  const [step, setStep] = useState<SetupStepId>('business');
   const [business, setBusiness] = useState<BusinessDetails>(EMPTY_BUSINESS);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -69,21 +58,11 @@ export default function GettingStartedWizard() {
     setLoaded(true);
   }, [loaded, clerkLoaded, orgLoading, clerkOrg?.name, settings.identity, savedCurrency]);
 
-  const advance = () => {
-    const next = nextStep(step);
-    if (next) setStep(next);
-  };
-  const back = () => {
-    const previous = previousStep(step);
-    if (previous) setStep(previous);
-  };
-  /** The first step has nowhere to go back to. */
-  const onBack = previousStep(step) ? back : undefined;
-
   const saveBusiness = async () => {
     // Required, not optional: v2.issue_document() refuses to raise an invoice
-    // or quotation without settings.locale.currency. Continue is disabled
-    // without one; this guard is the non-UI half of the same rule.
+    // or quotation without settings.locale.currency, and currency is also the
+    // one signal the gate reads (OnboardingGate). Continue is disabled without
+    // one; this guard is the non-UI half of the same rule.
     if (!business.currency) return;
     setBusy(true);
     try {
@@ -97,28 +76,21 @@ export default function GettingStartedWizard() {
           locale: { currency: business.currency },
         },
       });
+      // Safety net for the provisioning-time seed: idempotent, so it costs one
+      // no-op upsert when the webhook already seeded, and backfills the org
+      // whose organization.created arrived out of order or predates the seed.
+      // Best-effort — a seed hiccup must not trap the user on the setup screen
+      // when their details already saved; the webhook remains the primary path.
+      try {
+        await apiRequest(PLATFORM_API.ORGANIZATION_SEED_DEFAULTS, 'POST');
+      } catch {
+        // swallow — entry is gated on currency, which is now written
+      }
       await mutate();
-      advance();
+      router.replace(POST_SETUP_PATH);
     } catch (error) {
       toast({
         title: 'Could not save your details',
-        description: error instanceof Error ? error.message : 'Please try again',
-        variant: 'destructive',
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const finish = async () => {
-    setBusy(true);
-    try {
-      await apiRequest(PLATFORM_API.ORGANIZATION, 'PATCH', { onboarding_completed: true });
-      await mutate();
-      router.replace('/dashboard/orders');
-    } catch (error) {
-      toast({
-        title: 'Could not finish setup',
         description: error instanceof Error ? error.message : 'Please try again',
         variant: 'destructive',
       });
@@ -133,117 +105,20 @@ export default function GettingStartedWizard() {
   // both have arrived (or on error), so this resolves in a beat and never hangs.
   if (!loaded) return <SetupLoading />;
 
-  // The business step is step 1. On mobile it's the bare A1 hero (no rail);
-  // on desktop it renders inside SetupShell so the layout doesn't switch
-  // between step 1 and step 2. The breakpoint is already resolved by the time
-  // `loaded` lets us render, so this is a single mount with no flash.
-  if (step === 'business') {
-    const businessStep = (chrome: 'frame' | 'panel') => (
-      <BusinessDetailsStep
-        value={business}
-        onChange={setBusiness}
-        onContinue={saveBusiness}
-        busy={busy}
-        chrome={chrome}
-      />
-    );
-    return isDesktop ? (
-      <SetupShell current="business">{businessStep('panel')}</SetupShell>
-    ) : (
-      businessStep('frame')
-    );
-  }
-
   return (
-    <SetupShell current={step}>
-      {step === 'product' && (
-        <>
-          <StepHeading
-            stepNumber={stepNumber(step)}
-            stepCount={STEP_COUNT}
-            icon={<Package className="h-5 w-5" />}
-            title="Your product catalog"
-            hint="What you sell. Keep the fields that fit, add your own, or create your first product."
-          />
-          <EntityFieldSetupStep
-            entity="product"
-            onContinue={advance}
-            onBack={onBack}
-          />
-        </>
-      )}
-
-      {step === 'client' && (
-        <>
-          <StepHeading
-            stepNumber={stepNumber(step)}
-            stepCount={STEP_COUNT}
-            icon={<Users className="h-5 w-5" />}
-            title="Your clients"
-            hint="Who you sell to. Only a name is required — everything else is yours to define."
-          />
-          <EntityFieldSetupStep
-            entity="client"
-            onContinue={advance}
-            onBack={onBack}
-          />
-        </>
-      )}
-
-      {step === 'order' && (
-        <>
-          <StepHeading
-            stepNumber={stepNumber(step)}
-            stepCount={STEP_COUNT}
-            icon={<ClipboardList className="h-5 w-5" />}
-            title="Your orders"
-            hint="This includes your status workflow — the stages an order moves through."
-          />
-          <EntityFieldSetupStep
-            entity="order"
-            // An order's lines are set up here rather than in a step of their
-            // own: size varies per line, not per order, but "order item" is a
-            // system word and nobody setting up a print shop would look for it
-            // as a separate stage.
-            secondary={{
-              entity: 'order_item',
-              heading: 'For each item on an order',
-              label: 'order item',
-            }}
-            onContinue={advance}
-            onBack={onBack}
-          />
-        </>
-      )}
-
-      {step === 'records' && (
-        <>
-          <StepHeading
-            stepNumber={stepNumber(step)}
-            stepCount={STEP_COUNT}
-            icon={<Check className="h-5 w-5" strokeWidth={3} />}
-            tone="success"
-            title="Your workspace is set up"
-            hint="Add a first record to each if you like — or head straight to the dashboard and do it as work comes in."
-          />
-          <FirstRecordsStep />
-          <StepFooter onBack={onBack} disabled={busy}>
-            <Button onClick={finish} disabled={busy}>
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Go to my dashboard
-              <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Button>
-          </StepFooter>
-        </>
-      )}
-    </SetupShell>
+    <BusinessDetailsStep
+      value={business}
+      onChange={setBusiness}
+      onContinue={saveBusiness}
+      busy={busy}
+    />
   );
 }
 
 /** Shown while the org's saved details load, before the form is seeded. */
 function SetupLoading() {
   return (
-    <div className="flex h-dvh items-center justify-center bg-setup-canvas">
+    <div className="flex h-dvh items-center justify-center bg-background">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       <span className="sr-only">Loading your workspace…</span>
     </div>

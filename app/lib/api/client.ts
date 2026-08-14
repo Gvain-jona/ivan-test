@@ -15,6 +15,7 @@ export const PLATFORM_API = {
   NOTES: '/api/notes',
   DOCUMENTS: '/api/documents',
   ORGANIZATION: '/api/organization',
+  ORGANIZATION_SEED_DEFAULTS: '/api/organization/seed-defaults',
   COUNTERS: '/api/counters',
 } as const;
 
