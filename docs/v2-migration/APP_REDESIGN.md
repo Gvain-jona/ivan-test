@@ -65,9 +65,9 @@ starter field.
 | B7 | Issue document | ✅ Built (`IssueDocumentSheet`) — no Receipt chip, A3c postponed |
 | B8 | Order discount | ✅ Built (`DiscountSheet`) |
 | B9 | Invoice — the document | ✅ Built (`DocumentPaper`, `/dashboard/documents/[id]`) |
-| C1 | Clients | Exists, pre-redesign |
+| C1 | Clients — the working list | ✅ Built (`ClientsListScreen`, `/dashboard/clients`) |
 | C2 | Client detail | ✅ Built (`ClientDetailScreen`) |
-| D1 | Products | Exists, pre-redesign |
+| D1 | Products — the working list | ✅ Built (`ProductsListScreen`, `/dashboard/products`) |
 | D2 | Product detail | ✅ Built (`ProductDetailScreen`) |
 | E1 | Track something else | ⛔ **Out of scope** (2026-08-10) — `EntityFieldsManager` stands |
 | E2 | Notes | Not built — unblocked (A2, 2026-08-07) |
@@ -77,12 +77,71 @@ starter field.
 | F3 | Invoice settings | ✅ Built (`InvoiceSettingsScreen`) |
 | H1 | Home (mobile feed) | Built, metrics scaffolded |
 
-**15 of 26 built to the redesign** (F3, F1, B9, C2, D2, then B2 with its four
-sheets, B4, B7, B1, A2 and A1 on 2026-08-10). **Nothing is blocked on schema any
-more** — every remaining row is app work. **The order module is complete end to
-end**: list → create → hub → issue → document, all on the redesign, and the
-last pre-redesign order code is deleted. What is left is the two other lists
-(C1, D1), the settings hub (E3), the notes surface (E2), and F2.
+**17 of 26 built to the redesign** (F3, F1, B9, C2, D2, then B2 with its four
+sheets, B4, B7, B1, A2 and A1 on 2026-08-10, then C1 and D1 on 2026-08-12).
+**Nothing is blocked on schema any more** — every remaining row is app work.
+**The order module is complete end to end**: list → create → hub → issue →
+document, all on the redesign, and the last pre-redesign order code is deleted.
+**Both entity lists are now on the redesign too** — the pre-redesign clients and
+products tables are deleted. What is left is the settings hub (E3), the notes
+surface (E2), and F2.
+
+### C1, built 2026-08-12
+
+The clients list, and the answer to the "C1/D1 list aggregates" row below that
+had sat open. It mirrors B1 exactly — the generic list vocabulary (summary
+figure, quick-action chip, filter chip) was promoted out of
+`orders/list/list-parts` into `patterns/list.tsx` so the two lists share it
+rather than fork it, the same move `screen-parts` made into `patterns/screen`
+before B2. `orders/list/list-parts` re-exports the three so B1 was untouched.
+
+**The per-row rollup is `useOrdersList`'s pattern, not a new API.** A bounded
+org-wide orders fetch is grouped by `client_id` into owing + order count
+(`lib/clients/list.ts`, pure and unit-tested), and the same fetch sums the
+top-card "Still to collect". One `exact` flag governs all of it: when the fetch
+covered every order the figures show, when it hit the cap they are dropped
+rather than shown partial — the client *count* stays exact regardless. This is
+deliberately **no route change**, so `ClientField`'s search-as-you-type isn't
+burdened with a 500-row aggregation and no route contract test moved.
+
+Three deliberate choices worth not relitigating:
+
+- **Type chips come from the org's own `type` field options**, never the
+  frame's literal Regular/Contract/Walk-in — the statuses lesson (T1) applied to
+  client type. An org that renamed or removed the field gets different chips, or
+  none.
+- **Search and the chip filters run client-side over the loaded page.** None is
+  a column PostgREST can filter without a jsonb path built from a client-
+  supplied value; an org's client book is small enough to hold, and this goes
+  away with the metrics layer. The server-side name search on the route is left
+  intact for `ClientField`.
+- **The end chip is Fields, not the frame's "Filters".** There is no clients
+  filter sheet; field management is the real wired capability, and B1 already
+  set that precedent in the same slot. "Owes" uses the `warning` tone C2 uses
+  for an outstanding balance, not the brand colour the frame happens to show.
+
+### D1, built 2026-08-12
+
+C1's shape with three differences, all following from what a product is. **No
+summary card** — a product list has no single headline figure the way an order
+list has takings or a client list has "still to collect". **The chips are
+categories**, from the org's own `category` field options (same derivation as
+C1's type). **The list carries drafts inline**, badged, so it fetches status
+'all' and excludes archived at the filter seam (`lib/products/list.ts`, pure and
+unit-tested) — the route can only ask for one status or all.
+
+**No per-row order count, on purpose.** The frame shows "24 orders" under each
+price, but that count means grouping `order_items` by product, and order_items
+is the highest-cardinality table in the schema — a bounded fetch would go
+inexact almost immediately, so the count would be absent for exactly the shops
+with enough data to want it. Parked on the metrics layer (the Aggregates table
+already said so); the row shows the one figure that is a real column and always
+exact, the **selling price**. Honest-or-absent, not faked.
+
+The row **subtitle is composed from the org's own product fields** — the first
+three non-empty formatted values (category · size · material for Ivan) via the
+same `formatFieldValue` D2 uses — not three hardcoded columns, so a shop that
+tracks different fields sees its own.
 
 ### Scope call, 2026-08-10: B3, E1 and B5 are out
 
@@ -98,8 +157,9 @@ to those screens, not to B5 — and stages keep being *defined* in the existing
 `StatusDropdown` simply rides along until B1 replaces the list that uses it.
 
 **14 surfaces remained** at the time of the call: B2 (+B2d state), B2a/B2a2,
-B2b, B2c, B8, B4, B7, B1, A2, C1, D1, E2, E3, F2. **Five remain** after
-2026-08-10: C1, D1, E2, E3, F2.
+B2b, B2c, B8, B4, B7, B1, A2, C1, D1, E2, E3, F2. **Five remained** after
+2026-08-10 (C1, D1, E2, E3, F2); **three remain** after C1 and D1 both landed
+2026-08-12: E2, E3, F2.
 
 ---
 
@@ -373,7 +433,7 @@ than two inputs writing the same fact today.
 | **F1 Documents** | F1 | ✅ 2026-08-07 — built off the frame; now holds the fourth tab-bar slot |
 | **B9 Invoice — the document** | B9 | ✅ 2026-08-07 — rendered from the frozen snapshot at `/dashboard/documents/[id]` |
 | **C2 Client · D2 Product** | C2, D2 | ✅ 2026-08-07 — built off the frames, with rollups that are exact or absent |
-| C1 / D1 list aggregates | per-row owing / order counts | 🔲 Same shape as the detail rollups; the list would need one per row |
+| C1 / D1 list aggregates | per-row owing / order counts | ✅ Both built 2026-08-12. C1 owing: bounded orders fetch grouped by client (`lib/clients/list.ts`), exact-or-absent. D1 shows price only; per-row order count parked on the metrics layer (order_items cardinality — see D1 note) |
 
 Two decisions taken while building these, worth not relitigating:
 
@@ -609,7 +669,9 @@ surfaces are screens. Add item / payment / note / issue document are sheets.
    `OrdersTableNew`, `OrderRow`, `OrderCard`, `OrdersFilterSheet`,
    `StatusDropdown`, `OrderActions`, `OrderDeleteConfirmation`, `CustomDropdown`,
    and the whole `_components`/`_context` tree under the page.
-9. **C1 + D1** — the same list language; per-row rollups exact or absent.
+9. ✅ **C1 and D1 done (2026-08-12)** — the same list language; per-row figures
+   exact or absent (C1 owing from a bounded orders fetch; D1 shows price only,
+   its order count parked on the metrics layer).
 10. **F2**, then **E2** and **E3**.
 11. **Trailing** — the C1/C2/F1 aggregates.
 
