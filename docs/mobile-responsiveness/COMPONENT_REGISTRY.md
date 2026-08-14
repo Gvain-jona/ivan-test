@@ -21,7 +21,7 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | OrangeInvoiceTemplate | `app/features/invoices/components/templates/OrangeInvoiceTemplate.tsx` | Partial | Metadata grid doesn't collapse — MOB-10 |
 | RolePermissionsSection | `app/dashboard/settings/_components/RolePermissionsSection.tsx` | Partial | Double-scroll inside dialog — MOB-12 |
 | FooterNav / ExpandableTabs | `app/components/navigation/FooterNav.tsx` | Yes | Desktop-only now (`hidden lg:block`) — the floating pill with the full destination set; mobile renders MobileTabBar instead |
-| MobileTabBar | `app/components/navigation/MobileTabBar.tsx` | Yes | Mobile-only (`lg:hidden`) bottom tab bar: 4 primary routes + More sheet; safe-area aware. The platform-adaptive counterpart to the desktop pill |
+| MobileTabBar | `app/components/navigation/MobileTabBar.tsx` | Yes | Mobile-only (`lg:hidden`) — the canvas's floating pill (centered, detached, safe-area gap beneath): Home · Orders · Clients · Alerts · More. Alerts opens the notifications drawer; Documents moved to the More sheet. Restyled bar→pill + Alerts added 2026-08-14 |
 | TopHeader | `app/components/navigation/TopHeader.tsx` | Yes | Entirely desktop-only now: branded bar + announcement banner (`hidden lg:block`) and the profile-error alert (`hidden lg:flex`) all render only at `lg+`. Mobile shows nothing from this header — each screen owns its own top (e.g. Home hero) |
 | DashboardLayout | `app/components/layout/DashboardLayout.tsx` | Yes | |
 | Home dashboard KPI grids | `app/dashboard/home/` | Yes | |
