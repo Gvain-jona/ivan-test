@@ -1,5 +1,16 @@
 # Onboarding redesign — design/build gap map & plan
 
+> **Superseded 2026-08-14 — first-run collapsed to A1 only.** The five-step
+> wizard this doc plans (Currency/Business, Products, Clients, Orders, First
+> records) was retired. The app now seeds the baseline for the org at
+> provisioning (`seed-defaults.ts`) instead of asking them to configure it, so
+> the only first-run screen is A1 (business details), gated on currency
+> (`first-run.ts`); the rest is a dismissible "Continue setup" badge
+> (`ContinueSetupBanner`) that leads to in-app refinement. The `EntityFieldSetup`
+> step components, `SetupShell` rail, and multi-step `steps.ts` model this doc
+> describes are **deleted**. The canvas A1/H1 reading below is still the intent;
+> the step sequence is not.
+
 Status: **planning** (2026-07-29). Source of truth for the target UX is the
 Pencil canvas at `yoko` (this repo root). This doc maps those screens onto the
 code that exists today and sequences the work.

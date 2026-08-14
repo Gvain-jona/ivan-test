@@ -34,6 +34,8 @@ function stubAdmin() {
   const update = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }))
   const maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'org-uuid' }, error: null })
   const upsert = vi.fn().mockResolvedValue({ error: null })
+  // The starter-field seed that runs right after provision_organization.
+  const seedUpsert = vi.fn().mockResolvedValue({ error: null })
   const del = vi.fn(() => ({
     eq: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
   }))
@@ -48,12 +50,15 @@ function stubAdmin() {
     if (table === 'organization_members') {
       return { upsert, delete: del }
     }
+    if (table === 'field_definitions') {
+      return { upsert: seedUpsert }
+    }
     throw new Error(`unexpected table ${table}`)
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adminMock.mockReturnValue({ from, rpc } as any)
-  return { rpc, update, maybeSingle, upsert, del }
+  return { rpc, update, maybeSingle, upsert, seedUpsert, del }
 }
 
 function fakeRequest() {
@@ -103,7 +108,7 @@ describe('POST /api/webhooks/clerk', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     stubClerkClient({ publicMetadata: { internal_user_id: INTERNAL_UUID } })
-    const { rpc } = stubAdmin()
+    const { rpc, seedUpsert } = stubAdmin()
 
     const res = await POST(fakeRequest())
 
@@ -114,6 +119,11 @@ describe('POST /api/webhooks/clerk', () => {
       p_owner_user_id: INTERNAL_UUID,
       p_slug: 'acme',
     })
+    // The org's starter field_definitions are seeded against the resolved
+    // org id right after provisioning, so the app is usable from screen one.
+    const [rows, options] = seedUpsert.mock.calls[0]
+    expect(rows.every((r: { organization_id: string }) => r.organization_id === 'org-uuid')).toBe(true)
+    expect(options).toMatchObject({ onConflict: 'organization_id,entity,field_name' })
   })
 
   it('organization.created skips provisioning when there is no creator', async () => {

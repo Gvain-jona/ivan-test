@@ -1,57 +1,17 @@
 /**
- * The first-run step model — the single list the rail, the panel counter and
- * the wizard's navigation all read from, so they can't drift apart.
+ * First-run is one screen now: A1, business details.
  *
- * Five steps, all numbered. There used to be six: an un-numbered Welcome intro
- * that narrated the data model, and a Currency step. A1 replaced both with one
- * **Business details** form — the frame's own note is "the form, no narration"
- * — so currency is now one field among the business's own details rather than
- * a stage of its own. See docs/v2-migration/APP_REDESIGN.md → A1.
+ * It used to be a multi-step wizard (business → product → client → order →
+ * first records), and before that six steps with an un-numbered Welcome intro.
+ * Both are gone. The decision (2026-08-14): the app seeds the common baseline
+ * for the org rather than making the owner configure what to collect — expert
+ * knowledge most don't have on day one — so nothing needs to be set up before
+ * entering. A1 collects the business's own details (its one required field,
+ * currency, is what documents are priced in), and everything else is refined
+ * in-app behind the "Continue setup" badge. See seed-defaults.ts, first-run.ts,
+ * and docs/v2-migration/APP_REDESIGN.md → A1/H1.
  */
 
-/** The one route that renders the setup surface, shared by the gate and the
- *  layout that suppresses chrome for it. */
+/** The one route that renders the setup surface (A1), shared by the gate and
+ *  the layout that suppresses chrome for it. */
 export const SETUP_PATH = '/dashboard/getting-started';
-
-export type SetupStepId = 'business' | 'product' | 'client' | 'order' | 'records';
-
-export interface SetupStep {
-  id: SetupStepId;
-  /** Rail label. */
-  title: string;
-  /** Rail sub-label — what the step is for, in the user's own terms. */
-  hint: string;
-}
-
-export const SETUP_STEPS: readonly SetupStep[] = [
-  { id: 'business', title: 'Your business', hint: 'Name, contact, currency' },
-  { id: 'product', title: 'Products', hint: 'What you sell' },
-  { id: 'client', title: 'Clients', hint: 'Who you sell to' },
-  { id: 'order', title: 'Orders', hint: 'Your workflow' },
-  { id: 'records', title: 'First records', hint: 'Optional' },
-] as const;
-
-/** Every step is counted now that the un-numbered intro is gone. */
-export const NUMBERED_STEPS: readonly SetupStep[] = SETUP_STEPS;
-
-/** The "of N" in "STEP n OF N". */
-export const STEP_COUNT = NUMBERED_STEPS.length;
-
-export function stepIndex(id: SetupStepId): number {
-  return SETUP_STEPS.findIndex(s => s.id === id);
-}
-
-/** 1-based position among the numbered steps. */
-export function stepNumber(id: SetupStepId): number | null {
-  const index = NUMBERED_STEPS.findIndex(s => s.id === id);
-  return index === -1 ? null : index + 1;
-}
-
-export function nextStep(id: SetupStepId): SetupStepId | null {
-  return SETUP_STEPS[stepIndex(id) + 1]?.id ?? null;
-}
-
-export function previousStep(id: SetupStepId): SetupStepId | null {
-  const index = stepIndex(id);
-  return index > 0 ? SETUP_STEPS[index - 1].id : null;
-}

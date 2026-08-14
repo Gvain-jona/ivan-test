@@ -1,5 +1,20 @@
 # First-run onboarding & entity-tied field setup — design spec
 
+> **Superseded 2026-08-14 — the setup *steps* are gone; the *model* stands.**
+> The wizard that made the owner configure each entity's fields was cut. The
+> decision that replaced it: knowing what to collect is expert knowledge most
+> owners don't have on day one, so the system **seeds the print-shop baseline
+> for them, silently, at provisioning** (`app/lib/onboarding/seed-defaults.ts`,
+> from the same `presets.ts` template) and lets them refine it in-app afterward.
+> First-run is now one screen — A1, business details — gated on currency alone
+> (`app/lib/onboarding/first-run.ts`), followed by a dismissible "Continue
+> setup" badge (`ContinueSetupBanner`). The **field model below is unchanged
+> and still correct** (fixed columns + org-editable `field_definitions`, the
+> starter sets, the order-status workflow); only its *delivery* changed from
+> "ask the user, step by step" to "prepare it, then invite edits." Read the
+> sections below for the model; ignore their framing of it as a multi-step
+> wizard.
+
 Status: **proposed** (design agreed in-session 2026-07-25, not yet built).
 Owner-side pieces flagged **[DB owner]**. This doc is the durable record of
 the decisions so a fresh session doesn't re-derive them. Conventions live in

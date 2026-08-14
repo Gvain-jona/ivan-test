@@ -1,6 +1,7 @@
 # v2 platform migration — live state
 
-Last updated: 2026-08-13 (onboarding UX + data-layer pass). This is the
+Last updated: 2026-08-14 (first-run collapsed to A1; baseline seeded for the
+org). This is the
 session-to-session ground truth for the v2 pivot: what has been decided, what is
 built, what is blocked, and on whom. Update it when any of that changes — this
 file exists so a fresh session doesn't have to re-derive the pivot from git
@@ -90,7 +91,7 @@ record; its "keep holding" verdict no longer applies.
 | **Orders** | ✅ Cut over to v2 (list, quick filters wired to the store, view sheet, payments, notes, status changes). Orders cleanup Phases 1–4 done 2026-07-13: dead tabs/hooks deleted, legacy FilterDrawer/Invoices tab/hollow actions removed, `useOrdersPage` façade collapsed into `useOrdersStore`/`useOrdersUI`. **The whole order flow was rebuilt to the redesign 2026-08-10** — create → hub → issue → document. B2 is a screen at `/dashboard/orders/new` (`NewOrderScreen`) with its add-item / payment / note / discount sheets; B4 is the hub at `/dashboard/orders/[id]` (`OrderHubScreen`), one scrolling surface; B7 issues from it. `OrderFormSheet`, `OrderViewSheet` and `order-view/*` are deleted, and both `openCreateOrder()` and `openOrder()` in the sheet host now push routes rather than opening sheets — see `APP_REDESIGN.md`. **Item add/edit/remove on existing orders is done** (`/api/orders/[id]/items` + `/items/[itemId]`, 18 contract tests); it needed a narrow `delete` on `TenantDb`, type-restricted to `order_items` — see `DeletableTable`. **B1 + A2 landed the same day** (`OrdersListScreen`), so the module is complete on the redesign and every pre-redesign order file is deleted: `OrdersTableNew`, `OrderRow`, `OrderCard`, `OrdersFilterSheet`, `StatusDropdown`, `OrderActions`, `OrderDeleteConfirmation`, `CustomDropdown`, and the page's `_components`/`_context` tree. The list read gained two things: search across **client name as well as order number** (client ids resolved first, then one `or` over two real columns — PostgREST can't `or` across an embedded relation), and a **"due soon"** filter that resolves the org's *own* date field from `field_definitions` rather than trusting a caller-supplied jsonb key. |
 | **Clients** | ✅ Cut over (management page, inline creation from order form). |
 | **Products** | ✅ New (management page; catalog feeds order items). |
-| **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and starter fields are applied in the first-run wizard. Rebuilt dialog-free 2026-07-31 (inline composer + in-row editor + status workflow editor; `FieldDefinitionFormSheet` deleted) — same components in setup and steady state. |
+| **Field setup** | ✅ New. Per-entity — the standalone `/dashboard/fields` page was retired 2026-07-25; field editing lives inline on each entity page (Products/Clients/Orders) via `EntityFieldsManager` behind a "Fields" toggle, and the starter fields are seeded for the org at provisioning (2026-08-14; `seed-defaults.ts`), not applied through a wizard. Rebuilt dialog-free 2026-07-31 (inline composer + in-row editor + status workflow editor; `FieldDefinitionFormSheet` deleted) — same components in setup and steady state. |
 | **Documents** | 🟡 **Built end to end (2026-08-10): issue → render.** `/api/documents` GET (list) + POST (issue) — no more PATCH/draft path. POST goes through the `issue_document_as_org` shim → `v2.issue_document()` (shipped), producing an **issued** document (numbered, immutable, snapshot-frozen), never a draft; the old non-atomic `next_number()` + insert shim is gone. `useDocuments` exposes `issueDocument` (single order) and `issueDocuments` (the multi-order/consolidated case, A3b/F2). Issued from the **order hub** via `IssueDocumentSheet` (B7 — **Quotation and Invoice only**; the Receipt chip is deliberately not drawn, A3c postponed to the payments cutover), and rendered from the frozen snapshot at `/dashboard/documents` (list) + `/dashboard/documents/[id]` (`DocumentPaper`, B9). The order-view sheet this used to hang off is deleted. Left: per-row quick-invoice sheet (F2). See `docs/v2-migration/orders-system-handoff.md` §6/§12. |
 | Expenses, materials, accounts, invoicing (legacy PDF renderer), analytics | 🌑 **Dark since the Clerk swap (2026-07-17, explicit decision)** — their code is intact on the `public` schema but non-functional: the Supabase session they authenticated with no longer exists, so their API routes 401 and their browser-direct queries get RLS-denied. Each returns at its own v2 cutover. Do **not** delete their code. (The orders-page `_context/` façade stubs and the `InvoicesTab` they fed were **deleted in the 2026-08-10 order-module rebuild** — no legacy tab hangs off the orders page any more; earlier notes here referencing them are superseded.) `app/features/invoices/` is a separate, unrelated legacy client-side PDF generator — not part of the v2 documents module. |
 | Notifications | 🌑 **Stubbed 2026-07-24** — `app/context/NotificationsContext.tsx` is now an interface-preserving stub (empty list, no-op mutations, `unreadCount` 0). The pre-stub implementation ran on the dead Supabase session and was defective anyway (unfiltered whole-table fetch + unfiltered realtime channel per session; an `if (loading)` guard deadlocked the initial fetch so it never rendered data). Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator) still mount against the stub as UI scaffold. `app/hooks/useRealNotifications.ts` is a second, parallel legacy implementation — dead, delete at this module's cutover. Real data layer comes with the v2 notifications module. |
@@ -571,6 +572,41 @@ single swap point. Order creation still goes through the
     re-examination the raw `createField` already `await invalidate()`s per
     create, so a retry already excluded created fields. The change is defensive,
     not corrective; the actual parallel gap was the load guard above.
+
+- **First-run collapsed to A1, baseline seeded for the org (2026-08-14)** — the
+  multi-step wizard was retired. New decision: configuring what to collect is
+  expert knowledge most owners lack on day one, so the app **seeds the print-
+  shop baseline for them** rather than asking. Nothing in the DB design changed
+  (core columns + org-editable `field_definitions` as before); only who does the
+  setup, and when.
+  - **Seed at provisioning.** The Clerk webhook, right after
+    `provision_organization`, upserts every starter field from `presets.ts` via
+    `app/lib/onboarding/seed-defaults.ts` (idempotent on the
+    `(organization_id, entity, field_name)` unique index) — including the
+    `is_system` order-`status` workflow, the one field the app can't run
+    without. Safety net: `POST /api/organization/seed-defaults` (owner-only) runs
+    the same seed on A1 save, for out-of-order/retried events or pre-existing
+    orgs. `presets.ts` stays the single source of truth; its header flipped from
+    "opt-in, never silent" to "applied for the user, editable after".
+  - **A1 is the only gate.** `OnboardingGate` now keys on **currency presence**
+    (`settings.locale.currency`) via the pure `app/lib/onboarding/first-run.ts`,
+    not `onboarding_completed_at`. A1 saves → seed → land on `/dashboard/home`.
+    The multi-step scaffolding is **deleted**: `EntityFieldSetupStep`,
+    `EntityFieldSection`, `FirstRecordsStep`, `SetupShell`, `StepTracker`, and
+    `steps.ts`'s step model (only `SETUP_PATH` remains). `BusinessDetailsStep`
+    lost its `panel`/desktop-shell mode — it's one centered hero on both
+    breakpoints.
+  - **`onboarding_completed_at` now governs only the badge.** A new
+    `ContinueSetupBanner` rides the dashboard chrome (owner-only, until
+    dismissed) as the standing "Continue setup" invitation; dismissing it stamps
+    the column. Entry no longer depends on it.
+  - **Tests**: pure `first-run` + `seed-defaults` unit tests, a `seed-defaults`
+    route contract test, and the webhook test asserts the post-provision seed —
+    339 pass; `tsc` and lint clean. **Backfill for the one existing org (Ephra,
+    already past the gate on currency) is still owed** — it won't hit the A1
+    safety net, so its missing order/order_item/note fields need a one-off seed.
+  - **Visual QA in a running authed app still outstanding**, same caveat as the
+    rest of the redesign.
 
 ## Theming — system default + per-org brand (2026-08-06)
 

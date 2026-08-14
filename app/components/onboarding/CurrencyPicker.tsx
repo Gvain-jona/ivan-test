@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { CURRENCY_OPTIONS } from '@/lib/organization/presets';
 import { ALL_CURRENCIES, type Currency } from '@/lib/organization/currencies';
-import { SectionLabel } from './SetupShell';
+import { SectionLabel } from '@/components/patterns/screen';
 import { CurrencyChip, CurrencyListRow } from './currency-picker-parts';
 
 const COMMON_CODES = new Set(CURRENCY_OPTIONS.map(c => c.code));
