@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, SlidersHorizontal, UserPlus } from 'lucide-react';
+import { FileText, Plus, Search, SlidersHorizontal, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
+import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
@@ -37,6 +38,7 @@ export default function OrdersListScreen() {
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-5">
+      <MobileFeedHeader />
       <h1 className="text-[22px] font-semibold text-foreground">Orders</h1>
 
       <div className="mt-3.5 flex items-center rounded-2xl border border-border bg-card px-1 py-3.5">
@@ -59,11 +61,11 @@ export default function OrdersListScreen() {
       <div className="mt-4 flex flex-wrap gap-[7px]">
         <QuickAction icon={Plus} label="New order" onClick={openCreateOrder} primary />
         <QuickAction icon={UserPlus} label="New client" onClick={openCreateClient} />
-        {/* The frame's third chip is "New quote". A quotation is an order at a
-            stage the org defines — B2 already opens at that default — so the
-            chip would either duplicate New order or hardcode a status value the
-            app doesn't own. Left out rather than faked; see T1 in
-            APP_REDESIGN.md. */}
+        {/* "New quote" opens the same composer (B2) as New order — an order
+            starts in the quotation stage, so it's a quote named for the intent
+            you arrive with. Kept to match the frame and Home's quick actions,
+            which carry the same three. */}
+        <QuickAction icon={FileText} label="New quote" onClick={openCreateOrder} />
       </div>
 
       {!list.isEmptyOrg && (

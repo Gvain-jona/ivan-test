@@ -6,6 +6,7 @@ import { Boxes, Package, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
 import { QuickAction, Chip } from '@/components/patterns/list';
+import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import EntityFieldsManager from '@/components/fields/EntityFieldsManager';
@@ -30,6 +31,7 @@ export default function ProductsListScreen() {
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-5">
+      <MobileFeedHeader />
       <h1 className="text-[22px] font-semibold text-foreground">Products</h1>
 
       <div className="mt-4 flex flex-wrap gap-[7px]">

@@ -51,7 +51,8 @@ Seeded below from `MOBILE_AUDIT.md` (2026-06-25) to bootstrap the log — update
 | ClientFormSheet | `app/components/clients/ClientFormSheet.tsx` | Yes | Single column; custom-field grid collapses `sm:` → 1 col |
 | SignInPage (Clerk) | `app/auth/signin/[[...rest]]/page.tsx` | Yes | Clerk `<SignIn />` card is responsive by default; branding shell reuses signin.css |
 | HomePage | `app/dashboard/home/page.tsx` | Yes | Mobile-first Home feed; centered `max-w-2xl` column, stacks naturally |
-| HomeHero | `app/components/home/HomeHero.tsx` | Yes | H1 top: org identity row (logo + name + avatar) over the greeting. Mobile owns its own top (TopHeader is desktop-only). Rebuilt 2026-08-14 — dropped the search-bar create action (chips carry it) |
+| MobileFeedHeader | `app/components/navigation/MobileFeedHeader.tsx` | Yes | Shared mobile top for the feed screens (H1/A2/B1/C1/D1): org logo + name + avatar, `lg:hidden` (desktop has TopHeader). New 2026-08-14 — the canvas draws this row on every feed screen; it lived only on Home before |
+| HomeHero | `app/components/home/HomeHero.tsx` | Yes | H1 top: `MobileFeedHeader` over the greeting. Rebuilt 2026-08-14 — dropped the search-bar create action (chips carry it); org row extracted to the shared header |
 | HomeQuickActions | `app/components/home/HomeQuickActions.tsx` | Yes | Horizontal-scroll quick-create chips: New order (primary) / New client / New quote, matching the H1 frame (2026-08-14). Open the create surfaces via the sheet host |
 | HomeSnapshot | `app/components/home/HomeSnapshot.tsx` | Yes | H1 two-figure card: sales this month · still to collect, over two sub-stats (orders this month / in process). Figures split by a `w-px` divider; rebuilt 2026-08-14 |
 | QuotationsSection | `app/components/home/QuotationsSection.tsx` | Yes | H1 active-quotations list (rounded card, divided rows); renders nothing when empty. New 2026-08-14 |
