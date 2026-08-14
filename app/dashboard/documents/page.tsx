@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSheets } from '@/context/sheet-host';
 import { Card, Divided, Section } from '@/components/patterns/screen';
+import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useDocumentCounts, useDocumentList } from '@/hooks/documents/useDocuments';
 import DocumentRow from '@/components/documents/DocumentRow';
 
@@ -62,6 +63,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-5">
+      <MobileFeedHeader />
       <h1 className="text-[22px] font-semibold text-foreground">Documents</h1>
 
       <div className="mt-3.5 flex items-center rounded-2xl border border-border bg-card px-1 py-3.5">
