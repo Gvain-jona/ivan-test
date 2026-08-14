@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { Search } from 'lucide-react';
 import { useClients } from '@/hooks/clients/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
+import { PLATFORM_API, apiFetcher, buildKey } from '@/lib/api/client';
+import { SWR_CACHE_TIMES } from '@/lib/swr-config';
+import { ROLLUP_ROW_CAP } from '@/lib/api/rollup';
+import { rollupByClient } from '@/lib/clients/list';
+import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { Card, RowDivider, SectionLabel } from '@/components/patterns/screen';
 import { FieldBox } from '@/components/patterns/controls';
+import type { OrderSummary } from '@/hooks/orders/useOrders';
 
 interface ClientFieldProps {
   clientId: string | null;
@@ -35,12 +42,27 @@ export default function ClientField({
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
   const debounced = useDebounce(query, 250);
+  const fmt = useFormatCurrency();
 
   const { clients, isLoading } = useClients({
     status: 'active',
     search: debounced || undefined,
     limit: 8,
   });
+
+  // The "Owes" figure per result — the same bounded, cached order rollup C1
+  // uses, on the same query-independent SWR key, so it's fetched once (shared
+  // with the clients list's cache) and a keystroke never re-runs it: the search
+  // path stays unburdened while the frame's owing figure is honoured. Shown
+  // only when the fetch covered every order, exactly like C1 — a partial owing
+  // is worse than none.
+  const { data: ordersData } = useSWR<{ orders: OrderSummary[]; total: number }>(
+    buildKey(PLATFORM_API.ORDERS, { limit: ROLLUP_ROW_CAP }),
+    apiFetcher,
+    { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE },
+  );
+  const rollups = useMemo(() => rollupByClient(ordersData?.orders ?? []), [ordersData]);
+  const rollupExact = ordersData ? ordersData.orders.length >= ordersData.total : false;
 
   if (clientId && !searching) {
     return (
@@ -87,11 +109,6 @@ export default function ClientField({
                   }}
                   className="flex w-full items-start justify-between gap-2 px-3.5 py-[11px] text-left"
                 >
-                  {/* The frame also shows what each client owes on this row.
-                      Omitted rather than faked: `clients` has no balance
-                      column, and the figure is a sum over that client's order
-                      balances — a scoped aggregate the read layer doesn't have
-                      yet. TODO(v2 read layer), tracked in APP_REDESIGN.md. */}
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-foreground">
                       {client.name}
@@ -100,6 +117,13 @@ export default function ClientField({
                       {clientMeta(client.custom_data)}
                     </span>
                   </span>
+                  {/* What the client owes, as the frame draws it — from the same
+                      bounded rollup as C1, and only when it's exact. */}
+                  {rollupExact && (rollups[client.id]?.owing ?? 0) > 0 && (
+                    <span className="flex-shrink-0 text-[12.5px] font-semibold text-warning">
+                      Owes {fmt(rollups[client.id].owing)}
+                    </span>
+                  )}
                 </button>
               </div>
             ))}

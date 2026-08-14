@@ -104,6 +104,14 @@ rather than shown partial — the client *count* stays exact regardless. This is
 deliberately **no route change**, so `ClientField`'s search-as-you-type isn't
 burdened with a 500-row aggregation and no route contract test moved.
 
+**Update (2026-08-14): `ClientField` now shows the frame's "Owes" too.** It
+reuses the *same* bounded, cached order rollup on the *same* query-independent
+SWR key (`ORDERS` at `ROLLUP_ROW_CAP`) — so it's fetched once, shared with C1's
+cache, and a keystroke never re-runs it. The search path stays unburdened (the
+original concern), the owing is a client-side map lookup, and it shows only when
+that fetch is exact, exactly like C1. The earlier omission was about not making
+*search* aggregate per keystroke, not about the figure itself.
+
 Three deliberate choices worth not relitigating:
 
 - **Type chips come from the org's own `type` field options**, never the
