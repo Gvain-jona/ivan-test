@@ -631,6 +631,21 @@ single swap point. Order creation still goes through the
   - Still owed: **visual QA in an authed runtime**, and wiring `ToDoSection`
     when a v2 tasks layer exists.
 
+- **Canvas-fidelity refinements (2026-08-14)** — a second pass for the small
+  misses.
+  - **Mobile nav matched to the frame.** `MobileTabBar` was a full-width bordered
+    bar with Home/Orders/Clients/**Documents**/More; the canvas draws a floating
+    rounded pill with Home/Orders/Clients/**Alerts**/More. Restyled to the pill
+    (centered, detached, safe-area gap) and swapped Documents for **Alerts**,
+    which opens the notifications drawer (`useNotifications().openDrawer`);
+    Documents moved into the More sheet. Desktop pill (FooterNav) untouched.
+  - **Home section headers** now use the small uppercase label style the rest of
+    the app uses (ORDERS / ACTIVE QUOTATIONS / TO DO), not `text-lg` headings.
+  - **Left for the owner** (needs a spec, so deferred): the "···" overflow menu
+    the frames show on the detail/compose headers (C2/D2/B4/B2) — a real
+    edit/archive menu, not a visual tweak; `ScreenHeader` has no trailing slot
+    yet.
+
 ## Theming — system default + per-org brand (2026-08-06)
 
 **Requires a Clerk dashboard change to take effect.** Add a session-token

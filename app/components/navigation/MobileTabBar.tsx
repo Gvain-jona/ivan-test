@@ -8,6 +8,7 @@ import {
   Package,
   Users,
   Banknote,
+  Bell,
   Boxes,
   FileText,
   ShoppingBag,
@@ -19,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNotifications } from '@/context/NotificationsContext';
 import OrderSheet from '@/components/ui/sheets/OrderSheet';
 
 interface Destination {
@@ -29,20 +31,16 @@ interface Destination {
 }
 
 /**
- * Primary destinations — the four thumb-zone tabs. Kept deliberately
- * short (mobile bottom bars hold 4–5 max); everything else lives in the
- * More sheet. Reorder here to change what's promoted to the bar.
- *
- * Documents holds the fourth slot, taken from Expenses — one of the modules
- * that went dark at the Clerk cutover, so promoting it spent a thumb-zone tab
- * on a dead end. What's outstanding is a daily question in a print shop;
- * Products is a catalogue you set up and revisit, so it sits in More.
+ * Primary destinations — the thumb-zone tabs, in the canvas's order: Home,
+ * Orders, Clients, then Alerts and More. Alerts is not a route (it opens the
+ * notifications drawer), so it lives in the component, not this list.
+ * Documents moved to the More sheet to make its slot — the frame promotes
+ * Alerts there.
  */
 const PRIMARY: Destination[] = [
   { title: 'Home', icon: Home, href: '/dashboard/home' },
   { title: 'Orders', icon: Package, href: '/dashboard/orders' },
   { title: 'Clients', icon: Users, href: '/dashboard/clients' },
-  { title: 'Documents', icon: FileText, href: '/dashboard/documents' },
 ];
 
 /**
@@ -54,6 +52,7 @@ const PRIMARY: Destination[] = [
  * every request 401s.
  */
 const MORE: Destination[] = [
+  { title: 'Documents', icon: FileText, href: '/dashboard/documents' },
   { title: 'Products', icon: Boxes, href: '/dashboard/products' },
   { title: 'Expenses', icon: Banknote, href: '/dashboard/expenses', disabled: true },
   { title: 'Material', icon: ShoppingBag, href: '/dashboard/material-purchases', disabled: true },
@@ -66,16 +65,47 @@ const MORE: Destination[] = [
 const isActive = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
+/** One pill item — icon over label, brand-coloured when active. */
+function TabItem({
+  icon: Icon,
+  label,
+  active,
+  badge,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  badge?: number;
+}) {
+  return (
+    <span
+      className={cn(
+        'relative flex flex-col items-center gap-[3px] rounded-full px-3 py-1.5 text-[10.5px] font-medium transition-colors',
+        active ? 'text-primary' : 'text-muted-foreground',
+      )}
+    >
+      <Icon className="h-[21px] w-[21px]" strokeWidth={2} />
+      {label}
+      {badge != null && badge > 0 && (
+        <span className="absolute right-1.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /**
- * Mobile-only bottom tab bar (`lg:hidden`). A real phone tab bar —
- * full-width, safe-area aware, 4 primary tabs + a More sheet — as
- * opposed to the desktop floating pill (rendered separately in
- * FooterNav). This is the platform-adaptation the shell was missing:
- * the two navs are different experiences, not one restyled.
+ * Mobile-only bottom nav (`lg:hidden`) — the canvas's floating pill: Home,
+ * Orders, Clients, Alerts, More, centered and detached from the screen edges
+ * with a safe-area gap beneath. Alerts opens the notifications drawer; More
+ * opens the secondary sheet. The desktop nav is the separate expandable pill in
+ * FooterNav.
  */
 export default function MobileTabBar() {
   const pathname = usePathname() ?? '';
   const [moreOpen, setMoreOpen] = useState(false);
+  const { openDrawer, unreadCount } = useNotifications();
 
   const moreActive = MORE.some((d) => isActive(pathname, d.href));
 
@@ -83,41 +113,27 @@ export default function MobileTabBar() {
     <>
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md lg:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 lg:hidden"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
       >
-        <ul className="flex items-stretch justify-around">
-          {PRIMARY.map(({ title, icon: Icon, href }) => (
-            <li key={href} className="flex-1">
-              <Link
-                href={href}
-                className={cn(
-                  'flex min-h-[56px] flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors',
-                  isActive(pathname, href)
-                    ? 'text-primary'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="h-[22px] w-[22px]" strokeWidth={2} />
-                {title}
-              </Link>
-            </li>
+        <div className="flex items-stretch gap-0.5 rounded-full border border-border bg-card/95 px-1.5 py-1.5 shadow-lg backdrop-blur-md">
+          {PRIMARY.map(({ title, icon, href }) => (
+            <Link key={href} href={href} aria-current={isActive(pathname, href) ? 'page' : undefined}>
+              <TabItem icon={icon} label={title} active={isActive(pathname, href)} />
+            </Link>
           ))}
-          <li className="flex-1">
-            <button
-              type="button"
-              onClick={() => setMoreOpen(true)}
-              aria-haspopup="dialog"
-              className={cn(
-                'flex min-h-[56px] w-full flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors',
-                moreActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <MoreHorizontal className="h-[22px] w-[22px]" strokeWidth={2} />
-              More
-            </button>
-          </li>
-        </ul>
+          <button type="button" onClick={openDrawer} aria-label="Alerts">
+            <TabItem icon={Bell} label="Alerts" badge={unreadCount} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-haspopup="dialog"
+            aria-label="More"
+          >
+            <TabItem icon={MoreHorizontal} label="More" active={moreActive} />
+          </button>
+        </div>
       </nav>
 
       <OrderSheet open={moreOpen} onOpenChange={setMoreOpen} title="More">

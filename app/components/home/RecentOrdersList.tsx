@@ -40,13 +40,15 @@ export default function RecentOrdersList({ orders, isLoading }: RecentOrdersList
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Recent orders</h2>
+        <h2 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Orders
+        </h2>
         <Link
           href="/dashboard/orders"
-          className="flex items-center gap-0.5 text-sm font-medium text-primary hover:underline"
+          className="flex items-center gap-0.5 text-[12px] font-medium text-primary hover:underline"
         >
           See all
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
