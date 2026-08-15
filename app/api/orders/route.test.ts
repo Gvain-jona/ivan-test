@@ -166,6 +166,16 @@ describe('POST /api/orders', () => {
     const [refetch] = db.callsFor('select:orders')
     expect(refetch.filters).toContainEqual(['eq', 'id', 'new-order-id'])
     expect(refetch.single).toBe('single')
+
+    // Creating the order emits an order.created activity to the whole org.
+    const [notif] = db.callsFor('insert:notifications')
+    expect(notif.values).toMatchObject({
+      verb: 'order.created',
+      category: 'order_activity',
+      audience_scope: 'org',
+      object_type: 'order',
+      object_id: 'new-order-id',
+    })
   })
 
   // Verified against the live v2.create_order source, not the handoff doc:

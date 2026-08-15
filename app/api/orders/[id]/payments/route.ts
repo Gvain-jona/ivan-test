@@ -9,6 +9,7 @@ import {
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
 import { paymentInputSchema } from '@/lib/api/validators';
+import { notify } from '@/lib/notifications/notify';
 
 type AllocationTarget = { target_type: 'order' | 'document'; target_id: string };
 
@@ -95,7 +96,7 @@ export async function POST(
     // order totals. client_id comes back too: it's the payment's party.
     const { data: order, error: orderError } = await tenant.db
       .from('orders')
-      .select('id, client_id')
+      .select('id, client_id, order_number, clients(name)')
       .eq('id', id)
       .maybeSingle();
     if (orderError) return handleSupabaseError(orderError);
@@ -124,6 +125,24 @@ export async function POST(
       .eq('id', id)
       .single();
     if (refetchError) return handleSupabaseError(refetchError);
+
+    // Emit the activity (app-layer, §7). Non-fatal — money is already recorded.
+    const parent = order as { order_number?: string; clients?: { name?: string } | null };
+    const { error: notifyError } = await notify(tenant.db, {
+      verb: 'payment.recorded',
+      category: 'payments',
+      actorUserId: tenant.userId,
+      object: { type: 'payment', id: String(paymentId) },
+      target: { type: 'order', id },
+      data: {
+        order_number: parent.order_number ?? null,
+        client_name: parent.clients?.name ?? null,
+        amount: parsed.data.amount,
+      },
+      groupKey: `payments:order:${id}`,
+      audience: { scope: 'org' },
+    });
+    if (notifyError) console.error('notify payment.recorded failed:', notifyError.message);
 
     return NextResponse.json({ payment, order: updatedOrder }, { status: 201 });
   } catch (error) {

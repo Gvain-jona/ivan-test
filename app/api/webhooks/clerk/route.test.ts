@@ -39,6 +39,9 @@ function stubAdmin() {
   const del = vi.fn(() => ({
     eq: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
   }))
+  // The "member.added" notification a new membership emits (via createTenantDb,
+  // which reaches the raw client's notifications table).
+  const notifyInsert = vi.fn().mockResolvedValue({ error: null })
 
   const from = vi.fn((table: string) => {
     if (table === 'organizations') {
@@ -53,12 +56,15 @@ function stubAdmin() {
     if (table === 'field_definitions') {
       return { upsert: seedUpsert }
     }
+    if (table === 'notifications') {
+      return { insert: notifyInsert }
+    }
     throw new Error(`unexpected table ${table}`)
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adminMock.mockReturnValue({ from, rpc } as any)
-  return { rpc, update, maybeSingle, upsert, seedUpsert, del }
+  return { rpc, update, maybeSingle, upsert, seedUpsert, del, notifyInsert }
 }
 
 function fakeRequest() {
@@ -151,7 +157,7 @@ describe('POST /api/webhooks/clerk', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     stubClerkClient({ publicMetadata: { internal_user_id: INTERNAL_UUID } })
-    const { upsert } = stubAdmin()
+    const { upsert, notifyInsert } = stubAdmin()
 
     const res = await POST(fakeRequest())
 
@@ -159,6 +165,16 @@ describe('POST /api/webhooks/clerk', () => {
     expect(upsert).toHaveBeenCalledWith(
       { organization_id: 'org-uuid', user_id: INTERNAL_UUID, role: 'admin' },
       { onConflict: 'organization_id,user_id' },
+    )
+    // A new member is notified they were added, directed to just them.
+    expect(notifyInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verb: 'member.added',
+        category: 'team',
+        audience_scope: 'users',
+        recipient_user_ids: [INTERNAL_UUID],
+        organization_id: 'org-uuid',
+      }),
     )
   })
 

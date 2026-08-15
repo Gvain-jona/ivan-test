@@ -106,19 +106,6 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 <span className="font-medium">{notification.title}</span>
               </div>
 
-              {/* Sender and target */}
-              <p className="text-sm text-muted-foreground mb-1">
-                <span className="font-medium">{notification.sender?.name || 'System'}</span>
-                {notification.type === 'comment' && ' commented on '}
-                {notification.type === 'invitation' && ' invited you to '}
-                {notification.type === 'status_change' && ' updated status of '}
-                {notification.type === 'assignment' && ' assigned you to '}
-                {notification.type === 'mention' && ' mentioned you in '}
-                {notification.type === 'payment' && ' processed payment for '}
-                {notification.type === 'due_date' && ' reminder for '}
-                <span className="font-medium">{notification.target?.title || 'Unknown'}</span>
-              </p>
-
               {/* Message */}
               <p className="text-sm mb-2">{notification.message}</p>
 

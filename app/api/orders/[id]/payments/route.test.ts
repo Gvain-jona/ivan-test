@@ -70,6 +70,18 @@ describe('POST /api/orders/[id]/payments', () => {
       payment_method: 'mobile_money',
       allocations: [{ target_type: 'order', target_id: 'o-1', amount: 100 }],
     })
+
+    // Recording the payment emits a payment.recorded activity, targeting the order.
+    const [notif] = db.callsFor('insert:notifications')
+    expect(notif.values).toMatchObject({
+      verb: 'payment.recorded',
+      category: 'payments',
+      audience_scope: 'org',
+      object_type: 'payment',
+      object_id: 'p-1',
+      target_type: 'order',
+      target_id: 'o-1',
+    })
   })
 
   // SINGLE RECEIVABLE: validate_payment_allocation() refuses an allocation

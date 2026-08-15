@@ -814,6 +814,132 @@ export type DatabaseV2 = {
         ]
       }
       /**
+       * The notifications activity stream — one fact per event, structured
+       * (actor/verb/object/target), projected by audience (access) and voice
+       * (label). NOT per-recipient fan-out: one row carries its audience.
+       * Distinct from activity_logs (append-only audit). See
+       * docs/v2-migration/NOTIFICATIONS_REBUILD.md §6.
+       */
+      notifications: {
+        Row: {
+          id: string
+          organization_id: string
+          /** Who did it; null = system. Excluded from their own inbox at read time. */
+          actor_user_id: string | null
+          /** e.g. order.created | order.status_changed | payment.recorded | member.added */
+          verb: string
+          /** Preference bucket: order_activity | payments | team. */
+          category: string
+          object_type: string
+          object_id: string
+          target_type: string | null
+          target_id: string | null
+          /** Denormalized render snapshot (order_number, client_name, amount, …). */
+          data: Json
+          /** Aggregation key, e.g. payments:order:<id>. */
+          group_key: string | null
+          /** Access dimension: 'org' | 'users'. */
+          audience_scope: string
+          /** Directed set when scope='users'; empty for org-wide. */
+          recipient_user_ids: string[]
+          priority: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          actor_user_id?: string | null
+          verb: string
+          category: string
+          object_type: string
+          object_id: string
+          target_type?: string | null
+          target_id?: string | null
+          data?: Json
+          group_key?: string | null
+          audience_scope?: string
+          recipient_user_ids?: string[]
+          priority?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          actor_user_id?: string | null
+          verb?: string
+          category?: string
+          object_type?: string
+          object_id?: string
+          target_type?: string | null
+          target_id?: string | null
+          data?: Json
+          group_key?: string | null
+          audience_scope?: string
+          recipient_user_ids?: string[]
+          priority?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      /**
+       * Per-user interaction state for notifications, sparse (a row exists
+       * only once a user opens or dismisses one). Carries organization_id so
+       * it is reachable through the org-scoped TenantDb.
+       */
+      notification_reads: {
+        Row: {
+          id: string
+          organization_id: string
+          notification_id: string
+          user_id: string
+          read_at: string | null
+          archived_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          notification_id: string
+          user_id: string
+          read_at?: string | null
+          archived_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          notification_id?: string
+          user_id?: string
+          read_at?: string | null
+          archived_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      /**
        * A frozen, numbered financial record. Create these through
        * v2.issue_document() (via the issue_document_as_org shim), never by
        * inserting: `currency` is NOT NULL with no default on purpose, and

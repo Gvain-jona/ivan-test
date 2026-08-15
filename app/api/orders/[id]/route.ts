@@ -8,6 +8,7 @@ import {
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
 import { orderUpdateSchema } from '@/lib/api/validators';
+import { notify } from '@/lib/notifications/notify';
 
 /**
  * `order_items(*, products(name))` embeds the catalogue name a line points at.
@@ -155,6 +156,19 @@ export async function PATCH(
       return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
+    // Only when a status change is requested: read the current status so the
+    // notification can say from→to, and so setting the same value emits nothing.
+    let previousStatus: string | undefined;
+    if (parsed.data.status !== undefined) {
+      const { data: prev } = await tenant.db
+        .from('orders')
+        .select('status')
+        .eq('id', id)
+        .eq('organization_id', tenant.organizationId)
+        .maybeSingle();
+      previousStatus = (prev as { status?: string } | null)?.status;
+    }
+
     const { data, error } = await tenant.db
       .from('orders')
       .update(parsed.data)
@@ -168,6 +182,25 @@ export async function PATCH(
 
     if (error) return handleSupabaseError(error);
     if (!data) return handleApiError('NOT_FOUND', 'Order not found');
+
+    // Emit only on a real status transition. Non-fatal (app-layer, §7).
+    const updated = data as { status?: string; order_number?: string };
+    if (parsed.data.status !== undefined && updated.status !== previousStatus) {
+      const { error: notifyError } = await notify(tenant.db, {
+        verb: 'order.status_changed',
+        category: 'order_activity',
+        actorUserId: tenant.userId,
+        object: { type: 'order', id },
+        data: {
+          order_number: updated.order_number ?? null,
+          from_status: previousStatus ?? null,
+          to_status: updated.status ?? null,
+        },
+        groupKey: `order:${id}`,
+        audience: { scope: 'org' },
+      });
+      if (notifyError) console.error('notify order.status_changed failed:', notifyError.message);
+    }
 
     return NextResponse.json({ order: data });
   } catch (error) {

@@ -4,7 +4,9 @@ import { verifyWebhook } from '@clerk/nextjs/webhooks';
 import { clerkClient } from '@clerk/nextjs/server';
 import { randomUUID } from 'crypto';
 import { createV2AdminClient } from '@/utils/supabase/server-v2';
+import { createTenantDb } from '@/lib/auth/tenant-db';
 import { seedOrgDefaults } from '@/lib/onboarding/seed-defaults';
+import { notify } from '@/lib/notifications/notify';
 
 /**
  * Syncs Clerk Organizations (source of truth for org identity,
@@ -112,7 +114,11 @@ async function handleOrganizationDeleted(admin: Admin, clerkOrgId: string) {
   if (error) throw error;
 }
 
-async function handleMembershipUpsert(admin: Admin, membership: MembershipEvent) {
+async function handleMembershipUpsert(
+  admin: Admin,
+  membership: MembershipEvent,
+  isNew = false,
+) {
   const clerkUserId = membership.public_user_data?.user_id;
   if (!clerkUserId) return;
 
@@ -133,6 +139,23 @@ async function handleMembershipUpsert(admin: Admin, membership: MembershipEvent)
       { onConflict: 'organization_id,user_id' },
     );
   if (error) throw error;
+
+  // A new member gets a directed "you were added" notification. Non-fatal and
+  // isolated from the sync: a notify failure must never fail (and so retry) the
+  // membership write that already succeeded.
+  if (isNew) {
+    try {
+      await notify(createTenantDb(admin, orgId), {
+        verb: 'member.added',
+        category: 'team',
+        actorUserId: null,
+        object: { type: 'organization', id: orgId },
+        audience: { scope: 'users', userIds: [internalUserId] },
+      });
+    } catch (notifyError) {
+      console.error('notify member.added failed:', notifyError);
+    }
+  }
 }
 
 async function handleMembershipDeleted(admin: Admin, membership: MembershipEvent) {
@@ -170,6 +193,8 @@ async function dispatch(admin: Admin, evt: ClerkEvent) {
       if (evt.data.id) await handleOrganizationDeleted(admin, evt.data.id);
       break;
     case 'organizationMembership.created':
+      await handleMembershipUpsert(admin, evt.data, true);
+      break;
     case 'organizationMembership.updated':
       await handleMembershipUpsert(admin, evt.data);
       break;
