@@ -22,14 +22,6 @@ import MobileTabBar from './MobileTabBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { NavigationError } from '@/components/ui/navigation-error';
-import {
-  DashboardSkeleton,
-  OrdersSkeleton,
-  ExpensesSkeleton,
-  MaterialPurchasesSkeleton,
-  TodoSkeleton,
-  AnalyticsSkeleton
-} from '@/components/skeletons';
 import { useNavigation } from '@/context/navigation-context';
 import ContextMenu from '@/components/ui/context-menu';
 
