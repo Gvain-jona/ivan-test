@@ -11,7 +11,6 @@ import ErrorBoundary from '../error/ErrorBoundary';
 import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { NotificationsWrapper } from '../notifications/NotificationsWrapper';
 import NotificationPermissionRequest from '../ui/NotificationPermissionRequest';
-import { SimpleLoadingCoordinator } from '../loading';
 import { SETUP_PATH } from '@/lib/onboarding/steps';
 
 type DashboardLayoutProps = {
@@ -59,30 +58,33 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
         {/* Header */}
         <TopHeader />
 
-        {/* Page Content with Error Boundary, LoadingStateCoordinator, and Suspense */}
+        {/* Page content. Tenancy is already resolved server-side in the route
+            layout (resolveTenant → ProvisioningPendingScreen), and each screen
+            renders its own static chrome instantly and skeletons only its data
+            region — so there is no global loading coordinator here. Its
+            auth-gated, timer-driven full-page skeleton only ever painted a
+            second, differently-shaped placeholder on top of the route's own
+            loading.tsx, which is exactly the flicker this layer used to cause.
+
+            The Suspense boundary stays for lazy/dynamic children, but with a
+            null fallback: the route-level loading.tsx (a FeedSkeleton, cut to
+            the screen's real geometry) is what shows during navigation, and the
+            pages that use useSearchParams already carry their own
+            fallback={null} boundary. A shaped fallback here would just be
+            another mismatched shape. */}
         <main className={cn(
           "flex-1 overflow-y-auto bg-[hsl(var(--background))] p-4 lg:p-6",
           className
         )}>
           <ErrorBoundary>
-            <SimpleLoadingCoordinator>
-              <Suspense fallback={
-                <div className="flex items-center justify-center h-[50vh]">
-                  <div className="animate-pulse flex flex-col items-center gap-4">
-                    <div className="h-12 w-48 bg-muted/20 border border-border/10 rounded-md"></div>
-                    <div className="h-64 w-full max-w-3xl bg-muted/20 border border-border/10 rounded-lg"></div>
-                    <div className="h-32 w-full max-w-2xl bg-muted/20 border border-border/10 rounded-lg"></div>
-                  </div>
-                </div>
-              }>
-                {/* Bottom padding clears the nav: taller on mobile for the
-                    full-width tab bar + safe area, tighter on desktop for
-                    the floating pill. */}
-                <div className="pb-24 lg:pb-16">
-                  {children}
-                </div>
-              </Suspense>
-            </SimpleLoadingCoordinator>
+            <Suspense fallback={null}>
+              {/* Bottom padding clears the nav: taller on mobile for the
+                  full-width tab bar + safe area, tighter on desktop for
+                  the floating pill. */}
+              <div className="pb-24 lg:pb-16">
+                {children}
+              </div>
+            </Suspense>
           </ErrorBoundary>
         </main>
 

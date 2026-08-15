@@ -9,11 +9,11 @@ export {
   withLoading 
 } from './LoadingProvider';
 
-// Export the simplified loading coordinator
-export { SimpleLoadingCoordinator } from './SimpleLoadingCoordinator';
-
-// Export the deprecated loading coordinator (marked as deprecated)
-export { LoadingStateCoordinator } from './LoadingStateCoordinator';
+// The SimpleLoadingCoordinator / LoadingStateCoordinator full-page skeletons
+// were removed in the loading overhaul: tenancy is gated server-side and each
+// screen owns its own in-place loading state, so a global coordinator only
+// added a second, mismatched full-page skeleton (the flicker). Route-level
+// loading.tsx (FeedSkeleton) now covers navigation.
 
 // Re-export all standardized loading components
 export {

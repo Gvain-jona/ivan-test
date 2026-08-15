@@ -12,7 +12,6 @@ import { SWRProvider } from './providers/SWRProvider';
 // GlobalDropdownCacheProvider removed - using SWR for data fetching
 import { CacheCleanupInitializer } from '@/components/CacheCleanupInitializer';
 import { LoadingProvider } from '@/components/loading/LoadingProvider';
-import { DataPreloader } from '@/components/DataPreloader';
 import { SonnerToastProvider } from './providers/SonnerToastProvider';
 import { AnnouncementProvider } from './context/announcement-context';
 
