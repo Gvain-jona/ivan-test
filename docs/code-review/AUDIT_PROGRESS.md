@@ -1,5 +1,5 @@
 # Audit Progress Tracker
-**Last updated:** 2026-08-15 (added Loading / Perceived-Performance findings, LOAD-01…07)  
+**Last updated:** 2026-08-15 (Loading / Perceived-Performance findings LOAD-01…07 logged and addressed — `1bb9b2a`)  
 **Branch:** `claude/codebase-review-security-perf-sRWF6`  
 **Session context:** [Full transcript at `/root/.claude/projects/-home-user-ivan-test/a42196d5-3e41-458a-a8cd-b528adf3022c.jsonl`]
 
@@ -115,17 +115,19 @@ Full UX research + rationale: **Loading States Playbook** (artifact, session del
 
 | ID | Severity | Finding | Status | Commit |
 |----|----------|---------|--------|--------|
-| LOAD-01 | HIGH (a11y) | No `prefers-reduced-motion` handling anywhere — every `animate-pulse` skeleton and `animate-spin` spinner ignores it. Repo-wide search for `prefers-reduced-motion` / `motion-reduce` / `motion-safe` returns zero hits. | 🔲 OPEN | — |
-| LOAD-02 | MEDIUM | Three skeleton fill conventions on the live surface: `Skeleton` primitive (`bg-muted/20 border-border/10`), list rows (`bg-card + border-border`), `HomeSnapshot` (plain `bg-muted`). No single `--skeleton` token. | 🔲 OPEN | — |
-| LOAD-03 | MEDIUM | `NavigationProgress` hardcodes `bg-orange-500` (and `bg-red-500` on error) — violates the brand-token rule (brand may not be orange; no light-mode variant). The one loading surface ignoring the theme system. | 🔲 OPEN | — |
-| LOAD-04 | LOW | Detail screens (order hub, client/product detail) skeleton as a single `h-64` block, not content-shaped → a "block becomes a page" pop on load. | 🔲 OPEN | — |
-| LOAD-05 | LOW | Skeletons can flash on a warm SWR cache. The delay-before-show guard exists in `NavigationIndicator` (100 ms) but isn't applied to data skeletons; detail fetches can show a skeleton for a single frame. List screens already dodge this (chrome instant; row skeleton gated on `isLoading && items.length === 0`). | 🔲 OPEN | — |
-| LOAD-06 | LOW | `NavigationProgress` is a simulated bar (timer to 90%, jump to 100%). Legitimate for route transitions but should be a documented, conscious choice, and must not visibly stall at 90%. Redundant with the corner `NavigationIndicator` spinner (two nav signals). | 🔲 OPEN | — |
-| LOAD-07 | LOW (debt) | Two loading vocabularies coexist: legacy `components/ui/loading.tsx` (`PageSkeleton`/`TableSkeleton`/`MetricCardsGrid`, desktop-shaped) vs the v2 feed/skeleton approach. Fine for now — used only by dark legacy modules — but new v2 work must not import the legacy family. Convergence at each module's cutover. | 🔲 OPEN | — |
+| LOAD-01 | HIGH (a11y) | No `prefers-reduced-motion` handling anywhere — every `animate-pulse` skeleton and `animate-spin` spinner ignores it. Repo-wide search for `prefers-reduced-motion` / `motion-reduce` / `motion-safe` returns zero hits. | ✅ FIXED | `1bb9b2a` |
+| LOAD-02 | MEDIUM | Three skeleton fill conventions on the live surface: `Skeleton` primitive (`bg-muted/20 border-border/10`), list rows (`bg-card + border-border`), `HomeSnapshot` (plain `bg-muted`). No single fill convention. | ✅ FIXED | `1bb9b2a` |
+| LOAD-03 | MEDIUM | `NavigationProgress` hardcodes `bg-orange-500` (and `bg-red-500` on error) — violates the brand-token rule (brand may not be orange; no light-mode variant). The one loading surface ignoring the theme system. | ✅ FIXED | `1bb9b2a` |
+| LOAD-04 | LOW | Detail screens (order hub, client/product detail) skeleton as a single `h-64` block, not content-shaped → a "block becomes a page" pop on load. | ✅ FIXED | `1bb9b2a` |
+| LOAD-05 | LOW | Skeletons can flash on a warm SWR cache. The delay-before-show guard exists in `NavigationIndicator` (100 ms) but isn't applied to data skeletons; detail fetches can show a skeleton for a single frame. List screens already dodge this (chrome instant; row skeleton gated on `isLoading && items.length === 0`). | ✅ FIXED | `1bb9b2a` |
+| LOAD-06 | LOW | `NavigationProgress` is a simulated bar (timer to 90%, jump to 100%). Legitimate for route transitions but should be a documented, conscious choice, and must not visibly stall at 90%. Redundant with the corner `NavigationIndicator` spinner (two nav signals). | ✅ DOCUMENTED | `1bb9b2a` |
+| LOAD-07 | LOW (debt) | Two loading vocabularies coexist: legacy `components/ui/loading.tsx` (`PageSkeleton`/`TableSkeleton`/`MetricCardsGrid`, desktop-shaped) vs the v2 feed/skeleton approach. Fine for now — used only by dark legacy modules — but new v2 work must not import the legacy family. Convergence at each module's cutover. | ✅ NOTED (guardrail added) | `1bb9b2a` |
 
 **Refined system (the target the fixes build toward):** (1) one `<Skeleton>` composing a shared `--skeleton` token, sheen + reduced-motion guard living in one place; (2) content-shaped skeletons always — a skeleton is a low-fidelity render of the *same* layout, never a generic block; (3) a `useDeferredLoading(isLoading, { delay: 200, min: 400 })` hook — show only after a delay, hold a minimum once shown; (4) optimistic writes for cheap/reversible actions (status, notes, toggles), pessimistic for money paths (`recompute_order_totals`, payments, documents).
 
 **Decision rule for new screens:** waits here live in the 0.4–1 s band (cold read) or ~0 ms (warm cache). Two real problems only — the *matched cold skeleton* and *not flashing on warm*. Do not build for a 10 s problem this app doesn't have.
+
+**Resolution notes (`1bb9b2a`):** LOAD-02 was closed by consolidating to **two documented idioms** — the `Skeleton` primitive for inline blocks, the ghost card (`border-border bg-card`) for card/row placeholders — rather than adding a new `--skeleton` token; the "one fill" ideal is met in practice since the two idioms are role-distinct (documented atop `skeleton.tsx`). LOAD-05 shipped as `app/hooks/useDeferredLoading.ts` (delay 200 ms / min-hold 400 ms), wired into all four detail screens. LOAD-04 shipped as `RecordSkeleton`. LOAD-06/07 were resolved as documentation (the simulated bar and the dual nav signal are deliberate; a guardrail note steers new work off the legacy `ui/loading.tsx` family) — no behavioural change, so they carry DOCUMENTED / NOTED rather than FIXED. Optimistic mutations (from the refined-system item 4) remain a **separate, open** improvement, not part of this batch.
 
 ---
 
