@@ -17,6 +17,8 @@ import {
   SummaryUnavailable,
 } from '@/components/patterns/summary';
 import { formatFieldValue } from '@/lib/fields/format';
+import { useDeferredLoading } from '@/hooks/useDeferredLoading';
+import { RecordSkeleton } from '@/components/skeletons';
 import type { Product } from '@/hooks/products/useProducts';
 import type { Rollup } from '@/lib/api/rollup';
 
@@ -60,12 +62,10 @@ export default function ProductDetailScreen({ id }: { id: string }) {
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
   );
 
-  if (isLoading || !data) {
-    return (
-      <div className="mx-auto w-full max-w-lg px-4 py-5">
-        <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
-      </div>
-    );
+  const loading = isLoading || !data;
+  const showSkeleton = useDeferredLoading(loading);
+  if (loading) {
+    return showSkeleton ? <RecordSkeleton /> : null;
   }
 
   const { product, lines, rollup } = data;

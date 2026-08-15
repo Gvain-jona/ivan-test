@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * LEGACY loading family (LOAD-07). `PageSkeleton` / `TableSkeleton` /
+ * `CardSkeleton` / `MetricCardsGrid` here are desktop-table shaped and are used
+ * only by the dark legacy modules (expenses, materials, analytics, todo) until
+ * their v2 cutovers. Do NOT reach for these in new v2 work — the live surface
+ * uses the feed/skeleton primitives instead: `@/components/ui/skeleton`
+ * (`Skeleton`) for blocks and `@/components/skeletons` (`FeedSkeleton`) for
+ * screens. The spinner/state helpers below (`LoadingSpinner`, `LoadingButton`,
+ * `InlineLoading`, `LoadingError`) are still fine to use anywhere. This file
+ * retires per-module at each legacy cutover, not in one sweep.
+ */
+
 import React from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';

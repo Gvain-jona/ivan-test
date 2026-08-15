@@ -10,6 +10,8 @@ import { ChoiceChip, ListRow } from '@/components/patterns/controls';
 import { SummaryPanel, SummaryRow, SummaryRule } from '@/components/patterns/summary';
 import { ScreenFields } from '@/components/fields/ScreenFields';
 import { EmptyLine, methodLabel, NoteCard } from '@/components/orders/new-order/parts';
+import { useDeferredLoading } from '@/hooks/useDeferredLoading';
+import { RecordSkeleton } from '@/components/skeletons';
 import { useOrderHub } from './useOrderHub';
 import { HubHeader } from './HubHeader';
 import { HubSheets, type OpenSheet } from './HubSheets';
@@ -43,12 +45,12 @@ export default function OrderHubScreen({ id }: { id: string }) {
   const [editingItem, setEditingItem] = useState<DraftItem | null>(null);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  // Direct condition (not an alias) so TS narrows `hub.order` to non-null below.
+  // Nothing for the first ~200ms (warm cache resolves inside it), then the
+  // record-shaped skeleton if the wait is real.
+  const showSkeleton = useDeferredLoading(hub.isLoading || !hub.order);
   if (hub.isLoading || !hub.order) {
-    return (
-      <div className="mx-auto w-full max-w-lg px-4 py-5">
-        <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
-      </div>
-    );
+    return showSkeleton ? <RecordSkeleton /> : null;
   }
 
   const { order, items, payments, notes, documents, discount } = hub;

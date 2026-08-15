@@ -9,8 +9,18 @@ interface NavigationProgressProps {
 }
 
 /**
- * A progress bar that appears at the top of the page during navigation
- * Uses the navigation context to track navigation state
+ * A progress bar that appears at the top of the page during navigation.
+ * Uses the navigation context to track navigation state.
+ *
+ * The progress is *simulated* (an eased curve to 90%, then a jump to 100% on
+ * completion) — this is deliberate (LOAD-06): a client route transition has no
+ * real percentage to report, and a moving bar reads as progress where a static
+ * one reads as a hang. The curve deliberately never reaches 100% on its own, so
+ * it can't claim "done" before navigation actually completes; it also never
+ * fully stalls, since the increment stays positive up to 90%. This pairs with
+ * the corner `NavigationIndicator` spinner — two signals for one event, kept
+ * intentionally: the bar reads at a glance, the spinner confirms activity on
+ * long transitions.
  */
 export function NavigationProgress({ className }: NavigationProgressProps = {}) {
   const { isNavigating, navigationError } = useNavigation();
@@ -55,8 +65,10 @@ export function NavigationProgress({ className }: NavigationProgressProps = {}) 
     };
   }, [isNavigating, navigationError]);
 
-  // Use a different color for error states
-  const barColor = navigationError ? 'bg-red-500' : 'bg-orange-500';
+  // Theme tokens, not literals (LOAD-03): the progress bar follows the org's
+  // brand (which may not be orange) and holds in light mode; the error state
+  // uses the destructive token. `bg-red-500`/`bg-orange-500` did neither.
+  const barColor = navigationError ? 'bg-destructive' : 'bg-primary';
 
   if (!visible && !isNavigating) {
     return null;
@@ -65,7 +77,7 @@ export function NavigationProgress({ className }: NavigationProgressProps = {}) 
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 right-0 h-1 z-50 bg-gray-800/20",
+        "fixed top-0 left-0 right-0 h-1 z-50 bg-border/60",
         className
       )}
     >

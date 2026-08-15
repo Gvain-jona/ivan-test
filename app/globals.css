@@ -160,6 +160,22 @@
 
 /* Triangle indicator removed as requested */
 
+/* Accessibility — honor reduced-motion for loading affordances (LOAD-01).
+   Skeletons and spinners communicate through presence and shape, not motion,
+   so the static form still reads; users who ask for reduced motion just stop
+   seeing the pulse/spin. Kept surgical: it targets the loading animation
+   utilities, not every transition in the app. Placed unlayered and after
+   `@tailwind utilities` so it wins at equal specificity over `.animate-pulse`
+   / `.animate-spin`; it sets only `animation`, never display/position/
+   visibility, so it's clear of the CSS-01 layering guardrail. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-spin,
+  .animate-pulse-attention {
+    animation: none !important;
+  }
+}
+
 @layer base {
   /* Fix for html2pdf.js image rendering with Tailwind */
   img {

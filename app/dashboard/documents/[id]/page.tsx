@@ -9,6 +9,7 @@ import { ScreenHeader, ScreenFooter } from '@/components/patterns/screen';
 import DocumentPaper from '@/components/documents/DocumentPaper';
 import { readSnapshot } from '@/lib/documents/snapshot';
 import { describeDocumentState } from '@/lib/documents/document-state';
+import { useDeferredLoading } from '@/hooks/useDeferredLoading';
 import type { DocumentListRecord } from '@/hooks/documents/useDocuments';
 
 /**
@@ -63,12 +64,16 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
     return (value: number) => formatter.format(Number.isFinite(value) ? value : 0);
   }, [snapshot?.currency]);
 
-  if (isLoading || !document || !snapshot) {
-    return (
+  // A document is a single sheet of paper, so the tall block is already its
+  // real shape; the deferred guard just keeps it from flashing on a warm cache.
+  const loading = isLoading || !document || !snapshot;
+  const showSkeleton = useDeferredLoading(loading);
+  if (loading) {
+    return showSkeleton ? (
       <div className="mx-auto w-full max-w-lg px-4 py-6">
         <div className="h-[520px] animate-pulse rounded-[14px] border border-border bg-card" />
       </div>
-    );
+    ) : null;
   }
 
   const amountPaid = document.amount_paid ?? 0;
