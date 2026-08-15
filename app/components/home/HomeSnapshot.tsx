@@ -2,6 +2,7 @@
 
 import { Clock, Package } from 'lucide-react';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface HomeSnapshotProps {
   /** Sum of order totals for the current calendar month. */
@@ -32,15 +33,18 @@ export default function HomeSnapshot({
 
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-3xl border border-border bg-card p-5">
+      // Ghost-card container (the standard v2 placeholder shell) with the
+      // shared Skeleton primitive for the blocks inside — was plain `bg-muted`,
+      // the one fill that didn't match the primitive's (LOAD-02).
+      <div className="rounded-3xl border border-border bg-card p-5">
         <div className="flex gap-4">
           <div className="flex-1 space-y-2">
-            <div className="h-3 w-20 rounded bg-muted" />
-            <div className="h-8 w-28 rounded bg-muted" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 w-28" />
           </div>
           <div className="flex-1 space-y-2">
-            <div className="h-3 w-20 rounded bg-muted" />
-            <div className="h-8 w-28 rounded bg-muted" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 w-28" />
           </div>
         </div>
       </div>

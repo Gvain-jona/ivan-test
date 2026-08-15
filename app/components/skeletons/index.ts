@@ -3,6 +3,7 @@
 // (OrdersSkeleton, DashboardSkeleton) were retired with the loading overhaul —
 // they drew a desktop table over a mobile feed and reflowed on every load.
 export { FeedSkeleton } from './FeedSkeleton';
+export { RecordSkeleton } from './RecordSkeleton';
 
 // Legacy (dark) modules keep their own skeletons until their v2 cutovers.
 export { ExpensesSkeleton } from './ExpensesSkeleton';

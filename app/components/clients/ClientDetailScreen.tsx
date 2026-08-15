@@ -17,6 +17,8 @@ import {
   SummaryUnavailable,
 } from '@/components/patterns/summary';
 import { optionColorClasses } from '@/lib/fields/colors';
+import { useDeferredLoading } from '@/hooks/useDeferredLoading';
+import { RecordSkeleton } from '@/components/skeletons';
 import type { Client } from '@/hooks/clients/useClients';
 import type { OrderSummary } from '@/hooks/orders/useOrders';
 import type { Rollup } from '@/lib/api/rollup';
@@ -52,12 +54,10 @@ export default function ClientDetailScreen({ id }: { id: string }) {
     { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE },
   );
 
-  if (isLoading || !data) {
-    return (
-      <div className="mx-auto w-full max-w-lg px-4 py-5">
-        <div className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
-      </div>
-    );
+  const loading = isLoading || !data;
+  const showSkeleton = useDeferredLoading(loading);
+  if (loading) {
+    return showSkeleton ? <RecordSkeleton /> : null;
   }
 
   const { client, rollup } = data;

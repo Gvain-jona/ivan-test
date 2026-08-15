@@ -1,5 +1,19 @@
 import { cn } from "@/lib/utils"
 
+/**
+ * The single skeleton primitive for the live v2 surface. There are two
+ * intentional loading idioms, and this is one of them — keep to these two:
+ *
+ *   1. `<Skeleton>` — an inline block placeholder (a title, a figure, a chip).
+ *      One fill (`bg-muted/20` + hairline border), so blocks read as one set.
+ *   2. The "ghost card" — a `rounded-* border border-border bg-card` container
+ *      standing in for a real card/row (list rows, the record blocks on detail
+ *      screens). It mirrors the real card surface rather than the muted fill.
+ *
+ * Don't introduce a third fill (LOAD-02). Motion is handled globally: the
+ * `prefers-reduced-motion` rule in globals.css neutralises `animate-pulse`,
+ * so neither idiom needs its own reduced-motion guard.
+ */
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
