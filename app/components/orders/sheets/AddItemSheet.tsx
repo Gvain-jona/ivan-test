@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar } from '@/components/patterns/screen';
 import { useProducts } from '@/hooks/products/useProducts';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
@@ -137,7 +137,7 @@ export default function AddItemSheet({
   };
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title={editing ? 'Edit item' : 'Add item'}
@@ -191,7 +191,7 @@ export default function AddItemSheet({
           </button>
         )}
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }
 

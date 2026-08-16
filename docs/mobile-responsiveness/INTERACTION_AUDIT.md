@@ -31,9 +31,9 @@ showing up repeatedly:
 | INT-01 | Home → create order | Quick-add is a `<Link href="/dashboard/orders?new=1">` — tapping **navigates to Orders**, whose effect then opens the sheet. A modal summoned by a route change. | `app/components/home/HomeHero.tsx:82` | P1 | High |
 | INT-02 | Home → open order | Recent-order card links to `/dashboard/orders?order=<id>` — again routes to Orders, *then* opens the view sheet. | `app/components/home/RecentOrdersList.tsx` (OrderCard) | P1 | High |
 | INT-03 | Home → new client/product | Quick-action chips link to `/clients?new=1` / `/products?new=1` — route, then open. | `app/components/home/HomeQuickActions.tsx` | P1 | High |
-| INT-04 | Bottom sheet | **Grab handle implies drag-to-dismiss; there is no drag gesture.** A visual promise the code doesn't keep. | `app/components/ui/sheets/OrderSheet.tsx` (handle) + `app/components/ui/sheet.tsx` | P2 | High |
+| INT-04 | Bottom sheet | **Grab handle implies drag-to-dismiss; there is no drag gesture.** A visual promise the code doesn't keep. | `app/components/ui/sheets/AppSheet.tsx` (handle) + `app/components/ui/sheet.tsx` | P2 | High |
 | INT-05 | Home → create order | Quick-add leads with a **search (🔍) icon for a create action**. | `app/components/home/HomeHero.tsx:86` | P2 | Low |
-| INT-06 | Sheets, app-wide | **Two inconsistent bottom-sheet languages:** OrderSheet has a grab handle + `rounded-t-2xl`; the tab bar's More sheet has no handle + `rounded-t-3xl`. No single sheet primitive. | `OrderSheet.tsx` vs `app/components/navigation/MobileTabBar.tsx:115` | P2 | Med |
+| INT-06 | Sheets, app-wide | **Two inconsistent bottom-sheet languages:** AppSheet has a grab handle + `rounded-t-2xl`; the tab bar's More sheet has no handle + `rounded-t-3xl`. No single sheet primitive. | `AppSheet.tsx` vs `app/components/navigation/MobileTabBar.tsx:115` | P2 | Med |
 | INT-07 | Bottom sheet | No **drag-to-dismiss** (custom `Sheet` supports only X / backdrop / Escape). | `app/components/ui/sheet.tsx` | P3 | High |
 | INT-08 | Bottom sheet | No **focus management** — focus isn't moved into or trapped within the sheet; keyboard/AT users are left behind it. | `app/components/ui/sheet.tsx` | P3 | Med |
 | INT-09 | Bottom sheet | No **enter/exit animation** — the sheet *appears* instead of sliding up (variants set position, not a transform). Feels broken on mobile. | `app/components/ui/sheet.tsx` | P3 | Med |
@@ -56,10 +56,10 @@ recent-order cards and "See all" now go to distinct, correct destinations.
   mounted in `app/dashboard/layout.tsx`. Home's quick-add, recent-order cards, empty state,
   and quick-action chips now open sheets **in place** (no navigation) — closes INT-01, INT-02,
   INT-03, INT-11. History-entry-on-open means **Back dismisses the sheet** — closes INT-12.
-- ✅ **Foundation B shipped** — `OrderSheet` rebuilt on **`vaul`** (`app/components/ui/sheets/
-  OrderSheet.tsx`): a real sheet with drag-to-dismiss, focus trap, slide animation, scroll-lock,
+- ✅ **Foundation B shipped** — `AppSheet` rebuilt on **`vaul`** (`app/components/ui/sheets/
+  AppSheet.tsx`): a real sheet with drag-to-dismiss, focus trap, slide animation, scroll-lock,
   and keyboard-aware input repositioning. Bottom drawer on mobile / right drawer on desktop.
-  The tab-bar **More sheet now renders through the same `OrderSheet`** — one sheet language
+  The tab-bar **More sheet now renders through the same `AppSheet`** — one sheet language
   (closes INT-04 with a handle that *drags*, INT-06, INT-07, INT-08, INT-09). Keyboard-overlap
   (old MOB-07 deep) is largely handled by vaul's `repositionInputs`.
 - ⚠️ **Caveat:** form sheets are conditionally mounted by the host (fresh form + no idle
@@ -91,7 +91,7 @@ navigation as its open mechanism.)
 ### Foundation B — one real bottom-sheet primitive (kills P2/P3 + INT-06)
 Adopt **`vaul`** (the standard React drawer: drag-to-dismiss with velocity, snap points,
 focus trap, slide animation, scroll-lock) for the mobile bottom-sheet path, and route
-**both** OrderSheet's mobile side **and** the tab bar's More sheet through it. One sheet
+**both** AppSheet's mobile side **and** the tab bar's More sheet through it. One sheet
 language everywhere; the grab handle finally does what it says. Desktop keeps the
 right-side panel. Closes INT-04, INT-06, INT-07, INT-08, INT-09.
 *Decision needed:* adopt `vaul` (one dependency) vs. hand-rolling the gesture on the

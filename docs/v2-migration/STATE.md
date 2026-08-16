@@ -536,9 +536,9 @@ single swap point. Order creation still goes through the
   - **Industry and currency are sheets now, not nested screens.** Both fields
     on `BusinessDetailsStep` opened a hand-rolled full-screen `DrillIn` that
     unmounted the whole form to make one choice — a second overlay vocabulary
-    beside the app's `OrderSheet` primitive, against CLAUDE.md's "one sheet, one
+    beside the app's `AppSheet` primitive, against CLAUDE.md's "one sheet, one
     door" and its screen-vs-sheet rule (*deciding one thing is a sheet*). They
-    now open `OrderSheet` (a bottom drawer on mobile) with the form mounted
+    now open `AppSheet` (a bottom drawer on mobile) with the form mounted
     underneath; `DrillIn` is deleted. `CurrencyPicker`/`IndustryPicker` are
     unchanged in logic — they're now the sheet body.
   - **`BusinessDetailsStep` renders in the shell on desktop.** It rendered

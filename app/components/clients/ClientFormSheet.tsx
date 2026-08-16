@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { CustomFieldsForm } from '@/components/fields/CustomFieldsForm';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import { useClientMutations } from '@/hooks/clients/useClients';
@@ -73,7 +73,7 @@ export default function ClientFormSheet({
   };
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title={client ? `Edit ${client.name}` : 'New Client'}
@@ -109,6 +109,6 @@ export default function ClientFormSheet({
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }

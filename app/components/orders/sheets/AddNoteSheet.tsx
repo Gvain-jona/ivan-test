@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ScreenFields } from '@/components/fields/ScreenFields';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
@@ -41,7 +41,7 @@ export default function AddNoteSheet({ open, onOpenChange, onAdd }: AddNoteSheet
   const trimmed = content.trim();
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title="Add note"
@@ -76,6 +76,6 @@ export default function AddNoteSheet({ open, onOpenChange, onAdd }: AddNoteSheet
           />
         </div>
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }

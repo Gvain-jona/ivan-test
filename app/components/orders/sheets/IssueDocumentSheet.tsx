@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ChoiceChip } from '@/components/patterns/controls';
 import { SummaryPanel, SummaryRow, SummaryRule } from '@/components/patterns/summary';
@@ -86,7 +86,7 @@ export default function IssueDocumentSheet({
   const tax = settings.tax;
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title="Issue document"
@@ -164,6 +164,6 @@ export default function IssueDocumentSheet({
           afterwards — a mistake is corrected by voiding it and issuing another.
         </p>
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }

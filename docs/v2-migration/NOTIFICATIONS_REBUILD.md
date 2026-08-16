@@ -83,7 +83,7 @@ No invention required — copy the proven pattern file-for-file:
 - **Route** (`app/api/notifications/route.ts`, rewritten): `resolveTenant()` → `handleApiError('UNAUTHORIZED', …)` → `safeParse` a schema added to `app/lib/api/validators.ts` → `tenant.db.from('activities')` (org filter injected by construction) → `handleSupabaseError`. Plus a colocated `route.test.ts` against `createFakeTenant()` (pattern: `app/api/orders/route.test.ts`) — **required in the same PR** per CLAUDE.md. GET returns the caller's inbox projection (activities where the caller is in the audience, left-joined to their `activity_reads`, see §6); PATCH writes the caller's read/archived state (and the `last_seen_at` watermark); there is no hard DELETE (archive instead).
 - **Hook** (`app/hooks/notifications/useNotifications.ts`): `useSWR` via `buildKey(PLATFORM_API.NOTIFICATIONS, …)` + `apiFetcher`, and a `useNotificationMutations()` invalidating with `keysUnder(...)` — exactly `useOrders.ts`. Add `NOTIFICATIONS: '/api/notifications'` to `PLATFORM_API` in `app/lib/api/client.ts`.
 - **Types**: hand-add the `notifications` table to `DatabaseV2` (`app/types/supabase-v2.ts`) — it's hand-maintained, not gen'd (CLAUDE.md).
-- **UI**: the existing drawer/menu/indicator are decent scaffold, but the drawer uses the old `SideDrawer`. The rebuild moves it onto the **`OrderSheet` primitive** via the sheet-host door (`app/context/sheet-host.tsx`, `useSheets`), per the "one sheet, one door" guardrail. The stub `NotificationsContext` is replaced by the hook (keep only the drawer-open UI state, if anything).
+- **UI**: the existing drawer/menu/indicator are decent scaffold, but the drawer uses the old `SideDrawer`. The rebuild moves it onto the **`AppSheet` primitive** via the sheet-host door (`app/context/sheet-host.tsx`, `useSheets`), per the "one sheet, one door" guardrail. The stub `NotificationsContext` is replaced by the hook (keep only the drawer-open UI state, if anything).
 
 ---
 
@@ -182,7 +182,7 @@ These were open; they are now decided. Each is an MVP-minded call that keeps Pha
 
 ## 10. Phasing
 
-- **Phase 1 — buildable now (no new infra, no RLS dependency):** `v2.notifications` table (org + recipient); migrated-pattern route + tests + SWR hook (pull, ~60–120s refresh); app-layer emit on the **three settled events** — order created, order status changed, payment recorded (§9.1), targeted at all org members except the actor (§9.2); the membership event on the Clerk webhook; drawer moved to `OrderSheet`. No preferences (§9.5). Delete the dead code, discard the legacy tables, and pull the push prompt (§11, §9.3–9.4).
+- **Phase 1 — buildable now (no new infra, no RLS dependency):** `v2.notifications` table (org + recipient); migrated-pattern route + tests + SWR hook (pull, ~60–120s refresh); app-layer emit on the **three settled events** — order created, order status changed, payment recorded (§9.1), targeted at all org members except the actor (§9.2); the membership event on the Clerk webhook; drawer moved to `AppSheet`. No preferences (§9.5). Delete the dead code, discard the legacy tables, and pull the push prompt (§11, §9.3–9.4).
 - **Phase 2 — at the RLS flip:** swap pull → Supabase realtime once third-party auth lands. Single delivery-layer change; everything else holds.
 - **Separate tracks (own infra, own decision):** Web Push (§9.4); due-soon/overdue via a scheduler (§9.1); per-user preferences once a delivery channel exists (§9.5).
 
@@ -267,7 +267,7 @@ The vendor-standard is a **PreferenceSet**: a matrix of *category × channel* op
 
 Five in-app surfaces exist (persistent inbox, toast, banner, modal, badge). We use exactly two, plus one we already have:
 
-- **Inbox** (bell → `OrderSheet` drawer) — the persistent record. Phase-1 surface.
+- **Inbox** (bell → `AppSheet` drawer) — the persistent record. Phase-1 surface.
 - **Badge** — unread/seen count on the bell.
 - **Toast** — already handled by the existing toast system for the *actor's own* immediate feedback ("Payment recorded"); it is **not** the inbox and the two shouldn't be conflated. No banners/modals for this feature.
 
@@ -334,6 +334,7 @@ The bedrock — the model and its core plumbing — is built and proven, with no
 - ~~**Unread-count endpoint**~~ — **done 2026-08-15.** `GET /api/notifications/count` returns the true unread total (audience notifications the caller didn't cause, minus the ones they've resolved — two head COUNTs, no anti-join). `useUnreadCount()` feeds the badge; it shares the `/api/notifications` key prefix so marking one read invalidates it. Tested. **"Mark all read"** still loops per-item (fine at this scale; a `last_seen_at` watermark is the efficient form).
 - ~~**Lazy inbox list**~~ — **done 2026-08-15.** `useNotificationInbox({ enabled })` fetches nothing (null SWR key) unless a list surface is active; the provider sets `enabled = isDrawerOpen || subscribers > 0`. So a page showing only the bell pulls just the cheap count, never the list. Surfaces opt in via `subscribeList()` (the drawer via its open state; `NotificationsMenu` on mount — currently gated off in `context-menu.tsx`, but wired so it works when re-enabled). Note: the header notifications menu and footer bell are **disabled** today (`context-menu.tsx` returns null for `notifications`; the indicator is `disabled`), so the drawer is the only live list surface.
 - ~~**Deep-link routing**~~ — **done 2026-08-15.** Clicking a notification opens its linked order via `useSheets().openOrder()` (the "one door" convention), from both the drawer (`NotificationItem` — closes the drawer first so it doesn't re-pop on back-nav) and the header popover (`NotificationsMenu`). Target resolved by `notificationOrderId()` in `present.ts`: a payment links to the *order it settles* (its `target`), not the payment row; membership events have no order link. Tested.
+- ~~**Mobile-first sheet primitive**~~ — **done 2026-08-15.** The shared sheet primitive was renamed `OrderSheet` → **`AppSheet`** (it was never order-specific — used by client/product forms, onboarding, the tab-bar More sheet; the name misled). `NotificationsDrawer` was rewritten off the legacy `SideDrawer` (fixed 450px right panel) onto `AppSheet`, so the Alerts tab now opens a **bottom sheet on mobile** / right panel on desktop, matching the tab bar's own More sheet. The dead "Clear all" archived button (called the no-op `deleteAllArchived`) was removed per "every signifier is wired". `SideDrawer` is no longer used by notifications.
 - **Inbox aggregation** via `group_key`, **archived-exclusion in SQL**, and the **upsert** primitive on `TenantDb` — all noted below.
 - **Later tracks (own infra):** digest/batching, per-user preferences, email/push, the due-soon/overdue scheduler.
 

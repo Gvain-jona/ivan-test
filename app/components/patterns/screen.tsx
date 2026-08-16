@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
  *
  * It is the vocabulary for the **sheets** too (B2a/B2a2, B2b, B2c, B8): those
  * frames are the same sections, cards and figure-plus-action footer, wrapped in
- * `OrderSheet`'s chrome rather than a screen's. There is no separate sheet
+ * `AppSheet`'s chrome rather than a screen's. There is no separate sheet
  * vocabulary, and there must not be one — see the screen-vs-sheet carve-out in
  * CLAUDE.md.
  *
@@ -138,7 +138,7 @@ export interface FooterActionProps {
  * one action across the full width (F3). Passing a figure selects the first.
  *
  * Separate from `ScreenFooter` because the sheets need the same row without the
- * sticky/border/safe-area treatment — `OrderSheet`'s own footer slot already
+ * sticky/border/safe-area treatment — `AppSheet`'s own footer slot already
  * supplies all three, and nesting them would double the hairline and the
  * padding. One implementation, two mountings; don't copy this row into a sheet.
  */

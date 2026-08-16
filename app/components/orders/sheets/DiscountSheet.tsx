@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ChoiceChip } from '@/components/patterns/controls';
 import { SummaryPanel, SummaryRow, SummaryRule } from '@/components/patterns/summary';
@@ -56,7 +56,7 @@ export default function DiscountSheet({
   const overPercent = type === 'percent' && numeric > 100;
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title="Discount"
@@ -126,6 +126,6 @@ export default function DiscountSheet({
           <SummaryRow label="New total" value={fmt(subtotal - amount)} emphasis />
         </SummaryPanel>
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }

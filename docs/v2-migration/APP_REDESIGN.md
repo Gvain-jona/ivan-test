@@ -662,7 +662,7 @@ surfaces are screens. Add item / payment / note / issue document are sheets.
    status chips → dates → delivery → items → discount → payments → notes →
    summary → footer. The sheet host gains `add-item`, `add-payment`,
    `add-note`, `discount`.
-5. ✅ **Done (2026-08-10, with step 4 — see below)** — **the four sheets**: B2a/B2a2, B2b, B2c, B8, all through `OrderSheet`. Two
+5. ✅ **Done (2026-08-10, with step 4 — see below)** — **the four sheets**: B2a/B2a2, B2b, B2c, B8, all through `AppSheet`. Two
    app-side gaps land here: `useNotes.addNote` must carry `custom_data` (the
    route already accepts it), and `STARTER_FIELDS` needs a `note` set
    (`StarterEntity` gains `'note'`) so B2c's TYPE chips have a source.

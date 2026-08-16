@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
 
-interface OrderSheetProps {
+interface AppSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -33,7 +33,7 @@ interface OrderSheetProps {
  * drags, rounded top, capped height) and a right-side panel on desktop. Every
  * migrated form (order / client / product / field) renders through it.
  */
-const OrderSheet = memo(function OrderSheet({
+const AppSheet = memo(function AppSheet({
   open,
   onOpenChange,
   title,
@@ -44,7 +44,7 @@ const OrderSheet = memo(function OrderSheet({
   onClose,
   customHeader,
   footer,
-}: OrderSheetProps) {
+}: AppSheetProps) {
   // lg = 1024px, matching the shell's mobile/desktop breakpoint.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
@@ -143,4 +143,4 @@ const OrderSheet = memo(function OrderSheet({
   );
 });
 
-export default OrderSheet;
+export default AppSheet;
