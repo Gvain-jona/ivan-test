@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Bell, CheckCheck, ArrowRight } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationsContext';
 import { useSheets } from '@/context/sheet-host';
@@ -10,8 +10,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function NotificationsMenu() {
-  const { notifications, loading, error, unreadCount, markAllAsRead, openDrawer, markAsRead, fetchNotifications } = useNotifications();
+  const { notifications, loading, error, unreadCount, markAllAsRead, openDrawer, markAsRead, fetchNotifications, subscribeList } = useNotifications();
   const { openOrder } = useSheets();
+
+  // While this popover is mounted, the inbox list is needed — opt in so the
+  // lazily-fetched list loads (and unsubscribe on unmount).
+  useEffect(() => subscribeList(), [subscribeList]);
 
   // Mark read and, if the notification links to an order, open it.
   const handleSelect = (notification: (typeof notifications)[number]) => {

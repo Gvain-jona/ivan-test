@@ -37,8 +37,16 @@ export type NotificationStateChange = 'read' | 'unread' | 'archived' | 'active';
 
 const REFRESH_MS = 90_000; // ~90s pull cadence (§4/§10).
 
-export function useNotificationInbox(params: { limit?: number } = {}) {
-  const key = buildKey(PLATFORM_API.NOTIFICATIONS, { limit: params.limit });
+/**
+ * The inbox list. `enabled` is the laziness switch: the full list is only
+ * needed while a surface that shows it (the drawer, the header menu) is open,
+ * so the provider passes `false` otherwise and SWR fetches nothing (null key).
+ * The badge runs off useUnreadCount(), which is always on and cheap — so a
+ * page that only shows the bell never pulls the list.
+ */
+export function useNotificationInbox(params: { limit?: number; enabled?: boolean } = {}) {
+  const enabled = params.enabled ?? true;
+  const key = enabled ? buildKey(PLATFORM_API.NOTIFICATIONS, { limit: params.limit }) : null;
   const { data, error, isLoading, mutate } = useSWR<{
     notifications: InboxNotification[];
     total: number;

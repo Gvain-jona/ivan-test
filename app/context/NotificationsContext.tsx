@@ -41,6 +41,12 @@ interface NotificationsContextType {
   deleteAllArchived: () => Promise<boolean>;
   groupNotificationsByDate: (notifications: Notification[]) => NotificationGroup[];
   handleNotificationAction: (notificationId: string, action: string) => void;
+  /**
+   * Opt a surface into the (lazily-fetched) inbox list while it is mounted.
+   * The drawer activates it by opening; any other list surface (e.g. the
+   * header menu) calls this on mount and the returned cleanup on unmount.
+   */
+  subscribeList: () => () => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
@@ -52,7 +58,18 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
-  const inbox = useNotificationInbox();
+  // Lazy list: fetch it only while a surface that shows it is active — the
+  // drawer (open) or any subscriber (e.g. the header menu, while mounted).
+  // The badge uses useUnreadCount(), so pages that only show the bell never
+  // pull the list.
+  const [listConsumers, setListConsumers] = useState(0);
+  const subscribeList = useCallback(() => {
+    setListConsumers(n => n + 1);
+    return () => setListConsumers(n => Math.max(0, n - 1));
+  }, []);
+  const listActive = isDrawerOpen || listConsumers > 0;
+
+  const inbox = useNotificationInbox({ enabled: listActive });
   const { setState } = useNotificationMutations();
 
   const notifications = useMemo(
@@ -164,6 +181,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       deleteAllArchived,
       groupNotificationsByDate,
       handleNotificationAction,
+      subscribeList,
     }),
     [
       notifications,
@@ -182,6 +200,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       deleteAllArchived,
       groupNotificationsByDate,
       handleNotificationAction,
+      subscribeList,
     ],
   );
 
