@@ -6,6 +6,7 @@ import type { Notification, NotificationStatus, NotificationGroup } from '@/type
 import {
   useNotificationInbox,
   useNotificationMutations,
+  useUnreadCount,
 } from '@/hooks/notifications/useNotifications';
 import { presentNotification } from '@/lib/notifications/present';
 
@@ -59,10 +60,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     [inbox.notifications],
   );
 
-  const unreadCount = useMemo(
-    () => inbox.notifications.filter(n => n.state === 'unread').length,
-    [inbox.notifications],
-  );
+  // The badge is the true unread total from the dedicated count endpoint —
+  // not a count of the fetched page, which caps at the list's limit.
+  const unreadCount = useUnreadCount();
 
   const fetchNotifications = useCallback(async () => {
     await inbox.mutate();

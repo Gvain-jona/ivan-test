@@ -57,6 +57,26 @@ export function useNotificationInbox(params: { limit?: number } = {}) {
   };
 }
 
+/**
+ * The unread badge count — a cheap, page-independent server count
+ * (GET /api/notifications/count), separate from the inbox list so the badge
+ * doesn't depend on how many rows the drawer happened to fetch. Shares the
+ * `/api/notifications` key prefix, so `useNotificationMutations` invalidates it
+ * too — marking one read updates the badge.
+ */
+export function useUnreadCount() {
+  const { data } = useSWR<{ unread: number }>(
+    `${PLATFORM_API.NOTIFICATIONS}/count`,
+    apiFetcher,
+    {
+      refreshInterval: REFRESH_MS,
+      revalidateOnFocus: true,
+      dedupingInterval: 30_000,
+    },
+  );
+  return data?.unread ?? 0;
+}
+
 export function useNotificationMutations() {
   const { mutate } = useSWRConfig();
   const invalidate = useCallback(
