@@ -188,16 +188,20 @@ These were open; they are now decided. Each is an MVP-minded call that keeps Pha
 
 ---
 
-## 11. Cleanup checklist (delete at cutover)
+## 11. Cleanup checklist
 
-- `app/api/notifications/route.ts` (replace with migrated-pattern route)
-- `app/hooks/useRealNotifications.ts` (orphaned)
-- `app/dashboard/notifications-test/page.tsx` (leftover live route)
-- `app/data/mock-notifications.ts` + `app/dashboard/_data/mock-notifications.ts` (duplicate mocks)
-- Double `NotificationsProvider` mount (`providers.tsx` vs `NotificationsWrapper`) — collapse to one
-- Decorative push switch on `app/dashboard/profile/page.tsx`; unwired Save on `NotificationsTab`
-- Legacy DB: `public.notifications`, `public.notification_preferences`, the orphan `public_read_notifications` policy, and the three dead role-model functions/triggers (§2)
-- Fix or remove push: `app/utils/push-notifications.ts`, `public/service-worker.js`, `NotificationPermissionRequest`
+**Done — app-side dead code removed (2026-08-15):**
+- ~~`app/api/notifications/route.ts`~~ — replaced with the migrated-pattern route (not deleted; rewritten).
+- ~~`app/hooks/useRealNotifications.ts`~~ — **deleted** (orphaned).
+- ~~`app/dashboard/notifications-test/page.tsx`~~ — **deleted** (leftover route).
+- ~~`app/data/mock-notifications.ts` + `app/dashboard/_data/mock-notifications.ts`~~ — **deleted** (unused mocks).
+- ~~Double `NotificationsProvider` mount~~ — **collapsed to the single global one** in `app/providers.tsx`; `NotificationsWrapper.tsx` deleted. (This also fixed a real bug: the local provider shadowed the global one, so `openDrawer()` from the header didn't reach the drawer.)
+- ~~Push (dark pattern, never registered)~~ — **deleted** `NotificationPermissionRequest.tsx`, `app/utils/push-notifications.ts`, `public/service-worker.js`, and removed the prompt from `DashboardLayout`.
+- ~~Unwired "Save" on `NotificationsTab`~~ — **removed** (settings persist live via `updateSettings`).
+
+**Left in place, deliberately (not dead code):**
+- The profile-page notification card + `NotificationsTab` toggles — unwired **preferences** UI, which belongs to the deferred preferences track (§9.5), not this pass. Removing live settings UI is a product change, not cleanup.
+- **Legacy DB** — `public.notifications` (3,348 rows), `public.notification_preferences`, the orphan `public_read_notifications` policy, and the three dead role-model functions/triggers (§2). Dropping these is a **separate DB change needing explicit go-ahead**, and must also account for the two still-live legacy writers (`app/api/cron/generate-recurring-expenses`, `supabase/functions/create-or-update-order.ts`) that belong to unmigrated modules.
 
 ---
 
