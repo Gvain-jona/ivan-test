@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { presentNotification } from './present';
+import { presentNotification, notificationOrderId } from './present';
 import type { InboxNotification } from '@/hooks/notifications/useNotifications';
 
 function make(partial: Partial<InboxNotification>): InboxNotification {
@@ -44,21 +44,37 @@ describe('presentNotification', () => {
     expect(n.type).toBe('status_change');
   });
 
-  it('renders a payment with its amount', () => {
+  it('renders a payment with its amount and links to the order it settles', () => {
     const n = presentNotification(make({
       verb: 'payment.recorded',
+      object_type: 'payment',
+      object_id: 'pay-1',
+      target_type: 'order',
+      target_id: 'ord-1',
       data: { amount: 20000, order_number: 'ORD-1042' },
     }));
     expect(n.title).toBe('Payment recorded');
     expect(n.message).toContain('20,000');
     expect(n.message).toContain('ORD-1042');
     expect(n.type).toBe('payment');
+    // Links to the ORDER (target), not the payment row (object).
+    expect(notificationOrderId(n)).toBe('ord-1');
   });
 
-  it('speaks in the second person for a membership event', () => {
-    const n = presentNotification(make({ verb: 'member.added', object_type: 'organization' }));
+  it('speaks in the second person for a membership event and has no order link', () => {
+    const n = presentNotification(make({
+      verb: 'member.added',
+      object_type: 'organization',
+      object_id: 'org-1',
+    }));
     expect(n.message).toBe('You were added to the organization');
     expect(n.type).toBe('invitation');
+    expect(notificationOrderId(n)).toBeNull();
+  });
+
+  it('links an order notification to its own order', () => {
+    const n = presentNotification(make({ verb: 'order.created', object_type: 'order', object_id: 'ord-9' }));
+    expect(notificationOrderId(n)).toBe('ord-9');
   });
 
   it('carries per-user state through as status', () => {

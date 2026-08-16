@@ -7,6 +7,8 @@ import type { Notification } from '@/types/notifications';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/context/NotificationsContext';
+import { useSheets } from '@/context/sheet-host';
+import { notificationOrderId } from '@/lib/notifications/present';
 import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
@@ -20,7 +22,8 @@ interface NotificationItemProps {
 }
 
 export function NotificationItem({ notification }: NotificationItemProps) {
-  const { markAsRead, archiveNotification, deleteNotification, handleNotificationAction } = useNotifications();
+  const { markAsRead, archiveNotification, deleteNotification, handleNotificationAction, closeDrawer } = useNotifications();
+  const { openOrder } = useSheets();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [actionType, setActionType] = useState<'read' | 'archive' | 'delete' | null>(null);
@@ -64,6 +67,14 @@ export function NotificationItem({ notification }: NotificationItemProps) {
 
     if (notification.status === 'unread') {
       markAsRead(notification.id);
+    }
+
+    // Deep-link to the linked order, if any. Close the drawer first: otherwise
+    // its open state persists and it re-pops when navigating back from the hub.
+    const orderId = notificationOrderId(notification);
+    if (orderId) {
+      closeDrawer();
+      openOrder(orderId);
     }
   };
 

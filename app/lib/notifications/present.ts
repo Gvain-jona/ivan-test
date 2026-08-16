@@ -60,9 +60,22 @@ function describe(verb: string, d: RenderData): { title: string; message: string
   }
 }
 
+/**
+ * The order a notification links to, if any — the click-through target.
+ * A payment notification links to the *order it settles* (its `target`), not
+ * the payment row; an order notification links to the order itself (its
+ * `object`). Everything else (e.g. membership) has no order to open.
+ */
+function navigableOrderId(n: InboxNotification): string | null {
+  if (n.target_type === 'order' && n.target_id) return n.target_id;
+  if (n.object_type === 'order') return n.object_id;
+  return null;
+}
+
 export function presentNotification(n: InboxNotification): Notification {
   const d = (n.data ?? {}) as RenderData;
   const { title, message } = describe(n.verb, d);
+  const orderId = navigableOrderId(n);
 
   return {
     id: n.id,
@@ -73,8 +86,17 @@ export function presentNotification(n: InboxNotification): Notification {
     created_at: n.created_at,
     status: n.state,
     sender: { id: n.actor_user_id ?? 'system', name: 'System' },
-    // object_type/object_id is the reliable click-through target; title is
-    // whatever names the object to a human.
-    target: { id: n.object_id, type: 'order', title: d.order_number ?? '' },
+    // The reliable click-through target: the order to open (empty when there
+    // is none, e.g. a membership event). title is what names it to a human.
+    target: { id: orderId ?? '', type: 'order', title: d.order_number ?? '' },
   };
+}
+
+/**
+ * The order id a presented notification should route to on click, or null if
+ * it isn't order-linked. Read from the target the presenter resolved above, so
+ * routing and display stay in agreement.
+ */
+export function notificationOrderId(n: Notification): string | null {
+  return n.target?.type === 'order' && n.target.id ? n.target.id : null;
 }

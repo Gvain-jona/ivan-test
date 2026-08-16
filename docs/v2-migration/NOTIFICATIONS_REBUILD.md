@@ -332,7 +332,7 @@ The bedrock — the model and its core plumbing — is built and proven, with no
 ### Remaining refinements (not blockers)
 
 - **Unread-count endpoint** — the badge currently counts unread within the fetched page; a dedicated count endpoint is the clean version at scale. **"Mark all read"** loops per-item (fine at this scale; a `last_seen_at` watermark is the efficient form).
-- **Deep-link routing** — `handleNotificationAction` logs rather than routes; wire `object_type`/`object_id` → the order/hub via `useSheets`.
+- ~~**Deep-link routing**~~ — **done 2026-08-15.** Clicking a notification opens its linked order via `useSheets().openOrder()` (the "one door" convention), from both the drawer (`NotificationItem` — closes the drawer first so it doesn't re-pop on back-nav) and the header popover (`NotificationsMenu`). Target resolved by `notificationOrderId()` in `present.ts`: a payment links to the *order it settles* (its `target`), not the payment row; membership events have no order link. Tested.
 - **Inbox aggregation** via `group_key`, **archived-exclusion in SQL**, and the **upsert** primitive on `TenantDb` — all noted below.
 - **Later tracks (own infra):** digest/batching, per-user preferences, email/push, the due-soon/overdue scheduler.
 

@@ -3,12 +3,22 @@
 import React from 'react';
 import { Bell, CheckCheck, ArrowRight } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationsContext';
+import { useSheets } from '@/context/sheet-host';
+import { notificationOrderId } from '@/lib/notifications/present';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function NotificationsMenu() {
   const { notifications, loading, error, unreadCount, markAllAsRead, openDrawer, markAsRead, fetchNotifications } = useNotifications();
+  const { openOrder } = useSheets();
+
+  // Mark read and, if the notification links to an order, open it.
+  const handleSelect = (notification: (typeof notifications)[number]) => {
+    markAsRead(notification.id);
+    const orderId = notificationOrderId(notification);
+    if (orderId) openOrder(orderId);
+  };
 
   // Get the most recent 5 unread notifications
   const recentNotifications = notifications
@@ -66,7 +76,7 @@ export function NotificationsMenu() {
             <div
               key={notification.id}
               className="flex items-start gap-3 p-2 rounded-md hover:bg-muted/20 cursor-pointer transition-colors"
-              onClick={() => markAsRead(notification.id)}
+              onClick={() => handleSelect(notification)}
             >
               <Avatar className="h-8 w-8">
                 {n.sender?.avatar ? (
