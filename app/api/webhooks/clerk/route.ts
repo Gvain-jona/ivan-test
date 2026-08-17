@@ -114,11 +114,7 @@ async function handleOrganizationDeleted(admin: Admin, clerkOrgId: string) {
   if (error) throw error;
 }
 
-async function handleMembershipUpsert(
-  admin: Admin,
-  membership: MembershipEvent,
-  isNew = false,
-) {
+async function handleMembershipUpsert(admin: Admin, membership: MembershipEvent) {
   const clerkUserId = membership.public_user_data?.user_id;
   if (!clerkUserId) return;
 
@@ -132,6 +128,20 @@ async function handleMembershipUpsert(
   // once the org row exists.
   if (!orgId) throw new Error(`organization ${membership.organization.id} not yet mirrored`);
 
+  // Whether this is genuinely a first-time membership, checked BEFORE the
+  // upsert. The "you were added" notify is gated on this rather than on the
+  // Clerk event type: Clerk retries deliveries, so a 'created' event can arrive
+  // more than once, and gating on the event would re-notify on every retry.
+  // Checking prior existence makes the notify idempotent and also naturally
+  // skips a role-change 'updated' event (the row already exists).
+  const { data: existing, error: existingError } = await admin
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', orgId)
+    .eq('user_id', internalUserId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+
   const { error } = await admin
     .from('organization_members')
     .upsert(
@@ -143,7 +153,7 @@ async function handleMembershipUpsert(
   // A new member gets a directed "you were added" notification. Non-fatal and
   // isolated from the sync: a notify failure must never fail (and so retry) the
   // membership write that already succeeded.
-  if (isNew) {
+  if (!existing) {
     try {
       await notify(createTenantDb(admin, orgId), {
         verb: 'member.added',
@@ -193,9 +203,9 @@ async function dispatch(admin: Admin, evt: ClerkEvent) {
       if (evt.data.id) await handleOrganizationDeleted(admin, evt.data.id);
       break;
     case 'organizationMembership.created':
-      await handleMembershipUpsert(admin, evt.data, true);
-      break;
     case 'organizationMembership.updated':
+      // Both resolve to an idempotent upsert; the "you were added" notify is
+      // gated on genuine first-time membership inside, not on the event type.
       await handleMembershipUpsert(admin, evt.data);
       break;
     case 'organizationMembership.deleted':

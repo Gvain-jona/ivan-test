@@ -91,6 +91,8 @@ describe('PATCH /api/notifications', () => {
   it('creates a state row when none exists (update matches nothing → insert)', async () => {
     const { tenant, db } = createFakeTenant({ userId: 'me-1' })
     resolveTenantMock.mockResolvedValue(tenant)
+    // The notification is in the caller's audience (authorization passes).
+    db.queue('select:notifications', { data: { id: NOTIF_UUID } })
     // No queued update result → default empty → route falls through to insert.
 
     const res = await PATCH(jsonRequest('/api/notifications', { id: NOTIF_UUID, state: 'read' }, 'PATCH'))
@@ -108,6 +110,7 @@ describe('PATCH /api/notifications', () => {
   it('updates in place when a state row already exists (no insert)', async () => {
     const { tenant, db } = createFakeTenant()
     resolveTenantMock.mockResolvedValue(tenant)
+    db.queue('select:notifications', { data: { id: NOTIF_UUID } })
     db.queue('update:notification_reads', { data: [{ id: 'r-1' }] })
 
     const res = await PATCH(jsonRequest('/api/notifications', { id: NOTIF_UUID, state: 'archived' }, 'PATCH'))
@@ -115,6 +118,23 @@ describe('PATCH /api/notifications', () => {
 
     const [update] = db.callsFor('update:notification_reads')
     expect(update.values).toMatchObject({ archived_at: expect.any(String) })
+    expect(db.callsFor('insert:notification_reads')).toHaveLength(0)
+  })
+
+  it('refuses to write state on a notification outside the caller\'s audience (404, no write)', async () => {
+    const { tenant, db } = createFakeTenant({ userId: 'me-1' })
+    resolveTenantMock.mockResolvedValue(tenant)
+    // No queued select:notifications → the audience probe finds nothing, so the
+    // caller isn't allowed to touch this id (a write-side IDOR is rejected).
+
+    const res = await PATCH(jsonRequest('/api/notifications', { id: NOTIF_UUID, state: 'read' }, 'PATCH'))
+    expect(res.status).toBe(404)
+
+    // Authorization ran the audience predicate, and nothing was written.
+    const [probe] = db.callsFor('select:notifications')
+    expect(probe.filters).toContainEqual(['eq', 'id', NOTIF_UUID])
+    expect(probe.filters).toContainEqual(['or', 'audience_scope.eq.org,recipient_user_ids.cs.{me-1}'])
+    expect(db.callsFor('update:notification_reads')).toHaveLength(0)
     expect(db.callsFor('insert:notification_reads')).toHaveLength(0)
   })
 })

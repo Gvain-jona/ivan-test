@@ -33,6 +33,9 @@ function stubAdmin() {
   const rpc = vi.fn().mockResolvedValue({ data: 'org-uuid', error: null })
   const update = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }))
   const maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'org-uuid' }, error: null })
+  // The prior-existence probe for a membership; null = genuinely new (so the
+  // "you were added" notify fires). Override per-test to simulate a retry.
+  const memberMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
   const upsert = vi.fn().mockResolvedValue({ error: null })
   // The starter-field seed that runs right after provision_organization.
   const seedUpsert = vi.fn().mockResolvedValue({ error: null })
@@ -51,7 +54,11 @@ function stubAdmin() {
       }
     }
     if (table === 'organization_members') {
-      return { upsert, delete: del }
+      return {
+        upsert,
+        delete: del,
+        select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: memberMaybeSingle }) }) }),
+      }
     }
     if (table === 'field_definitions') {
       return { upsert: seedUpsert }
@@ -64,7 +71,7 @@ function stubAdmin() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adminMock.mockReturnValue({ from, rpc } as any)
-  return { rpc, update, maybeSingle, upsert, seedUpsert, del, notifyInsert }
+  return { rpc, update, maybeSingle, memberMaybeSingle, upsert, seedUpsert, del, notifyInsert }
 }
 
 function fakeRequest() {
@@ -176,6 +183,29 @@ describe('POST /api/webhooks/clerk', () => {
         organization_id: 'org-uuid',
       }),
     )
+  })
+
+  it('organizationMembership.created does not re-notify a member that already exists (retry idempotency)', async () => {
+    verifyWebhookMock.mockResolvedValue({
+      type: 'organizationMembership.created',
+      data: {
+        role: 'org:staff',
+        organization: { id: 'org_clerk1' },
+        public_user_data: { user_id: 'user_member' },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+    stubClerkClient({ publicMetadata: { internal_user_id: INTERNAL_UUID } })
+    const { upsert, notifyInsert, memberMaybeSingle } = stubAdmin()
+    // The membership row already exists — a retried 'created' delivery.
+    memberMaybeSingle.mockResolvedValue({ data: { user_id: INTERNAL_UUID }, error: null })
+
+    const res = await POST(fakeRequest())
+
+    expect(res.status).toBe(200)
+    // Still upserts (idempotent), but must NOT re-send "you were added".
+    expect(upsert).toHaveBeenCalled()
+    expect(notifyInsert).not.toHaveBeenCalled()
   })
 
   it('organizationMembership.created fails (for retry) when the org is not yet mirrored', async () => {

@@ -48,6 +48,11 @@ export async function GET(request: NextRequest) {
       offset: params.get('offset') ?? undefined,
     });
 
+    // `me` is interpolated into the .or() filter strings below. It is the
+    // internal_user_id claim, which resolveTenant() validates against an
+    // anchored UUID regex before we ever get here — so it cannot carry a comma,
+    // paren or PostgREST operator, and the interpolation is not injectable.
+    // Keep that invariant if this value's source ever changes.
     const me = tenant.userId;
 
     const { data: facts, error, count } = await tenant.db
@@ -119,8 +124,25 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, state } = parsed.data;
-    const me = tenant.userId;
+    const me = tenant.userId; // validated UUID (see GET) — safe to interpolate.
     const now = new Date().toISOString();
+
+    // Authorization: you may only move state on a notification you can actually
+    // see. TenantDb already scopes this to the caller's org; the audience
+    // predicate (the same one GET projects with) additionally requires that the
+    // notification is addressed to the caller and is not their own action.
+    // Without it, a caller could write read-state rows against arbitrary
+    // notification ids (a write-side IDOR) — harmless cross-tenant, but it lets
+    // them skew their own unread count. Reject anything outside the audience.
+    const { data: visible, error: visibleError } = await tenant.db
+      .from('notifications')
+      .select('id')
+      .eq('id', id)
+      .or(`audience_scope.eq.org,recipient_user_ids.cs.{${me}}`)
+      .or(`actor_user_id.is.null,actor_user_id.neq.${me}`)
+      .maybeSingle();
+    if (visibleError) return handleSupabaseError(visibleError);
+    if (!visible) return handleApiError('NOT_FOUND', 'Notification not found');
 
     // Only the column the transition names; the other is left untouched on
     // update, and defaults to null on insert.

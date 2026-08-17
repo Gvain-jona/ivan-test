@@ -27,6 +27,8 @@ export async function GET() {
     const tenant = await resolveTenant();
     if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
+    // Validated UUID (resolveTenant's anchored regex), so the interpolation
+    // into the .or() filters below carries no injection surface.
     const me = tenant.userId;
 
     const { count: audience, error: audienceError } = await tenant.db
