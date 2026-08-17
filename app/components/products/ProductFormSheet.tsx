@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { CustomFieldsForm } from '@/components/fields/CustomFieldsForm';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import { useProductMutations } from '@/hooks/products/useProducts';
@@ -89,7 +89,7 @@ export default function ProductFormSheet({
   };
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title={product ? `Edit ${product.name}` : 'New Product'}
@@ -153,6 +153,6 @@ export default function ProductFormSheet({
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }

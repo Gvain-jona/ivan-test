@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import CurrencyPicker, { findCurrency } from './CurrencyPicker';
 import OrgLogo from './OrgLogo';
 import {
@@ -56,7 +56,7 @@ type Drill = 'industry' | 'currency' | null;
  * **Industry and currency open in a sheet, not a nested screen.** Each is a
  * single choice, and CLAUDE.md's screen-vs-sheet rule reserves nested screens
  * for composing a record — deciding one thing is a sheet. They open the app's
- * one `OrderSheet` primitive (a bottom drawer on mobile), so the form keeps its
+ * one `AppSheet` primitive (a bottom drawer on mobile), so the form keeps its
  * state and scroll underneath while a value is picked, and no bespoke
  * full-screen swap or back-arrow is re-implemented here.
  *
@@ -172,7 +172,7 @@ export default function BusinessDetailsStep({
   // sets the value and closes.
   const sheets = (
     <>
-      <OrderSheet
+      <AppSheet
         open={drill === 'industry'}
         onOpenChange={open => setDrill(open ? 'industry' : null)}
         title="Industry"
@@ -187,9 +187,9 @@ export default function BusinessDetailsStep({
             }}
           />
         </div>
-      </OrderSheet>
+      </AppSheet>
 
-      <OrderSheet
+      <AppSheet
         open={drill === 'currency'}
         onOpenChange={open => setDrill(open ? 'currency' : null)}
         title="Currency"
@@ -204,7 +204,7 @@ export default function BusinessDetailsStep({
             }}
           />
         </div>
-      </OrderSheet>
+      </AppSheet>
     </>
   );
 

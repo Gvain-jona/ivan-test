@@ -7,6 +7,8 @@ import type { Notification } from '@/types/notifications';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/context/NotificationsContext';
+import { useSheets } from '@/context/sheet-host';
+import { notificationOrderId } from '@/lib/notifications/present';
 import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
@@ -20,7 +22,8 @@ interface NotificationItemProps {
 }
 
 export function NotificationItem({ notification }: NotificationItemProps) {
-  const { markAsRead, archiveNotification, deleteNotification, handleNotificationAction } = useNotifications();
+  const { markAsRead, archiveNotification, deleteNotification, handleNotificationAction, closeDrawer } = useNotifications();
+  const { openOrder } = useSheets();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [actionType, setActionType] = useState<'read' | 'archive' | 'delete' | null>(null);
@@ -65,6 +68,14 @@ export function NotificationItem({ notification }: NotificationItemProps) {
     if (notification.status === 'unread') {
       markAsRead(notification.id);
     }
+
+    // Deep-link to the linked order, if any. Close the drawer first: otherwise
+    // its open state persists and it re-pops when navigating back from the hub.
+    const orderId = notificationOrderId(notification);
+    if (orderId) {
+      closeDrawer();
+      openOrder(orderId);
+    }
   };
 
   return (
@@ -105,19 +116,6 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 {getNotificationIcon()}
                 <span className="font-medium">{notification.title}</span>
               </div>
-
-              {/* Sender and target */}
-              <p className="text-sm text-muted-foreground mb-1">
-                <span className="font-medium">{notification.sender?.name || 'System'}</span>
-                {notification.type === 'comment' && ' commented on '}
-                {notification.type === 'invitation' && ' invited you to '}
-                {notification.type === 'status_change' && ' updated status of '}
-                {notification.type === 'assignment' && ' assigned you to '}
-                {notification.type === 'mention' && ' mentioned you in '}
-                {notification.type === 'payment' && ' processed payment for '}
-                {notification.type === 'due_date' && ' reminder for '}
-                <span className="font-medium">{notification.target?.title || 'Unknown'}</span>
-              </p>
 
               {/* Message */}
               <p className="text-sm mb-2">{notification.message}</p>

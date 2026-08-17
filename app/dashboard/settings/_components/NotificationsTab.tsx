@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bell, Save } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -41,12 +40,6 @@ export function NotificationsTab() {
       title="Notification Preferences"
       description="Manage how you receive notifications"
       icon={Bell}
-      footer={
-        <Button className="ml-auto">
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
-        </Button>
-      }
     >
       <div className="space-y-6">
         <SettingItem

@@ -4,7 +4,9 @@ import { verifyWebhook } from '@clerk/nextjs/webhooks';
 import { clerkClient } from '@clerk/nextjs/server';
 import { randomUUID } from 'crypto';
 import { createV2AdminClient } from '@/utils/supabase/server-v2';
+import { createTenantDb } from '@/lib/auth/tenant-db';
 import { seedOrgDefaults } from '@/lib/onboarding/seed-defaults';
+import { notify } from '@/lib/notifications/notify';
 
 /**
  * Syncs Clerk Organizations (source of truth for org identity,
@@ -126,6 +128,20 @@ async function handleMembershipUpsert(admin: Admin, membership: MembershipEvent)
   // once the org row exists.
   if (!orgId) throw new Error(`organization ${membership.organization.id} not yet mirrored`);
 
+  // Whether this is genuinely a first-time membership, checked BEFORE the
+  // upsert. The "you were added" notify is gated on this rather than on the
+  // Clerk event type: Clerk retries deliveries, so a 'created' event can arrive
+  // more than once, and gating on the event would re-notify on every retry.
+  // Checking prior existence makes the notify idempotent and also naturally
+  // skips a role-change 'updated' event (the row already exists).
+  const { data: existing, error: existingError } = await admin
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', orgId)
+    .eq('user_id', internalUserId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+
   const { error } = await admin
     .from('organization_members')
     .upsert(
@@ -133,6 +149,23 @@ async function handleMembershipUpsert(admin: Admin, membership: MembershipEvent)
       { onConflict: 'organization_id,user_id' },
     );
   if (error) throw error;
+
+  // A new member gets a directed "you were added" notification. Non-fatal and
+  // isolated from the sync: a notify failure must never fail (and so retry) the
+  // membership write that already succeeded.
+  if (!existing) {
+    try {
+      await notify(createTenantDb(admin, orgId), {
+        verb: 'member.added',
+        category: 'team',
+        actorUserId: null,
+        object: { type: 'organization', id: orgId },
+        audience: { scope: 'users', userIds: [internalUserId] },
+      });
+    } catch (notifyError) {
+      console.error('notify member.added failed:', notifyError);
+    }
+  }
 }
 
 async function handleMembershipDeleted(admin: Admin, membership: MembershipEvent) {
@@ -171,6 +204,8 @@ async function dispatch(admin: Admin, evt: ClerkEvent) {
       break;
     case 'organizationMembership.created':
     case 'organizationMembership.updated':
+      // Both resolve to an idempotent upsert; the "you were added" notify is
+      // gated on genuine first-time membership inside, not on the event type.
       await handleMembershipUpsert(admin, evt.data);
       break;
     case 'organizationMembership.deleted':

@@ -1,17 +1,51 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Trash2, Loader2 } from 'lucide-react';
-import { SideDrawer } from '@/components/ui/side-drawer';
+import { useState, type ReactNode } from 'react';
+import { Bell, CheckCheck, Loader2, RefreshCw } from 'lucide-react';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { useNotifications } from '@/context/NotificationsContext';
 import { NotificationGroup } from './NotificationGroup';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-
-import type { NotificationStatus } from '@/types/notifications';
+import { cn } from '@/lib/utils';
+import type { NotificationGroup as NotificationGroupType, NotificationStatus } from '@/types/notifications';
 import { useOnceEffect } from '@/lib/useOnceEffect';
 
+/** Loading / error / empty placeholder — one shape for all three tabs. */
+function StateMessage({
+  tone = 'default',
+  title,
+  subtitle,
+  action,
+}: {
+  tone?: 'default' | 'error';
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-8 py-16 text-center">
+      <div
+        className={cn(
+          'mb-4 flex h-12 w-12 items-center justify-center rounded-full',
+          tone === 'error' ? 'bg-destructive/10' : 'bg-primary/10',
+        )}
+      >
+        <Bell className={cn('h-6 w-6', tone === 'error' ? 'text-destructive' : 'text-primary')} />
+      </div>
+      <h3 className="mb-2 text-lg font-medium">{title}</h3>
+      {subtitle && <p className="max-w-xs text-sm text-muted-foreground">{subtitle}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+/**
+ * The notifications inbox. Rendered through the app sheet primitive
+ * (`AppSheet`) — a bottom sheet on mobile (opened by the tab bar's Alerts tab)
+ * and a right panel on desktop. See docs/v2-migration/NOTIFICATIONS_REBUILD.md.
+ */
 export function NotificationsDrawer() {
   const {
     notifications,
@@ -22,315 +56,148 @@ export function NotificationsDrawer() {
     activeTab,
     setActiveTab,
     markAllAsRead,
-    deleteAllArchived,
     groupNotificationsByDate,
-    fetchNotifications
+    fetchNotifications,
   } = useNotifications();
   const { toast } = useToast();
-  const [isActionLoading, setIsActionLoading] = useState(false);
-  const [actionType, setActionType] = useState<'markAllRead' | 'clearArchived' | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const busy = refreshing || markingAll;
 
-  // Filter notifications by active tab
-  const filteredNotifications = notifications.filter(n => n.status === activeTab);
-
-  // Group notifications by date
-  const groupedNotifications = groupNotificationsByDate(filteredNotifications);
-
-  // Count notifications by status
+  const grouped: NotificationGroupType[] = groupNotificationsByDate(
+    notifications.filter(n => n.status === activeTab),
+  );
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
   const readCount = notifications.filter(n => n.status === 'read').length;
   const archivedCount = notifications.filter(n => n.status === 'archived').length;
 
-  // Handle refresh
   const handleRefresh = async () => {
-    setIsActionLoading(true);
+    setRefreshing(true);
     await fetchNotifications();
-    setIsActionLoading(false);
-
-    toast({
-      title: 'Notifications refreshed',
-      description: 'Your notifications have been refreshed.',
-      variant: 'default',
-    });
+    setRefreshing(false);
   };
 
-  // Refresh notifications when drawer is opened - using useOnceEffect to prevent infinite loops
-  useOnceEffect(
-    () => {
-      console.log('Drawer opened, refreshing notifications');
-      fetchNotifications();
-    },
-    isDrawerOpen,
-    [fetchNotifications]
-  );
+  // Refresh when the sheet opens (useOnceEffect guards against a refetch loop).
+  useOnceEffect(() => { fetchNotifications(); }, isDrawerOpen, [fetchNotifications]);
+
+  const handleMarkAll = async () => {
+    setMarkingAll(true);
+    const ok = await markAllAsRead();
+    setMarkingAll(false);
+    if (!ok) {
+      toast({
+        title: 'Error',
+        description: 'Could not mark all as read. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const list = grouped.map(group => <NotificationGroup key={group.date} group={group} />);
+
+  // The body of one tab: loading/error/empty share StateMessage; otherwise an
+  // optional action bar above the grouped list.
+  const tabBody = (count: number, emptyTitle: string, emptySubtitle: string, actionBar?: ReactNode) => {
+    if (loading) return <StateMessage title="Loading notifications…" subtitle="One moment." />;
+    if (error) {
+      return (
+        <StateMessage
+          tone="error"
+          title="Couldn't load notifications"
+          subtitle={error}
+          action={
+            <Button onClick={fetchNotifications} variant="outline" size="sm">
+              Try again
+            </Button>
+          }
+        />
+      );
+    }
+    if (count === 0) return <StateMessage title={emptyTitle} subtitle={emptySubtitle} />;
+    return (
+      <>
+        {actionBar}
+        {list}
+      </>
+    );
+  };
 
   return (
-    <SideDrawer
-      isOpen={isDrawerOpen}
-      onClose={closeDrawer}
+    <AppSheet
+      open={isDrawerOpen}
+      onOpenChange={(open) => { if (!open) closeDrawer(); }}
       title="Notifications"
-      width="450px"
     >
-      <div className="flex flex-col h-full">
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as NotificationStatus)} className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-4 border-b border-border/40">
-            <TabsList className="grid grid-cols-3 w-auto flex-1 mr-2">
-
-              <TabsTrigger value="unread" className="relative">
-                Unread
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="read">
-                Read
-                {readCount > 0 && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    {readCount}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="archived">
-                Archived
-                {archivedCount > 0 && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    {archivedCount}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleRefresh}
-              disabled={loading || isActionLoading}
-              title="Refresh notifications"
-            >
-              {loading || isActionLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Bell className="h-4 w-4" />
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as NotificationStatus)}
+        className="flex min-h-[60dvh] flex-col lg:min-h-full"
+      >
+        {/* Tab bar stays pinned while the list scrolls inside the sheet body. */}
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/40 bg-background px-4 py-3">
+          <TabsList className="grid flex-1 grid-cols-3">
+            <TabsTrigger value="unread">
+              Unread
+              {unreadCount > 0 && (
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
               )}
-            </Button>
-          </div>
+            </TabsTrigger>
+            <TabsTrigger value="read">
+              Read
+              {readCount > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{readCount}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="archived">
+              Archived
+              {archivedCount > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{archivedCount}</span>}
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 flex-shrink-0"
+            onClick={handleRefresh}
+            disabled={busy}
+            aria-label="Refresh notifications"
+          >
+            <RefreshCw className={cn('h-4 w-4', (loading || refreshing) && 'animate-spin')} />
+          </Button>
+        </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto">
-            <TabsContent value="unread" className="m-0 h-full">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-pulse">
-                  <Bell className="h-6 w-6 text-primary animate-pulse" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Loading notifications...</h3>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  Please wait while we fetch your notifications.
-                </p>
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-                  <Bell className="h-6 w-6 text-destructive" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Error loading notifications</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                  {error}
-                </p>
-                <Button onClick={fetchNotifications} variant="outline" size="sm">
-                  Try Again
-                </Button>
-              </div>
-            ) : unreadCount > 0 ? (
-              <>
-                <div className="flex justify-between items-center p-4 border-b border-border/40">
-                  <span className="text-sm text-muted-foreground">
-                    You have {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-1 text-xs"
-                    onClick={async () => {
-                      setIsActionLoading(true);
-                      setActionType('markAllRead');
-                      const success = await markAllAsRead();
-                      setIsActionLoading(false);
-                      setActionType(null);
+        <TabsContent value="unread" className="m-0">
+          {tabBody(
+            unreadCount,
+            "You're all caught up",
+            'No unread notifications right now.',
+            <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
+              <span className="text-sm text-muted-foreground">{unreadCount} unread</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs"
+                onClick={handleMarkAll}
+                disabled={busy}
+              >
+                {markingAll ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCheck className="h-3.5 w-3.5" />
+                )}
+                Mark all read
+              </Button>
+            </div>,
+          )}
+        </TabsContent>
 
-                      if (success) {
-                        toast({
-                          title: 'All notifications marked as read',
-                          description: 'All unread notifications have been marked as read.',
-                          variant: 'default',
-                        });
-                      } else {
-                        toast({
-                          title: 'Error',
-                          description: 'Failed to mark all notifications as read. Please try again.',
-                          variant: 'destructive',
-                        });
-                      }
-                    }}
-                    disabled={isActionLoading}
-                  >
-                    {isActionLoading && actionType === 'markAllRead' ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCheck className="h-3.5 w-3.5" />
-                        Mark all as read
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {groupedNotifications.map(group => (
-                  <NotificationGroup key={group.date} group={group as any} />
-                ))}
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <Bell className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No unread notifications</h3>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  You're all caught up! Check the read or archived tabs to view previous notifications.
-                </p>
-              </div>
-            )}
-          </TabsContent>
+        <TabsContent value="read" className="m-0">
+          {tabBody(readCount, 'Nothing read yet', "Notifications you've opened show here.")}
+        </TabsContent>
 
-          <TabsContent value="read" className="m-0">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-pulse">
-                  <Bell className="h-6 w-6 text-primary animate-pulse" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Loading notifications...</h3>
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-                  <Bell className="h-6 w-6 text-destructive" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Error loading notifications</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                  {error}
-                </p>
-                <Button onClick={fetchNotifications} variant="outline" size="sm">
-                  Try Again
-                </Button>
-              </div>
-            ) : readCount > 0 ? (
-              groupedNotifications.map(group => (
-                <NotificationGroup key={group.date} group={group as any} />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <Bell className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No read notifications</h3>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  You haven't read any notifications yet. Check the unread tab for new notifications.
-                </p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="archived" className="m-0">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-pulse">
-                  <Bell className="h-6 w-6 text-primary animate-pulse" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Loading notifications...</h3>
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-                  <Bell className="h-6 w-6 text-destructive" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Error loading notifications</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                  {error}
-                </p>
-                <Button onClick={fetchNotifications} variant="outline" size="sm">
-                  Try Again
-                </Button>
-              </div>
-            ) : archivedCount > 0 ? (
-              <>
-                <div className="flex justify-between items-center p-4 border-b border-border/40">
-                  <span className="text-sm text-muted-foreground">
-                    You have {archivedCount} archived notification{archivedCount !== 1 ? 's' : ''}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-1 text-xs text-destructive hover:text-destructive"
-                    onClick={async () => {
-                      setIsActionLoading(true);
-                      setActionType('clearArchived');
-                      const success = await deleteAllArchived();
-                      setIsActionLoading(false);
-                      setActionType(null);
-
-                      if (success) {
-                        toast({
-                          title: 'Archived notifications cleared',
-                          description: 'All archived notifications have been deleted.',
-                          variant: 'default',
-                        });
-                      } else {
-                        toast({
-                          title: 'Error',
-                          description: 'Failed to clear archived notifications. Please try again.',
-                          variant: 'destructive',
-                        });
-                      }
-                    }}
-                    disabled={isActionLoading}
-                  >
-                    {isActionLoading && actionType === 'clearArchived' ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                        Clearing...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Clear All
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {groupedNotifications.map(group => (
-                  <NotificationGroup key={group.date} group={group as any} />
-                ))}
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <Bell className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No archived notifications</h3>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  You haven't archived any notifications yet. Archived notifications will appear here.
-                </p>
-              </div>
-            )}
-          </TabsContent>
-          </div>
-        </Tabs>
-      </div>
-    </SideDrawer>
+        <TabsContent value="archived" className="m-0">
+          {tabBody(archivedCount, 'Nothing archived', 'Notifications you dismiss show here.')}
+        </TabsContent>
+      </Tabs>
+    </AppSheet>
   );
 }

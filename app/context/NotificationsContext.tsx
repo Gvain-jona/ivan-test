@@ -2,35 +2,26 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { format, subDays } from 'date-fns';
+import type { Notification, NotificationStatus, NotificationGroup } from '@/types/notifications';
+import {
+  useNotificationInbox,
+  useNotificationMutations,
+  useUnreadCount,
+} from '@/hooks/notifications/useNotifications';
+import { presentNotification } from '@/lib/notifications/present';
 
 /**
- * Notifications — interface-preserving stub until the module's v2
- * cutover (tracked in docs/v2-migration/STATE.md).
+ * Notifications — the bell's read/mutate layer.
  *
- * The previous implementation ran on the legacy Supabase session
- * (dead since the Clerk cutover): it fetched the whole public
- * `notifications` table with no user filter, opened an unfiltered
- * realtime channel per session, and its `if (loading)` guard
- * deadlocked the initial fetch so nothing ever rendered anyway.
- * Consumers (FooterNav badge, NotificationsMenu/Drawer/Indicator)
- * keep working against this empty state; the drawer UI stays as the
- * scaffold for the real v2 read layer.
+ * Backs the drawer/menu/indicator with the live v2 activity stream via
+ * useNotificationInbox (SWR pull, §4) and its per-user state mutations. The
+ * structured rows are rendered to display copy by presentNotification (§12.3);
+ * this context keeps only the drawer's UI state plus thin action wrappers.
+ *
+ * Interface-preserving: the shape below is what the existing components already
+ * consume, so wiring real data in was a swap, not a rewrite. Design record:
+ * docs/v2-migration/NOTIFICATIONS_REBUILD.md.
  */
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  status: 'unread' | 'read' | 'archived';
-  timestamp: string;
-}
-
-interface NotificationGroup {
-  date: string;
-  notifications: Notification[];
-}
-
-type NotificationStatus = 'unread' | 'read' | 'archived';
 
 interface NotificationsContextType {
   notifications: Notification[];
@@ -50,6 +41,12 @@ interface NotificationsContextType {
   deleteAllArchived: () => Promise<boolean>;
   groupNotificationsByDate: (notifications: Notification[]) => NotificationGroup[];
   handleNotificationAction: (notificationId: string, action: string) => void;
+  /**
+   * Opt a surface into the (lazily-fetched) inbox list while it is mounted.
+   * The drawer activates it by opening; any other list surface (e.g. the
+   * header menu) calls this on mount and the returned cleanup on unmount.
+   */
+  subscribeList: () => () => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
@@ -61,17 +58,70 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
-  // TODO(v2 notifications module): real data layer. Everything below
-  // is inert until then — empty list, no-op mutations.
-  const fetchNotifications = useCallback(async () => {}, []);
-  const noopMutation = useCallback(async () => true, []);
+  // Lazy list: fetch it only while a surface that shows it is active — the
+  // drawer (open) or any subscriber (e.g. the header menu, while mounted).
+  // The badge uses useUnreadCount(), so pages that only show the bell never
+  // pull the list.
+  const [listConsumers, setListConsumers] = useState(0);
+  const subscribeList = useCallback(() => {
+    setListConsumers(n => n + 1);
+    return () => setListConsumers(n => Math.max(0, n - 1));
+  }, []);
+  const listActive = isDrawerOpen || listConsumers > 0;
 
-  // Kept for the drawer's grouped rendering; pure date bucketing.
+  const inbox = useNotificationInbox({ enabled: listActive });
+  const { setState } = useNotificationMutations();
+
+  const notifications = useMemo(
+    () => inbox.notifications.map(presentNotification),
+    [inbox.notifications],
+  );
+
+  // The badge is the true unread total from the dedicated count endpoint —
+  // not a count of the fetched page, which caps at the list's limit.
+  const unreadCount = useUnreadCount();
+
+  const fetchNotifications = useCallback(async () => {
+    await inbox.mutate();
+  }, [inbox]);
+
+  const safeSet = useCallback(
+    async (id: string, state: 'read' | 'unread' | 'archived' | 'active') => {
+      try {
+        await setState(id, state);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [setState],
+  );
+
+  const markAsRead = useCallback((id: string) => safeSet(id, 'read'), [safeSet]);
+  const archiveNotification = useCallback((id: string) => safeSet(id, 'archived'), [safeSet]);
+  // No hard delete exists (archive-not-delete, §6): "delete" archives.
+  const deleteNotification = useCallback((id: string) => safeSet(id, 'archived'), [safeSet]);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      const unread = inbox.notifications.filter(n => n.state === 'unread');
+      await Promise.all(unread.map(n => setState(n.id, 'read')));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [inbox.notifications, setState]);
+
+  // Clearing archived would need a delete endpoint we don't expose (§13
+  // deferrals); archived rows simply stay archived. Kept for interface parity.
+  const deleteAllArchived = useCallback(async () => true, []);
+
+  // Pure date bucketing for the drawer's grouped rendering.
   const groupNotificationsByDate = useCallback(
-    (notifications: Notification[]): NotificationGroup[] => {
+    (items: Notification[]): NotificationGroup[] => {
       const groups: Record<string, Notification[]> = {};
 
-      notifications.forEach(notification => {
+      items.forEach(notification => {
         const date = new Date(notification.timestamp);
         const today = new Date();
         const yesterday = subDays(today, 1);
@@ -85,16 +135,13 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
           groupKey = format(date, 'MMMM d, yyyy');
         }
 
-        if (!groups[groupKey]) {
-          groups[groupKey] = [];
-        }
-        groups[groupKey].push(notification);
+        (groups[groupKey] ??= []).push(notification);
       });
 
       return Object.entries(groups)
-        .map(([date, notifications]) => ({
+        .map(([date, group]) => ({
           date,
-          notifications: notifications.sort(
+          notifications: group.sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           ),
         }))
@@ -110,47 +157,50 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   );
 
   const handleNotificationAction = useCallback((notificationId: string, action: string) => {
-    switch (action) {
-      case 'view_order':
-        window.location.href = `/dashboard/orders/view?id=${action.split(':')[1] || ''}`;
-        break;
-      case 'view_profile':
-        window.location.href = `/dashboard/profile`;
-        break;
-      default:
-        console.warn('Unknown action:', action, 'for notification:', notificationId);
-    }
+    // Deep-link routing from a notification is a later floor (§13); for now the
+    // action is logged rather than guessed at.
+    console.warn('Notification action not yet wired:', action, 'on', notificationId);
   }, []);
 
   const contextValue = useMemo(
     () => ({
-      notifications: [] as Notification[],
-      unreadCount: 0,
+      notifications,
+      unreadCount,
       isDrawerOpen,
       openDrawer,
       closeDrawer,
       activeTab,
       setActiveTab,
-      loading: false,
-      error: null,
+      loading: inbox.isLoading,
+      error: inbox.error ? (inbox.error as { message?: string }).message ?? 'Failed to load notifications' : null,
       fetchNotifications,
-      markAsRead: noopMutation,
-      markAllAsRead: noopMutation,
-      archiveNotification: noopMutation,
-      deleteNotification: noopMutation,
-      deleteAllArchived: noopMutation,
+      markAsRead,
+      markAllAsRead,
+      archiveNotification,
+      deleteNotification,
+      deleteAllArchived,
       groupNotificationsByDate,
       handleNotificationAction,
+      subscribeList,
     }),
     [
+      notifications,
+      unreadCount,
       isDrawerOpen,
       openDrawer,
       closeDrawer,
       activeTab,
+      inbox.isLoading,
+      inbox.error,
       fetchNotifications,
-      noopMutation,
+      markAsRead,
+      markAllAsRead,
+      archiveNotification,
+      deleteNotification,
+      deleteAllArchived,
       groupNotificationsByDate,
       handleNotificationAction,
+      subscribeList,
     ],
   );
 

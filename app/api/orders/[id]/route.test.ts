@@ -147,6 +147,16 @@ describe('PATCH /api/orders/[id]', () => {
     expect(update.values).toEqual({ status: 'completed' })
     expect(update.filters).toContainEqual(['eq', 'id', 'o-1'])
 
+    // A real status transition emits an order.status_changed activity.
+    const [notif] = db.callsFor('insert:notifications')
+    expect(notif.values).toMatchObject({
+      verb: 'order.status_changed',
+      category: 'order_activity',
+      audience_scope: 'org',
+      object_id: 'o-1',
+    })
+    expect((notif.values as { data: { to_status?: string } }).data).toMatchObject({ to_status: 'completed' })
+
     // Same call against an id the scoped update can't reach → 404
     const missing = await PATCH(
       jsonRequest('/api/orders/foreign', { status: 'completed' }, 'PATCH'),

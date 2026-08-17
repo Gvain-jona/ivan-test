@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ChoiceChip } from '@/components/patterns/controls';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
@@ -73,7 +73,7 @@ export default function AddPaymentSheet({
     'placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
-    <OrderSheet
+    <AppSheet
       open={open}
       onOpenChange={onOpenChange}
       title="Add payment"
@@ -170,6 +170,6 @@ export default function AddPaymentSheet({
           />
         </div>
       </div>
-    </OrderSheet>
+    </AppSheet>
   );
 }

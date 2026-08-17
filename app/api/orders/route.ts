@@ -7,6 +7,7 @@ import {
   handleUnexpectedError,
 } from '@/lib/api/error-handler';
 import { orderCreateSchema, listQuerySchema } from '@/lib/api/validators';
+import { notify } from '@/lib/notifications/notify';
 import type { Json } from '@/types/supabase-v2';
 
 const ORDER_LIST_COLUMNS =
@@ -173,6 +174,23 @@ export async function POST(request: NextRequest) {
       .eq('id', orderId)
       .single();
     if (fetchError) return handleSupabaseError(fetchError);
+
+    // Emit the activity (app-layer, §7). Non-fatal: a notification is a side
+    // effect of the order, never a reason to fail creating it.
+    const created = order as { order_number?: string; clients?: { name?: string } | null };
+    const { error: notifyError } = await notify(tenant.db, {
+      verb: 'order.created',
+      category: 'order_activity',
+      actorUserId: tenant.userId,
+      object: { type: 'order', id: String(orderId) },
+      data: {
+        order_number: created?.order_number ?? null,
+        client_name: created?.clients?.name ?? null,
+      },
+      groupKey: `order:${String(orderId)}`,
+      audience: { scope: 'org' },
+    });
+    if (notifyError) console.error('notify order.created failed:', notifyError.message);
 
     return NextResponse.json({ order }, { status: 201 });
   } catch (error) {

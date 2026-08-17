@@ -17,6 +17,7 @@ export const PLATFORM_API = {
   ORGANIZATION: '/api/organization',
   ORGANIZATION_SEED_DEFAULTS: '/api/organization/seed-defaults',
   COUNTERS: '/api/counters',
+  NOTIFICATIONS: '/api/notifications',
 } as const;
 
 /** Error shape produced by app/lib/api/error-handler.ts. */

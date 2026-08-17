@@ -373,6 +373,19 @@ export const listQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+/**
+ * PATCH /api/notifications — moves one notification's per-user state.
+ *
+ * The state is the caller's own (their row in notification_reads), never the
+ * fact: 'read'/'unread' toggle read_at, 'archived'/'active' toggle archived_at
+ * (archive-not-delete). One id at a time in the foundation; bulk "mark all"
+ * arrives with the inbox UI.
+ */
+export const notificationPatchSchema = z.object({
+  id: z.string().uuid(),
+  state: z.enum(['read', 'unread', 'archived', 'active']),
+});
+
 export const documentEntitySchema = z.enum(['order', 'expense', 'client']);
 export const documentTypeSchema = z.enum(['quotation', 'proforma', 'invoice', 'receipt', 'po']);
 

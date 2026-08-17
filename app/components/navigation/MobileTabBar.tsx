@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/context/NotificationsContext';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 
 interface Destination {
   title: string;
@@ -136,7 +136,7 @@ export default function MobileTabBar() {
         </div>
       </nav>
 
-      <OrderSheet open={moreOpen} onOpenChange={setMoreOpen} title="More">
+      <AppSheet open={moreOpen} onOpenChange={setMoreOpen} title="More">
         <div className="grid grid-cols-3 gap-3 p-4">
           {MORE.map(({ title, icon: Icon, href, disabled }) => {
               const active = isActive(pathname, href);
@@ -172,7 +172,7 @@ export default function MobileTabBar() {
               );
             })}
         </div>
-      </OrderSheet>
+      </AppSheet>
     </>
   );
 }

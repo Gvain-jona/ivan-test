@@ -1,231 +1,177 @@
-// Next.js API Route Handler for notifications
-import type { NextRequest} from 'next/server';
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import type { NextRequest } from 'next/server';
+import { resolveTenant } from '@/lib/auth/tenant';
+import {
+  handleApiError,
+  handleSupabaseError,
+  handleUnexpectedError,
+} from '@/lib/api/error-handler';
+import { listQuerySchema, notificationPatchSchema } from '@/lib/api/validators';
 
 /**
- * GET /api/notifications
- * Retrieves notifications for the current user
+ * The notifications module — the read/mutate half of the foundation.
+ * Design: docs/v2-migration/NOTIFICATIONS_REBUILD.md (§5, §6, §12).
+ *
+ * There is one activity stream (v2.notifications); the bell inbox is its
+ * DIRECTED projection — activities where the caller is in the audience, minus
+ * their own actions, with the caller's own read/archived state attached.
+ * Writes come from notify() (app/lib/notifications/notify.ts), not from here.
+ */
+
+const NOTIFICATION_COLUMNS =
+  'id, actor_user_id, verb, category, object_type, object_id, ' +
+  'target_type, target_id, data, group_key, priority, created_at';
+
+type NotificationState = 'unread' | 'read' | 'archived';
+
+/**
+ * GET /api/notifications — the caller's inbox projection.
+ *
+ * Two queries, not a PostgREST embed: the facts page (audience-filtered,
+ * actor-excluded, newest first), then the caller's read-state for that page,
+ * merged in. The embed's left-join-with-filter semantics are subtle enough
+ * that two plain queries are the honest foundation; an inbox view can replace
+ * them later without changing this contract.
+ *
+ * Archived items are returned with `state: 'archived'` rather than filtered in
+ * SQL — excluding them at the DB layer needs the read-state join and would
+ * complicate paging; the surface decides what to show. Query: limit, offset.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Create Supabase client
-    const supabase = await createClient();
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const params = request.nextUrl.searchParams;
+    const { limit, offset } = listQuerySchema.parse({
+      limit: params.get('limit') ?? undefined,
+      offset: params.get('offset') ?? undefined,
+    });
 
-    // For public access, return empty notifications array if no user is found
-    if (userError || !user) {
-      console.warn('No authenticated user found, returning empty notifications for public access');
-      
-      // Add Cache-Control header for better performance
-      const headers = new Headers();
-      headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300'); // Cache for 60 seconds, stale for 5 minutes
-      
-      // Return empty notifications array for public access
-      return NextResponse.json(
-        { notifications: [] },
-        { 
-          status: 200,
-          headers 
-        }
-      );
-    }
+    // `me` is interpolated into the .or() filter strings below. It is the
+    // internal_user_id claim, which resolveTenant() validates against an
+    // anchored UUID regex before we ever get here — so it cannot carry a comma,
+    // paren or PostgREST operator, and the interpolation is not injectable.
+    // Keep that invariant if this value's source ever changes.
+    const me = tenant.userId;
 
-    // Get notifications for the user
-    const { data, error } = await supabase
+    const { data: facts, error, count } = await tenant.db
       .from('notifications')
-      .select('id, user_id, type, title, message, push_message, data, status, timestamp, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .select(NOTIFICATION_COLUMNS, { count: 'exact' })
+      // Access: org-wide OR I'm a named recipient.
+      .or(`audience_scope.eq.org,recipient_user_ids.cs.{${me}}`)
+      // Never notify myself of my own action (system events have no actor).
+      .or(`actor_user_id.is.null,actor_user_id.neq.${me}`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) return handleSupabaseError(error);
 
-    if (error) {
-      console.error('Error fetching notifications:', error);
-      return NextResponse.json(
-        { error: `Failed to fetch notifications: ${error.message}` },
-        { status: 500 }
-      );
+    const rows = (facts ?? []) as { id: string }[];
+    const ids = rows.map(r => r.id);
+
+    // The caller's own state for exactly this page.
+    const stateById = new Map<string, { read_at: string | null; archived_at: string | null }>();
+    if (ids.length > 0) {
+      const { data: reads, error: readsError } = await tenant.db
+        .from('notification_reads')
+        .select('notification_id, read_at, archived_at')
+        .eq('user_id', me)
+        .in('notification_id', ids);
+      if (readsError) return handleSupabaseError(readsError);
+
+      for (const r of (reads ?? []) as {
+        notification_id: string;
+        read_at: string | null;
+        archived_at: string | null;
+      }[]) {
+        stateById.set(r.notification_id, { read_at: r.read_at, archived_at: r.archived_at });
+      }
     }
 
-    const transformedData = data.map((notification) => ({
-      ...notification,
-      timestamp: notification.timestamp || notification.created_at
-    }));
+    const notifications = rows.map(row => {
+      const s = stateById.get(row.id);
+      const state: NotificationState = s?.archived_at ? 'archived' : s?.read_at ? 'read' : 'unread';
+      return {
+        ...row,
+        state,
+        read_at: s?.read_at ?? null,
+        archived_at: s?.archived_at ?? null,
+      };
+    });
 
-    // Add Cache-Control header for better performance
-    const headers = new Headers();
-    headers.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=30'); // Cache for 10 seconds, stale for 30
-
-    // Generate ETag for conditional requests
-    const etag = `W/"${Buffer.from(JSON.stringify(transformedData)).toString('base64')}"`;
-    headers.set('ETag', etag);
-
-    // Check if the client sent an If-None-Match header
-    const ifNoneMatch = request.headers.get('If-None-Match');
-    if (ifNoneMatch === etag) {
-      // Return 304 Not Modified if the data hasn't changed
-      return new NextResponse(null, { status: 304, headers });
-    }
-
-    return NextResponse.json({ notifications: transformedData }, { headers });
+    return NextResponse.json({ notifications, total: count ?? 0 });
   } catch (error) {
-    console.error('Unexpected error in GET /api/notifications:', error);
-    let errorMessage = 'An unexpected error occurred';
-
-    if (error instanceof Error) {
-      errorMessage = `Error: ${error.message}`;
-    }
-
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error);
   }
 }
 
 /**
- * PATCH /api/notifications/[id]
- * Updates a notification status
+ * PATCH /api/notifications — move one notification's per-user state.
+ *
+ * State is the caller's own row in notification_reads, not the fact. The row
+ * is sparse, so this is update-then-insert-if-missing (the scoped accessor
+ * exposes no upsert). Archive-not-delete: 'archived'/'active' toggle
+ * archived_at; 'read'/'unread' toggle read_at.
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    const body = await request.json();
-    const { status } = body;
+    const tenant = await resolveTenant();
+    if (!tenant) return handleApiError('UNAUTHORIZED', 'Authentication required');
 
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Notification ID is required' },
-        { status: 400 }
-      );
+    const parsed = notificationPatchSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return handleApiError('VALIDATION_ERROR', 'Invalid input', parsed.error.flatten());
     }
 
-    if (!status || !['read', 'unread', 'archived'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Valid status is required (read, unread, or archived)' },
-        { status: 400 }
-      );
-    }
+    const { id, state } = parsed.data;
+    const me = tenant.userId; // validated UUID (see GET) — safe to interpolate.
+    const now = new Date().toISOString();
 
-    // Create Supabase client
-    const supabase = await createClient();
-
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      // For public access, return a friendly message instead of an error
-      return NextResponse.json(
-        { 
-          success: false,
-          message: 'Authentication required to update notifications',
-          requiresAuth: true 
-        },
-        { status: 403 }
-      );
-    }
-
-    // Update notification status
-    const { data, error } = await supabase
+    // Authorization: you may only move state on a notification you can actually
+    // see. TenantDb already scopes this to the caller's org; the audience
+    // predicate (the same one GET projects with) additionally requires that the
+    // notification is addressed to the caller and is not their own action.
+    // Without it, a caller could write read-state rows against arbitrary
+    // notification ids (a write-side IDOR) — harmless cross-tenant, but it lets
+    // them skew their own unread count. Reject anything outside the audience.
+    const { data: visible, error: visibleError } = await tenant.db
       .from('notifications')
-      .update({ status })
+      .select('id')
       .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+      .or(`audience_scope.eq.org,recipient_user_ids.cs.{${me}}`)
+      .or(`actor_user_id.is.null,actor_user_id.neq.${me}`)
+      .maybeSingle();
+    if (visibleError) return handleSupabaseError(visibleError);
+    if (!visible) return handleApiError('NOT_FOUND', 'Notification not found');
 
-    if (error) {
-      console.error('Error updating notification:', error);
-      return NextResponse.json(
-        { error: 'Failed to update notification' },
-        { status: 500 }
-      );
+    // Only the column the transition names; the other is left untouched on
+    // update, and defaults to null on insert.
+    const patch: { read_at?: string | null; archived_at?: string | null } =
+      state === 'read'
+        ? { read_at: now }
+        : state === 'unread'
+          ? { read_at: null }
+          : state === 'archived'
+            ? { archived_at: now }
+            : { archived_at: null };
+
+    const { data: updated, error: updateError } = await tenant.db
+      .from('notification_reads')
+      .update(patch)
+      .eq('notification_id', id)
+      .eq('user_id', me)
+      .select('id');
+    if (updateError) return handleSupabaseError(updateError);
+
+    if (!updated || (updated as unknown[]).length === 0) {
+      const { error: insertError } = await tenant.db
+        .from('notification_reads')
+        .insert({ notification_id: id, user_id: me, ...patch });
+      if (insertError) return handleSupabaseError(insertError);
     }
 
-    return NextResponse.json({ notification: data });
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Unexpected error in PATCH /api/notifications:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * DELETE /api/notifications
- * Deletes a notification or all archived notifications
- */
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    const deleteAll = searchParams.get('deleteAll') === 'true';
-
-    // Create Supabase client
-    const supabase = await createClient();
-
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      // For public access, return a friendly message instead of an error
-      return NextResponse.json(
-        { 
-          success: false,
-          message: 'Authentication required to delete notifications',
-          requiresAuth: true 
-        },
-        { status: 403 }
-      );
-    }
-
-    let error;
-
-    if (deleteAll) {
-      // Delete all archived notifications for the user
-      const { error: deleteError } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('status', 'archived');
-
-      error = deleteError;
-    } else if (id) {
-      // Delete a specific notification
-      const { error: deleteError } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      error = deleteError;
-    } else {
-      return NextResponse.json(
-        { error: 'Either notification ID or deleteAll parameter is required' },
-        { status: 400 }
-      );
-    }
-
-    if (error) {
-      console.error('Error deleting notification(s):', error);
-      return NextResponse.json(
-        { error: 'Failed to delete notification(s)' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: deleteAll ? 'All archived notifications deleted' : 'Notification deleted'
-    });
-  } catch (error) {
-    console.error('Unexpected error in DELETE /api/notifications:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
+    return handleUnexpectedError(error);
   }
 }

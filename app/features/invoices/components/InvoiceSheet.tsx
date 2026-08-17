@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { FileText, Settings2, Save } from 'lucide-react';
-import OrderSheet from '@/components/ui/sheets/OrderSheet';
+import AppSheet from '@/components/ui/sheets/AppSheet';
 import type { InvoiceSheetProps } from '../types';
 import { InvoiceProvider, emptyInvoiceSettings } from '../context/InvoiceContext';
 import { useInvoiceSettings } from '../hooks/useInvoiceSettingsV2';
@@ -39,7 +39,7 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
     <InvoiceProvider
       order={order}
       initialSettings={settings}>
-      <OrderSheet
+      <AppSheet
         open={open}
         onOpenChange={onOpenChange}
         title={`Invoice for Order #${order.order_number || order.id.substring(0, 8)}`}
@@ -89,7 +89,7 @@ const InvoiceSheet: React.FC<InvoiceSheetProps> = ({
             </div>
           </Tabs>
         </div>
-      </OrderSheet>
+      </AppSheet>
     </InvoiceProvider>
   );
 };
