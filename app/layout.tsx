@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
@@ -10,6 +10,31 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'YOKO Business Management System',
   description: 'Comprehensive business management system for YOKO',
+  applicationName: 'YOKO',
+  // Next serves /manifest.webmanifest from app/manifest.ts; declare it explicitly.
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icons/favicon-32.png',
+    apple: '/icons/apple-touch-icon.png',
+  },
+  // iOS standalone (Home Screen) behaviour — the installed-PWA path that Web
+  // Push on iPhone requires. See docs/v2-migration/NOTIFICATIONS_REBUILD.md §14.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'YOKO',
+  },
+};
+
+// theme_color for the browser/OS chrome. Neutral and theme-aware: white in
+// light, zinc-900 in dark (the app follows the OS preference). viewportFit
+// 'cover' lets standalone content extend under the notch/safe areas.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
+    { media: '(prefers-color-scheme: dark)', color: '#18181B' },
+  ],
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
