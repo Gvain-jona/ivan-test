@@ -60,7 +60,7 @@ export default function OrdersListScreen() {
 
       <div className="mt-4 flex flex-wrap gap-[7px]">
         <QuickAction icon={Plus} label="New order" onClick={openCreateOrder} primary />
-        <QuickAction icon={UserPlus} label="New client" onClick={openCreateClient} />
+        <QuickAction icon={UserPlus} label="New client" onClick={() => openCreateClient()} />
         {/* "New quote" opens the same composer (B2) as New order — an order
             starts in the quotation stage, so it's a quote named for the intent
             you arrive with. Kept to match the frame and Home's quick actions,

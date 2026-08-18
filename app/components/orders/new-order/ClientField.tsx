@@ -133,7 +133,13 @@ export default function ClientField({
                 {clients.length > 0 && <RowDivider />}
                 <button
                   type="button"
-                  onClick={() => onCreate(query.trim())}
+                  onClick={() => {
+                    onCreate(query.trim());
+                    // Collapse the search now; when the created client lands
+                    // back as `clientId`, the FieldBox renders in its place.
+                    setSearching(false);
+                    setQuery('');
+                  }}
                   className="w-full px-3.5 py-[11px] text-left text-sm font-medium text-primary"
                 >
                   New client &ldquo;{query.trim()}&rdquo;
@@ -141,9 +147,12 @@ export default function ClientField({
               </>
             )}
 
+            {/* Empty query means the fetch was unfiltered, so no results here
+                means the org genuinely has no clients yet — nudge toward
+                creating the first rather than the neutral "start typing". */}
             {!isLoading && clients.length === 0 && query.trim() === '' && (
               <p className="px-3.5 py-[11px] text-[13px] text-muted-foreground">
-                Start typing to find a client.
+                No clients yet — type a name to create your first one.
               </p>
             )}
           </Card>

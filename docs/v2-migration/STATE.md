@@ -648,6 +648,28 @@ single swap point. Order creation still goes through the
     edit/archive menu, not a visual tweak; `ScreenHeader` has no trailing slot
     yet.
 
+- **Create-in-context on the new-order flow (2026-08-18)** — the cold-start CRUD
+  question: what a first order does when the org has no clients/products yet.
+  Products were already fine (type a name → "Add as a one-off"; `order_items`
+  takes `product_name_raw`, no catalogue entry required). Clients were
+  half-built: the inline "New client 'X'" opened the create sheet **blank** and
+  **discarded** the saved client, so the real flow was type → re-type → save →
+  re-search → pick. The leaf (`ClientFormSheet.onSaved`) already returned the
+  client; the sheet host flattened it to `close()`. Rewired to the
+  create-and-return pattern (the Zoho move): `openCreateClient(name?, onCreated?)`
+  now prefills the sheet with the typed name (`ClientFormSheet.initialName`) and
+  fires `onCreated(client)`; `NewOrderScreen` passes both, so a created client
+  lands **selected** on the draft and the order continues without a second
+  search. `ClientField`'s zero-client empty state now nudges ("No clients yet —
+  type a name…") instead of the neutral "start typing". Also added the inverse
+  for items: a one-off in `AddItemSheet` gets **"+ Save to catalogue"**, which
+  `createProduct`s in place (name + entered price + product-field-narrowed
+  `custom_data`) and rebinds the line to the new `product_id` — no second sheet.
+  All standalone "New client" entries (Home, Orders/Clients list) were wrapped
+  `() => openCreateClient()` so the now-optional first arg can't catch a click
+  event. `tsc`/lint/366 tests green. **Visual QA in an authed runtime still
+  owed**, same caveat as the rest of the redesign.
+
 ## Theming — system default + per-org brand (2026-08-06)
 
 **Requires a Clerk dashboard change to take effect.** Add a session-token

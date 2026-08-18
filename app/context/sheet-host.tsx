@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'next/navigation';
 import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
+import type { Client } from '@/hooks/clients/useClients';
 
 /**
  * The single door for opening overlays (see DESIGN_PHILOSOPHY.md → "Overlays &
@@ -27,7 +28,7 @@ import ProductFormSheet from '@/components/products/ProductFormSheet';
  * never had to know the destination changed.
  */
 type SheetState =
-  | { type: 'create-client' }
+  | { type: 'create-client'; name?: string; onCreated?: (client: Client) => void }
   | { type: 'create-product' }
   | null;
 
@@ -36,7 +37,14 @@ interface SheetHostApi {
   openCreateOrder: () => void;
   /** Navigates to B4 (`/dashboard/orders/[id]`); not a sheet. */
   openOrder: (id: string) => void;
-  openCreateClient: () => void;
+  /**
+   * Opens the create-client sheet. The optional `name` prefills it (the order
+   * picker hands over the text already typed), and `onCreated` fires with the
+   * saved client so the caller can select it in place — the create-and-return
+   * flow. Both are omitted by the standalone "New client" entries, which just
+   * need a blank sheet.
+   */
+  openCreateClient: (name?: string, onCreated?: (client: Client) => void) => void;
   openCreateProduct: () => void;
   close: () => void;
 }
@@ -79,7 +87,8 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
   const api: SheetHostApi = {
     openCreateOrder: () => router.push('/dashboard/orders/new'),
     openOrder: (id) => router.push(`/dashboard/orders/${id}`),
-    openCreateClient: () => open({ type: 'create-client' }),
+    openCreateClient: (name, onCreated) =>
+      open({ type: 'create-client', name, onCreated }),
     openCreateProduct: () => open({ type: 'create-product' }),
     close,
   };
@@ -96,7 +105,11 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           open
           onOpenChange={(o) => !o && close()}
           client={null}
-          onSaved={close}
+          initialName={sheet.name}
+          onSaved={(client) => {
+            sheet.onCreated?.(client);
+            close();
+          }}
         />
       )}
 

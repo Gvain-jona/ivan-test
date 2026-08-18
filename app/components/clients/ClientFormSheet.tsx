@@ -17,6 +17,12 @@ interface ClientFormSheetProps {
   onOpenChange: (open: boolean) => void;
   /** null = create; a client = edit */
   client: Client | null;
+  /**
+   * Prefills the name in create mode — lets the order picker hand over the
+   * text the user already typed ("New client 'kamp'") instead of reopening
+   * blank. Ignored in edit mode, where the client's own name wins.
+   */
+  initialName?: string;
   /** Receives the saved client — lets the order form select it inline. */
   onSaved: (client: Client) => void;
 }
@@ -31,6 +37,7 @@ export default function ClientFormSheet({
   open,
   onOpenChange,
   client,
+  initialName,
   onSaved,
 }: ClientFormSheetProps) {
   const { toast } = useToast();
@@ -43,9 +50,9 @@ export default function ClientFormSheet({
 
   useEffect(() => {
     if (!open) return;
-    setName(client?.name ?? '');
+    setName(client?.name ?? initialName ?? '');
     setCustomData((client?.custom_data as Record<string, unknown>) ?? {});
-  }, [open, client]);
+  }, [open, client, initialName]);
 
   const handleSubmit = async () => {
     if (!name.trim() || submitting) return;

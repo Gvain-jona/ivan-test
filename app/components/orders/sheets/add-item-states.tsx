@@ -142,6 +142,8 @@ export function ChosenState({
   onUnitPrice,
   onCustomData,
   onBack,
+  onSaveToCatalogue,
+  promoting,
 }: {
   chosen: Chosen;
   lineFields: FieldDefinition[];
@@ -152,6 +154,9 @@ export function ChosenState({
   onCustomData: (next: CustomDataValue) => void;
   /** Absent when editing an existing line — its product is settled. */
   onBack?: () => void;
+  /** Present only for a one-off — persists it to the catalogue and rebinds the line. */
+  onSaveToCatalogue?: () => void;
+  promoting?: boolean;
 }) {
   const box =
     'flex h-10 w-full items-center rounded-lg border border-border bg-background px-3 ' +
@@ -176,6 +181,17 @@ export function ChosenState({
           </button>
         )}
       </div>
+
+      {onSaveToCatalogue && (
+        <button
+          type="button"
+          onClick={onSaveToCatalogue}
+          disabled={promoting}
+          className="self-start text-[12.5px] font-medium text-primary disabled:opacity-50"
+        >
+          {promoting ? 'Saving…' : '+ Save to catalogue'}
+        </button>
+      )}
 
       {/* The frame shows size chips here, sourced from sizes already used on
           this product. That is an aggregate over order_items which the read

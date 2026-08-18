@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar } from '@/components/patterns/screen';
-import { useProducts } from '@/hooks/products/useProducts';
+import { useProducts, useProductMutations } from '@/hooks/products/useProducts';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
+import { useToast } from '@/components/ui/use-toast';
 import { lineTotal, type DraftItem } from '@/lib/orders/draft';
 import type { CustomDataValue } from '@/lib/fields/visibility';
 import { ChosenState, SearchState, type Chosen } from './add-item-states';
@@ -51,10 +52,13 @@ export default function AddItemSheet({
   busy,
 }: AddItemSheetProps) {
   const fmt = useFormatCurrency();
+  const { toast } = useToast();
+  const { createProduct } = useProductMutations();
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [unitPrice, setUnitPrice] = useState('');
+  const [promoting, setPromoting] = useState(false);
 
   const debounced = useDebounce(query, 250);
   const { products, isLoading } = useProducts({
@@ -71,6 +75,7 @@ export default function AddItemSheet({
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setPromoting(false);
     if (editing) {
       setChosen({
         product_id: editing.product_id,
@@ -118,6 +123,45 @@ export default function AddItemSheet({
 
     setChosen({ ...next, custom_data: prefill });
     setUnitPrice(next.unit_price ? String(next.unit_price) : '');
+  };
+
+  // A one-off is a line with a raw name and no catalogue backing. `create_order`
+  // is happy to keep it that way, but a product typed a second time should be
+  // savable so it stops being re-typed — the inverse of "Add as a one-off".
+  const isOneOff = chosen !== null && chosen.product_id === null && !!chosen.product_name_raw;
+
+  /**
+   * Persist the current one-off to the product catalogue and rebind the line to
+   * it, in place — no second sheet, since we already hold everything a product
+   * needs (name, the entered price, its own fields). `custom_data` is narrowed
+   * to product fields: line fields are a different set, and
+   * `validate_custom_data` rejects any key without a matching definition.
+   */
+  const promote = async () => {
+    if (!chosen || !isOneOff || promoting) return;
+    setPromoting(true);
+    try {
+      const productNames = new Set(productFields.map(field => field.field_name));
+      const custom_data: CustomDataValue = {};
+      for (const [key, value] of Object.entries(chosen.custom_data)) {
+        if (productNames.has(key)) custom_data[key] = value;
+      }
+      const created = await createProduct({
+        name: chosen.name,
+        selling_price: unitPriceValue,
+        ...(Object.keys(custom_data).length > 0 ? { custom_data } : {}),
+      });
+      setChosen({ ...chosen, product_id: created.id, product_name_raw: undefined });
+      toast({ title: 'Saved to catalogue', description: chosen.name });
+    } catch (error) {
+      toast({
+        title: 'Could not save to catalogue',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPromoting(false);
+    }
   };
 
   const submit = () => {
@@ -177,6 +221,8 @@ export default function AddItemSheet({
             // the line already is what it is, and swapping its product is a
             // different act from correcting its quantity.
             onBack={editing ? undefined : () => setChosen(null)}
+            onSaveToCatalogue={isOneOff ? promote : undefined}
+            promoting={promoting}
           />
         )}
 
