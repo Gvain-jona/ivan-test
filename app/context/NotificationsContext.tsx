@@ -26,9 +26,6 @@ import { presentNotification } from '@/lib/notifications/present';
 interface NotificationsContextType {
   notifications: Notification[];
   unreadCount: number;
-  isDrawerOpen: boolean;
-  openDrawer: () => void;
-  closeDrawer: () => void;
   activeTab: NotificationStatus;
   setActiveTab: (tab: NotificationStatus) => void;
   loading: boolean;
@@ -43,8 +40,8 @@ interface NotificationsContextType {
   handleNotificationAction: (notificationId: string, action: string) => void;
   /**
    * Opt a surface into the (lazily-fetched) inbox list while it is mounted.
-   * The drawer activates it by opening; any other list surface (e.g. the
-   * header menu) calls this on mount and the returned cleanup on unmount.
+   * A list surface (the /dashboard/notifications screen, the header menu)
+   * calls this on mount and the returned cleanup on unmount.
    */
   subscribeList: () => () => void;
 }
@@ -52,22 +49,17 @@ interface NotificationsContextType {
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NotificationStatus>('unread');
 
-  const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
-  const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
-
-  // Lazy list: fetch it only while a surface that shows it is active — the
-  // drawer (open) or any subscriber (e.g. the header menu, while mounted).
-  // The badge uses useUnreadCount(), so pages that only show the bell never
-  // pull the list.
+  // Lazy list: fetch it only while a surface that shows it is mounted (the
+  // notifications screen or the header menu, via subscribeList). The badge
+  // uses useUnreadCount(), so pages that only show the bell never pull the list.
   const [listConsumers, setListConsumers] = useState(0);
   const subscribeList = useCallback(() => {
     setListConsumers(n => n + 1);
     return () => setListConsumers(n => Math.max(0, n - 1));
   }, []);
-  const listActive = isDrawerOpen || listConsumers > 0;
+  const listActive = listConsumers > 0;
 
   const inbox = useNotificationInbox({ enabled: listActive });
   const { setState } = useNotificationMutations();
@@ -166,9 +158,6 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     () => ({
       notifications,
       unreadCount,
-      isDrawerOpen,
-      openDrawer,
-      closeDrawer,
       activeTab,
       setActiveTab,
       loading: inbox.isLoading,
@@ -186,9 +175,6 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     [
       notifications,
       unreadCount,
-      isDrawerOpen,
-      openDrawer,
-      closeDrawer,
       activeTab,
       inbox.isLoading,
       inbox.error,
