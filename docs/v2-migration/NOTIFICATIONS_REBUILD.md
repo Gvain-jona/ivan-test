@@ -88,7 +88,9 @@ No invention required — copy the proven pattern file-for-file:
 - **Route** (`app/api/notifications/route.ts`, rewritten): `resolveTenant()` → `handleApiError('UNAUTHORIZED', …)` → `safeParse` a schema added to `app/lib/api/validators.ts` → `tenant.db.from('activities')` (org filter injected by construction) → `handleSupabaseError`. Plus a colocated `route.test.ts` against `createFakeTenant()` (pattern: `app/api/orders/route.test.ts`) — **required in the same PR** per CLAUDE.md. GET returns the caller's inbox projection (activities where the caller is in the audience, left-joined to their `activity_reads`, see §6); PATCH writes the caller's read/archived state (and the `last_seen_at` watermark); there is no hard DELETE (archive instead).
 - **Hook** (`app/hooks/notifications/useNotifications.ts`): `useSWR` via `buildKey(PLATFORM_API.NOTIFICATIONS, …)` + `apiFetcher`, and a `useNotificationMutations()` invalidating with `keysUnder(...)` — exactly `useOrders.ts`. Add `NOTIFICATIONS: '/api/notifications'` to `PLATFORM_API` in `app/lib/api/client.ts`.
 - **Types**: hand-add the `notifications` table to `DatabaseV2` (`app/types/supabase-v2.ts`) — it's hand-maintained, not gen'd (CLAUDE.md).
-- **UI**: the existing drawer/menu/indicator are decent scaffold, but the drawer uses the old `SideDrawer`. The rebuild moves it onto the **`AppSheet` primitive** via the sheet-host door (`app/context/sheet-host.tsx`, `useSheets`), per the "one sheet, one door" guardrail. The stub `NotificationsContext` is replaced by the hook (keep only the drawer-open UI state, if anything).
+- **UI**: the full inbox is a **top-level screen**, `app/dashboard/notifications/page.tsx` (**decision 2026-08-17, superseding the earlier AppSheet plan** — see below). The header menu (`NotificationsMenu`) and badge (`NotificationsIndicator`) stay; `NotificationItem`/`NotificationGroup` are shared by the screen and the menu. The stub `NotificationsContext` is replaced by the hook (it still holds the badge/lazy-list plumbing).
+
+  > **Screen, not sheet (2026-08-17).** An earlier pass moved the inbox onto the `AppSheet` primitive ("one sheet, one door"). On review that was the wrong call for this surface: a notification inbox is *browse-and-triage*, which the CLAUDE.md carve-out classifies as a **screen** (like Orders/Clients), not a one-decision sheet. A screen is a real destination — the Alerts tab lights when active, a deep-link out to an order returns here on Back, the full height fits an All/Unread filter, and vertical scroll never fights drag-to-dismiss. The Alerts tab (`MobileTabBar`) and the header menu's "View all" now route to `/dashboard/notifications`; `NotificationsDrawer.tsx` is deleted. The unused `openDrawer`/`closeDrawer`/`isDrawerOpen` remain on the context (the latter still gates the lazy list) — optional cleanup.
 
 ---
 
@@ -153,7 +155,7 @@ The old code used DB triggers on `public.orders`/`tasks`. Under the current post
 
 ## 8. Effectively dead-on-arrival regardless of phasing
 
-- **Push notifications** need real infra that doesn't exist: VAPID keys, a `push_subscriptions` table (org-scoped, endpoint-per-device), a server send path (`web-push`), and the SW actually registered *and* subscribed. Today it's a permission prompt wired to nothing (`registerServiceWorker()` never called; wrong path). That's a dark pattern. **Decided (§9.4): defer indefinitely and pull the prompt** (`NotificationPermissionRequest` in `DashboardLayout`) now, as part of cleanup. Web Push returns only as its own scoped track.
+- **Push notifications** need real infra that doesn't exist: VAPID keys, a `push_subscriptions` table (org-scoped, endpoint-per-device), a server send path (`web-push`), and the SW actually registered *and* subscribed. Today it's a permission prompt wired to nothing (`registerServiceWorker()` never called; wrong path). That's a dark pattern. **Decided (§9.4): pull the prompt now** (`NotificationPermissionRequest` in `DashboardLayout`), as part of cleanup, and defer *building* push to its own scoped track. **The full delivery design — and the correction that Web Push is NOT blocked on Phase 2 — is now §14.** (This bullet's old "defer indefinitely" wording undersold it: the infra is modest and independent of the RLS flip; see §14.)
 - **Preferences**: legacy `notification_preferences` (0 rows, user+category) doesn't fit the v2 settings model. **Decided (§9.5): no preferences in Phase 1** — the in-app bell has no channel to toggle. When email/push lands, preferences are **per-user** (stored per-user, not on `organizations.settings`). Today's unwired `NotificationsTab` toggles are removed/neutralized in cleanup.
 
 ---
@@ -272,7 +274,7 @@ The vendor-standard is a **PreferenceSet**: a matrix of *category × channel* op
 
 Five in-app surfaces exist (persistent inbox, toast, banner, modal, badge). We use exactly two, plus one we already have:
 
-- **Inbox** (bell → `AppSheet` drawer) — the persistent record. Phase-1 surface.
+- **Inbox** (Alerts tab / bell → `/dashboard/notifications` screen) — the persistent record. Phase-1 surface. (Was an `AppSheet` drawer; changed to a full screen 2026-08-17 — see §5.)
 - **Badge** — unread/seen count on the bell.
 - **Toast** — already handled by the existing toast system for the *actor's own* immediate feedback ("Payment recorded"); it is **not** the inbox and the two shouldn't be conflated. No banners/modals for this feature.
 
@@ -338,7 +340,8 @@ The bedrock — the model and its core plumbing — is built and proven, with no
 
 - ~~**Unread-count endpoint**~~ — **done 2026-08-15.** `GET /api/notifications/count` returns the true unread total (audience notifications the caller didn't cause, minus the ones they've resolved — two head COUNTs, no anti-join). `useUnreadCount()` feeds the badge; it shares the `/api/notifications` key prefix so marking one read invalidates it. Tested. **"Mark all read"** still loops per-item (fine at this scale; a `last_seen_at` watermark is the efficient form).
 - ~~**Lazy inbox list**~~ — **done 2026-08-15.** `useNotificationInbox({ enabled })` fetches nothing (null SWR key) unless a list surface is active; the provider sets `enabled = isDrawerOpen || subscribers > 0`. So a page showing only the bell pulls just the cheap count, never the list. Surfaces opt in via `subscribeList()` (the drawer via its open state; `NotificationsMenu` on mount — currently gated off in `context-menu.tsx`, but wired so it works when re-enabled). Note: the header notifications menu and footer bell are **disabled** today (`context-menu.tsx` returns null for `notifications`; the indicator is `disabled`), so the drawer is the only live list surface.
-- ~~**Deep-link routing**~~ — **done 2026-08-15.** Clicking a notification opens its linked order via `useSheets().openOrder()` (the "one door" convention), from both the drawer (`NotificationItem` — closes the drawer first so it doesn't re-pop on back-nav) and the header popover (`NotificationsMenu`). Target resolved by `notificationOrderId()` in `present.ts`: a payment links to the *order it settles* (its `target`), not the payment row; membership events have no order link. Tested.
+- ~~**Deep-link routing**~~ — **done 2026-08-15.** Clicking a notification opens its linked order via `useSheets().openOrder()` (the "one door" convention), from both the inbox (`NotificationItem`) and the header popover (`NotificationsMenu`). Target resolved by `notificationOrderId()` in `present.ts`: a payment links to the *order it settles* (its `target`), not the payment row; membership events have no order link. Tested. *(From the screen the earlier "close the drawer first" step is moot — it's a forward navigation that Back returns from.)*
+- **Per-item archive on mobile** — the clean screen (2026-08-17) reveals the row's overflow menu on hover/focus, so per-item Mark-read/Archive is desktop-first; the intended mobile affordance is **swipe-to-archive**, not yet built. Mobile triage today = tap-to-open (marks read) + header "Mark all read". Swipe is the next interaction floor.
 - ~~**Mobile-first sheet primitive**~~ — **done 2026-08-15.** The shared sheet primitive was renamed `OrderSheet` → **`AppSheet`** (it was never order-specific — used by client/product forms, onboarding, the tab-bar More sheet; the name misled). `NotificationsDrawer` was rewritten off the legacy `SideDrawer` (fixed 450px right panel) onto `AppSheet`, so the Alerts tab now opens a **bottom sheet on mobile** / right panel on desktop, matching the tab bar's own More sheet. The dead "Clear all" archived button (called the no-op `deleteAllArchived`) was removed per "every signifier is wired". `SideDrawer` is no longer used by notifications.
 - ~~**PATCH authorization (write-side IDOR)**~~ — **done 2026-08-17.** `PATCH /api/notifications` now verifies the target notification is in the caller's audience (same predicate GET projects with) before writing read-state, rather than trusting the body's `id`. Previously any caller could write a `notification_reads` row against an arbitrary notification id — contained (own state only, no cross-tenant read/tamper) but it let them skew their own unread count. Rejected with 404; tested.
 - ~~**Webhook `member.added` idempotency**~~ — **done 2026-08-17.** The "you were added" notify is now gated on *genuine first-time membership* (a prior-existence check before the upsert) instead of the Clerk event type, so a retried `organizationMembership.created` delivery no longer re-sends the notification. Tested.
@@ -350,3 +353,121 @@ The bedrock — the model and its core plumbing — is built and proven, with no
 - **Unread-count endpoint** and **"mark all read"** — deferred to the UI floor; both are cheap adds (the latter wants a per-user `last_seen_at` watermark rather than writing a read row per item).
 - **Archived-exclusion in SQL** — the inbox returns `state:'archived'` rather than filtering it server-side (needs the read-state join; would complicate paging). Revisit with an inbox view if paging over large archived sets ever matters.
 - **Upsert** — the scoped accessor exposes none, so read-state uses update-then-insert. Fine at this scale; add `upsert` to `TenantDb` if a second consumer needs it.
+
+---
+
+## 14. Delivery & Web Push — the design (2026-08-18)
+
+The foundation shipped the **model** and one **channel: in-app pull**. This
+section is the honest answer to the question the rebuild kept deferring —
+*"since this is a web app, how do notifications actually reach a user?"* — and
+it corrects a framing error in §8.
+
+### 14.1 The gap, stated plainly
+
+Delivery today is SWR pull: `useNotifications.ts` polls every ~90s
+(`REFRESH_MS`) plus revalidate-on-focus. That means a notification reaches a
+user **only while they have the app tab open**, and even then up to ~90s late.
+**Close the tab and nothing arrives.** For the highest-signal event this app
+has — *payment recorded*, to the owner — "you'll see it next time you open the
+tab" is not delivery. Pull is a freshness layer, not a delivery channel.
+
+### 14.2 The three web delivery layers
+
+| Layer | Reaches a user who… | Blocked on Phase 2? | Verdict |
+|---|---|---|---|
+| **Pull** (today) | has the tab open, ~90s lag | No | Keep as the in-app freshness layer. |
+| **Realtime** (Supabase realtime / SSE / WebSocket) | has the tab open, instant | **Supabase realtime: yes** (browser has no Clerk→Supabase session until the RLS flip). SSE/WS from a Clerk-authed Next route: no — but long-lived connections are awkward on Vercel serverless. | **Skip as a stopgap.** It only upgrades the *already-open* case (90s → instant); it does not reach a user who isn't looking. Low value for the cost. |
+| **Web Push** (Push API + Service Worker) | **has the app closed** | **No** | **This is the real answer.** Connectionless, closed-tab, server-driven. |
+
+### 14.3 The correction: Web Push is independent of Phase 2
+
+§4/§8/§10 tie the delivery story to Phase 2 ("swap pull → realtime at the RLS
+flip"). That is true **only for client-side Supabase realtime**, which needs a
+browser Supabase session (third-party auth + the RLS flip). **Web Push does not
+touch any of that.** Its send path is entirely server-side: a Clerk-authed Next
+route reads subscriptions via the service-role `TenantDb` and POSTs to the push
+endpoints with the `web-push` library. It works with **today's** auth model.
+Push was deferred *by choice* in the foundation PR, not *by dependency* — the
+"defer indefinitely" wording in §8/§9.4 undersold it. It is buildable now.
+
+Corollary: the phasing in §10 should read **"pull now → add Web Push (any
+time, no RLS dependency) → optional in-app realtime at/after Phase 2"**, not
+"pull until Phase 2 then realtime." Realtime is the least urgent of the three.
+
+### 14.4 The one caveat that shapes everything: iOS
+
+Web Push on iPhone works **only for an app added to the Home Screen** (an
+installed PWA, iOS 16.4+). A plain Safari **tab gets no push at all.** There is
+**no web manifest in the repo today**, so the app isn't installable and iOS push
+is currently impossible until that's added. Desktop Chrome/Edge/Firefox and
+Android Chrome need no install step.
+
+For a shop owner on an iPhone this is real adoption friction ("Add to Home
+Screen" first). The product fork:
+- **Accept install-to-get-push on iOS** (ship a manifest + an install nudge), or
+- **Add a non-web fallback** (email, later SMS) for the single highest-signal
+  event — *payment recorded, to the owner* — so the money signal lands even
+  without an installed PWA. Email is its own channel and its own track; naming
+  it here so the iOS gap is a known, decided thing, not a silent hole.
+
+This is an **owner decision**, recorded as open at the end of this section.
+
+### 14.5 What building Web Push takes (all additive; the seams already exist)
+
+The foundation was built "design wide, deliver narrow" (§12): `category`,
+`priority`, channel-as-enum, and the `notify()` workflow seam are already
+present, so this slots in **without touching the event sites**.
+
+1. **`v2.push_subscriptions`** — one row per device/endpoint: `id`,
+   `organization_id` (tenant boundary, reached via `TenantDb`), `user_id`,
+   `endpoint` (unique), `p256dh`, `auth`, `user_agent`, `created_at`,
+   `last_used_at`. RLS **enabled, deny-by-default** like the rest of v2 (§13).
+   → this is the **DB ask** (see `DB_ASKS.md`).
+2. **VAPID keypair** — `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (client) +
+   `VAPID_PRIVATE_KEY` (server-only), plus the `web-push` dependency.
+3. **A real service worker** (`public/sw.js`) with `push` and
+   `notificationclick` handlers — the click reuses `notificationOrderId()`
+   (`present.ts`) to focus/open the deep-linked order, the same target the
+   in-app row already routes to. Plus a **web manifest** for installability
+   (also unlocks iOS, §14.4).
+4. **A subscribe flow gated behind an explicit user action** — register the SW,
+   `Notification.requestPermission()` on a deliberate tap (never the old
+   auto-prompt dark pattern), `pushManager.subscribe({ applicationServerKey })`,
+   POST the subscription to `POST /api/notifications/push/subscribe`
+   (Clerk-authed, writes via `TenantDb`). An unsubscribe/prune route mirrors it.
+5. **A `deliver()` step after `notify()`** — resolve recipients from the
+   activity's audience (org members for `audience_scope='org'`; the listed
+   users for `'users'`), look up their `push_subscriptions`, and
+   `web-push.sendNotification()` to each. Non-fatal, exactly like the activity
+   insert. Prune endpoints that return `404`/`410` (expired). This is the
+   channel step of the four-layer model (§12.2) — it plugs into the existing
+   seam, so the order/payment/webhook call sites don't change.
+6. **Per-user preferences finally earn their place** — push is the first channel
+   worth muting per category (§12.6). The `category` column is already there; a
+   `notification_preferences`-style per-user matrix (per-user, not on
+   `organizations.settings`, §9.5) becomes real work only when this channel
+   ships.
+
+None of the above blocks on Phase 2, and none of it touches money functions.
+
+### 14.6 Recommended shape
+
+- **Keep pull** as the in-app freshness layer (unchanged).
+- **Build Web Push** as its own PR/track: the `push_subscriptions` DB ask, VAPID
+  + `web-push`, SW + manifest, the gated subscribe flow, and the `deliver()`
+  seam. Scope the first cut to **`payment.recorded` + `order.status_changed`**
+  (the two a closed-tab user actually wants), widening to the rest for free once
+  the channel exists.
+- **Treat in-app realtime as optional** and later — it's the smallest win.
+- **Decide the iOS path** (§14.4) before building, since it changes whether a
+  manifest + install nudge (and possibly an email fallback) are in scope.
+
+### 14.7 Open decisions for the owner
+
+1. **iOS delivery** — accept "install the PWA to get push on iPhone," or add an
+   **email fallback** for the money signal? (§14.4)
+2. **Build trigger** — start the Web Push track now, or after the current
+   inbox/UX PRs settle? (Independent of Phase 2 either way.)
+3. **First-cut event scope** — push only `payment.recorded` (+ maybe
+   `order.status_changed`), or all four from day one?

@@ -529,6 +529,83 @@ and `documents`.
 
 ---
 
+## A7 — `push_subscriptions` table for Web Push delivery · **enables the notifications push channel** · 🔲 OPEN
+
+*(There is no "A6" — that label was a retracted rounding item, folded into A1;
+see the correction at the top. A7 is the next real ask.)*
+
+Raised 2026-08-18, from the notifications delivery design
+(`NOTIFICATIONS_REBUILD.md` §14). The notifications foundation shipped with one
+channel — in-app SWR pull — which reaches a user only while the app tab is open.
+The real "web app notification" (reaches a user with the app **closed**) is Web
+Push, and it is **buildable now, independent of the Phase 2 RLS flip** (its send
+path is server-side via the service-role `TenantDb`, not client realtime). What
+it needs from the DB is one table.
+
+### The gap
+
+There is nowhere to store a browser's push subscription (endpoint + keys) per
+user per device. Without it, the server has no address to push to.
+
+### Proposed — additive, deny-by-default, nothing money-adjacent
+
+A new org-scoped table, mirrored into `supabase/migrations/` and matching the
+`DatabaseV2` hand-maintained types. RLS **enabled with no policies**, exactly
+like `v2.notifications`/`v2.notification_reads` (§13) — the service-role
+`TenantDb` is the boundary until Phase 2; anon/authenticated get nothing.
+
+```sql
+create table if not exists v2.push_subscriptions (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references v2.organizations(id) on delete cascade,
+  user_id          uuid not null,                 -- internal_user_id (the recipient)
+  endpoint         text not null unique,          -- the push service URL for this device
+  p256dh           text not null,                 -- subscription public key
+  auth             text not null,                 -- subscription auth secret
+  user_agent       text,                          -- for "which device is this" in settings
+  created_at       timestamptz not null default now(),
+  last_used_at     timestamptz                    -- stamped on a successful send; prune stale
+);
+
+create index if not exists push_subscriptions_user_idx
+  on v2.push_subscriptions (organization_id, user_id);
+
+alter table v2.push_subscriptions enable row level security;
+```
+
+Notes:
+- `endpoint` is globally unique (it *is* the device address); a re-subscribe
+  upserts on it rather than duplicating.
+- `user_id` is the `internal_user_id` UUID (the recipient key everywhere in v2),
+  not a Clerk `user_…` id.
+- No `WITH CHECK`/policies needed now — same posture as the notifications
+  tables. Phase 2 adds per-user policies here in the same change that flips the
+  rest of v2.
+
+Being additive and money-untouching, this can be applied directly and mirrored
+per CLAUDE.md — it does **not** need the owner-only go-ahead that A1's
+money-function changes did. Flagging it here for visibility rather than
+gatekeeping; say the word and it's applied.
+
+### App side, once this lands
+
+Add `push_subscriptions` to `DatabaseV2` (`app/types/supabase-v2.ts`, by hand),
+then build the Web Push track (`NOTIFICATIONS_REBUILD.md` §14.5): VAPID keypair +
+`web-push`, a service worker + web manifest, a permission-gated subscribe flow
+(`POST /api/notifications/push/subscribe`, writing here via `TenantDb`), and a
+`deliver()` step after `notify()` that reads this table for the activity's
+audience and sends — pruning `404`/`410` endpoints. All additive; the
+order/payment/webhook emit sites don't change.
+
+### Open product decisions (not DB) — see `NOTIFICATIONS_REBUILD.md` §14.7
+
+- **iOS**: Web Push on iPhone needs an installed PWA (no manifest today); accept
+  install-to-get-push, or add an email fallback for `payment.recorded`.
+- **First-cut scope**: push `payment.recorded` (+ maybe `order.status_changed`)
+  vs all four events.
+
+---
+
 ## Answered by reading the source — no longer questions
 
 Both were open until 2026-08-07 and are settled; kept here because decisions

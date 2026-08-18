@@ -637,7 +637,9 @@ single swap point. Order creation still goes through the
     bar with Home/Orders/Clients/**Documents**/More; the canvas draws a floating
     rounded pill with Home/Orders/Clients/**Alerts**/More. Restyled to the pill
     (centered, detached, safe-area gap) and swapped Documents for **Alerts**,
-    which opens the notifications drawer (`useNotifications().openDrawer`);
+    which now routes to the full-screen notifications inbox
+    (`/dashboard/notifications`; was `openDrawer` until 2026-08-17 — see
+    NOTIFICATIONS_REBUILD.md §5, "screen, not sheet");
     Documents moved into the More sheet. Desktop pill (FooterNav) untouched.
   - **Home section headers** now use the small uppercase label style the rest of
     the app uses (ORDERS / ACTIVE QUOTATIONS / TO DO), not `text-lg` headings.
@@ -743,9 +745,9 @@ Delivery today is **in-app SWR pull only** (~90s, reaches a user only while a
 tab is open). The design for real delivery, and the correction that **Web Push
 is not blocked on Phase 2**, are in `NOTIFICATIONS_REBUILD.md` §14 (PR #17).
 
-**Shipped (open PRs off `main`):**
-- Inbox as a full screen + Home month-total limit fix — **#16**.
-- Delivery & Web Push design (§14) + `push_subscriptions` DB ask (**A7**) — **#17**.
+**Shipped:**
+- Inbox as a full screen + Home month-total limit fix — **#16** (merged).
+- Delivery & Web Push design (§14) + `push_subscriptions` DB ask (**A7**) — **#17** (merged).
 - **PWA-lite** installable shell — manifest, neutral placeholder icons, a
   push-ready service worker (no offline caching), and its registrar — **#18**.
 

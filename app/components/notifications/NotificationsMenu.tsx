@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, CheckCheck, ArrowRight } from 'lucide-react';
 import { useNotifications } from '@/context/NotificationsContext';
 import { useSheets } from '@/context/sheet-host';
@@ -10,8 +11,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function NotificationsMenu() {
-  const { notifications, loading, error, unreadCount, markAllAsRead, openDrawer, markAsRead, fetchNotifications, subscribeList } = useNotifications();
+  const { notifications, loading, error, unreadCount, markAllAsRead, markAsRead, fetchNotifications, subscribeList } = useNotifications();
   const { openOrder } = useSheets();
+  const router = useRouter();
 
   // While this popover is mounted, the inbox list is needed — opt in so the
   // lazily-fetched list loads (and unsubscribe on unmount).
@@ -117,7 +119,7 @@ export function NotificationsMenu() {
       <Button
         variant="outline"
         className="w-full justify-between max-w-[350px]"
-        onClick={openDrawer}
+        onClick={() => router.push('/dashboard/notifications')}
       >
         <span>View all notifications</span>
         <ArrowRight className="h-4 w-4" />
