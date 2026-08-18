@@ -32,8 +32,9 @@ interface Destination {
 
 /**
  * Primary destinations — the thumb-zone tabs, in the canvas's order: Home,
- * Orders, Clients, then Alerts and More. Alerts is not a route (it opens the
- * notifications drawer), so it lives in the component, not this list.
+ * Orders, Clients, then Alerts and More. Alerts routes to the full-screen
+ * notifications inbox (/dashboard/notifications) — it carries a badge and lights
+ * when active, so it's rendered inline rather than from this list.
  * Documents moved to the More sheet to make its slot — the frame promotes
  * Alerts there.
  */
@@ -98,14 +99,14 @@ function TabItem({
 /**
  * Mobile-only bottom nav (`lg:hidden`) — the canvas's floating pill: Home,
  * Orders, Clients, Alerts, More, centered and detached from the screen edges
- * with a safe-area gap beneath. Alerts opens the notifications drawer; More
+ * with a safe-area gap beneath. Alerts routes to the notifications inbox; More
  * opens the secondary sheet. The desktop nav is the separate expandable pill in
  * FooterNav.
  */
 export default function MobileTabBar() {
   const pathname = usePathname() ?? '';
   const [moreOpen, setMoreOpen] = useState(false);
-  const { openDrawer, unreadCount } = useNotifications();
+  const { unreadCount } = useNotifications();
 
   const moreActive = MORE.some((d) => isActive(pathname, d.href));
 
@@ -122,9 +123,18 @@ export default function MobileTabBar() {
               <TabItem icon={icon} label={title} active={isActive(pathname, href)} />
             </Link>
           ))}
-          <button type="button" onClick={openDrawer} aria-label="Alerts">
-            <TabItem icon={Bell} label="Alerts" badge={unreadCount} />
-          </button>
+          <Link
+            href="/dashboard/notifications"
+            aria-current={isActive(pathname, '/dashboard/notifications') ? 'page' : undefined}
+            aria-label="Alerts"
+          >
+            <TabItem
+              icon={Bell}
+              label="Alerts"
+              active={isActive(pathname, '/dashboard/notifications')}
+              badge={unreadCount}
+            />
+          </Link>
           <button
             type="button"
             onClick={() => setMoreOpen(true)}

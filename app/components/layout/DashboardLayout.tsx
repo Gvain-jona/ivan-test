@@ -8,7 +8,6 @@ import FooterNav from '../navigation/FooterNav';
 import { NavigationIndicator } from '../ui/navigation-indicator';
 import { NavigationProgress } from '../ui/navigation-progress';
 import ErrorBoundary from '../error/ErrorBoundary';
-import { NotificationsDrawer } from '../notifications/NotificationsDrawer';
 import { SETUP_PATH } from '@/lib/onboarding/steps';
 
 type DashboardLayoutProps = {
@@ -86,12 +85,11 @@ function DashboardLayout({ children, className }: DashboardLayoutProps) {
           </ErrorBoundary>
         </main>
 
-        {/* Footer Navigation and Notifications. The NotificationsProvider is
-            mounted once, globally, in app/providers.tsx — these consume that
-            single instance (a second, local provider used to shadow it, which
-            broke openDrawer() called from the header). */}
+        {/* Footer Navigation. The NotificationsProvider is mounted once,
+            globally, in app/providers.tsx — the nav's Alerts tab and badge
+            consume that single instance. The full inbox is now the
+            /dashboard/notifications screen, not an overlay. */}
         <FooterNav />
-        <NotificationsDrawer />
       </div>
     </div>
   );

@@ -61,13 +61,15 @@ export default function HomePage() {
   const { orders: book, isLoading: bookLoading } = useOrders({ limit: 100 });
 
   // TODO(v2 read layer): "sales this month" is a bounded client-side sum —
-  // accurate count (`total`), approximate sum (capped at `limit`). Wire to the
-  // analytics/metrics accessor when that module cuts over. See STATE.md.
+  // accurate count (`total`), approximate sum (capped at `limit`). The list API
+  // caps `limit` at 100 (listQuerySchema), so that is the ceiling here; a true
+  // month total needs the analytics/metrics accessor when that module cuts
+  // over. See STATE.md.
   const {
     orders: month,
     total: monthCount,
     isLoading: monthLoading,
-  } = useOrders({ start_date: monthStart(), end_date: today(), limit: 200 });
+  } = useOrders({ start_date: monthStart(), end_date: today(), limit: 100 });
 
   const salesThisMonth = useMemo(
     () => month.reduce((sum, o) => sum + (o.total_amount ?? 0), 0),

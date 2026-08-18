@@ -1,61 +1,74 @@
 'use client';
 
 import React, { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, MessageSquare, UserPlus, AlertCircle, Clock, DollarSign, AtSign, CheckCircle, Loader2 } from 'lucide-react';
-import type { Notification } from '@/types/notifications';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format } from 'date-fns';
+import {
+  MoreHorizontal,
+  MessageSquare,
+  UserPlus,
+  RefreshCw,
+  Clock,
+  Banknote,
+  AtSign,
+  Package,
+  Loader2,
+  type LucideIcon,
+} from 'lucide-react';
+import type { Notification, NotificationType } from '@/types/notifications';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/context/NotificationsContext';
 import { useSheets } from '@/context/sheet-host';
 import { notificationOrderId } from '@/lib/notifications/present';
 import { useToast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 interface NotificationItemProps {
   notification: Notification;
 }
 
+/**
+ * The leading glyph is monochrome by design: the icon *shape* carries the
+ * category (nothing is colour-coded), so the list reads as one calm stream
+ * rather than a wall of coloured chips.
+ */
+const TYPE_ICON: Record<NotificationType, LucideIcon> = {
+  payment: Banknote,
+  assignment: Package, // order.created
+  status_change: RefreshCw,
+  due_date: Clock,
+  invitation: UserPlus, // member.added
+  mention: AtSign,
+  comment: MessageSquare,
+};
+
+/** Compact relative time — "now", "5m", "3h", "2d", then a short date. */
+function compactAgo(iso: string): string {
+  const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 60) return 'now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+  if (secs < 86_400) return `${Math.floor(secs / 3600)}h`;
+  if (secs < 604_800) return `${Math.floor(secs / 86_400)}d`;
+  return format(new Date(iso), 'MMM d');
+}
+
 export function NotificationItem({ notification }: NotificationItemProps) {
-  const { markAsRead, archiveNotification, deleteNotification, handleNotificationAction, closeDrawer } = useNotifications();
+  const { markAsRead, archiveNotification } = useNotifications();
   const { openOrder } = useSheets();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [actionType, setActionType] = useState<'read' | 'archive' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'read' | 'archive' | null>(null);
 
-  // Format the timestamp
-  const timeAgo = formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true });
+  const Icon = TYPE_ICON[notification.type] ?? MessageSquare;
+  const unread = notification.status === 'unread';
+  const archived = notification.status === 'archived';
 
-  // Get the appropriate icon based on notification type
-  const getNotificationIcon = () => {
-    switch (notification.type) {
-      case 'comment':
-        return <MessageSquare className="h-4 w-4 text-opt-blue" />;
-      case 'invitation':
-        return <UserPlus className="h-4 w-4 text-opt-violet" />;
-      case 'status_change':
-        return <AlertCircle className="h-4 w-4 text-opt-amber" />;
-      case 'due_date':
-        return <Clock className="h-4 w-4 text-opt-amber" />;
-      case 'payment':
-        return <DollarSign className="h-4 w-4 text-opt-green" />;
-      case 'mention':
-        return <AtSign className="h-4 w-4 text-opt-red" />;
-      case 'assignment':
-        return <CheckCircle className="h-4 w-4 text-opt-teal" />;
-      default:
-        return <MessageSquare className="h-4 w-4 text-opt-blue" />;
-    }
-  };
-
-  // Handle click on the notification
   const handleClick = (e: React.MouseEvent) => {
-    // Don't trigger if clicking on buttons, dropdown, or dropdown content
+    // Let the overflow menu (and its popover) handle their own clicks.
     if (
       (e.target as HTMLElement).closest('button') ||
       (e.target as HTMLElement).closest('[role="menuitem"]') ||
@@ -65,253 +78,121 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       return;
     }
 
-    if (notification.status === 'unread') {
-      markAsRead(notification.id);
-    }
+    if (unread) markAsRead(notification.id);
 
-    // Deep-link to the linked order, if any. Close the drawer first: otherwise
-    // its open state persists and it re-pops when navigating back from the hub.
+    // Deep-link to the linked order, if any. From a screen this is a clean
+    // forward navigation — Back returns to the inbox.
     const orderId = notificationOrderId(notification);
-    if (orderId) {
-      closeDrawer();
-      openOrder(orderId);
+    if (orderId) openOrder(orderId);
+  };
+
+  const runAction = async (
+    kind: 'read' | 'archive',
+    fn: () => Promise<boolean>,
+    failure: string,
+  ) => {
+    setBusy(kind);
+    const ok = await fn();
+    setBusy(null);
+    if (!ok) {
+      toast({ title: 'Error', description: failure, variant: 'destructive' });
     }
   };
 
   return (
     <div
-      className={`p-4 border-b border-border/40 hover:bg-muted/10 transition-colors relative ${
-        notification.status === 'unread' ? 'bg-muted/5' : ''
-      } ${notification.status === 'archived' ? 'opacity-80' : ''}`}
+      className={cn(
+        'group relative flex cursor-pointer items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40',
+        archived && 'opacity-70',
+      )}
       onClick={handleClick}
       data-testid="notification-item"
     >
-      {/* Status indicator */}
-      {notification.status === 'unread' && (
-        <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary" />
-      )}
-      {notification.status === 'archived' && (
-        <div className="absolute top-4 right-4 text-xs text-muted-foreground">
-          Archived
-        </div>
-      )}
+      {/* Category glyph — neutral, gray-bordered. */}
+      <div className="mt-0.5 flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] border border-border">
+        <Icon className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={2} />
+      </div>
 
-      <div className="flex gap-3">
-        {/* Avatar */}
-        <Avatar className="h-10 w-10">
-          {notification.sender?.avatar ? (
-            <AvatarImage src={notification.sender.avatar} alt={notification.sender?.name || 'User'} />
-          ) : (
-            <AvatarFallback>
-              {notification.sender?.name?.charAt(0) || 'U'}
-            </AvatarFallback>
+      {/* Copy */}
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            'truncate text-[14px] text-foreground',
+            unread ? 'font-semibold' : 'font-medium',
           )}
-        </Avatar>
+        >
+          {notification.title}
+        </p>
+        {notification.message && (
+          <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
+            {notification.message}
+          </p>
+        )}
+      </div>
 
-        <div className="flex-1">
-          <div className="flex justify-between items-start">
-            <div>
-              {/* Title with icon */}
-              <div className="flex items-center gap-1.5 mb-1">
-                {getNotificationIcon()}
-                <span className="font-medium">{notification.title}</span>
-              </div>
+      {/* Timestamp + unread dot (neutral). */}
+      <div className="flex flex-shrink-0 flex-col items-end gap-1.5 pl-1">
+        <span className="text-[11.5px] tabular-nums text-muted-foreground">
+          {compactAgo(notification.timestamp)}
+        </span>
+        {unread && (
+          <span
+            className="h-[7px] w-[7px] rounded-full bg-foreground"
+            aria-label="Unread"
+          />
+        )}
+      </div>
 
-              {/* Message */}
-              <p className="text-sm mb-2">{notification.message}</p>
-
-              {/* Timestamp */}
-              <p className="text-xs text-muted-foreground">{timeAgo}</p>
-
-              {/* Action buttons */}
-              {notification.actions && (
-                <div className="flex gap-2 mt-2">
-                  {notification.actions.primary && (
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNotificationAction(notification.id, notification.actions!.primary!.action);
-                      }}
-                    >
-                      {notification.actions.primary.label}
-                    </Button>
-                  )}
-
-                  {notification.actions.secondary && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNotificationAction(notification.id, notification.actions!.secondary!.action);
-                      }}
-                    >
-                      {notification.actions.secondary.label}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Actions dropdown */}
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="relative z-10"
+      {/* Overflow actions — revealed on hover/focus so the row stays clean. */}
+      <div
+        className="absolute right-2 top-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 bg-background/90 backdrop-blur"
+              aria-label="Notification actions"
             >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">More options</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="z-50"
-                >
-                  {notification.status === 'unread' && (
-                    <DropdownMenuItem
-                      onSelect={async () => {
-                        setIsLoading(true);
-                        setActionType('read');
-                        const success = await markAsRead(notification.id);
-                        setIsLoading(false);
-                        setActionType(null);
-
-                        if (success) {
-                          toast({
-                            title: 'Notification marked as read',
-                            description: 'The notification has been marked as read.',
-                            variant: 'default',
-                          });
-                        } else {
-                          toast({
-                            title: 'Error',
-                            description: 'Failed to mark notification as read. Please try again.',
-                            variant: 'destructive',
-                          });
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                      }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                      }}
-                      disabled={isLoading}
-                    >
-                      {isLoading && actionType === 'read' ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Marking as read...
-                        </>
-                      ) : (
-                        'Mark as read'
-                      )}
-                    </DropdownMenuItem>
-                  )}
-                  {notification.status !== 'archived' && (
-                    <DropdownMenuItem
-                      onSelect={async () => {
-                        setIsLoading(true);
-                        setActionType('archive');
-                        const success = await archiveNotification(notification.id);
-                        setIsLoading(false);
-                        setActionType(null);
-
-                        if (success) {
-                          toast({
-                            title: 'Notification archived',
-                            description: 'The notification has been archived.',
-                            variant: 'default',
-                          });
-                        } else {
-                          toast({
-                            title: 'Error',
-                            description: 'Failed to archive notification. Please try again.',
-                            variant: 'destructive',
-                          });
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                      }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                      }}
-                      disabled={isLoading}
-                    >
-                      {isLoading && actionType === 'archive' ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Archiving...
-                        </>
-                      ) : (
-                        'Archive'
-                      )}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onSelect={async () => {
-                      setIsLoading(true);
-                      setActionType('delete');
-                      const success = await deleteNotification(notification.id);
-                      setIsLoading(false);
-                      setActionType(null);
-
-                      if (success) {
-                        toast({
-                          title: 'Notification deleted',
-                          description: 'The notification has been deleted.',
-                          variant: 'default',
-                        });
-                      } else {
-                        toast({
-                          title: 'Error',
-                          description: 'Failed to delete notification. Please try again.',
-                          variant: 'destructive',
-                        });
-                      }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
-                    disabled={isLoading}
-                  >
-                    {isLoading && actionType === 'delete' ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      'Delete'
-                    )}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {unread && (
+              <DropdownMenuItem
+                onSelect={() =>
+                  runAction(
+                    'read',
+                    () => markAsRead(notification.id),
+                    'Could not mark as read. Please try again.',
+                  )
+                }
+              >
+                Mark as read
+              </DropdownMenuItem>
+            )}
+            {!archived && (
+              <DropdownMenuItem
+                onSelect={() =>
+                  runAction(
+                    'archive',
+                    () => archiveNotification(notification.id),
+                    'Could not archive. Please try again.',
+                  )
+                }
+              >
+                Archive
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
