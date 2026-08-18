@@ -736,3 +736,39 @@ CVEs (2026-07-14)").
 - `custom_data`: omit empty values (don't send `null`); the DB
   (`validate_custom_data`) is the validation authority — surface its P0001
   message verbatim (already mapped in `app/lib/api/error-handler.ts`).
+
+### Notifications delivery & PWA — roadmap (2026-08-18)
+
+Delivery today is **in-app SWR pull only** (~90s, reaches a user only while a
+tab is open). The design for real delivery, and the correction that **Web Push
+is not blocked on Phase 2**, are in `NOTIFICATIONS_REBUILD.md` §14 (PR #17).
+
+**Shipped (open PRs off `main`):**
+- Inbox as a full screen + Home month-total limit fix — **#16**.
+- Delivery & Web Push design (§14) + `push_subscriptions` DB ask (**A7**) — **#17**.
+- **PWA-lite** installable shell — manifest, neutral placeholder icons, a
+  push-ready service worker (no offline caching), and its registrar — **#18**.
+
+**Left — Web Push track** (its own PR; additive, no Phase-2 dependency):
+1. Apply **A7** `v2.push_subscriptions` (deny-by-default) and hand-add it to
+   `DatabaseV2` (`app/types/supabase-v2.ts`).
+2. VAPID keypair — `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + server-only
+   `VAPID_PRIVATE_KEY` — and the `web-push` dependency.
+3. Permission-gated subscribe flow (the SW is already registered by #18) +
+   `POST /api/notifications/push/subscribe` and an unsubscribe/prune route.
+4. A `deliver()` step after `notify()`: resolve the activity's audience → read
+   their `push_subscriptions` → send, pruning `404`/`410` (expired) endpoints.
+5. First-cut event scope: `payment.recorded` (+ maybe `order.status_changed`)
+   vs all four (§14.7).
+
+**Left — PWA follow-ups:**
+- Swap the neutral placeholder icon (`public/icons/*`) for a real brand mark —
+  sizes and wiring are already done.
+- Custom install affordance: a `beforeinstallprompt` button (Android/desktop) +
+  an iOS "Share → Add to Home Screen" nudge (iOS has no prompt API).
+- **Offline caching is deliberately declined for now** (App Router hashed-chunk
+  SW-caching footgun); revisit only as its own decision.
+
+**Open owner decisions (`NOTIFICATIONS_REBUILD.md` §14.7):** iOS path
+(install-to-get-push vs an email fallback for `payment.recorded`); when to build
+the Web Push track; the first-cut event scope.
