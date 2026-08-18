@@ -153,7 +153,7 @@ The old code used DB triggers on `public.orders`/`tasks`. Under the current post
 
 ## 8. Effectively dead-on-arrival regardless of phasing
 
-- **Push notifications** need real infra that doesn't exist: VAPID keys, a `push_subscriptions` table (org-scoped, endpoint-per-device), a server send path (`web-push`), and the SW actually registered *and* subscribed. Today it's a permission prompt wired to nothing (`registerServiceWorker()` never called; wrong path). That's a dark pattern. **Decided (§9.4): defer indefinitely and pull the prompt** (`NotificationPermissionRequest` in `DashboardLayout`) now, as part of cleanup. Web Push returns only as its own scoped track.
+- **Push notifications** need real infra that doesn't exist: VAPID keys, a `push_subscriptions` table (org-scoped, endpoint-per-device), a server send path (`web-push`), and the SW actually registered *and* subscribed. Today it's a permission prompt wired to nothing (`registerServiceWorker()` never called; wrong path). That's a dark pattern. **Decided (§9.4): pull the prompt now** (`NotificationPermissionRequest` in `DashboardLayout`), as part of cleanup, and defer *building* push to its own scoped track. **The full delivery design — and the correction that Web Push is NOT blocked on Phase 2 — is now §14.** (This bullet's old "defer indefinitely" wording undersold it: the infra is modest and independent of the RLS flip; see §14.)
 - **Preferences**: legacy `notification_preferences` (0 rows, user+category) doesn't fit the v2 settings model. **Decided (§9.5): no preferences in Phase 1** — the in-app bell has no channel to toggle. When email/push lands, preferences are **per-user** (stored per-user, not on `organizations.settings`). Today's unwired `NotificationsTab` toggles are removed/neutralized in cleanup.
 
 ---
@@ -350,3 +350,121 @@ The bedrock — the model and its core plumbing — is built and proven, with no
 - **Unread-count endpoint** and **"mark all read"** — deferred to the UI floor; both are cheap adds (the latter wants a per-user `last_seen_at` watermark rather than writing a read row per item).
 - **Archived-exclusion in SQL** — the inbox returns `state:'archived'` rather than filtering it server-side (needs the read-state join; would complicate paging). Revisit with an inbox view if paging over large archived sets ever matters.
 - **Upsert** — the scoped accessor exposes none, so read-state uses update-then-insert. Fine at this scale; add `upsert` to `TenantDb` if a second consumer needs it.
+
+---
+
+## 14. Delivery & Web Push — the design (2026-08-18)
+
+The foundation shipped the **model** and one **channel: in-app pull**. This
+section is the honest answer to the question the rebuild kept deferring —
+*"since this is a web app, how do notifications actually reach a user?"* — and
+it corrects a framing error in §8.
+
+### 14.1 The gap, stated plainly
+
+Delivery today is SWR pull: `useNotifications.ts` polls every ~90s
+(`REFRESH_MS`) plus revalidate-on-focus. That means a notification reaches a
+user **only while they have the app tab open**, and even then up to ~90s late.
+**Close the tab and nothing arrives.** For the highest-signal event this app
+has — *payment recorded*, to the owner — "you'll see it next time you open the
+tab" is not delivery. Pull is a freshness layer, not a delivery channel.
+
+### 14.2 The three web delivery layers
+
+| Layer | Reaches a user who… | Blocked on Phase 2? | Verdict |
+|---|---|---|---|
+| **Pull** (today) | has the tab open, ~90s lag | No | Keep as the in-app freshness layer. |
+| **Realtime** (Supabase realtime / SSE / WebSocket) | has the tab open, instant | **Supabase realtime: yes** (browser has no Clerk→Supabase session until the RLS flip). SSE/WS from a Clerk-authed Next route: no — but long-lived connections are awkward on Vercel serverless. | **Skip as a stopgap.** It only upgrades the *already-open* case (90s → instant); it does not reach a user who isn't looking. Low value for the cost. |
+| **Web Push** (Push API + Service Worker) | **has the app closed** | **No** | **This is the real answer.** Connectionless, closed-tab, server-driven. |
+
+### 14.3 The correction: Web Push is independent of Phase 2
+
+§4/§8/§10 tie the delivery story to Phase 2 ("swap pull → realtime at the RLS
+flip"). That is true **only for client-side Supabase realtime**, which needs a
+browser Supabase session (third-party auth + the RLS flip). **Web Push does not
+touch any of that.** Its send path is entirely server-side: a Clerk-authed Next
+route reads subscriptions via the service-role `TenantDb` and POSTs to the push
+endpoints with the `web-push` library. It works with **today's** auth model.
+Push was deferred *by choice* in the foundation PR, not *by dependency* — the
+"defer indefinitely" wording in §8/§9.4 undersold it. It is buildable now.
+
+Corollary: the phasing in §10 should read **"pull now → add Web Push (any
+time, no RLS dependency) → optional in-app realtime at/after Phase 2"**, not
+"pull until Phase 2 then realtime." Realtime is the least urgent of the three.
+
+### 14.4 The one caveat that shapes everything: iOS
+
+Web Push on iPhone works **only for an app added to the Home Screen** (an
+installed PWA, iOS 16.4+). A plain Safari **tab gets no push at all.** There is
+**no web manifest in the repo today**, so the app isn't installable and iOS push
+is currently impossible until that's added. Desktop Chrome/Edge/Firefox and
+Android Chrome need no install step.
+
+For a shop owner on an iPhone this is real adoption friction ("Add to Home
+Screen" first). The product fork:
+- **Accept install-to-get-push on iOS** (ship a manifest + an install nudge), or
+- **Add a non-web fallback** (email, later SMS) for the single highest-signal
+  event — *payment recorded, to the owner* — so the money signal lands even
+  without an installed PWA. Email is its own channel and its own track; naming
+  it here so the iOS gap is a known, decided thing, not a silent hole.
+
+This is an **owner decision**, recorded as open at the end of this section.
+
+### 14.5 What building Web Push takes (all additive; the seams already exist)
+
+The foundation was built "design wide, deliver narrow" (§12): `category`,
+`priority`, channel-as-enum, and the `notify()` workflow seam are already
+present, so this slots in **without touching the event sites**.
+
+1. **`v2.push_subscriptions`** — one row per device/endpoint: `id`,
+   `organization_id` (tenant boundary, reached via `TenantDb`), `user_id`,
+   `endpoint` (unique), `p256dh`, `auth`, `user_agent`, `created_at`,
+   `last_used_at`. RLS **enabled, deny-by-default** like the rest of v2 (§13).
+   → this is the **DB ask** (see `DB_ASKS.md`).
+2. **VAPID keypair** — `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (client) +
+   `VAPID_PRIVATE_KEY` (server-only), plus the `web-push` dependency.
+3. **A real service worker** (`public/sw.js`) with `push` and
+   `notificationclick` handlers — the click reuses `notificationOrderId()`
+   (`present.ts`) to focus/open the deep-linked order, the same target the
+   in-app row already routes to. Plus a **web manifest** for installability
+   (also unlocks iOS, §14.4).
+4. **A subscribe flow gated behind an explicit user action** — register the SW,
+   `Notification.requestPermission()` on a deliberate tap (never the old
+   auto-prompt dark pattern), `pushManager.subscribe({ applicationServerKey })`,
+   POST the subscription to `POST /api/notifications/push/subscribe`
+   (Clerk-authed, writes via `TenantDb`). An unsubscribe/prune route mirrors it.
+5. **A `deliver()` step after `notify()`** — resolve recipients from the
+   activity's audience (org members for `audience_scope='org'`; the listed
+   users for `'users'`), look up their `push_subscriptions`, and
+   `web-push.sendNotification()` to each. Non-fatal, exactly like the activity
+   insert. Prune endpoints that return `404`/`410` (expired). This is the
+   channel step of the four-layer model (§12.2) — it plugs into the existing
+   seam, so the order/payment/webhook call sites don't change.
+6. **Per-user preferences finally earn their place** — push is the first channel
+   worth muting per category (§12.6). The `category` column is already there; a
+   `notification_preferences`-style per-user matrix (per-user, not on
+   `organizations.settings`, §9.5) becomes real work only when this channel
+   ships.
+
+None of the above blocks on Phase 2, and none of it touches money functions.
+
+### 14.6 Recommended shape
+
+- **Keep pull** as the in-app freshness layer (unchanged).
+- **Build Web Push** as its own PR/track: the `push_subscriptions` DB ask, VAPID
+  + `web-push`, SW + manifest, the gated subscribe flow, and the `deliver()`
+  seam. Scope the first cut to **`payment.recorded` + `order.status_changed`**
+  (the two a closed-tab user actually wants), widening to the rest for free once
+  the channel exists.
+- **Treat in-app realtime as optional** and later — it's the smallest win.
+- **Decide the iOS path** (§14.4) before building, since it changes whether a
+  manifest + install nudge (and possibly an email fallback) are in scope.
+
+### 14.7 Open decisions for the owner
+
+1. **iOS delivery** — accept "install the PWA to get push on iPhone," or add an
+   **email fallback** for the money signal? (§14.4)
+2. **Build trigger** — start the Web Push track now, or after the current
+   inbox/UX PRs settle? (Independent of Phase 2 either way.)
+3. **First-cut event scope** — push only `payment.recorded` (+ maybe
+   `order.status_changed`), or all four from day one?
