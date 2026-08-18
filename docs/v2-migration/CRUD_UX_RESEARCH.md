@@ -151,6 +151,30 @@ follow-ups it surfaces are both already on the radar: (a) a later "you've typed
 this one-off N times — catalogue it?" nudge to protect product analytics, and
 (b) keep the quick-create client sheet short enough to stay a sheet.
 
+## 8. Applying the lens to the sibling surfaces (documents, clients, products)
+
+The create-*related-record*-inline shape only really occurs on the order
+compose flow — an invoice/document is **issued from an order** and derives its
+client and lines, so it has no inline-create gap of its own (the one create-in-
+context case, consolidating several orders into one invoice, is F2 and unbuilt).
+What *does* generalise is the **empty-state rule from §5**: teachable moment +
+a direct path to the next action.
+
+Audited all three list surfaces against it:
+
+- **Clients** and **Products** first-run empty states already do it right —
+  explanatory copy ("Everyone you take orders for lives here — add the first
+  one") **plus an inline primary CTA** (New client / New product).
+- **Documents** was the odd one out: it explained provenance ("Quotations and
+  invoices appear here once you issue them from an order") but carried **no
+  inline action** — the only create path sat up in the toolbar. Fixed to carry a
+  **New order** button in the first-run empty state, matching its siblings. The
+  action is deliberately *New order*, not a phantom "New document": documents
+  have no create of their own, and a button that dead-ends is worse than none
+  (the same "don't draw an unwired signifier" rule the Issue sheet follows for
+  the Receipt chip). Hidden while searching, where the resolution is to change
+  the query, not to create.
+
 ---
 
 ## Sources
