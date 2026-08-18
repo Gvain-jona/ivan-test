@@ -11,6 +11,7 @@ import { NotificationProvider } from '@/components/ui/notification';
 import { SWRProvider } from './providers/SWRProvider';
 // GlobalDropdownCacheProvider removed - using SWR for data fetching
 import { CacheCleanupInitializer } from '@/components/CacheCleanupInitializer';
+import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar';
 import { LoadingProvider } from '@/components/loading/LoadingProvider';
 import { SonnerToastProvider } from './providers/SonnerToastProvider';
 import { AnnouncementProvider } from './context/announcement-context';
@@ -27,6 +28,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <>
       {/* Initialize cache cleanup */}
       <CacheCleanupInitializer />
+      {/* Register the PWA service worker (installable shell + push foundation) */}
+      <ServiceWorkerRegistrar />
       {children}
       {/* Add Sonner Toast Provider for toast notifications */}
       <SonnerToastProvider />
