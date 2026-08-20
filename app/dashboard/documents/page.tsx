@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSheets } from '@/context/sheet-host';
 import { Card, Divided, Section } from '@/components/patterns/screen';
+import { ListError } from '@/components/patterns/ListError';
 import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useDocumentCounts, useDocumentList } from '@/hooks/documents/useDocuments';
 import DocumentRow from '@/components/documents/DocumentRow';
@@ -54,7 +55,7 @@ export default function DocumentsPage() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const activeTab = TABS.find(t => t.key === tab) ?? TABS[0];
 
-  const { documents, total, isLoading } = useDocumentList({
+  const { documents, total, isLoading, error, mutate } = useDocumentList({
     document_type: activeTab.type,
     search: debouncedSearch || undefined,
     paid: '1',
@@ -119,7 +120,9 @@ export default function DocumentsPage() {
       </div>
 
       <div className="mt-3.5">
-        {isLoading && documents.length === 0 ? (
+        {error && documents.length === 0 ? (
+          <ListError noun="documents" onRetry={() => mutate()} />
+        ) : isLoading && documents.length === 0 ? (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-16 animate-pulse rounded-2xl border border-border bg-card" />

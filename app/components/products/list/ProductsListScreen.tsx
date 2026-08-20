@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Boxes, Package, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
+import { ListError } from '@/components/patterns/ListError';
 import { QuickAction, Chip } from '@/components/patterns/list';
 import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
@@ -94,7 +95,9 @@ export default function ProductsListScreen() {
       )}
 
       <div className="mt-3.5">
-        {list.isLoading && list.products.length === 0 ? (
+        {list.error && list.products.length === 0 ? (
+          <ListError noun="products" onRetry={() => list.refresh()} />
+        ) : list.isLoading && list.products.length === 0 ? (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-16 animate-pulse rounded-2xl border border-border bg-card" />
