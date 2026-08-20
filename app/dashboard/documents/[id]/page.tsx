@@ -7,6 +7,7 @@ import { PLATFORM_API, apiFetcher } from '@/lib/api/client';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { ScreenHeader, ScreenFooter } from '@/components/patterns/screen';
 import DocumentPaper from '@/components/documents/DocumentPaper';
+import DocumentActions from '@/components/documents/DocumentActions';
 import { readSnapshot } from '@/lib/documents/snapshot';
 import { describeDocumentState } from '@/lib/documents/document-state';
 import { useDeferredLoading } from '@/hooks/useDeferredLoading';
@@ -83,7 +84,11 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
       <div className="print:hidden">
-        <ScreenHeader title={snapshot.documentNumber} onBack={() => router.back()} />
+        <ScreenHeader
+          title={snapshot.documentNumber}
+          onBack={() => router.back()}
+          action={<DocumentActions document={document} />}
+        />
       </div>
 
       <div className="flex-1 p-4 print:p-0">

@@ -175,6 +175,13 @@ export function useDocumentMutations() {
         input,
       );
       await globalMutate(keysUnder(PLATFORM_API.DOCUMENTS));
+      // A status change ripples into the orders surface: voiding an invoice
+      // clears the order's live invoice (v2.order_live_invoice excludes 'void'),
+      // so the hub can offer to reissue and the list's issued state is stale
+      // until this refetches.
+      if (input.status !== undefined) {
+        await globalMutate(keysUnder(PLATFORM_API.ORDERS));
+      }
       return document;
     },
     [],
