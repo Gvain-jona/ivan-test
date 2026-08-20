@@ -17,6 +17,8 @@ interface ClientFormSheetProps {
   onOpenChange: (open: boolean) => void;
   /** null = create; a client = edit */
   client: Client | null;
+  /** Prefills the name when creating — the typed query from an inline "New client". */
+  initialName?: string;
   /** Receives the saved client — lets the order form select it inline. */
   onSaved: (client: Client) => void;
 }
@@ -31,6 +33,7 @@ export default function ClientFormSheet({
   open,
   onOpenChange,
   client,
+  initialName,
   onSaved,
 }: ClientFormSheetProps) {
   const { toast } = useToast();
@@ -43,9 +46,11 @@ export default function ClientFormSheet({
 
   useEffect(() => {
     if (!open) return;
-    setName(client?.name ?? '');
+    // Editing shows the client's name; creating starts from the typed query
+    // when the sheet was opened from an inline "New client", else blank.
+    setName(client?.name ?? initialName ?? '');
     setCustomData((client?.custom_data as Record<string, unknown>) ?? {});
-  }, [open, client]);
+  }, [open, client, initialName]);
 
   const handleSubmit = async () => {
     if (!name.trim() || submitting) return;

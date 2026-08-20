@@ -158,7 +158,7 @@ export default function ClientsListScreen() {
             {list.isEmptyOrg && (
               <button
                 type="button"
-                onClick={openCreateClient}
+                onClick={() => openCreateClient()}
                 className="mt-4 inline-flex items-center gap-[7px] rounded-full bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <UserPlus className="h-4 w-4" strokeWidth={2} />

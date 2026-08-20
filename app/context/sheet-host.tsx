@@ -28,8 +28,11 @@ import type { Product } from '@/hooks/products/useProducts';
  * new order" / "open this order", and keeping them here meant the callers
  * never had to know the destination changed.
  */
+/** Optional prefill + select-back for an inline "New client". */
+type CreateClientOptions = { name?: string; onSaved?: (client: Client) => void };
+
 type SheetState =
-  | { type: 'create-client' }
+  | { type: 'create-client'; options?: CreateClientOptions }
   | { type: 'edit-client'; client: Client }
   | { type: 'create-product' }
   | { type: 'edit-product'; product: Product }
@@ -40,7 +43,12 @@ interface SheetHostApi {
   openCreateOrder: () => void;
   /** Navigates to B4 (`/dashboard/orders/[id]`); not a sheet. */
   openOrder: (id: string) => void;
-  openCreateClient: () => void;
+  /**
+   * Opens the client create form. `options.name` prefills it (the typed query
+   * from an inline "New client") and `options.onSaved` receives the created
+   * client — so the order form can select the walk-in it just created.
+   */
+  openCreateClient: (options?: CreateClientOptions) => void;
   /** Opens the client form in edit mode; the record's edits revalidate its keys. */
   openEditClient: (client: Client) => void;
   openCreateProduct: () => void;
@@ -87,7 +95,7 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
   const api: SheetHostApi = {
     openCreateOrder: () => router.push('/dashboard/orders/new'),
     openOrder: (id) => router.push(`/dashboard/orders/${id}`),
-    openCreateClient: () => open({ type: 'create-client' }),
+    openCreateClient: (options) => open({ type: 'create-client', options }),
     openEditClient: (client) => open({ type: 'edit-client', client }),
     openCreateProduct: () => open({ type: 'create-product' }),
     openEditProduct: (product) => open({ type: 'edit-product', product }),
@@ -106,7 +114,11 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           open
           onOpenChange={(o) => !o && close()}
           client={null}
-          onSaved={close}
+          initialName={sheet.options?.name}
+          onSaved={(client) => {
+            sheet.options?.onSaved?.(client);
+            close();
+          }}
         />
       )}
 

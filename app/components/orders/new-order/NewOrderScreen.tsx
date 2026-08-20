@@ -64,10 +64,15 @@ export default function NewOrderScreen() {
           clientName={draft.client.name}
           onSelect={client => draft.setClient(client)}
           onClear={() => draft.setClient(null)}
-          // The frame offers `New client "kamp"` inline. Creation is a sheet
-          // the host already owns; the typed name can't be handed to it yet,
-          // so it opens empty rather than pretending to carry it over.
-          onCreate={() => openCreateClient()}
+          // The frame's inline `New client "kamp"` — opens the create sheet with
+          // the typed name prefilled, and selects the created client back into
+          // the order so the walk-in is attached without a second search.
+          onCreate={name =>
+            openCreateClient({
+              name,
+              onSaved: client => draft.setClient({ id: client.id, name: client.name }),
+            })
+          }
         />
 
         {statuses.length > 0 && (
