@@ -18,7 +18,7 @@ import type { CustomDataValue } from '@/lib/fields/visibility';
  */
 export function useOrderHub(orderId: string) {
   const { toast } = useToast();
-  const { order, payments, isLoading, mutate } = useOrder(orderId);
+  const { order, payments, isLoading, error, mutate } = useOrder(orderId);
   const { updateOrder, addPayment, addItem, updateItem, removeItem } = useOrderMutations();
   const { notes, addNote, mutate: mutateNotes } = useNotes('order', orderId);
   const { documents, issueDocument, mutate: mutateDocuments } = useDocuments('order', orderId);
@@ -109,6 +109,9 @@ export function useOrderHub(orderId: string) {
     paid: Number(order?.amount_paid ?? 0),
     balance: Number(order?.balance ?? 0),
     isLoading,
+    error,
+    /** Re-run the order fetch — used by the screen's error-state retry. */
+    refresh: mutate,
     busy,
 
     setStatus: (status: string) =>

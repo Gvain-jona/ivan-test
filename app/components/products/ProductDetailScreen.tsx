@@ -12,6 +12,7 @@ import { useProductMutations } from '@/hooks/products/useProducts';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, Divided, ScreenFooter, ScreenHeader } from '@/components/patterns/screen';
 import { RecordActions } from '@/components/patterns/RecordActions';
+import { RecordError } from '@/components/patterns/RecordError';
 import { ValueRow } from '@/components/patterns/settings-rows';
 import {
   SummaryPanel,
@@ -61,7 +62,7 @@ export default function ProductDetailScreen({ id }: { id: string }) {
   const { archiveProduct } = useProductMutations();
   const { fieldDefinitions } = useFieldDefinitions('product', { status: 'active' });
 
-  const { data, isLoading } = useSWR<ProductResponse>(
+  const { data, error, isLoading, mutate } = useSWR<ProductResponse>(
     `${PLATFORM_API.PRODUCTS}/${id}`,
     apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
@@ -69,6 +70,12 @@ export default function ProductDetailScreen({ id }: { id: string }) {
 
   const loading = isLoading || !data;
   const showSkeleton = useDeferredLoading(loading);
+
+  if (error && !data) {
+    return (
+      <RecordError noun="product" error={error} onBack={() => router.back()} onRetry={() => mutate()} />
+    );
+  }
   if (loading) {
     return showSkeleton ? <RecordSkeleton /> : null;
   }

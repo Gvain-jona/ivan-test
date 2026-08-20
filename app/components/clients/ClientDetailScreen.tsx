@@ -13,6 +13,7 @@ import { useClientMutations } from '@/hooks/clients/useClients';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, Divided, ScreenFooter, ScreenHeader } from '@/components/patterns/screen';
 import { RecordActions } from '@/components/patterns/RecordActions';
+import { RecordError } from '@/components/patterns/RecordError';
 import {
   SummaryPanel,
   SummaryRow,
@@ -47,7 +48,7 @@ export default function ClientDetailScreen({ id }: { id: string }) {
   const { archiveClient } = useClientMutations();
   const { statuses } = useOrderStatuses();
 
-  const { data, isLoading } = useSWR<ClientResponse>(
+  const { data, error, isLoading, mutate } = useSWR<ClientResponse>(
     `${PLATFORM_API.CLIENTS}/${id}`,
     apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
@@ -61,6 +62,12 @@ export default function ClientDetailScreen({ id }: { id: string }) {
 
   const loading = isLoading || !data;
   const showSkeleton = useDeferredLoading(loading);
+
+  if (error && !data) {
+    return (
+      <RecordError noun="client" error={error} onBack={() => router.back()} onRetry={() => mutate()} />
+    );
+  }
   if (loading) {
     return showSkeleton ? <RecordSkeleton /> : null;
   }

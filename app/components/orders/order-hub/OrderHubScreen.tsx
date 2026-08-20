@@ -12,6 +12,7 @@ import { ScreenFields } from '@/components/fields/ScreenFields';
 import { EmptyLine, methodLabel, NoteCard } from '@/components/orders/new-order/parts';
 import { useDeferredLoading } from '@/hooks/useDeferredLoading';
 import { RecordSkeleton } from '@/components/skeletons';
+import { RecordError } from '@/components/patterns/RecordError';
 import { useOrderHub } from './useOrderHub';
 import { HubHeader } from './HubHeader';
 import { HubSheets, type OpenSheet } from './HubSheets';
@@ -49,6 +50,16 @@ export default function OrderHubScreen({ id }: { id: string }) {
   // Nothing for the first ~200ms (warm cache resolves inside it), then the
   // record-shaped skeleton if the wait is real.
   const showSkeleton = useDeferredLoading(hub.isLoading || !hub.order);
+  if (hub.error && !hub.order) {
+    return (
+      <RecordError
+        noun="order"
+        error={hub.error}
+        onBack={() => router.back()}
+        onRetry={() => hub.refresh()}
+      />
+    );
+  }
   if (hub.isLoading || !hub.order) {
     return showSkeleton ? <RecordSkeleton /> : null;
   }

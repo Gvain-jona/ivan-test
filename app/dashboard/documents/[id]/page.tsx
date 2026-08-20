@@ -6,6 +6,7 @@ import useSWR from 'swr';
 import { PLATFORM_API, apiFetcher } from '@/lib/api/client';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { ScreenHeader, ScreenFooter } from '@/components/patterns/screen';
+import { RecordError } from '@/components/patterns/RecordError';
 import DocumentPaper from '@/components/documents/DocumentPaper';
 import DocumentActions from '@/components/documents/DocumentActions';
 import { readSnapshot } from '@/lib/documents/snapshot';
@@ -31,7 +32,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router = useRouter();
 
-  const { data, isLoading } = useSWR<{ document: DocumentListRecord }>(
+  const { data, error, isLoading, mutate } = useSWR<{ document: DocumentListRecord }>(
     `${PLATFORM_API.DOCUMENTS}/${id}`,
     apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
@@ -69,6 +70,12 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   // real shape; the deferred guard just keeps it from flashing on a warm cache.
   const loading = isLoading || !document || !snapshot;
   const showSkeleton = useDeferredLoading(loading);
+
+  if (error && !document) {
+    return (
+      <RecordError noun="document" error={error} onBack={() => router.back()} onRetry={() => mutate()} />
+    );
+  }
   if (loading) {
     return showSkeleton ? (
       <div className="mx-auto w-full max-w-lg px-4 py-6">
