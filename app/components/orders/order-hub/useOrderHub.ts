@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrder, useOrderMutations } from '@/hooks/orders/useOrders';
 import { useNotes } from '@/hooks/notes/useNotes';
@@ -24,6 +24,15 @@ export function useOrderHub(orderId: string) {
   const { documents, issueDocument, mutate: mutateDocuments } = useDocuments('order', orderId);
 
   const [busy, setBusy] = useState(false);
+  // A synchronous re-entrancy latch. `busy` (React state) only latches after a
+  // re-render, so two events in the same tick — a double-tap, a stalled main
+  // thread — both read the old `false` and both fire the write. On the money
+  // paths (payment, issue-document) that means a duplicate charge or a second
+  // immutable invoice. The ref flips before any await, so the second caller is
+  // rejected outright, and it also serializes the hub's writes: while one is in
+  // flight the rest are dropped rather than interleaved (out-of-order refetches
+  // were how a stale status could win).
+  const inFlight = useRef(false);
 
   /**
    * One wrapper for every write: the DB is the authority on what the order now
@@ -33,6 +42,8 @@ export function useOrderHub(orderId: string) {
    */
   const run = useCallback(
     async (action: () => Promise<unknown>, failure: string) => {
+      if (inFlight.current) return false;
+      inFlight.current = true;
       setBusy(true);
       try {
         await action();
@@ -46,6 +57,7 @@ export function useOrderHub(orderId: string) {
         });
         return false;
       } finally {
+        inFlight.current = false;
         setBusy(false);
       }
     },

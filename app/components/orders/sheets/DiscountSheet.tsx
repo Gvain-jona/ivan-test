@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ChoiceChip } from '@/components/patterns/controls';
@@ -15,7 +15,11 @@ interface DiscountSheetProps {
   /** What the lines come to — what a percentage applies to. */
   subtotal: number;
   discount: DraftDiscount;
-  onApply: (discount: DraftDiscount) => void;
+  /**
+   * Synchronous (draft) or async (hub write, returning success). Closes on
+   * anything but an explicit `false`, so a rejected write keeps the sheet open.
+   */
+  onApply: (discount: DraftDiscount) => void | boolean | Promise<void | boolean>;
 }
 
 /**
@@ -42,6 +46,8 @@ export default function DiscountSheet({
 
   const [type, setType] = useState<'amount' | 'percent'>(discount.type ?? 'amount');
   const [value, setValue] = useState(discount.value ? String(discount.value) : '');
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -55,6 +61,19 @@ export default function DiscountSheet({
   const amount = discountAmount(subtotal, next);
   const overPercent = type === 'percent' && numeric > 100;
 
+  const submit = async () => {
+    if (overPercent || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const result = await onApply(next);
+      if (result !== false) onOpenChange(false);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
   return (
     <AppSheet
       open={open}
@@ -67,11 +86,9 @@ export default function DiscountSheet({
           figureLabel="NEW TOTAL"
           figureValue={fmt(subtotal - amount)}
           actionLabel="Apply"
-          onAction={() => {
-            onApply(next);
-            onOpenChange(false);
-          }}
-          disabled={overPercent}
+          onAction={submit}
+          disabled={overPercent || submitting}
+          busy={submitting}
         />
       }
     >

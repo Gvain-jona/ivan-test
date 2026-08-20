@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ScreenFields } from '@/components/fields/ScreenFields';
@@ -11,7 +11,12 @@ import type { DraftNote } from '@/lib/orders/draft';
 interface AddNoteSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (note: Omit<DraftNote, 'key'>) => void;
+  /**
+   * Synchronous (draft) or async (hub write, returning success). The sheet
+   * closes on anything but an explicit `false`, keeping the typed note on
+   * screen when a write fails.
+   */
+  onAdd: (note: Omit<DraftNote, 'key'>) => void | boolean | Promise<void | boolean>;
 }
 
 /**
@@ -30,6 +35,8 @@ export default function AddNoteSheet({ open, onOpenChange, onAdd }: AddNoteSheet
   const { fieldDefinitions } = useFieldDefinitions('note');
   const [content, setContent] = useState('');
   const [customData, setCustomData] = useState<CustomDataValue>({});
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!open) {
@@ -40,6 +47,22 @@ export default function AddNoteSheet({ open, onOpenChange, onAdd }: AddNoteSheet
 
   const trimmed = content.trim();
 
+  const submit = async () => {
+    if (trimmed === '' || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const result = await onAdd({
+        content: trimmed,
+        ...(Object.keys(customData).length > 0 ? { custom_data: customData } : {}),
+      });
+      if (result !== false) onOpenChange(false);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
   return (
     <AppSheet
       open={open}
@@ -49,14 +72,9 @@ export default function AddNoteSheet({ open, onOpenChange, onAdd }: AddNoteSheet
       footer={
         <FooterBar
           actionLabel="Add note"
-          onAction={() => {
-            onAdd({
-              content: trimmed,
-              ...(Object.keys(customData).length > 0 ? { custom_data: customData } : {}),
-            });
-            onOpenChange(false);
-          }}
-          disabled={trimmed === ''}
+          onAction={submit}
+          disabled={trimmed === '' || submitting}
+          busy={submitting}
         />
       }
     >
