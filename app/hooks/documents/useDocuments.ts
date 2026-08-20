@@ -79,6 +79,10 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
         { ...input, entity_type: 'order', entity_ids: [entityId] },
       );
       await mutate();
+      // The org-wide documents list (/dashboard/documents) and its header counts
+      // are a different key than this order's documents — invalidate them too so
+      // a newly issued document appears there without a manual refresh.
+      await globalMutate(keysUnder(PLATFORM_API.DOCUMENTS));
       return document;
     },
     [entityType, entityId, mutate],

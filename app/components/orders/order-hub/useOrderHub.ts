@@ -41,13 +41,18 @@ export function useOrderHub(orderId: string) {
    * be read by the user).
    */
   const run = useCallback(
-    async (action: () => Promise<unknown>, failure: string) => {
+    async (action: () => Promise<unknown>, failure: string, success?: string) => {
       if (inFlight.current) return false;
       inFlight.current = true;
       setBusy(true);
       try {
         await action();
         await mutate();
+        // Success is confirmed only where the user needs it — money changing
+        // hands (payment) and an irreversible act (issuing a document). Status
+        // and field edits reflect in the figures on their own; a toast on every
+        // write would be noise.
+        if (success) toast({ title: success });
         return true;
       } catch (error) {
         toast({
@@ -160,7 +165,7 @@ export function useOrderHub(orderId: string) {
       run(() => removeItem(orderId, itemId), 'Could not remove the item'),
 
     addPayment: (input: Parameters<typeof addPayment>[1]) =>
-      run(() => addPayment(orderId, input), 'Could not record the payment'),
+      run(() => addPayment(orderId, input), 'Could not record the payment', 'Payment recorded'),
 
     addNote: (content: string, custom_data?: CustomDataValue) =>
       run(async () => {
@@ -169,9 +174,13 @@ export function useOrderHub(orderId: string) {
       }, 'Could not save the note'),
 
     issue: (input: { document_type: DocumentType; terms_days?: number }) =>
-      run(async () => {
-        await issueDocument(input);
-        await mutateDocuments();
-      }, 'Could not issue the document'),
+      run(
+        async () => {
+          await issueDocument(input);
+          await mutateDocuments();
+        },
+        'Could not issue the document',
+        'Document issued',
+      ),
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,10 @@ export default function ClientFormSheet({
   const [name, setName] = useState('');
   const [customData, setCustomData] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous latch: the `submitting` state disables the button a render
+  // later, so a same-tick double fire (double tap, or Enter + click) would
+  // otherwise create two clients.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -53,7 +57,8 @@ export default function ClientFormSheet({
   }, [open, client, initialName]);
 
   const handleSubmit = async () => {
-    if (!name.trim() || submitting) return;
+    if (!name.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const input = {
@@ -73,6 +78,7 @@ export default function ClientFormSheet({
         variant: 'destructive',
       });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

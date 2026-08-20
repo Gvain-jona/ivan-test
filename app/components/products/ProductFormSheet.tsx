@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,9 @@ export default function ProductFormSheet({
   const [status, setStatus] = useState<'active' | 'draft' | 'archived'>('active');
   const [customData, setCustomData] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous latch — see ClientFormSheet: state disables the button a render
+  // too late to stop a same-tick double submit.
+  const submittingRef = useRef(false);
 
   // Sync form state when the sheet opens for a different product
   useEffect(() => {
@@ -59,7 +62,8 @@ export default function ProductFormSheet({
   }, [open, product]);
 
   const handleSubmit = async () => {
-    if (!name.trim() || submitting) return;
+    if (!name.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const input = {
@@ -84,6 +88,7 @@ export default function ProductFormSheet({
         variant: 'destructive',
       });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
