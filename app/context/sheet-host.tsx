@@ -11,6 +11,8 @@ import {
 import { useRouter } from 'next/navigation';
 import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
+import type { Client } from '@/hooks/clients/useClients';
+import type { Product } from '@/hooks/products/useProducts';
 
 /**
  * The single door for opening overlays (see DESIGN_PHILOSOPHY.md → "Overlays &
@@ -28,7 +30,9 @@ import ProductFormSheet from '@/components/products/ProductFormSheet';
  */
 type SheetState =
   | { type: 'create-client' }
+  | { type: 'edit-client'; client: Client }
   | { type: 'create-product' }
+  | { type: 'edit-product'; product: Product }
   | null;
 
 interface SheetHostApi {
@@ -37,7 +41,11 @@ interface SheetHostApi {
   /** Navigates to B4 (`/dashboard/orders/[id]`); not a sheet. */
   openOrder: (id: string) => void;
   openCreateClient: () => void;
+  /** Opens the client form in edit mode; the record's edits revalidate its keys. */
+  openEditClient: (client: Client) => void;
   openCreateProduct: () => void;
+  /** Opens the product form in edit mode. */
+  openEditProduct: (product: Product) => void;
   close: () => void;
 }
 
@@ -80,7 +88,9 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
     openCreateOrder: () => router.push('/dashboard/orders/new'),
     openOrder: (id) => router.push(`/dashboard/orders/${id}`),
     openCreateClient: () => open({ type: 'create-client' }),
+    openEditClient: (client) => open({ type: 'edit-client', client }),
     openCreateProduct: () => open({ type: 'create-product' }),
+    openEditProduct: (product) => open({ type: 'edit-product', product }),
     close,
   };
 
@@ -100,11 +110,29 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
         />
       )}
 
+      {sheet?.type === 'edit-client' && (
+        <ClientFormSheet
+          open
+          onOpenChange={(o) => !o && close()}
+          client={sheet.client}
+          onSaved={close}
+        />
+      )}
+
       {sheet?.type === 'create-product' && (
         <ProductFormSheet
           open
           onOpenChange={(o) => !o && close()}
           product={null}
+          onSaved={close}
+        />
+      )}
+
+      {sheet?.type === 'edit-product' && (
+        <ProductFormSheet
+          open
+          onOpenChange={(o) => !o && close()}
+          product={sheet.product}
           onSaved={close}
         />
       )}

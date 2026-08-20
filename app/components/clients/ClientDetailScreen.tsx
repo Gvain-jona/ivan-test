@@ -9,7 +9,10 @@ import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { useOrderStatuses } from '@/hooks/orders/useOrderStatuses';
 import { useSheets } from '@/context/sheet-host';
+import { useClientMutations } from '@/hooks/clients/useClients';
+import { useToast } from '@/components/ui/use-toast';
 import { Card, Divided, ScreenFooter, ScreenHeader } from '@/components/patterns/screen';
+import { RecordActions } from '@/components/patterns/RecordActions';
 import {
   SummaryPanel,
   SummaryRow,
@@ -39,7 +42,9 @@ interface ClientResponse {
 export default function ClientDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const fmt = useFormatCurrency();
-  const { openCreateOrder } = useSheets();
+  const { toast } = useToast();
+  const { openCreateOrder, openEditClient } = useSheets();
+  const { archiveClient } = useClientMutations();
   const { statuses } = useOrderStatuses();
 
   const { data, isLoading } = useSWR<ClientResponse>(
@@ -77,7 +82,30 @@ export default function ClientDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      <ScreenHeader title={client.name} onBack={() => router.back()} />
+      <ScreenHeader
+        title={client.name}
+        onBack={() => router.back()}
+        action={
+          <RecordActions
+            noun="client"
+            name={client.name}
+            onEdit={() => openEditClient(client)}
+            onArchive={async () => {
+              try {
+                await archiveClient(client.id);
+                toast({ title: 'Client archived', description: client.name });
+                router.back();
+              } catch (error) {
+                toast({
+                  title: 'Could not archive the client',
+                  description: error instanceof Error ? error.message : 'Please try again',
+                  variant: 'destructive',
+                });
+              }
+            }}
+          />
+        }
+      />
 
       <div className="flex-1 px-4 py-[18px]">
         <div className="flex items-center gap-2">

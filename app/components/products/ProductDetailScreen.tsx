@@ -8,7 +8,10 @@ import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import { useSheets } from '@/context/sheet-host';
+import { useProductMutations } from '@/hooks/products/useProducts';
+import { useToast } from '@/components/ui/use-toast';
 import { Card, Divided, ScreenFooter, ScreenHeader } from '@/components/patterns/screen';
+import { RecordActions } from '@/components/patterns/RecordActions';
 import { ValueRow } from '@/components/patterns/settings-rows';
 import {
   SummaryPanel,
@@ -53,7 +56,9 @@ interface ProductResponse {
 export default function ProductDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const fmt = useFormatCurrency();
-  const { openCreateOrder } = useSheets();
+  const { toast } = useToast();
+  const { openCreateOrder, openEditProduct } = useSheets();
+  const { archiveProduct } = useProductMutations();
   const { fieldDefinitions } = useFieldDefinitions('product', { status: 'active' });
 
   const { data, isLoading } = useSWR<ProductResponse>(
@@ -83,7 +88,30 @@ export default function ProductDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      <ScreenHeader title={product.name} onBack={() => router.back()} />
+      <ScreenHeader
+        title={product.name}
+        onBack={() => router.back()}
+        action={
+          <RecordActions
+            noun="product"
+            name={product.name}
+            onEdit={() => openEditProduct(product)}
+            onArchive={async () => {
+              try {
+                await archiveProduct(product.id);
+                toast({ title: 'Product archived', description: product.name });
+                router.back();
+              } catch (error) {
+                toast({
+                  title: 'Could not archive the product',
+                  description: error instanceof Error ? error.message : 'Please try again',
+                  variant: 'destructive',
+                });
+              }
+            }}
+          />
+        }
+      />
 
       <div className="flex-1 px-4 py-[18px]">
         <div className="flex flex-col gap-[3px]">

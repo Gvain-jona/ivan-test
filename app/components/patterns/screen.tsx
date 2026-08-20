@@ -102,8 +102,19 @@ export function Divided({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The back-and-title bar these screens open with. */
-export function ScreenHeader({ title, onBack }: { title: string; onBack: () => void }) {
+/**
+ * The back-and-title bar these screens open with. `action` is an optional
+ * trailing slot (e.g. a record-actions menu) pinned to the right of the title.
+ */
+export function ScreenHeader({
+  title,
+  onBack,
+  action,
+}: {
+  title: string;
+  onBack: () => void;
+  action?: React.ReactNode;
+}) {
   return (
     <header className="sticky top-0 z-10 bg-card">
       <div className="flex items-center gap-3 p-4">
@@ -115,7 +126,10 @@ export function ScreenHeader({ title, onBack }: { title: string; onBack: () => v
         >
           <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} />
         </button>
-        <h1 className="text-[19px] font-semibold text-foreground">{title}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-[19px] font-semibold text-foreground">
+          {title}
+        </h1>
+        {action}
       </div>
       <RowDivider />
     </header>
