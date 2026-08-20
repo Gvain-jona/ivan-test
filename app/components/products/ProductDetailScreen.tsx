@@ -58,7 +58,7 @@ export default function ProductDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const fmt = useFormatCurrency();
   const { toast } = useToast();
-  const { openCreateOrder, openEditProduct } = useSheets();
+  const { openCreateOrder, openEditProduct, openOrder } = useSheets();
   const { archiveProduct } = useProductMutations();
   const { fieldDefinitions } = useFieldDefinitions('product', { status: 'active' });
 
@@ -176,9 +176,7 @@ export default function ProductDetailScreen({ id }: { id: string }) {
                     <button
                       key={line.id}
                       type="button"
-                      onClick={() =>
-                        line.orders && router.push(`/dashboard/orders?order=${line.orders.id}`)
-                      }
+                      onClick={() => line.orders && openOrder(line.orders.id)}
                       className="flex w-full px-3.5 py-[11px] text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     >
                       <div className="min-w-0 flex-1">

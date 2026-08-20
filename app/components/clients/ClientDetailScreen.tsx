@@ -44,7 +44,7 @@ export default function ClientDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const fmt = useFormatCurrency();
   const { toast } = useToast();
-  const { openCreateOrder, openEditClient } = useSheets();
+  const { openCreateOrder, openEditClient, openOrder } = useSheets();
   const { archiveClient } = useClientMutations();
   const { statuses } = useOrderStatuses();
 
@@ -162,7 +162,7 @@ export default function ClientDetailScreen({ id }: { id: string }) {
                       order={order}
                       statuses={statuses}
                       fmt={fmt}
-                      onOpen={() => router.push(`/dashboard/orders?order=${order.id}`)}
+                      onOpen={() => openOrder(order.id)}
                     />
                   ))}
                 </Divided>
