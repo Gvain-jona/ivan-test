@@ -11,6 +11,38 @@ counters/settings, home. **Excluded** (intentionally dark since the Clerk swap,
 per `STATE.md`): expenses, materials, accounts, invoices, analytics,
 account-rules, material-purchases.
 
+## Resolution status (branch `claude/pre-launch-endpoint-audit-ui511t`)
+
+Fixed on this branch, each with tsc clean + suite green:
+
+- **H1** money double-submit — synchronous `useRef` latch in `useOrderHub.run()`
+  and `useOrderDraft.save()`; **M2** add-sheets now await the write and stay
+  open + busy, closing only on success.
+- **H2/H3** client/product edit + archive — `openEditClient/Product` + a
+  `RecordActions` kebab (Edit + confirm-gated Archive) on the detail headers.
+- **H4** document lifecycle — `DocumentActions`: void an unpaid invoice / decide
+  a quotation, transitions verified against the live v2 functions.
+- **H5** detail-screen error state — shared `RecordError` on all four screens.
+- **M1** list error state — shared `ListError` on all four lists.
+- **M3** payment refreshes the invoice (DOCUMENTS keys invalidated).
+- **M4** inline new-client carries the typed name + selects back.
+- **M6** dead announcements provider stubbed (no per-load fetch).
+- **M7** client/product detail open orders via `openOrder()` (no list flash).
+- **M8/M9/M10** bell is a real labeled button; forms submit on Enter; stray
+  console.logs removed.
+- **M5** is largely covered for correctness by the H1 latch (overlapping hub
+  writes are dropped, not interleaved).
+- LOW bundle: order-hub success toasts, field-restore error handling, product
+  search spinner, form-submit ref latches, issue invalidates the docs list,
+  deleted dead `home/SummarySection`+`PendingInvoices`, fixed the stale
+  "Search HR tools" placeholder, registered new components.
+
+Still open (deliberately deferred): **M11** (desktop menus bypass AppSheet — a
+second overlay system, wants its own design pass), the orphan/dead legacy routes
+(delete at their module cutovers), and the remaining cosmetic LOW items
+(FooterBar consistency, chip tap-height, webhook notify dedup, order
+date/client edit after create, cancel-order confirm).
+
 ## Headline
 
 The live surface is **structurally sound**: tenancy is safe by construction
