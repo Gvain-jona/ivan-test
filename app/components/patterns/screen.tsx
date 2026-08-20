@@ -48,11 +48,14 @@ export function Section({
   label,
   actionLabel,
   onAction,
+  actionDisabled = false,
   children,
 }: {
   label: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Blocks the section action (e.g. while an order write is in flight). */
+  actionDisabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -63,7 +66,8 @@ export function Section({
           <button
             type="button"
             onClick={onAction}
-            className="rounded text-[12.5px] font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            disabled={actionDisabled}
+            className="rounded text-[12.5px] font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
           >
             {actionLabel}
           </button>

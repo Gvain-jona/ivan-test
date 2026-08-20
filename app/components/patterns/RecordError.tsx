@@ -31,9 +31,14 @@ export function RecordError({
     ? 'It may have been removed, or it isn’t in your organization.'
     : 'Something went wrong loading it. Check your connection and try again.';
 
+  // Capitalised noun as the header title, so the bar carries a real heading
+  // rather than an empty one (an empty <h1> reads as a blank heading to a
+  // screen reader).
+  const heading = noun.charAt(0).toUpperCase() + noun.slice(1);
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      <ScreenHeader title="" onBack={onBack} />
+      <ScreenHeader title={heading} onBack={onBack} />
       <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 pb-16 text-center">
         <div className="space-y-1">
           <p className="text-[15px] font-semibold text-foreground">{title}</p>

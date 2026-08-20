@@ -86,6 +86,10 @@ export default function OrderHubScreen({ id }: { id: string }) {
                   selected={order.status === option.value}
                   onSelect={() => hub.setStatus(option.value)}
                   chipClass={option.color ? optionColorClasses(option.color).chip : undefined}
+                  // A status change is a direct write; block the other chips
+                  // while it's in flight so a second tap can't be silently
+                  // dropped by the hub's re-entrancy latch.
+                  disabled={hub.busy}
                 />
               ))}
             </div>
@@ -99,7 +103,7 @@ export default function OrderHubScreen({ id }: { id: string }) {
           disabled={hub.busy}
         />
 
-        <Section label="ITEMS" actionLabel="+ Add item" onAction={() => openItem(null)}>
+        <Section label="ITEMS" actionLabel="+ Add item" onAction={() => openItem(null)} actionDisabled={hub.busy}>
           {items.length === 0 ? (
             <EmptyLine>No items on this order.</EmptyLine>
           ) : (
@@ -123,7 +127,8 @@ export default function OrderHubScreen({ id }: { id: string }) {
         <button
           type="button"
           onClick={() => setSheet('discount')}
-          className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-3.5 py-2.5 text-left"
+          disabled={hub.busy}
+          className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-3.5 py-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="text-sm font-medium text-foreground">Discount</span>
           <span className="text-[13px] font-medium text-muted-foreground">
@@ -132,7 +137,7 @@ export default function OrderHubScreen({ id }: { id: string }) {
           </span>
         </button>
 
-        <Section label="PAYMENTS" actionLabel="+ Record" onAction={() => setSheet('payment')}>
+        <Section label="PAYMENTS" actionLabel="+ Record" onAction={() => setSheet('payment')} actionDisabled={hub.busy}>
           {payments.length === 0 ? (
             <EmptyLine>Nothing paid yet.</EmptyLine>
           ) : (
@@ -152,7 +157,7 @@ export default function OrderHubScreen({ id }: { id: string }) {
           )}
         </Section>
 
-        <Section label="NOTES" actionLabel="+ Add note" onAction={() => setSheet('note')}>
+        <Section label="NOTES" actionLabel="+ Add note" onAction={() => setSheet('note')} actionDisabled={hub.busy}>
           {notes.length === 0 ? (
             <EmptyLine>No notes on this order.</EmptyLine>
           ) : (
@@ -175,7 +180,7 @@ export default function OrderHubScreen({ id }: { id: string }) {
           )}
         </Section>
 
-        <Section label="DOCUMENTS" actionLabel="+ Issue" onAction={() => setSheet('issue')}>
+        <Section label="DOCUMENTS" actionLabel="+ Issue" onAction={() => setSheet('issue')} actionDisabled={hub.busy}>
           {documents.length === 0 ? (
             <EmptyLine>Nothing issued from this order yet.</EmptyLine>
           ) : (

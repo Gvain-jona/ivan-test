@@ -98,6 +98,7 @@ export function ChoiceChip({
   icon,
   chipClass,
   size = 'md',
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
@@ -105,6 +106,8 @@ export function ChoiceChip({
   icon?: React.ReactNode;
   chipClass?: string;
   size?: 'md' | 'wide';
+  /** Blocks the tap while a write is in flight, so a second choice can't race it. */
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -112,9 +115,11 @@ export function ChoiceChip({
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
+      disabled={disabled}
       className={cn(
         'flex flex-shrink-0 items-center gap-1.5 rounded-full transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'disabled:cursor-not-allowed disabled:opacity-60',
         size === 'wide' ? 'px-3.5 py-[7px] text-xs' : 'px-[11px] py-[7px] text-[11.5px]',
         selected
           ? cn('font-semibold', chipClass ?? 'bg-foreground text-background')
