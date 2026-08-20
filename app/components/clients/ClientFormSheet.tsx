@@ -94,7 +94,16 @@ export default function ClientFormSheet({
         </div>
       }
     >
-      <div className="p-4 space-y-5">
+      {/* A real form so Enter in the Name field submits. The visible action is
+          in AppSheet's footer slot (outside this subtree), so the hidden submit
+          button is what Enter triggers; both call handleSubmit. */}
+      <form
+        className="p-4 space-y-5"
+        onSubmit={e => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         <div className="space-y-1.5 max-w-md">
           <Label htmlFor="client-name">
             Name<span className="ml-0.5 text-destructive">*</span>
@@ -108,7 +117,9 @@ export default function ClientFormSheet({
         </div>
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
-      </div>
+
+        <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
+      </form>
     </AppSheet>
   );
 }

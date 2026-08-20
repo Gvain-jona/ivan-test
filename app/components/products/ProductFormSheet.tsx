@@ -110,7 +110,16 @@ export default function ProductFormSheet({
         </div>
       }
     >
-      <div className="p-4 space-y-5">
+      {/* A real form so Enter in a text field submits; the visible action lives
+          in AppSheet's footer slot (outside this subtree), so the hidden submit
+          button below is what Enter triggers. */}
+      <form
+        className="p-4 space-y-5"
+        onSubmit={e => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="product-name">
@@ -152,7 +161,9 @@ export default function ProductFormSheet({
         </div>
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
-      </div>
+
+        <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
+      </form>
     </AppSheet>
   );
 }
