@@ -23,7 +23,10 @@ export function useProductsList() {
   const debouncedSearch = useDebounce(search, 300);
   const [category, setCategory] = useState<string | null>(null);
 
-  const { products, isLoading } = useProducts({ status: 'all', limit: ROLLUP_ROW_CAP });
+  const { products, isLoading, error, mutate } = useProducts({
+    status: 'all',
+    limit: ROLLUP_ROW_CAP,
+  });
 
   // Active product fields drive both the row subtitle (category · size ·
   // material) and the category chips.
@@ -53,6 +56,8 @@ export function useProductsList() {
     /** Active product fields, in sort order — the row composes its subtitle from these. */
     fields: fieldDefinitions,
     isLoading,
+    error,
+    refresh: mutate,
     categoryOptions,
     search,
     setSearch,

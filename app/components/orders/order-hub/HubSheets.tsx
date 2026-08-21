@@ -41,8 +41,7 @@ export function HubSheets({
         onRemove={
           editingItem
             ? async () => {
-                await hub.removeItem(editingItem.key);
-                setSheet(null);
+                if (await hub.removeItem(editingItem.key)) setSheet(null);
               }
             : undefined
         }
@@ -73,8 +72,7 @@ export function HubSheets({
         total={hub.total}
         busy={hub.busy}
         onIssue={async input => {
-          await hub.issue(input);
-          setSheet(null);
+          if (await hub.issue(input)) setSheet(null);
         }}
       />
     </>

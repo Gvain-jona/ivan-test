@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar } from '@/components/patterns/screen';
 import { useProducts, useProductMutations } from '@/hooks/products/useProducts';
@@ -15,8 +15,13 @@ import { ChosenState, SearchState, type Chosen } from './add-item-states';
 interface AddItemSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Handed the finished line; the caller decides whether it goes to a draft or the API. */
-  onAdd: (item: Omit<DraftItem, 'key'>) => void;
+  /**
+   * Handed the finished line; the caller decides whether it goes to a draft
+   * (synchronous) or the API (async, returning whether the write succeeded).
+   * The sheet closes on anything but an explicit `false`, so a rejected write
+   * keeps the composed line on screen.
+   */
+  onAdd: (item: Omit<DraftItem, 'key'>) => void | boolean | Promise<void | boolean>;
   /**
    * An existing line to correct. Present means edit: the sheet opens straight
    * into the chosen state with the line's values, rather than at the search.
@@ -58,7 +63,9 @@ export default function AddItemSheet({
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [unitPrice, setUnitPrice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  const submittingRef = useRef(false);
 
   const debounced = useDebounce(query, 250);
   const { products, isLoading } = useProducts({
@@ -164,20 +171,27 @@ export default function AddItemSheet({
     }
   };
 
-  const submit = () => {
-    if (!chosen) return;
-    onAdd({
-      product_id: chosen.product_id,
-      ...(chosen.product_name_raw ? { product_name_raw: chosen.product_name_raw } : {}),
-      name: chosen.name,
-      meta: chosen.meta,
-      quantity: quantityValue,
-      unit_price: unitPriceValue,
-      ...(Object.keys(chosen.custom_data).length > 0
-        ? { custom_data: chosen.custom_data }
-        : {}),
-    });
-    onOpenChange(false);
+  const submit = async () => {
+    if (!chosen || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const result = await onAdd({
+        product_id: chosen.product_id,
+        ...(chosen.product_name_raw ? { product_name_raw: chosen.product_name_raw } : {}),
+        name: chosen.name,
+        meta: chosen.meta,
+        quantity: quantityValue,
+        unit_price: unitPriceValue,
+        ...(Object.keys(chosen.custom_data).length > 0
+          ? { custom_data: chosen.custom_data }
+          : {}),
+      });
+      if (result !== false) onOpenChange(false);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -192,8 +206,8 @@ export default function AddItemSheet({
           figureValue={chosen ? fmt(total) : '—'}
           actionLabel={editing ? 'Save item' : 'Add item'}
           onAction={submit}
-          disabled={!valid}
-          busy={busy}
+          disabled={!valid || busy || submitting}
+          busy={busy || submitting}
         />
       }
     >

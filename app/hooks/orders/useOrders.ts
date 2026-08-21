@@ -167,6 +167,10 @@ export function useOrderMutations() {
   /**
    * Records a payment; the DB trigger recomputes the order's money
    * fields, which come back in the response for immediate cache use.
+   *
+   * Also invalidates DOCUMENTS: under SINGLE RECEIVABLE a payment on an
+   * invoiced order allocates to the *document*, so the invoice's own
+   * amount_paid/balance (document detail + list) is stale until this refetches.
    */
   const addPayment = useCallback(
     async (orderId: string, input: PaymentInput) => {
@@ -175,9 +179,10 @@ export function useOrderMutations() {
         order: Pick<OrderRow, 'id' | 'total_amount' | 'amount_paid' | 'balance' | 'payment_status'>;
       }>(`${PLATFORM_API.ORDERS}/${orderId}/payments`, 'POST', input);
       await invalidate();
+      await mutate(keysUnder(PLATFORM_API.DOCUMENTS));
       return result;
     },
-    [invalidate],
+    [invalidate, mutate],
   );
 
   /**

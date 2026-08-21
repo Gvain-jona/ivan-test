@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,9 @@ export default function ProductFormSheet({
   const [status, setStatus] = useState<'active' | 'draft' | 'archived'>('active');
   const [customData, setCustomData] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous latch — see ClientFormSheet: state disables the button a render
+  // too late to stop a same-tick double submit.
+  const submittingRef = useRef(false);
 
   // Sync form state when the sheet opens for a different product
   useEffect(() => {
@@ -59,7 +62,8 @@ export default function ProductFormSheet({
   }, [open, product]);
 
   const handleSubmit = async () => {
-    if (!name.trim() || submitting) return;
+    if (!name.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const input = {
@@ -84,6 +88,7 @@ export default function ProductFormSheet({
         variant: 'destructive',
       });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -110,7 +115,16 @@ export default function ProductFormSheet({
         </div>
       }
     >
-      <div className="p-4 space-y-5">
+      {/* A real form so Enter in a text field submits; the visible action lives
+          in AppSheet's footer slot (outside this subtree), so the hidden submit
+          button below is what Enter triggers. */}
+      <form
+        className="p-4 space-y-5"
+        onSubmit={e => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="product-name">
@@ -152,7 +166,9 @@ export default function ProductFormSheet({
         </div>
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
-      </div>
+
+        <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
+      </form>
     </AppSheet>
   );
 }

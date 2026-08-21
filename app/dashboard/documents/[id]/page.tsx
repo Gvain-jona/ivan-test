@@ -6,7 +6,9 @@ import useSWR from 'swr';
 import { PLATFORM_API, apiFetcher } from '@/lib/api/client';
 import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { ScreenHeader, ScreenFooter } from '@/components/patterns/screen';
+import { RecordError } from '@/components/patterns/RecordError';
 import DocumentPaper from '@/components/documents/DocumentPaper';
+import DocumentActions from '@/components/documents/DocumentActions';
 import { readSnapshot } from '@/lib/documents/snapshot';
 import { describeDocumentState } from '@/lib/documents/document-state';
 import { useDeferredLoading } from '@/hooks/useDeferredLoading';
@@ -30,7 +32,7 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router = useRouter();
 
-  const { data, isLoading } = useSWR<{ document: DocumentListRecord }>(
+  const { data, error, isLoading, mutate } = useSWR<{ document: DocumentListRecord }>(
     `${PLATFORM_API.DOCUMENTS}/${id}`,
     apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
@@ -68,6 +70,12 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   // real shape; the deferred guard just keeps it from flashing on a warm cache.
   const loading = isLoading || !document || !snapshot;
   const showSkeleton = useDeferredLoading(loading);
+
+  if (error && !document) {
+    return (
+      <RecordError noun="document" error={error} onBack={() => router.back()} onRetry={() => mutate()} />
+    );
+  }
   if (loading) {
     return showSkeleton ? (
       <div className="mx-auto w-full max-w-lg px-4 py-6">
@@ -83,7 +91,11 @@ export default function DocumentPage({ params }: { params: Promise<{ id: string 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
       <div className="print:hidden">
-        <ScreenHeader title={snapshot.documentNumber} onBack={() => router.back()} />
+        <ScreenHeader
+          title={snapshot.documentNumber}
+          onBack={() => router.back()}
+          action={<DocumentActions document={document} />}
+        />
       </div>
 
       <div className="flex-1 p-4 print:p-0">

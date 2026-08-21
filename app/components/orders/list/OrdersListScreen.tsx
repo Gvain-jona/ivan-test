@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FileText, Plus, Search, SlidersHorizontal, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
+import { ListError } from '@/components/patterns/ListError';
 import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
@@ -60,7 +61,7 @@ export default function OrdersListScreen() {
 
       <div className="mt-4 flex flex-wrap gap-[7px]">
         <QuickAction icon={Plus} label="New order" onClick={openCreateOrder} primary />
-        <QuickAction icon={UserPlus} label="New client" onClick={() => openCreateClient()} />
+        <QuickAction icon={UserPlus} label="New client" onClick={openCreateClient} />
         {/* "New quote" opens the same composer (B2) as New order — an order
             starts in the quotation stage, so it's a quote named for the intent
             you arrive with. Kept to match the frame and Home's quick actions,
@@ -140,7 +141,9 @@ export default function OrdersListScreen() {
       )}
 
       <div className="mt-3.5">
-        {list.isLoading && list.orders.length === 0 ? (
+        {list.error && list.orders.length === 0 ? (
+          <ListError noun="orders" onRetry={() => list.refresh()} />
+        ) : list.isLoading && list.orders.length === 0 ? (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-16 animate-pulse rounded-2xl border border-border bg-card" />

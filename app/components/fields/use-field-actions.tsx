@@ -46,8 +46,19 @@ export function useFieldActions(entity: FieldEntity) {
   };
 
   const restore = async (id: string) => {
-    await updateField(id, { status: 'active' });
-    await mutate();
+    // Called fire-and-forget (`void restore(id)`) from the archive toast's Undo
+    // and the archived-row action, so a failure here would otherwise be a silent
+    // unhandled rejection — the field just stays archived with no explanation.
+    try {
+      await updateField(id, { status: 'active' });
+      await mutate();
+    } catch (error) {
+      toast({
+        title: 'Could not restore that field',
+        description: error instanceof Error ? error.message : 'Please try again',
+        variant: 'destructive',
+      });
+    }
   };
 
   /**

@@ -102,6 +102,10 @@ export function SearchState({
           </div>
         ))}
 
+        {isLoading && trimmed !== '' && products.length === 0 && (
+          <p className="px-3.5 py-[11px] text-[13px] text-muted-foreground">Searching…</p>
+        )}
+
         {!isLoading && trimmed !== '' && (
           <>
             {products.length > 0 && <RowDivider />}

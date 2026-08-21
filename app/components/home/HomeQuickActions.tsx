@@ -21,7 +21,7 @@ export default function HomeQuickActions() {
     primary?: boolean;
   }[] = [
     { label: 'New order', icon: Plus, onClick: openCreateOrder, primary: true },
-    { label: 'New client', icon: UserPlus, onClick: () => openCreateClient() },
+    { label: 'New client', icon: UserPlus, onClick: openCreateClient },
     { label: 'New quote', icon: FileText, onClick: openCreateOrder },
   ];
 

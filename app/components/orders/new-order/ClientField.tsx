@@ -134,9 +134,11 @@ export default function ClientField({
                 <button
                   type="button"
                   onClick={() => {
+                    // Collapse the in-place search now: the created client is
+                    // selected back through onCreate's own path, and with
+                    // searching off the field then shows it as the chosen value
+                    // rather than staying in the search state over a set client.
                     onCreate(query.trim());
-                    // Collapse the search now; when the created client lands
-                    // back as `clientId`, the FieldBox renders in its place.
                     setSearching(false);
                     setQuery('');
                   }}

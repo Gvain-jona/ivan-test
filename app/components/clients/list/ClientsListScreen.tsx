@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
+import { ListError } from '@/components/patterns/ListError';
 import { Figure, QuickAction, Chip } from '@/components/patterns/list';
 import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
@@ -54,7 +55,7 @@ export default function ClientsListScreen() {
       )}
 
       <div className="mt-4 flex flex-wrap gap-[7px]">
-        <QuickAction icon={UserPlus} label="New client" onClick={() => openCreateClient()} primary />
+        <QuickAction icon={UserPlus} label="New client" onClick={openCreateClient} primary />
         <QuickAction icon={Plus} label="New order" onClick={openCreateOrder} />
       </div>
 
@@ -129,7 +130,9 @@ export default function ClientsListScreen() {
       )}
 
       <div className="mt-3.5">
-        {list.isLoading && list.clients.length === 0 ? (
+        {list.error && list.clients.length === 0 ? (
+          <ListError noun="clients" onRetry={() => list.refresh()} />
+        ) : list.isLoading && list.clients.length === 0 ? (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-16 animate-pulse rounded-2xl border border-border bg-card" />

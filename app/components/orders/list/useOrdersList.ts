@@ -74,7 +74,7 @@ export function useOrdersList() {
     limit: 50,
   };
 
-  const { data, isLoading } = useSWR<{ orders: OrderSummary[]; total: number }>(
+  const { data, error, isLoading, mutate } = useSWR<{ orders: OrderSummary[]; total: number }>(
     buildKey(PLATFORM_API.ORDERS, params),
     apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.LIST_DEDUPE },
@@ -110,6 +110,10 @@ export function useOrdersList() {
     orders,
     total: data?.total ?? 0,
     isLoading,
+    // Only the main list's error gates the screen; the month rollup degrades to
+    // "unavailable" on its own and must not blank the list.
+    error,
+    refresh: mutate,
     summary,
     filter,
     setFilter,

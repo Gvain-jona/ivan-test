@@ -8,7 +8,11 @@ import { SWR_CACHE_TIMES } from '@/lib/swr-config';
 import { useFormatCurrency } from '@/hooks/organization/useFormatCurrency';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
 import { useSheets } from '@/context/sheet-host';
+import { useProductMutations } from '@/hooks/products/useProducts';
+import { useToast } from '@/components/ui/use-toast';
 import { Card, Divided, ScreenFooter, ScreenHeader } from '@/components/patterns/screen';
+import { RecordActions } from '@/components/patterns/RecordActions';
+import { RecordError } from '@/components/patterns/RecordError';
 import { ValueRow } from '@/components/patterns/settings-rows';
 import {
   SummaryPanel,
@@ -53,10 +57,12 @@ interface ProductResponse {
 export default function ProductDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const fmt = useFormatCurrency();
-  const { openCreateOrder } = useSheets();
+  const { toast } = useToast();
+  const { openCreateOrder, openEditProduct, openOrder } = useSheets();
+  const { archiveProduct } = useProductMutations();
   const { fieldDefinitions } = useFieldDefinitions('product', { status: 'active' });
 
-  const { data, isLoading } = useSWR<ProductResponse>(
+  const { data, error, isLoading, mutate } = useSWR<ProductResponse>(
     `${PLATFORM_API.PRODUCTS}/${id}`,
     apiFetcher,
     { dedupingInterval: SWR_CACHE_TIMES.DETAIL_DEDUPE },
@@ -64,6 +70,12 @@ export default function ProductDetailScreen({ id }: { id: string }) {
 
   const loading = isLoading || !data;
   const showSkeleton = useDeferredLoading(loading);
+
+  if (error && !data) {
+    return (
+      <RecordError noun="product" error={error} onBack={() => router.back()} onRetry={() => mutate()} />
+    );
+  }
   if (loading) {
     return showSkeleton ? <RecordSkeleton /> : null;
   }
@@ -83,7 +95,30 @@ export default function ProductDetailScreen({ id }: { id: string }) {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
-      <ScreenHeader title={product.name} onBack={() => router.back()} />
+      <ScreenHeader
+        title={product.name}
+        onBack={() => router.back()}
+        action={
+          <RecordActions
+            noun="product"
+            name={product.name}
+            onEdit={() => openEditProduct(product)}
+            onArchive={async () => {
+              try {
+                await archiveProduct(product.id);
+                toast({ title: 'Product archived', description: product.name });
+                router.back();
+              } catch (error) {
+                toast({
+                  title: 'Could not archive the product',
+                  description: error instanceof Error ? error.message : 'Please try again',
+                  variant: 'destructive',
+                });
+              }
+            }}
+          />
+        }
+      />
 
       <div className="flex-1 px-4 py-[18px]">
         <div className="flex flex-col gap-[3px]">
@@ -141,9 +176,7 @@ export default function ProductDetailScreen({ id }: { id: string }) {
                     <button
                       key={line.id}
                       type="button"
-                      onClick={() =>
-                        line.orders && router.push(`/dashboard/orders?order=${line.orders.id}`)
-                      }
+                      onClick={() => line.orders && openOrder(line.orders.id)}
                       className="flex w-full px-3.5 py-[11px] text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     >
                       <div className="min-w-0 flex-1">

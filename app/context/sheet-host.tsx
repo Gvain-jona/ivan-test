@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
 import type { Client } from '@/hooks/clients/useClients';
+import type { Product } from '@/hooks/products/useProducts';
 
 /**
  * The single door for opening overlays (see DESIGN_PHILOSOPHY.md → "Overlays &
@@ -27,9 +28,14 @@ import type { Client } from '@/hooks/clients/useClients';
  * new order" / "open this order", and keeping them here meant the callers
  * never had to know the destination changed.
  */
+/** Optional prefill + select-back for an inline "New client". */
+type CreateClientOptions = { name?: string; onSaved?: (client: Client) => void };
+
 type SheetState =
-  | { type: 'create-client'; name?: string; onCreated?: (client: Client) => void }
+  | { type: 'create-client'; options?: CreateClientOptions }
+  | { type: 'edit-client'; client: Client }
   | { type: 'create-product' }
+  | { type: 'edit-product'; product: Product }
   | null;
 
 interface SheetHostApi {
@@ -38,14 +44,16 @@ interface SheetHostApi {
   /** Navigates to B4 (`/dashboard/orders/[id]`); not a sheet. */
   openOrder: (id: string) => void;
   /**
-   * Opens the create-client sheet. The optional `name` prefills it (the order
-   * picker hands over the text already typed), and `onCreated` fires with the
-   * saved client so the caller can select it in place — the create-and-return
-   * flow. Both are omitted by the standalone "New client" entries, which just
-   * need a blank sheet.
+   * Opens the client create form. `options.name` prefills it (the typed query
+   * from an inline "New client") and `options.onSaved` receives the created
+   * client — so the order form can select the walk-in it just created.
    */
-  openCreateClient: (name?: string, onCreated?: (client: Client) => void) => void;
+  openCreateClient: (options?: CreateClientOptions) => void;
+  /** Opens the client form in edit mode; the record's edits revalidate its keys. */
+  openEditClient: (client: Client) => void;
   openCreateProduct: () => void;
+  /** Opens the product form in edit mode. */
+  openEditProduct: (product: Product) => void;
   close: () => void;
 }
 
@@ -87,9 +95,10 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
   const api: SheetHostApi = {
     openCreateOrder: () => router.push('/dashboard/orders/new'),
     openOrder: (id) => router.push(`/dashboard/orders/${id}`),
-    openCreateClient: (name, onCreated) =>
-      open({ type: 'create-client', name, onCreated }),
+    openCreateClient: (options) => open({ type: 'create-client', options }),
+    openEditClient: (client) => open({ type: 'edit-client', client }),
     openCreateProduct: () => open({ type: 'create-product' }),
+    openEditProduct: (product) => open({ type: 'edit-product', product }),
     close,
   };
 
@@ -105,13 +114,22 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           open
           onOpenChange={(o) => !o && close()}
           client={null}
-          initialName={sheet.name}
+          initialName={sheet.options?.name}
           // ClientFormSheet.handleSubmit calls onOpenChange(false) → close()
           // immediately before onSaved, so closing again here would fire a
           // second history.back() in the same tick and pop *past* the screen
           // underneath — which for the order flow would unmount the very screen
           // the created client is meant to land on. Only relay the client.
-          onSaved={(client) => sheet.onCreated?.(client)}
+          onSaved={(client) => sheet.options?.onSaved?.(client)}
+        />
+      )}
+
+      {sheet?.type === 'edit-client' && (
+        <ClientFormSheet
+          open
+          onOpenChange={(o) => !o && close()}
+          client={sheet.client}
+          onSaved={close}
         />
       )}
 
@@ -120,6 +138,15 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           open
           onOpenChange={(o) => !o && close()}
           product={null}
+          onSaved={close}
+        />
+      )}
+
+      {sheet?.type === 'edit-product' && (
+        <ProductFormSheet
+          open
+          onOpenChange={(o) => !o && close()}
+          product={sheet.product}
           onSaved={close}
         />
       )}

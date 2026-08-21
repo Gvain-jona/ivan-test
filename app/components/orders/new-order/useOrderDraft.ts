@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrderMutations } from '@/hooks/orders/useOrders';
@@ -36,6 +36,11 @@ export function useOrderDraft() {
   const [notes, setNotes] = useState<DraftNote[]>([]);
   const [discount, setDiscount] = useState<DraftDiscount>({ type: null, value: 0 });
   const [saving, setSaving] = useState(false);
+  // Synchronous double-submit latch. `saving`/`canSave` only disable the button
+  // after the re-render commits, so two taps in one tick both reach `save()` and
+  // post two orders — each with the inline payments duplicated. The ref flips
+  // before the first await, so the second call returns immediately.
+  const savingRef = useRef(false);
 
   // The workflow loads async and the person may have already chosen, so a
   // chosen value wins and the org's default only fills the gap. Deliberately
@@ -51,6 +56,8 @@ export function useOrderDraft() {
 
   const save = async () => {
     if (!clientId || items.length === 0) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
 
     try {
@@ -104,6 +111,9 @@ export function useOrderDraft() {
       // has already been saved.
       router.replace(`/dashboard/orders/${order.id}`);
     } catch (error) {
+      // Success navigates away (unmount), so the latch is only released on the
+      // error path, where the person stays on the screen to retry.
+      savingRef.current = false;
       setSaving(false);
       toast({
         title: 'Could not create the order',

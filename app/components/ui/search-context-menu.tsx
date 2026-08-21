@@ -99,7 +99,7 @@ export function SearchContextMenu({
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Search HR tools or press..."
+              placeholder="Search…"
             />
             <div className="ml-2 flex items-center gap-1">
               <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
