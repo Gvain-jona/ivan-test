@@ -1,24 +1,45 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClients } from '@/hooks/clients/useClients';
 import { useProducts } from '@/hooks/products/useProducts';
-import { firstOrderPhase, shouldStartGuide, type FirstOrderPhase } from './first-order-guide';
+import { useOrders } from '@/hooks/orders/useOrders';
+import {
+  firstOrderPhase,
+  guideStepPosition,
+  guideSteps,
+  shouldStartGuide,
+  type FirstOrderPhase,
+} from './first-order-guide';
+
+/** Per-browser dismissal, so a skipped guide stays skipped across reopens. */
+const DISMISS_KEY = 'firstOrderGuide.dismissed';
+
+function readDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(DISMISS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+interface GuideState {
+  orgHasClients: boolean;
+  orgHasProducts: boolean;
+}
 
 /**
- * Drives the guided first order (see `first-order-guide.ts` for the phase
- * logic). Detects a fresh org — **0 clients and 0 products** — and, once so,
- * latches the guide on for the life of this screen so that creating the first
- * client (which flips the client count to 1) can't cut the walk short.
+ * Drives the guided first order (see `first-order-guide.ts` for the logic).
+ * Detects a genuine first order — **no orders yet, and missing clients or
+ * products** — then latches the org's facts for the life of the screen so that
+ * creating the first record (which flips a count to 1) can't renumber the steps
+ * or end the walk early.
  *
- * The counts are two `limit: 1` reads whose only purpose is the `total`. They
- * do NOT share SWR keys with the client/product pickers (those fetch `limit:
- * 8`), so they are two small standalone requests made on *every* new-order
- * open — established orgs included, even though the guide only acts for a fresh
- * one. That is a deliberate trade of a tiny, one-row-each cost for a clear
- * "I want the count" intent; if it ever needs to be free, match the pickers'
- * exact params (`status:'active', limit:8`) so SWR serves all three from one
- * request.
+ * Three `limit: 1` reads back the detection; their only purpose is the `total`.
+ * They do NOT share SWR keys with the pickers (those fetch `limit: 8`), so they
+ * are small standalone reads on every new-order open — a deliberate trade of a
+ * one-row-each cost for a clear "I want the count" intent. Match the pickers'
+ * params if it ever needs to be free.
  */
 export function useFirstOrderGuide({
   hasClient,
@@ -26,26 +47,63 @@ export function useFirstOrderGuide({
 }: {
   hasClient: boolean;
   itemCount: number;
-}): { phase: FirstOrderPhase; skip: () => void } {
+}): {
+  phase: FirstOrderPhase;
+  step: { number: number; total: number } | null;
+  skip: () => void;
+} {
   const clients = useClients({ status: 'active', limit: 1 });
   const products = useProducts({ status: 'active', limit: 1 });
-  const ready = !clients.isLoading && !products.isLoading;
+  const orders = useOrders({ limit: 1 });
+  const ready = !clients.isLoading && !products.isLoading && !orders.isLoading;
 
-  const [guiding, setGuiding] = useState(false);
+  const [state, setState] = useState<GuideState | null>(null);
   const [skipped, setSkipped] = useState(false);
   const decided = useRef(false);
 
   useEffect(() => {
-    // Decide exactly once, the first time both counts have resolved. After
-    // that the flag is frozen — live counts change as records are created.
+    // Decide exactly once, the first time all three counts have resolved. The
+    // org facts are captured here and never re-read, so the walk is stable as
+    // records are created underneath it.
     if (decided.current || !ready) return;
     decided.current = true;
-    if (shouldStartGuide({ ready, clientCount: clients.total, productCount: products.total })) {
-      setGuiding(true);
+    if (readDismissed()) return;
+    if (
+      shouldStartGuide({
+        ready,
+        orderCount: orders.total,
+        clientCount: clients.total,
+        productCount: products.total,
+      })
+    ) {
+      setState({ orgHasClients: clients.total > 0, orgHasProducts: products.total > 0 });
     }
-  }, [ready, clients.total, products.total]);
+  }, [ready, orders.total, clients.total, products.total]);
 
-  const phase = firstOrderPhase({ guiding, skipped, hasClient, itemCount });
+  const skip = useCallback(() => {
+    setSkipped(true);
+    try {
+      window.localStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      /* private mode / storage disabled — the guide just reappears next open */
+    }
+  }, []);
 
-  return { phase, skip: () => setSkipped(true) };
+  const orgHasClients = state?.orgHasClients ?? false;
+  const orgHasProducts = state?.orgHasProducts ?? false;
+
+  const phase = firstOrderPhase({
+    guiding: state !== null,
+    skipped,
+    orgHasClients,
+    orgHasProducts,
+    hasClient,
+    itemCount,
+  });
+
+  const step = state
+    ? guideStepPosition({ phase, steps: guideSteps({ orgHasClients, orgHasProducts }) })
+    : null;
+
+  return { phase, step, skip };
 }

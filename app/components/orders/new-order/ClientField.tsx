@@ -21,6 +21,12 @@ interface ClientFieldProps {
   onClear: () => void;
   /** Opens client creation for a name that matched nothing. */
   onCreate: (name: string) => void;
+  /**
+   * Suppress the "no clients yet" empty-query hint. Set while the first-order
+   * guide is walking the client step — its banner already carries that prompt,
+   * so showing both would double the same message.
+   */
+  hideEmptyHint?: boolean;
 }
 
 /**
@@ -38,6 +44,7 @@ export default function ClientField({
   onSelect,
   onClear,
   onCreate,
+  hideEmptyHint = false,
 }: ClientFieldProps) {
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
@@ -152,7 +159,7 @@ export default function ClientField({
             {/* Empty query means the fetch was unfiltered, so no results here
                 means the org genuinely has no clients yet — nudge toward
                 creating the first rather than the neutral "start typing". */}
-            {!isLoading && clients.length === 0 && query.trim() === '' && (
+            {!hideEmptyHint && !isLoading && clients.length === 0 && query.trim() === '' && (
               <p className="px-3.5 py-[11px] text-[13px] text-muted-foreground">
                 No clients yet — type a name to create your first one.
               </p>

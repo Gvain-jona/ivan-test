@@ -72,6 +72,7 @@ export default function NewOrderScreen() {
       <div className="flex flex-1 flex-col gap-[22px] px-4 py-4">
         <FirstOrderGuide
           phase={guide.phase}
+          step={guide.step}
           onAddClient={() =>
             openCreateClient({
               onSaved: client => draft.setClient({ id: client.id, name: client.name }),
@@ -84,6 +85,10 @@ export default function NewOrderScreen() {
         <ClientField
           clientId={draft.client.id}
           clientName={draft.client.name}
+          // While the guide is walking the client step, its banner is the
+          // prompt — suppress the field's own "no clients yet" hint so the two
+          // don't stack the same message.
+          hideEmptyHint={guide.phase === 'client'}
           onSelect={client => draft.setClient(client)}
           onClear={() => draft.setClient(null)}
           // The frame's inline `New client "kamp"` — opens the create sheet with

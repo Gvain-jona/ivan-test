@@ -5,6 +5,8 @@ import type { FirstOrderPhase } from './first-order-guide';
 
 interface FirstOrderGuideProps {
   phase: FirstOrderPhase;
+  /** "n of total" for the current step, or null when the walk is a single step. */
+  step: { number: number; total: number } | null;
   onAddClient: () => void;
   onAddProduct: () => void;
   onSkip: () => void;
@@ -21,6 +23,7 @@ interface FirstOrderGuideProps {
  */
 export default function FirstOrderGuide({
   phase,
+  step,
   onAddClient,
   onAddProduct,
   onSkip,
@@ -32,7 +35,7 @@ export default function FirstOrderGuide({
       <div className="flex items-center gap-2.5 rounded-2xl border border-success/30 bg-success/10 px-4 py-3">
         <Check className="h-4 w-4 flex-shrink-0 text-success" strokeWidth={2.5} />
         <p className="flex-1 text-[13px] font-medium text-foreground">
-          Your first client and product are in — review the order below and save.
+          You’re set up — review the order below and save when it’s ready.
         </p>
         <button
           type="button"
@@ -45,12 +48,14 @@ export default function FirstOrderGuide({
     );
   }
 
-  const step = phase === 'client' ? 1 : 2;
+  // Only number the steps when the walk has more than one; a product-only walk
+  // (an org that already has clients) shouldn't read "Step 1 of 1".
+  const label = step && step.total > 1 ? `Step ${step.number} of ${step.total} · New here` : 'New here';
   const title = phase === 'client' ? 'Add your first client' : 'Add your first product';
   const body =
     phase === 'client'
       ? 'Every order is for someone — start with who this one is for.'
-      : 'What are you selling them? We’ll save it to your catalogue so the next order is faster.';
+      : 'What are you selling? We’ll save it to your catalogue so the next order is faster.';
   const action = phase === 'client' ? onAddClient : onAddProduct;
   const actionLabel = phase === 'client' ? 'Add client' : 'Add product';
 
@@ -58,7 +63,7 @@ export default function FirstOrderGuide({
     <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-[0.6px] text-primary">
-          Step {step} of 2 · New here
+          {label}
         </span>
         <button
           type="button"
