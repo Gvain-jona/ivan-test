@@ -55,7 +55,7 @@ export default function FirstOrderGuide({
   const actionLabel = phase === 'client' ? 'Add client' : 'Add product';
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/[0.06] px-4 py-3.5">
+    <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-[0.6px] text-primary">
           Step {step} of 2 · New here

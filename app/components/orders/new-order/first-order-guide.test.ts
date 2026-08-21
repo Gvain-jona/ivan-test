@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { firstOrderPhase } from './first-order-guide';
+import { firstOrderPhase, shouldStartGuide } from './first-order-guide';
+
+describe('shouldStartGuide', () => {
+  it('starts only for a resolved, genuinely empty org', () => {
+    expect(shouldStartGuide({ ready: true, clientCount: 0, productCount: 0 })).toBe(true);
+  });
+
+  it('never starts while the counts are still loading (total defaults to 0)', () => {
+    // The critical invariant: a loading read reports 0, which must NOT read as
+    // an empty org, or the guide would fire for an established one.
+    expect(shouldStartGuide({ ready: false, clientCount: 0, productCount: 0 })).toBe(false);
+  });
+
+  it('does not start when either clients or products already exist', () => {
+    expect(shouldStartGuide({ ready: true, clientCount: 1, productCount: 0 })).toBe(false);
+    expect(shouldStartGuide({ ready: true, clientCount: 0, productCount: 5 })).toBe(false);
+    expect(shouldStartGuide({ ready: true, clientCount: 3, productCount: 3 })).toBe(false);
+  });
+});
 
 describe('firstOrderPhase', () => {
   it('is off when the org is not fresh (guide never latched on)', () => {
