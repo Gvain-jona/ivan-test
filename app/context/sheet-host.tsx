@@ -11,6 +11,8 @@ import {
 import { useRouter } from 'next/navigation';
 import ClientFormSheet from '@/components/clients/ClientFormSheet';
 import ProductFormSheet from '@/components/products/ProductFormSheet';
+import type { Client } from '@/hooks/clients/useClients';
+import type { Product } from '@/hooks/products/useProducts';
 
 /**
  * The single door for opening overlays (see DESIGN_PHILOSOPHY.md → "Overlays &
@@ -26,9 +28,14 @@ import ProductFormSheet from '@/components/products/ProductFormSheet';
  * new order" / "open this order", and keeping them here meant the callers
  * never had to know the destination changed.
  */
+/** Optional prefill + select-back for an inline "New client". */
+type CreateClientOptions = { name?: string; onSaved?: (client: Client) => void };
+
 type SheetState =
-  | { type: 'create-client' }
+  | { type: 'create-client'; options?: CreateClientOptions }
+  | { type: 'edit-client'; client: Client }
   | { type: 'create-product' }
+  | { type: 'edit-product'; product: Product }
   | null;
 
 interface SheetHostApi {
@@ -36,8 +43,17 @@ interface SheetHostApi {
   openCreateOrder: () => void;
   /** Navigates to B4 (`/dashboard/orders/[id]`); not a sheet. */
   openOrder: (id: string) => void;
-  openCreateClient: () => void;
+  /**
+   * Opens the client create form. `options.name` prefills it (the typed query
+   * from an inline "New client") and `options.onSaved` receives the created
+   * client — so the order form can select the walk-in it just created.
+   */
+  openCreateClient: (options?: CreateClientOptions) => void;
+  /** Opens the client form in edit mode; the record's edits revalidate its keys. */
+  openEditClient: (client: Client) => void;
   openCreateProduct: () => void;
+  /** Opens the product form in edit mode. */
+  openEditProduct: (product: Product) => void;
   close: () => void;
 }
 
@@ -79,8 +95,10 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
   const api: SheetHostApi = {
     openCreateOrder: () => router.push('/dashboard/orders/new'),
     openOrder: (id) => router.push(`/dashboard/orders/${id}`),
-    openCreateClient: () => open({ type: 'create-client' }),
+    openCreateClient: (options) => open({ type: 'create-client', options }),
+    openEditClient: (client) => open({ type: 'edit-client', client }),
     openCreateProduct: () => open({ type: 'create-product' }),
+    openEditProduct: (product) => open({ type: 'edit-product', product }),
     close,
   };
 
@@ -96,6 +114,19 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           open
           onOpenChange={(o) => !o && close()}
           client={null}
+          initialName={sheet.options?.name}
+          onSaved={(client) => {
+            sheet.options?.onSaved?.(client);
+            close();
+          }}
+        />
+      )}
+
+      {sheet?.type === 'edit-client' && (
+        <ClientFormSheet
+          open
+          onOpenChange={(o) => !o && close()}
+          client={sheet.client}
           onSaved={close}
         />
       )}
@@ -105,6 +136,15 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           open
           onOpenChange={(o) => !o && close()}
           product={null}
+          onSaved={close}
+        />
+      )}
+
+      {sheet?.type === 'edit-product' && (
+        <ProductFormSheet
+          open
+          onOpenChange={(o) => !o && close()}
+          product={sheet.product}
           onSaved={close}
         />
       )}

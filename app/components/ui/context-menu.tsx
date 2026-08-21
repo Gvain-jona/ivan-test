@@ -124,7 +124,7 @@ function ContextMenu({
               <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
               <input
                 className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Search HR tools or press..."
+                placeholder="Search…"
                 autoFocus
               />
               <div className="ml-2 flex items-center gap-1">

@@ -79,6 +79,10 @@ export function useDocuments(entityType: DocumentEntityType, entityId: string | 
         { ...input, entity_type: 'order', entity_ids: [entityId] },
       );
       await mutate();
+      // The org-wide documents list (/dashboard/documents) and its header counts
+      // are a different key than this order's documents — invalidate them too so
+      // a newly issued document appears there without a manual refresh.
+      await globalMutate(keysUnder(PLATFORM_API.DOCUMENTS));
       return document;
     },
     [entityType, entityId, mutate],
@@ -175,6 +179,13 @@ export function useDocumentMutations() {
         input,
       );
       await globalMutate(keysUnder(PLATFORM_API.DOCUMENTS));
+      // A status change ripples into the orders surface: voiding an invoice
+      // clears the order's live invoice (v2.order_live_invoice excludes 'void'),
+      // so the hub can offer to reissue and the list's issued state is stale
+      // until this refetches.
+      if (input.status !== undefined) {
+        await globalMutate(keysUnder(PLATFORM_API.ORDERS));
+      }
       return document;
     },
     [],

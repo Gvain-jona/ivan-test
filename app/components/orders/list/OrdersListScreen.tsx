@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FileText, Plus, Search, SlidersHorizontal, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
+import { ListError } from '@/components/patterns/ListError';
 import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
 import { useFieldDefinitions } from '@/hooks/fields/useFieldDefinitions';
@@ -140,7 +141,9 @@ export default function OrdersListScreen() {
       )}
 
       <div className="mt-3.5">
-        {list.isLoading && list.orders.length === 0 ? (
+        {list.error && list.orders.length === 0 ? (
+          <ListError noun="orders" onRetry={() => list.refresh()} />
+        ) : list.isLoading && list.orders.length === 0 ? (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-16 animate-pulse rounded-2xl border border-border bg-card" />

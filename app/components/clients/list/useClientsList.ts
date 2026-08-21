@@ -28,7 +28,10 @@ export function useClientsList() {
   const [owingOnly, setOwingOnly] = useState(false);
 
   // The active client book, and a bounded slice of orders to total against it.
-  const { clients, total, isLoading } = useClients({ status: 'active', limit: ROLLUP_ROW_CAP });
+  const { clients, total, isLoading, error, mutate } = useClients({
+    status: 'active',
+    limit: ROLLUP_ROW_CAP,
+  });
 
   const { data: ordersData } = useSWR<{ orders: OrderSummary[]; total: number }>(
     buildKey(PLATFORM_API.ORDERS, { limit: ROLLUP_ROW_CAP }),
@@ -81,6 +84,10 @@ export function useClientsList() {
     clients: filtered,
     total,
     isLoading,
+    // The client book's error gates the screen; the orders rollup degrades to
+    // "unavailable" on its own.
+    error,
+    refresh: mutate,
     rollups,
     /** Whether per-row owing/counts are trustworthy — see lib/clients/list. */
     exact: outstanding.exact,

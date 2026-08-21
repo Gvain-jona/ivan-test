@@ -1,8 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext } from 'react';
 import type { Announcement } from '@/app/types/announcements';
-import { API_ENDPOINTS } from '@/app/lib/api-endpoints';
 
 interface AnnouncementContextType {
   activeAnnouncements: Announcement[];
@@ -14,80 +13,28 @@ interface AnnouncementContextType {
 
 const AnnouncementContext = createContext<AnnouncementContextType | undefined>(undefined);
 
+/**
+ * Interface-preserving stub, like NotificationsContext before the v2
+ * notifications rebuild (STATE.md).
+ *
+ * Announcements are a legacy `public.announcements` feature that went dark at
+ * the Clerk swap: the route runs an unauthenticated query against a table the
+ * dead Supabase session can no longer reach, and its writes still gate on the
+ * dead `profiles.role === 'admin'`. The old provider fetched it on every
+ * dashboard load — one guaranteed-failing request per navigation. Until an
+ * announcements v2 cutover this holds the shape (TopHeader's banner still
+ * mounts and simply finds nothing) without the dead request.
+ */
+const EMPTY: AnnouncementContextType = {
+  activeAnnouncements: [],
+  currentAnnouncement: null,
+  refreshAnnouncements: async () => {},
+  isLoading: false,
+  currentIndex: 0,
+};
+
 export function AnnouncementProvider({ children }: { children: React.ReactNode }) {
-  const [activeAnnouncements, setActiveAnnouncements] = useState<Announcement[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const fetchActiveAnnouncements = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      // Use cache-busting query parameter to ensure we get fresh data
-      const cacheBuster = new Date().getTime();
-      const response = await fetch(`${API_ENDPOINTS.ANNOUNCEMENTS}?_=${cacheBuster}`);
-
-      if (!response.ok) {
-        console.error('Failed to fetch announcements');
-        return;
-      }
-
-      const data = await response.json();
-
-      // Filter for active announcements that are within their date range
-      const now = new Date();
-      const activeAnnouncements = data.filter((announcement: Announcement) => {
-        if (!announcement.is_active) return false;
-
-        const startDate = announcement.start_date ? new Date(announcement.start_date) : null;
-        const endDate = announcement.end_date ? new Date(announcement.end_date) : null;
-
-        return (!startDate || startDate <= now) && (!endDate || endDate >= now);
-      });
-
-      console.log('Active announcements:', activeAnnouncements);
-
-      setActiveAnnouncements(activeAnnouncements);
-      setCurrentIndex(0); // Reset index when new data is loaded
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Initial fetch on mount
-  useEffect(() => {
-    fetchActiveAnnouncements();
-  }, [fetchActiveAnnouncements]);
-
-  // Cycle through announcements if there are multiple
-  useEffect(() => {
-    if (activeAnnouncements.length <= 1) return;
-
-    const intervalId = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % activeAnnouncements.length);
-    }, 8000); // Cycle every 8 seconds
-
-    return () => clearInterval(intervalId);
-  }, [activeAnnouncements.length]);
-
-  // Get the current announcement
-  const currentAnnouncement = activeAnnouncements[currentIndex] || null;
-
-  return (
-    <AnnouncementContext.Provider
-      value={{
-        activeAnnouncements,
-        currentAnnouncement,
-        refreshAnnouncements: fetchActiveAnnouncements,
-        isLoading,
-        currentIndex
-      }}
-    >
-      {children}
-    </AnnouncementContext.Provider>
-  );
+  return <AnnouncementContext.Provider value={EMPTY}>{children}</AnnouncementContext.Provider>;
 }
 
 export function useAnnouncement() {

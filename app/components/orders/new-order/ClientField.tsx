@@ -133,7 +133,15 @@ export default function ClientField({
                 {clients.length > 0 && <RowDivider />}
                 <button
                   type="button"
-                  onClick={() => onCreate(query.trim())}
+                  onClick={() => {
+                    // Collapse the in-place search now: the created client is
+                    // selected back through onCreate's own path, and with
+                    // searching off the field then shows it as the chosen value
+                    // rather than staying in the search state over a set client.
+                    onCreate(query.trim());
+                    setSearching(false);
+                    setQuery('');
+                  }}
                   className="w-full px-3.5 py-[11px] text-left text-sm font-medium text-primary"
                 >
                   New client &ldquo;{query.trim()}&rdquo;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ChoiceChip } from '@/components/patterns/controls';
@@ -22,7 +22,13 @@ interface AddPaymentSheetProps {
   onOpenChange: (open: boolean) => void;
   /** What is still owed before this payment — drives the prefill and the footer. */
   balance: number;
-  onAdd: (payment: Omit<DraftPayment, 'key'>) => void;
+  /**
+   * Record the payment. Synchronous (the create-order draft, which just appends
+   * a local row) or async (the hub, which writes to the DB and returns whether
+   * it succeeded). The sheet closes on anything but an explicit `false`, so a
+   * failed DB write keeps the form — and the money the user typed — on screen.
+   */
+  onAdd: (payment: Omit<DraftPayment, 'key'>) => void | boolean | Promise<void | boolean>;
 }
 
 /**
@@ -52,6 +58,10 @@ export default function AddPaymentSheet({
   const [date, setDate] = useState(todayISO);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  // Synchronous latch: keep a second tap from firing a second payment in the
+  // window before `submitting` re-renders the button disabled.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -66,6 +76,27 @@ export default function AddPaymentSheet({
   const amountValue = Number(amount) || 0;
   const valid = amountValue > 0;
   const after = balance - amountValue;
+
+  const submit = async () => {
+    if (!valid || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const result = await onAdd({
+        amount: amountValue,
+        payment_method: method,
+        payment_date: date,
+        ...(reference.trim() ? { reference: reference.trim() } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+      // undefined (draft) or true (hub success) closes; false keeps it open so
+      // the DB's message applies to a form the user can still see.
+      if (result !== false) onOpenChange(false);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  };
 
   const box =
     'flex h-10 w-full items-center rounded-lg border border-border bg-background px-3 ' +
@@ -85,17 +116,9 @@ export default function AddPaymentSheet({
           // the money is the one who needs to know which happened.
           figureValue={after === 0 ? 'Settled' : after < 0 ? `${fmt(-after)} over` : fmt(after)}
           actionLabel="Add payment"
-          onAction={() => {
-            onAdd({
-              amount: amountValue,
-              payment_method: method,
-              payment_date: date,
-              ...(reference.trim() ? { reference: reference.trim() } : {}),
-              ...(notes.trim() ? { notes: notes.trim() } : {}),
-            });
-            onOpenChange(false);
-          }}
-          disabled={!valid}
+          onAction={submit}
+          disabled={!valid || submitting}
+          busy={submitting}
         />
       }
     >

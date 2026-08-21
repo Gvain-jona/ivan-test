@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useOrder, useOrderMutations } from '@/hooks/orders/useOrders';
 import { useNotes } from '@/hooks/notes/useNotes';
@@ -18,12 +18,21 @@ import type { CustomDataValue } from '@/lib/fields/visibility';
  */
 export function useOrderHub(orderId: string) {
   const { toast } = useToast();
-  const { order, payments, isLoading, mutate } = useOrder(orderId);
+  const { order, payments, isLoading, error, mutate } = useOrder(orderId);
   const { updateOrder, addPayment, addItem, updateItem, removeItem } = useOrderMutations();
   const { notes, addNote, mutate: mutateNotes } = useNotes('order', orderId);
   const { documents, issueDocument, mutate: mutateDocuments } = useDocuments('order', orderId);
 
   const [busy, setBusy] = useState(false);
+  // A synchronous re-entrancy latch. `busy` (React state) only latches after a
+  // re-render, so two events in the same tick — a double-tap, a stalled main
+  // thread — both read the old `false` and both fire the write. On the money
+  // paths (payment, issue-document) that means a duplicate charge or a second
+  // immutable invoice. The ref flips before any await, so the second caller is
+  // rejected outright, and it also serializes the hub's writes: while one is in
+  // flight the rest are dropped rather than interleaved (out-of-order refetches
+  // were how a stale status could win).
+  const inFlight = useRef(false);
 
   /**
    * One wrapper for every write: the DB is the authority on what the order now
@@ -32,11 +41,18 @@ export function useOrderHub(orderId: string) {
    * be read by the user).
    */
   const run = useCallback(
-    async (action: () => Promise<unknown>, failure: string) => {
+    async (action: () => Promise<unknown>, failure: string, success?: string) => {
+      if (inFlight.current) return false;
+      inFlight.current = true;
       setBusy(true);
       try {
         await action();
         await mutate();
+        // Success is confirmed only where the user needs it — money changing
+        // hands (payment) and an irreversible act (issuing a document). Status
+        // and field edits reflect in the figures on their own; a toast on every
+        // write would be noise.
+        if (success) toast({ title: success });
         return true;
       } catch (error) {
         toast({
@@ -46,6 +62,7 @@ export function useOrderHub(orderId: string) {
         });
         return false;
       } finally {
+        inFlight.current = false;
         setBusy(false);
       }
     },
@@ -97,6 +114,9 @@ export function useOrderHub(orderId: string) {
     paid: Number(order?.amount_paid ?? 0),
     balance: Number(order?.balance ?? 0),
     isLoading,
+    error,
+    /** Re-run the order fetch — used by the screen's error-state retry. */
+    refresh: mutate,
     busy,
 
     setStatus: (status: string) =>
@@ -145,7 +165,7 @@ export function useOrderHub(orderId: string) {
       run(() => removeItem(orderId, itemId), 'Could not remove the item'),
 
     addPayment: (input: Parameters<typeof addPayment>[1]) =>
-      run(() => addPayment(orderId, input), 'Could not record the payment'),
+      run(() => addPayment(orderId, input), 'Could not record the payment', 'Payment recorded'),
 
     addNote: (content: string, custom_data?: CustomDataValue) =>
       run(async () => {
@@ -154,9 +174,13 @@ export function useOrderHub(orderId: string) {
       }, 'Could not save the note'),
 
     issue: (input: { document_type: DocumentType; terms_days?: number }) =>
-      run(async () => {
-        await issueDocument(input);
-        await mutateDocuments();
-      }, 'Could not issue the document'),
+      run(
+        async () => {
+          await issueDocument(input);
+          await mutateDocuments();
+        },
+        'Could not issue the document',
+        'Document issued',
+      ),
   };
 }

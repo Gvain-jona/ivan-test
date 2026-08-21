@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, Divided } from '@/components/patterns/screen';
+import { ListError } from '@/components/patterns/ListError';
 import { Figure, QuickAction, Chip } from '@/components/patterns/list';
 import MobileFeedHeader from '@/components/navigation/MobileFeedHeader';
 import { useSheets } from '@/context/sheet-host';
@@ -129,7 +130,9 @@ export default function ClientsListScreen() {
       )}
 
       <div className="mt-3.5">
-        {list.isLoading && list.clients.length === 0 ? (
+        {list.error && list.clients.length === 0 ? (
+          <ListError noun="clients" onRetry={() => list.refresh()} />
+        ) : list.isLoading && list.clients.length === 0 ? (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-16 animate-pulse rounded-2xl border border-border bg-card" />
@@ -155,7 +158,7 @@ export default function ClientsListScreen() {
             {list.isEmptyOrg && (
               <button
                 type="button"
-                onClick={openCreateClient}
+                onClick={() => openCreateClient()}
                 className="mt-4 inline-flex items-center gap-[7px] rounded-full bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <UserPlus className="h-4 w-4" strokeWidth={2} />

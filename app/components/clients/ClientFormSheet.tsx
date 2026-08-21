@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ interface ClientFormSheetProps {
   onOpenChange: (open: boolean) => void;
   /** null = create; a client = edit */
   client: Client | null;
+  /** Prefills the name when creating — the typed query from an inline "New client". */
+  initialName?: string;
   /** Receives the saved client — lets the order form select it inline. */
   onSaved: (client: Client) => void;
 }
@@ -31,6 +33,7 @@ export default function ClientFormSheet({
   open,
   onOpenChange,
   client,
+  initialName,
   onSaved,
 }: ClientFormSheetProps) {
   const { toast } = useToast();
@@ -40,15 +43,22 @@ export default function ClientFormSheet({
   const [name, setName] = useState('');
   const [customData, setCustomData] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous latch: the `submitting` state disables the button a render
+  // later, so a same-tick double fire (double tap, or Enter + click) would
+  // otherwise create two clients.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
-    setName(client?.name ?? '');
+    // Editing shows the client's name; creating starts from the typed query
+    // when the sheet was opened from an inline "New client", else blank.
+    setName(client?.name ?? initialName ?? '');
     setCustomData((client?.custom_data as Record<string, unknown>) ?? {});
-  }, [open, client]);
+  }, [open, client, initialName]);
 
   const handleSubmit = async () => {
-    if (!name.trim() || submitting) return;
+    if (!name.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const input = {
@@ -68,6 +78,7 @@ export default function ClientFormSheet({
         variant: 'destructive',
       });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -94,7 +105,16 @@ export default function ClientFormSheet({
         </div>
       }
     >
-      <div className="p-4 space-y-5">
+      {/* A real form so Enter in the Name field submits. The visible action is
+          in AppSheet's footer slot (outside this subtree), so the hidden submit
+          button is what Enter triggers; both call handleSubmit. */}
+      <form
+        className="p-4 space-y-5"
+        onSubmit={e => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+      >
         <div className="space-y-1.5 max-w-md">
           <Label htmlFor="client-name">
             Name<span className="ml-0.5 text-destructive">*</span>
@@ -108,7 +128,9 @@ export default function ClientFormSheet({
         </div>
 
         <CustomFieldsForm fields={fieldDefinitions} value={customData} onChange={setCustomData} />
-      </div>
+
+        <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
+      </form>
     </AppSheet>
   );
 }
