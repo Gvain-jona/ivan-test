@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppSheet from '@/components/ui/sheets/AppSheet';
 import { FooterBar, SectionLabel } from '@/components/patterns/screen';
 import { ChoiceChip } from '@/components/patterns/controls';
@@ -55,6 +55,12 @@ export default function FirstProductSheet({ open, onOpenChange, onCreated }: Fir
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [saving, setSaving] = useState(false);
+  // Synchronous double-submit latch, the pattern the other write paths use
+  // (useOrderDraft, AddItemSheet, AddNoteSheet): `saving` only disables the
+  // button after the re-render commits, so two taps in one tick would both
+  // reach save() and create two products + two order lines. The ref flips
+  // before the first await.
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -68,7 +74,8 @@ export default function FirstProductSheet({ open, onOpenChange, onCreated }: Fir
   const valid = name.trim() !== '' && priceValue >= 0;
 
   const save = async () => {
-    if (!valid || saving) return;
+    if (!valid || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const categoryLabel = categoryOptions.find(o => o.value === category)?.label;
@@ -92,6 +99,8 @@ export default function FirstProductSheet({ open, onOpenChange, onCreated }: Fir
         description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

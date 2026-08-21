@@ -15,6 +15,25 @@
  */
 export type FirstOrderPhase = 'off' | 'client' | 'product' | 'done';
 
+/**
+ * Whether to latch the guide on. Fresh means **both** counts are zero — but
+ * only once the reads have resolved: `total` defaults to 0 while a read is in
+ * flight, so without the `ready` gate a loading state would read as an empty
+ * org and wrongly start the guide for an established one. This is the whole
+ * safety of the detection; kept pure so that invariant is regression-tested.
+ */
+export function shouldStartGuide({
+  ready,
+  clientCount,
+  productCount,
+}: {
+  ready: boolean;
+  clientCount: number;
+  productCount: number;
+}): boolean {
+  return ready && clientCount === 0 && productCount === 0;
+}
+
 export function firstOrderPhase({
   guiding,
   skipped,
