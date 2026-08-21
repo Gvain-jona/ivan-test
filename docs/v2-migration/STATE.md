@@ -681,6 +681,35 @@ single swap point. Order creation still goes through the
   `tsc`/lint/366 tests green after merging `main`. **Visual QA in an authed
   runtime still owed**, same caveat as the rest of the redesign.
 
+- **Guided first order (2026-08-21)** — the just-in-time onboarding decision:
+  instead of gating a fresh org with a full wizard up front (the retired model),
+  the app walks the *one order the user came to make*, at the point they need
+  each piece. Detection is a **genuinely fresh org — 0 clients and 0 products**
+  (`useFirstOrderGuide`, two `limit:1` count reads deduped against the pickers).
+  The `New Order` screen then narrates two steps via a banner
+  (`FirstOrderGuide`): **client → product**, one primary action each, "Step n of
+  2", and an always-present **Skip** so it can never trap. Phase is a pure
+  function (`first-order-guide.ts`, 6 unit tests) derived from the *draft's own
+  state* (has-client, item-count), so it can't drift; `guiding` is latched once
+  at mount so creating the first client (which flips the client count to 1)
+  can't end the walk early.
+  - **Client step** reuses the shipped inline create-and-return (host
+    `openCreateClient({ onSaved })`), which selects the new client onto the draft.
+  - **Product step** is a new guided builder (`FirstProductSheet`): the org's
+    **seeded Category options** (Business Cards, Flyers, …) as chips + Name +
+    Price, saved to the catalogue and dropped onto the order as its first line.
+    Category rides the *product's* `custom_data`, never the order line's
+    (different field sets; `validate_custom_data` would reject it), shown on the
+    line as display meta. Kept to Category→Name→Price on purpose; Size/Material/
+    Unit stay editable later in Products rather than burying the first order.
+  - **No payment step, by decision** — `payments.payment_method` is a fixed enum
+    (`cash|mobile_money|bank|credit`), so there is nothing to introduce or add;
+    the existing 4-chip picker stands on its own.
+  - Non-blocking and additive: a non-fresh org (has any client or product) never
+    sees the guide and falls back to the shipped nudge + one-off/create-and-
+    return affordances. `tsc`/lint/**372 tests** green. **Visual QA in an authed
+    runtime still owed.**
+
 ## Theming — system default + per-org brand (2026-08-06)
 
 **Requires a Clerk dashboard change to take effect.** Add a session-token
