@@ -16,6 +16,9 @@ import { ScreenFields } from '@/components/fields/ScreenFields';
 import ClientField from './ClientField';
 import { EmptyLine, methodLabel, NoteCard } from './parts';
 import { useOrderDraft } from './useOrderDraft';
+import { useFirstOrderGuide } from './useFirstOrderGuide';
+import FirstOrderGuide from './FirstOrderGuide';
+import FirstProductSheet from './FirstProductSheet';
 import AddItemSheet from '@/components/orders/sheets/AddItemSheet';
 import AddPaymentSheet from '@/components/orders/sheets/AddPaymentSheet';
 import AddNoteSheet from '@/components/orders/sheets/AddNoteSheet';
@@ -27,7 +30,7 @@ import { useSheets } from '@/context/sheet-host';
 import { optionColorClasses } from '@/lib/fields/colors';
 import { discountLabel, lineTotal } from '@/lib/orders/draft';
 
-type OpenSheet = 'item' | 'payment' | 'note' | 'discount' | null;
+type OpenSheet = 'item' | 'payment' | 'note' | 'discount' | 'first-product' | null;
 
 /**
  * Compose a new order — B2 on the canvas.
@@ -54,11 +57,30 @@ export default function NewOrderScreen() {
 
   const { totals, discount, items, payments, notes } = draft;
 
+  // Fresh-org walkthrough (0 clients, 0 products): narrates client → product,
+  // then gets out of the way. Derived from the same draft state the form uses,
+  // so no separate step tracking can drift out of sync with it.
+  const guide = useFirstOrderGuide({
+    hasClient: draft.client.id !== null,
+    itemCount: items.length,
+  });
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-background">
       <ScreenHeader title="New order" onBack={() => router.back()} />
 
       <div className="flex flex-1 flex-col gap-[22px] px-4 py-4">
+        <FirstOrderGuide
+          phase={guide.phase}
+          onAddClient={() =>
+            openCreateClient({
+              onSaved: client => draft.setClient({ id: client.id, name: client.name }),
+            })
+          }
+          onAddProduct={() => setSheet('first-product')}
+          onSkip={guide.skip}
+        />
+
         <ClientField
           clientId={draft.client.id}
           clientName={draft.client.name}
@@ -220,6 +242,11 @@ export default function NewOrderScreen() {
         open={sheet === 'item'}
         onOpenChange={open => setSheet(open ? 'item' : null)}
         onAdd={draft.addItem}
+      />
+      <FirstProductSheet
+        open={sheet === 'first-product'}
+        onOpenChange={open => setSheet(open ? 'first-product' : null)}
+        onCreated={draft.addItem}
       />
       <AddPaymentSheet
         open={sheet === 'payment'}
