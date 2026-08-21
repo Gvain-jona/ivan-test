@@ -684,15 +684,24 @@ single swap point. Order creation still goes through the
 - **Guided first order (2026-08-21)** — the just-in-time onboarding decision:
   instead of gating a fresh org with a full wizard up front (the retired model),
   the app walks the *one order the user came to make*, at the point they need
-  each piece. Detection is a **genuinely fresh org — 0 clients and 0 products**
-  (`useFirstOrderGuide`, two `limit:1` count reads deduped against the pickers).
-  The `New Order` screen then narrates two steps via a banner
-  (`FirstOrderGuide`): **client → product**, one primary action each, "Step n of
-  2", and an always-present **Skip** so it can never trap. Phase is a pure
-  function (`first-order-guide.ts`, 6 unit tests) derived from the *draft's own
-  state* (has-client, item-count), so it can't drift; `guiding` is latched once
-  at mount so creating the first client (which flips the client count to 1)
-  can't end the walk early.
+  each piece. Detection (`useFirstOrderGuide`, three `limit:1` count reads —
+  clients, products, **orders**) is a **genuine first order that is still
+  missing something**: `orderCount === 0 && (clientCount === 0 || productCount
+  === 0)`. The order-count gate is load-bearing — it stops an established org
+  that just prefers one-off items (never built a catalogue) from being nagged on
+  every order; once they have a single order, the guide never appears. The `New
+  Order` screen narrates **only the creation steps the org actually lacks** via a
+  banner (`FirstOrderGuide`): a fully fresh org walks client → product ("Step n
+  of 2"); an org that already has clients gets the product step alone (no "Step 1
+  of 1" — the counter hides for a single-step walk). One primary action each, an
+  always-present **Skip**, and skip is **persisted per-browser** (localStorage
+  `firstOrderGuide.dismissed`) so a dismissed guide stays gone. Phase and step
+  numbering are pure functions (`first-order-guide.ts`, 13 unit tests): the walk
+  advances off the *draft's live state* (has-client, item-count) while the org
+  facts are **latched once at mount**, so creating the first record can't
+  renumber the steps or end the walk early. While the guide walks the client
+  step, `ClientField`'s own "no clients yet" hint is suppressed (`hideEmptyHint`)
+  so the banner and the field don't stack the same message.
   - **Client step** reuses the shipped inline create-and-return (host
     `openCreateClient({ onSaved })`), which selects the new client onto the draft.
   - **Product step** is a new guided builder (`FirstProductSheet`): the org's
@@ -705,9 +714,11 @@ single swap point. Order creation still goes through the
   - **No payment step, by decision** — `payments.payment_method` is a fixed enum
     (`cash|mobile_money|bank|credit`), so there is nothing to introduce or add;
     the existing 4-chip picker stands on its own.
-  - Non-blocking and additive: a non-fresh org (has any client or product) never
-    sees the guide and falls back to the shipped nudge + one-off/create-and-
-    return affordances. `tsc`/lint/**372 tests** green. **Visual QA in an authed
+  - Non-blocking and additive: an org past its first order, or one that already
+    has both clients and products, never sees the guide and falls back to the
+    shipped nudge + one-off/create-and-return affordances. `FirstProductSheet`
+    carries the same synchronous double-submit latch (`savingRef`) the other
+    write paths use. `tsc`/lint/**379 tests** green. **Visual QA in an authed
     runtime still owed.**
 
 ## Theming — system default + per-org brand (2026-08-06)
