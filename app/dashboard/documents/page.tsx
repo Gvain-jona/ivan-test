@@ -129,7 +129,10 @@ export default function DocumentsPage() {
             ))}
           </div>
         ) : documents.length === 0 ? (
-          <EmptyState searching={debouncedSearch.length > 0} />
+          <EmptyState
+            searching={debouncedSearch.length > 0}
+            onCreateOrder={openCreateOrder}
+          />
         ) : (
           <>
             <Card>
@@ -182,7 +185,13 @@ function Figure({
   );
 }
 
-function EmptyState({ searching }: { searching: boolean }) {
+function EmptyState({
+  searching,
+  onCreateOrder,
+}: {
+  searching: boolean;
+  onCreateOrder: () => void;
+}) {
   return (
     <Section label="">
       <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center">
@@ -195,6 +204,21 @@ function EmptyState({ searching }: { searching: boolean }) {
             ? 'Try a different number, or clear the search.'
             : 'Quotations and invoices appear here once you issue them from an order.'}
         </p>
+        {/* First-run gets the same direct path to the next action its sibling
+            surfaces (Clients/Products) carry. Documents have no create of their
+            own — they are issued from an order — so the action is New order,
+            not a "New document" that would dead-end. Hidden while searching:
+            there the resolution is to change the query, not create anything. */}
+        {!searching && (
+          <button
+            type="button"
+            onClick={onCreateOrder}
+            className="mt-4 inline-flex items-center gap-[7px] rounded-full bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            New order
+          </button>
+        )}
       </div>
     </Section>
   );

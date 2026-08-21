@@ -115,10 +115,12 @@ export function SheetHostProvider({ children }: { children: ReactNode }) {
           onOpenChange={(o) => !o && close()}
           client={null}
           initialName={sheet.options?.name}
-          onSaved={(client) => {
-            sheet.options?.onSaved?.(client);
-            close();
-          }}
+          // ClientFormSheet.handleSubmit calls onOpenChange(false) → close()
+          // immediately before onSaved, so closing again here would fire a
+          // second history.back() in the same tick and pop *past* the screen
+          // underneath — which for the order flow would unmount the very screen
+          // the created client is meant to land on. Only relay the client.
+          onSaved={(client) => sheet.options?.onSaved?.(client)}
         />
       )}
 

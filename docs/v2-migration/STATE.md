@@ -648,6 +648,39 @@ single swap point. Order creation still goes through the
     edit/archive menu, not a visual tweak; `ScreenHeader` has no trailing slot
     yet.
 
+- **Create-in-context on the new-order flow (2026-08-18)** — the cold-start CRUD
+  question: what a first order does when the org has no clients/products yet.
+  Research on how nine production platforms (QuickBooks, Zoho, Stripe, Shopify,
+  Salesforce, HubSpot) handle it is in `CRUD_UX_RESEARCH.md`; it confirms the
+  inline create-and-return direction and the one-off/promote model.
+  **The client half of this converged with PR #19's pre-launch audit**, which
+  independently shipped the same create-and-return (typed name prefills the
+  sheet, saved client selected back) in a superset form — `openCreateClient({
+  name?, onSaved? })` plus `openEditClient`/`openEditProduct`. That is now the
+  merged baseline; this PR (#20) adopts it and carries only what #19 did **not**:
+  - **One-off → catalogue.** A one-off in `AddItemSheet` gets **"+ Save to
+    catalogue"**, which `createProduct`s in place (name + entered price +
+    product-field-narrowed `custom_data`, since line and product field sets
+    differ) and rebinds the line to the new `product_id` — no second sheet. The
+    inverse of "Add as a one-off"; matches Stripe's one-time-item vs create-product split.
+  - **Zero-clients nudge.** `ClientField`'s empty-query empty state now reads
+    "No clients yet — type a name to create your first one" instead of the
+    neutral "start typing" #19 kept.
+  - **Documents empty-state CTA.** The documents first-run empty state gained a
+    **New order** button (its siblings Clients/Products already had inline CTAs;
+    documents are issued *from* an order, so New order is the real path).
+  - **Double-close fix.** `ClientFormSheet.handleSubmit` calls
+    `onOpenChange(false)` **and** `onSaved`; the host wired both to `close()`,
+    firing two synchronous `history.back()`s that pop *past* the screen
+    underneath — which for the order flow would unmount the screen the created
+    client must land on. `onSaved` now only relays the client; `onOpenChange`
+    owns the single close. (Also removes the same latent double-back from #19's
+    standalone create flows. The `edit-client`/`edit-product` sheets still carry
+    it — left untouched as out of scope for this PR.)
+
+  `tsc`/lint/366 tests green after merging `main`. **Visual QA in an authed
+  runtime still owed**, same caveat as the rest of the redesign.
+
 ## Theming — system default + per-org brand (2026-08-06)
 
 **Requires a Clerk dashboard change to take effect.** Add a session-token

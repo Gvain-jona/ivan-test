@@ -149,9 +149,12 @@ export default function ClientField({
               </>
             )}
 
+            {/* Empty query means the fetch was unfiltered, so no results here
+                means the org genuinely has no clients yet — nudge toward
+                creating the first rather than the neutral "start typing". */}
             {!isLoading && clients.length === 0 && query.trim() === '' && (
               <p className="px-3.5 py-[11px] text-[13px] text-muted-foreground">
-                Start typing to find a client.
+                No clients yet — type a name to create your first one.
               </p>
             )}
           </Card>
