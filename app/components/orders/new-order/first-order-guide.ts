@@ -71,7 +71,14 @@ export function firstOrderPhase({
   // is only about the product it is missing.
   if (!orgHasClients && !hasClient) return 'client';
   if (!orgHasProducts && itemCount === 0) return 'product';
-  return 'done';
+  // Every creation step the org actually needed is done — but "done" is a claim
+  // that the order is *ready*, which is only true once it has both a client and
+  // a line (`useOrderDraft`'s own canSave rule). When the org already had one
+  // side, the piece still missing is a *selection*, not a creation: the normal
+  // field / "Add item" affordance owns that, so the guide steps aside rather
+  // than congratulating the user into a form whose Save is still disabled.
+  if (hasClient && itemCount > 0) return 'done';
+  return 'off';
 }
 
 /**

@@ -19,6 +19,7 @@ import { useOrderDraft } from './useOrderDraft';
 import { useFirstOrderGuide } from './useFirstOrderGuide';
 import FirstOrderGuide from './FirstOrderGuide';
 import FirstProductSheet from './FirstProductSheet';
+import FirstClientSheet from './FirstClientSheet';
 import AddItemSheet from '@/components/orders/sheets/AddItemSheet';
 import AddPaymentSheet from '@/components/orders/sheets/AddPaymentSheet';
 import AddNoteSheet from '@/components/orders/sheets/AddNoteSheet';
@@ -30,7 +31,7 @@ import { useSheets } from '@/context/sheet-host';
 import { optionColorClasses } from '@/lib/fields/colors';
 import { discountLabel, lineTotal } from '@/lib/orders/draft';
 
-type OpenSheet = 'item' | 'payment' | 'note' | 'discount' | 'first-product' | null;
+type OpenSheet = 'item' | 'payment' | 'note' | 'discount' | 'first-product' | 'first-client' | null;
 
 /**
  * Compose a new order — B2 on the canvas.
@@ -54,6 +55,9 @@ export default function NewOrderScreen() {
   const { fieldDefinitions: orderFields } = useFieldDefinitions('order');
   const { fieldDefinitions: noteFields } = useFieldDefinitions('note');
   const [sheet, setSheet] = useState<OpenSheet>(null);
+  // Prefill for the guided client sheet, carrying the typed name when it's
+  // opened from ClientField's inline "New client".
+  const [firstClientName, setFirstClientName] = useState('');
 
   const { totals, discount, items, payments, notes } = draft;
 
@@ -73,11 +77,10 @@ export default function NewOrderScreen() {
         <FirstOrderGuide
           phase={guide.phase}
           step={guide.step}
-          onAddClient={() =>
-            openCreateClient({
-              onSaved: client => draft.setClient({ id: client.id, name: client.name }),
-            })
-          }
+          onAddClient={() => {
+            setFirstClientName('');
+            setSheet('first-client');
+          }}
           onAddProduct={() => setSheet('first-product')}
           onSkip={guide.skip}
         />
@@ -91,15 +94,23 @@ export default function NewOrderScreen() {
           hideEmptyHint={guide.phase === 'client'}
           onSelect={client => draft.setClient(client)}
           onClear={() => draft.setClient(null)}
-          // The frame's inline `New client "kamp"` — opens the create sheet with
+          // The frame's inline `New client "kamp"` — opens a create sheet with
           // the typed name prefilled, and selects the created client back into
-          // the order so the walk-in is attached without a second search.
-          onCreate={name =>
-            openCreateClient({
-              name,
-              onSaved: client => draft.setClient({ id: client.id, name: client.name }),
-            })
-          }
+          // the order so the walk-in is attached without a second search. While
+          // the guide is walking a fresh org, route to the guided FirstClientSheet
+          // so both client-create entry points on this screen are the same form;
+          // an established org (guide off) gets the everyday host sheet.
+          onCreate={name => {
+            if (guide.phase !== 'off') {
+              setFirstClientName(name);
+              setSheet('first-client');
+            } else {
+              openCreateClient({
+                name,
+                onSaved: client => draft.setClient({ id: client.id, name: client.name }),
+              });
+            }
+          }}
         />
 
         {statuses.length > 0 && (
@@ -247,6 +258,12 @@ export default function NewOrderScreen() {
         open={sheet === 'item'}
         onOpenChange={open => setSheet(open ? 'item' : null)}
         onAdd={draft.addItem}
+      />
+      <FirstClientSheet
+        open={sheet === 'first-client'}
+        onOpenChange={open => setSheet(open ? 'first-client' : null)}
+        initialName={firstClientName}
+        onCreated={client => draft.setClient({ id: client.id, name: client.name })}
       />
       <FirstProductSheet
         open={sheet === 'first-product'}

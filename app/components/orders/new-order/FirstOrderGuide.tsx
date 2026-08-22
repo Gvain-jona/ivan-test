@@ -15,12 +15,46 @@ interface FirstOrderGuideProps {
 /**
  * The guided-first-order banner — the visible half of `useFirstOrderGuide`.
  *
- * It rides the top of the New Order screen for a fresh org and narrates the two
+ * It rides the top of the New Order screen for a fresh org and narrates the
  * steps in order (client, then product), each a single primary action, with a
- * running "Step n of 2" and an always-present Skip so it can never trap. When
- * both are done it turns into a one-line confirmation the user can dismiss.
- * Renders nothing once the guide is off.
+ * small progress indicator and an always-present Skip so it can never trap. When
+ * the order is actually ready it turns into a one-line confirmation the user can
+ * dismiss. Renders nothing once the guide is off.
+ *
+ * Deliberately a **calm, neutral card** (`bg-card` / `border-border`), not a
+ * brand-tinted slab: `--primary` is the org's own colour and reads unpredictably
+ * as a large fill across tenants and themes, so the brand shows only where it
+ * always does — the single primary button, plus tiny step dots — while the
+ * surface stays the same as every other card on the screen.
  */
+/** Per-step copy, keyed by phase — keeps the render free of stacked ternaries. */
+const STEP_COPY: Record<'client' | 'product', { title: string; body: string; actionLabel: string }> = {
+  client: {
+    title: 'Add your first client',
+    body: 'Every order is for someone — start with who this one is for.',
+    actionLabel: 'Add client',
+  },
+  product: {
+    title: 'Add your first product',
+    body: 'What are you selling? We’ll save it to your catalogue so the next order is faster.',
+    actionLabel: 'Add product',
+  },
+};
+
+/** Filled-to-current progress dots; the brand shows here only as a small accent. */
+function StepDots({ number, total }: { number: number; total: number }) {
+  return (
+    <div className="flex items-center gap-1" role="img" aria-label={`Step ${number} of ${total}`}>
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-1.5 w-1.5 rounded-full ${i < number ? 'bg-primary' : 'bg-border'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function FirstOrderGuide({
   phase,
   step,
@@ -32,8 +66,10 @@ export default function FirstOrderGuide({
 
   if (phase === 'done') {
     return (
-      <div className="flex items-center gap-2.5 rounded-2xl border border-success/30 bg-success/10 px-4 py-3">
-        <Check className="h-4 w-4 flex-shrink-0 text-success" strokeWidth={2.5} />
+      <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-card px-4 py-3">
+        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-success/15">
+          <Check className="h-3 w-3 text-success" strokeWidth={2.5} />
+        </span>
         <p className="flex-1 text-[13px] font-medium text-foreground">
           You’re set up — review the order below and save when it’s ready.
         </p>
@@ -48,23 +84,21 @@ export default function FirstOrderGuide({
     );
   }
 
-  // Only number the steps when the walk has more than one; a product-only walk
+  // Only show progress when the walk has more than one step; a product-only walk
   // (an org that already has clients) shouldn't read "Step 1 of 1".
-  const label = step && step.total > 1 ? `Step ${step.number} of ${step.total} · New here` : 'New here';
-  const title = phase === 'client' ? 'Add your first client' : 'Add your first product';
-  const body =
-    phase === 'client'
-      ? 'Every order is for someone — start with who this one is for.'
-      : 'What are you selling? We’ll save it to your catalogue so the next order is faster.';
+  const multiStep = step !== null && step.total > 1;
+  const progressLabel =
+    multiStep && step ? `Step ${step.number} of ${step.total}` : 'Getting started';
+  const { title, body, actionLabel } = STEP_COPY[phase];
   const action = phase === 'client' ? onAddClient : onAddProduct;
-  const actionLabel = phase === 'client' ? 'Add client' : 'Add product';
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3.5">
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3.5">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.6px] text-primary">
-          {label}
-        </span>
+        <div className="flex items-center gap-2">
+          {multiStep && step && <StepDots number={step.number} total={step.total} />}
+          <span className="text-[11px] font-medium text-muted-foreground">{progressLabel}</span>
+        </div>
         <button
           type="button"
           onClick={onSkip}

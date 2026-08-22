@@ -69,7 +69,25 @@ describe('firstOrderPhase', () => {
   it('skips the product step when the org already has products', () => {
     const hasProducts = { ...base, orgHasProducts: true };
     expect(firstOrderPhase({ ...hasProducts, hasClient: false, itemCount: 0 })).toBe('client');
-    expect(firstOrderPhase({ ...hasProducts, hasClient: true, itemCount: 0 })).toBe('done');
+  });
+
+  it('does NOT claim done while the order is not yet savable', () => {
+    // The creation step the org needed is finished, but the *selection* the
+    // normal form owns isn't — so the guide steps aside (off), never "done".
+    // Org has products, client created, but no line item yet:
+    const hasProducts = { ...base, orgHasProducts: true };
+    expect(firstOrderPhase({ ...hasProducts, hasClient: true, itemCount: 0 })).toBe('off');
+    // Org has clients, product created, but no client selected yet:
+    const hasClients = { ...base, orgHasClients: true };
+    expect(firstOrderPhase({ ...hasClients, hasClient: false, itemCount: 1 })).toBe('off');
+  });
+
+  it('reaches done only once the order is actually savable', () => {
+    // Same partial-org walks, now with both a client and a line present.
+    const hasProducts = { ...base, orgHasProducts: true };
+    expect(firstOrderPhase({ ...hasProducts, hasClient: true, itemCount: 1 })).toBe('done');
+    const hasClients = { ...base, orgHasClients: true };
+    expect(firstOrderPhase({ ...hasClients, hasClient: true, itemCount: 1 })).toBe('done');
   });
 });
 

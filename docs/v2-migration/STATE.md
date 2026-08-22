@@ -1,7 +1,7 @@
 # v2 platform migration — live state
 
-Last updated: 2026-08-14 (first-run collapsed to A1; baseline seeded for the
-org). This is the
+Last updated: 2026-08-22 (guided first order — half-baked-edges pass: savable
+`done`, guided FirstClientSheet, per-org skip, calm banner). This is the
 session-to-session ground truth for the v2 pivot: what has been decided, what is
 built, what is blocked, and on whom. Update it when any of that changes — this
 file exists so a fresh session doesn't have to re-derive the pivot from git
@@ -720,6 +720,42 @@ single swap point. Order creation still goes through the
     carries the same synchronous double-submit latch (`savingRef`) the other
     write paths use. `tsc`/lint/**379 tests** green. **Visual QA in an authed
     runtime still owed.**
+
+- **Guided first order — half-baked-edges pass (2026-08-22)** — a review of the
+  above found four real gaps (three shipped bugs, one design smell); fixed:
+  - **`done` was a lie on partial walks.** The phase machine tracked "were the
+    missing entity *types* created", not "is the order savable" (`canSave` =
+    a client selected **and** ≥1 line). So an org that already had products but
+    no clients reached `done` — "You're set up… save when it's ready" — with an
+    empty order and Save disabled (and the mirror case for clients-but-no-
+    products). `firstOrderPhase` now only reaches `done` when
+    `hasClient && itemCount > 0`; when the only thing left is a *selection* the
+    normal field/"Add item" owns, the guide **steps aside** (`off`) instead of
+    claiming a finished setup. The unit test that encoded the old behaviour is
+    replaced with "does NOT claim done while not savable" / "reaches done only
+    once savable" (15 tests).
+  - **The client step opened the wrong form.** The product step was a guided
+    builder (`FirstProductSheet`) but the client step dropped a first-timer into
+    the everyday `ClientFormSheet` (full custom-field editor, shadcn form
+    vocabulary) — two different UIs inside one walk. New **`FirstClientSheet`**,
+    the twin of `FirstProductSheet` (same screen/controls vocabulary): seeded
+    **Type** chips + Name + Phone, saved and selected onto the order. Both the
+    guide's "Add client" and `ClientField`'s inline "New client" route to it
+    **while the guide is active**; an established org (guide off) still gets the
+    everyday host sheet.
+  - **Skip wasn't tenant-scoped.** The dismissal was a single global
+    `localStorage` key, so skipping in one org suppressed the guide for a
+    genuinely fresh *other* org on the same browser. Keyed by
+    `organization_id` now (`firstOrderGuide.dismissed.<orgId>`), gated on the org
+    id having resolved (`useOrganization`, an already-deduped app-wide read).
+  - **The banner was a brand-tinted slab.** `bg-primary/10` + `text-primary`
+    eyebrow + a done-state `bg-success/10` block — `--primary` is the org's own
+    colour and reads unpredictably as a large fill across tenants/themes.
+    Redrawn as a calm neutral card (`bg-card`/`border-border`), the brand kept to
+    where it always lives (the single primary button + tiny step dots); done
+    state is the same neutral card with a small success check.
+  - `tsc`/lint/**381 tests** green. **Visual QA in an authed runtime still
+    owed**, same caveat as the rest of the guide.
 
 ## Theming — system default + per-org brand (2026-08-06)
 
